@@ -41,6 +41,8 @@ public enum Permission {
     POST_RESTORE("post.restore", POST, SENSITIVE, true),
     /** 일괄 삭제({@code post.manage} 와 함께) */
     POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, true),
+    /** 우수 글 선정·취소(point-board-tier-contract) — 글쓴이에게 그 게시판 등급의 우수 글 포인트(보류 지급)를 준다. 운영자만(게시판 매니저에게 주지 않는다) */
+    POST_FEATURE("post.feature", POST, MANAGE, true),
     // AI 회원(docs/features/ai-members-contract.md) — 관리자 /ai-members 네 화면. 글·댓글을 만드는 계정이라 게시글 유형에 둔다
     /** AI 회원 목록·상세·검수 대기함·설정·활동 기록 조회 */
     AI_MEMBER_READ("ai-member.read", POST, READ, true),

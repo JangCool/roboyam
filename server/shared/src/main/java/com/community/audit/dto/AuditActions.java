@@ -250,6 +250,9 @@ public final class AuditActions {
     public static final String POST_NOTICE = "POST_NOTICE";
     public static final String POST_PIN = "POST_PIN";
     public static final String POST_UNPIN = "POST_UNPIN";
+    /** 우수 글 선정·취소(point-board-tier-contract — 대상 POST, 덧붙임: 지급·보류 포인트) */
+    public static final String POST_FEATURE = "POST_FEATURE";
+    public static final String POST_UNFEATURE = "POST_UNFEATURE";
     /** 일괄 숨김·해제·삭제 — 대상 POST + {@code bulk}, {@code action}·{@code done}·{@code failed}(글 ID 목록) */
     public static final String POST_BULK = "POST_BULK";
     /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */

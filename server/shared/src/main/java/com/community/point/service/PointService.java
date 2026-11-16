@@ -3,6 +3,9 @@ package com.community.point.service;
 import com.community.grade.service.XpService;
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
+import com.community.point.dto.PointTierRules;
+import com.community.point.dto.PointTierValues;
+import com.community.point.entity.PointBoardTier;
 import com.community.point.entity.PointKind;
 import com.community.point.entity.PointLotKind;
 import com.community.point.entity.PointReason;
@@ -16,6 +19,9 @@ import com.community.point.repository.master.PointLedgerWriter.Lot;
 import com.community.point.repository.master.PointLedgerWriter.NewLot;
 import com.community.point.repository.master.PointLedgerWriter.Shortfall;
 import com.community.point.service.PointDeductionPolicy.Take;
+import com.community.hotdeal.service.DealUrlKey;
+import com.community.post.dto.PostSource;
+import com.community.post.service.PostSources;
 import com.community.restriction.entity.RestrictionType;
 import com.community.restriction.service.MemberRestrictionService;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -29,6 +35,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,9 +103,12 @@ public class PointService {
     /** 포인트 게임 로또 번호 뽑기의 대상 — 한 번에 뽑은 묶음({@code point_game_lotto_draws.batch_id}, V235) */
     public static final String REF_LOTTO_DRAW = "LOTTO_DRAW";
 
-    /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */
+    /**
+     * 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외). 게시판 등급별 포인트(point-board-tier-contract 「규칙」)부터
+     * 「쓰면 바로」 받는 것만 든다 — 추천 문턱 보너스({@code LIKE_BONUS})·우수 글({@code POST_FEATURED})·인기글 보상은 한도 밖이다.
+     */
     public static final Set<PointReason> DAILY_TOTAL_REASONS = EnumSet.of(PointReason.ATTENDANCE, PointReason.ATTENDANCE_STREAK, PointReason.POST,
-            PointReason.COMMENT, PointReason.LIKE_BONUS);
+            PointReason.COMMENT);
     private static final List<String> DAILY_TOTAL_NAMES = DAILY_TOTAL_REASONS.stream().map(PointReason::name).toList();
     /** 작성 간격이 보는 적립(글·댓글 합쳐) */
     private static final Set<PointReason> WRITE_REASONS = EnumSet.of(PointReason.POST, PointReason.COMMENT);
@@ -144,10 +154,17 @@ public class PointService {
      * 글 적립 맥락 — 글을 저장한 트랜잭션에서 넘긴다(비회원 글은 부르지 않는다).
      *
      * @param plainText        본문의 보이는 글자({@code ContentBody.plain()} — 서식 태그는 이미 빠졌다). 공백은 여기서 뺀다
-     * @param boardPoints      게시판 유효 {@code pointMode} 가 ON 인가 — OFF 면 그 게시판 글·댓글·추천 보너스는 0(확정 2)
+     * @param pointMode        게시판 유효 {@code pointMode} — {@code OFF} 면 그 게시판 글·댓글·추천 보너스는 0(확정 2), 아니면 등급 {@code NORMAL}·{@code INFO}·{@code CORE}
+     *                         (point-board-tier-contract — 쓰면 바로 금액·최소 글자 수·사진 최소는 그 등급 값)
      * @param minLengthApplied 게시판 유효 「적립 최소 글자 수 적용」 — false 면 글 본문 최소 글자 수만 빠진다(확정 1)
+     * @param imageCount       본문 사진 수(올린 이미지 — {@code ContentBody.imageIds()}) — 등급의 사진 최소가 본다
      */
-    public record PostEarn(long userId, long postId, String plainText, boolean boardPoints, boolean minLengthApplied) {
+    public record PostEarn(long userId, long postId, String plainText, String pointMode, boolean minLengthApplied, int imageCount) {
+
+        /** 등급 없이(포인트 켬 = 일반 등급, 사진 0장) — 1-3 시험·예전 호출 모양 */
+        public PostEarn(long userId, long postId, String plainText, boolean boardPoints, boolean minLengthApplied) {
+            this(userId, postId, plainText, boardPoints ? PointBoardTier.NORMAL.name() : PointBoardTier.OFF, minLengthApplied, 0);
+        }
     }
 
     /**
@@ -172,18 +189,37 @@ public class PointService {
      */
     public long earnPost(PostEarn post) {
         // 정책 읽기도 세이브포인트 안에서 — 읽다 실패한 문장이 업무 트랜잭션을 망가뜨리지 않게
+        Optional<PointBoardTier> tier = PointBoardTier.ofMode(post.pointMode());
+        if (tier.isEmpty()) {
+            return 0L; // 게시판 포인트 끔
+        }
         return isolated.run("point:earn", () -> {
-            if (ledger.aiMember(post.userId())) {
-                return 0L; // AI 회원은 포인트를 받지 않는다(ai-members-contract 정책 10)
+            PointTierRules tiers = policy.tiers();
+            if (excluded(post.userId(), tiers)) {
+                return 0L; // AI 회원(ai-members-contract 정책 10)·운영팀 계정(스위치)은 포인트를 받지 않는다
             }
             PointRules rules = policy.current();
-            if (!post.boardPoints() || rules.postPoints() <= 0 || rules.postDailyCap() <= 0) {
+            PointTierValues values = tiers.values(tier.get(), rules);
+            if (values.postPoints() <= 0 || rules.postDailyCap() <= 0) {
                 return 0L;
             }
-            if (post.minLengthApplied() && visibleLength(post.plainText()) < rules.postMinLength()) {
+            if (post.minLengthApplied() && visibleLength(post.plainText()) < values.minLength()) {
                 return 0L;
             }
-            return grant(post.userId(), PointReason.POST, REF_POST, post.postId(), rules.postPoints(), rules.postDailyCap(), rules, null);
+            if (post.imageCount() < values.minImages()) {
+                return 0L;
+            }
+            // 정보 등급 「같은 출처 링크는 한 번만」 — 링크 열쇠마다 잠그고(동시에 쓴 두 글이 둘 다 처음이 되지 않게) 이미 받은 열쇠가 있으면 0
+            List<String> keys = tier.get() == PointBoardTier.INFO && tiers.infoSourceOnce() ? sourceKeys(post.postId()) : List.of();
+            BooleanSupplier claimed = keys.isEmpty() ? null : () -> {
+                ledger.lockSourceKeys(keys);
+                return ledger.sourceClaimed(keys);
+            };
+            long given = grant(post.userId(), PointReason.POST, REF_POST, post.postId(), values.postPoints(), rules.postDailyCap(), rules, claimed);
+            if (given > 0 && !keys.isEmpty()) {
+                ledger.claimSources(keys, post.postId(), post.userId(), clock.instant());
+            }
+            return given;
         }, 0L);
     }
 
@@ -195,8 +231,8 @@ public class PointService {
      */
     public long earnComment(CommentEarn comment) {
         return isolated.run("point:earn", () -> {
-            if (ledger.aiMember(comment.userId())) {
-                return 0L; // AI 회원은 포인트를 받지 않는다(정책 10)
+            if (excluded(comment.userId(), policy.tiers())) {
+                return 0L; // AI 회원은 포인트를 받지 않는다(정책 10) · 운영팀 계정(스위치)
             }
             PointRules rules = policy.current();
             if (!comment.boardPoints() || rules.commentPoints() <= 0 || rules.commentDailyCap() <= 0) {
@@ -217,24 +253,32 @@ public class PointService {
     /**
      * 추천 받음 보너스 — 추천을 저장하고 추천 수를 올린 <b>같은 트랜잭션</b>에서(글·댓글 행 갱신으로 같은 대상의 추천이 줄을 선 뒤) 부른다.
      * 방금 추천한 회원이 인정되는 회원이고, 그 대상의 인정된 추천이 <b>정확히 문턱 개</b>가 됐을 때만 작성자에게 한 번 준다(문턱 뒤의 추천·나중에 인정된 추천은 소급하지 않는다).
-     * 게시판 {@code pointMode} 가 OFF 면 0(확정 2). 하루 총 한도에 든다.
+     * 게시판 {@code pointMode} 가 OFF 면 0(확정 2). <b>하루 총 한도 밖</b>(point-board-tier-contract 「규칙」).
      *
-     * @param refType     {@link #REF_POST} · {@link #REF_COMMENT}
-     * @param boardPoints 그 글·댓글이 있는 게시판의 유효 {@code pointMode} 가 ON 인가
-     * @return 지급한 포인트(없으면 0)
+     * <p>게시판 등급별(point-board-tier-contract): 금액은 글이면 그 게시판 등급의 {@code likeBonusPoints}, 댓글이면 전역 {@code likeBonusPoints}. 그 등급의 보류 시간이 0 보다 크면
+     * 지금 주지 않고 보류({@code point_pending_grants}, 금액은 지금 정책값으로 고정)로 남긴다 — 확정은 관리자 배치. 하루 횟수({@code likeBonusDailyLimit})는 오늘 지급한 줄 + 오늘 시작해
+     * 대기 중인 보류로 센다.
+     *
+     * @param refType   {@link #REF_POST} · {@link #REF_COMMENT}
+     * @param pointMode 그 글·댓글이 있는 게시판의 유효 {@code pointMode}(OFF · NORMAL · INFO · CORE)
+     * @return 지금 지급한 포인트(없거나 보류로 남겼으면 0)
      */
-    public long likeBonus(Long authorId, String refType, long refId, long likerId, boolean boardPoints) {
-        if (authorId == null || authorId == likerId || !boardPoints) {
+    public long likeBonus(Long authorId, String refType, long refId, long likerId, String pointMode) {
+        Optional<PointBoardTier> tier = PointBoardTier.ofMode(pointMode);
+        if (authorId == null || authorId == likerId || tier.isEmpty()) {
             return 0;
         }
         return isolated.run("point:like-bonus", () -> {
             PointRules rules = policy.current();
-            if (rules.likeBonusPoints() <= 0 || rules.likeBonusDailyLimit() <= 0) {
+            PointTierRules tiers = policy.tiers();
+            PointTierValues values = tiers.values(tier.get(), rules);
+            int amount = REF_POST.equals(refType) ? values.likeBonusPoints() : rules.likeBonusPoints();
+            if (amount <= 0 || rules.likeBonusDailyLimit() <= 0) {
                 return 0L;
             }
             int threshold = rules.likeBonusThreshold();
-            if (ledger.aiMember(authorId) || ledger.aiMember(likerId)) {
-                return 0L; // AI 회원 글은 보너스가 없고, AI 의 추천은 세지 않는다(정책 10)
+            if (ledger.aiMember(likerId) || excluded(authorId, tiers)) {
+                return 0L; // AI 회원 글·운영팀 계정 글(스위치)은 보너스가 없고, AI 의 추천은 세지 않는다(정책 10)
             }
             if (!ledger.recognizedLiker(likerId)) {
                 return 0L; // 인정되지 않는 추천은 수를 바꾸지 않는다 — 문턱을 채울 수 없다
@@ -242,8 +286,120 @@ public class PointService {
             if (ledger.recognizedLikes(refType, refId, authorId, threshold + 1) != threshold) {
                 return 0L;
             }
-            return grant(authorId, PointReason.LIKE_BONUS, refType, refId, rules.likeBonusPoints(), rules.likeBonusDailyLimit(), rules, null);
+            int cap = rules.likeBonusDailyLimit();
+            BooleanSupplier overCap = () -> ledger.countSince(authorId, PointReason.LIKE_BONUS.name(), todayStartId())
+                    + ledger.pendingCountSince(authorId, PointReason.LIKE_BONUS.name(), todayStartId()) >= cap;
+            if (values.holdHours() > 0) {
+                hold(authorId, PointReason.LIKE_BONUS, refType, refId, amount, values.holdHours(), overCap);
+                return 0L;
+            }
+            return grant(authorId, PointReason.LIKE_BONUS, refType, refId, amount, null, rules, overCap);
         }, 0L);
+    }
+
+    /** {@link #likeBonus(Long, String, long, long, String)} — 게시판 포인트 켬(일반 등급)·끔으로만(1-3 시험 모양) */
+    public long likeBonus(Long authorId, String refType, long refId, long likerId, boolean boardPoints) {
+        return likeBonus(authorId, refType, refId, likerId, boardPoints ? PointBoardTier.NORMAL.name() : PointBoardTier.OFF);
+    }
+
+    /** 우수 글 선정 보상의 결과 — 지금 준 양, 보류로 남긴 양과 확정 예정 시각(없으면 0 · null) */
+    public record FeatureReward(long granted, long held, Instant releaseAt) {
+
+        public static final FeatureReward NONE = new FeatureReward(0, 0, null);
+    }
+
+    /**
+     * 우수 글 선정 보상(point-board-tier-contract) — 운영자가 글을 우수 글로 선정한 트랜잭션에서 부른다. 그 게시판 등급의 {@code featuredPoints}(0 이면 없음 — 선정만), 끈 게시판·
+     * 비회원 글·AI 회원·운영팀 계정(스위치)이면 없음. 보류 시간이 0 보다 크면 보류로 남기고(금액 고정), 아니면 바로 {@code POST_FEATURED}(대상 글 — 원장 유일로 글마다 한 번,
+     * 다시 선정해도 두 번 주지 않는다). 하루 총 한도 밖. <b>실패해도 선정은 그대로</b>(세이브포인트).
+     */
+    public FeatureReward featurePost(Long authorId, long postId, String pointMode) {
+        Optional<PointBoardTier> tier = PointBoardTier.ofMode(pointMode);
+        if (authorId == null || tier.isEmpty()) {
+            return FeatureReward.NONE;
+        }
+        return isolated.run("point:feature", () -> {
+            PointRules rules = policy.current();
+            PointTierRules tiers = policy.tiers();
+            PointTierValues values = tiers.values(tier.get(), rules);
+            if (values.featuredPoints() <= 0 || excluded(authorId, tiers)) {
+                return FeatureReward.NONE;
+            }
+            if (values.holdHours() > 0) {
+                Instant at = hold(authorId, PointReason.POST_FEATURED, REF_POST, postId, values.featuredPoints(), values.holdHours(), null);
+                return at == null ? FeatureReward.NONE : new FeatureReward(0, values.featuredPoints(), at);
+            }
+            long given = grant(authorId, PointReason.POST_FEATURED, REF_POST, postId, values.featuredPoints(), null, rules, null);
+            return given == 0 ? FeatureReward.NONE : new FeatureReward(given, 0, null);
+        }, FeatureReward.NONE);
+    }
+
+    /**
+     * 인기글 보상(point-board-tier-contract 「인기글 보상」) — 인기글 보상 배치가 글마다 부른다(배치 덩어리 트랜잭션 안 — 실패하면 그 글만 실패로 남는다). 사유 {@code POPULAR},
+     * 대상 그 글(원장 유일 — 두 번 돌아도 한 번). 하루 총 한도 밖, 정상 회원·동결·미회수 상계는 다른 적립과 같다. AI 회원·운영팀 계정(스위치)은 주지 않는다.
+     *
+     * @return 지급한 포인트(없으면 0)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public long popularReward(long userId, long postId, int points) {
+        if (points <= 0 || excluded(userId, policy.tiers())) {
+            return 0L;
+        }
+        return grant(userId, PointReason.POPULAR, REF_POST, postId, points, null, policy.current(), null);
+    }
+
+    /** 보류 확정 판정 — 확정했거나, 지급하지 않고 취소한 까닭(취소 까닭 코드로 남긴다) */
+    public enum HeldRelease {
+        RELEASED,
+        /** 글·댓글이 사라졌거나 숨겨졌다 */
+        TARGET_GONE,
+        /** 우수 글 선정이 취소됐다 */
+        UNFEATURED,
+        /** 정상(ACTIVE) 회원이 아니다 */
+        MEMBER_INACTIVE,
+        /** 포인트 동결 중 */
+        POINT_FROZEN
+    }
+
+    /**
+     * 보류 하나를 확정한다(관리자 배치 {@code point-pending-release} — 보류 행을 잠근 같은 트랜잭션). 확정 때 다시 본다: 대상이 사라졌거나 숨겨졌으면 · 우수 글 선정이 취소됐으면 ·
+     * 정상 회원이 아니면 · 포인트 동결 중이면 주지 않는다(부르는 쪽이 취소로 남긴다). 그 밖이면 지급 한 길({@code grant} — 원장 유일로 이미 준 대상이면 0 이어도 확정)로 보류 때 고정한
+     * 금액을 준다. 하루 횟수는 보류를 시작할 때 셌으므로 다시 세지 않는다. <b>격리하지 않는다</b> — 실패하면 배치가 그 건을 실패로 남긴다.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public HeldRelease releaseHeld(long userId, PointReason reason, String refType, long refId, int amount) {
+        Instant now = clock.instant();
+        if (!ledger.contentAlive(refType, refId, now)) {
+            return HeldRelease.TARGET_GONE;
+        }
+        if (reason == PointReason.POST_FEATURED && !ledger.featureActive(refId)) {
+            return HeldRelease.UNFEATURED;
+        }
+        if (!ledger.earnable(userId)) {
+            return HeldRelease.MEMBER_INACTIVE;
+        }
+        if (restrictions.hasActive(userId, RestrictionType.POINT_FREEZE)) {
+            return HeldRelease.POINT_FROZEN;
+        }
+        grant(userId, reason, refType, refId, amount, null, policy.current(), null);
+        return HeldRelease.RELEASED;
+    }
+
+    /** 보류 취소 까닭 — 삭제(본인·운영자) */
+    public static final String CANCEL_DELETED = "DELETED";
+    /** 보류 취소 까닭 — 신고·운영자·스텝 숨김 */
+    public static final String CANCEL_HIDDEN = "HIDDEN";
+
+    /**
+     * 그 글·댓글의 대기 중인 보류를 취소한다 — 숨김(신고 자동 숨김·운영자·스텝 숨김)·선정 취소가 일어나는 <b>같은 트랜잭션</b>에서 부른다(삭제는 {@link #revokeContent} 가 함께 한다).
+     * <b>실패해도 업무는 그대로</b>(세이브포인트 — 확정 배치가 대상·선정을 다시 본다).
+     *
+     * @param reason       그 사유만(null 이면 모든 사유)
+     * @param cancelReason 취소 까닭 코드({@link #CANCEL_HIDDEN} · {@link HeldRelease#UNFEATURED} 등)
+     * @return 취소한 보류 수
+     */
+    public int cancelHeld(String refType, long refId, PointReason reason, String cancelReason) {
+        return isolated.run("point:cancel-held", () -> ledger.cancelPending(refType, refId, reason == null ? null : reason.name(), cancelReason, clock.instant()), 0);
     }
 
     /**
@@ -395,8 +551,15 @@ public class PointService {
     public long revokeContent(long userId, String refType, long refId) {
         PointReason earned = REF_POST.equals(refType) ? PointReason.POST : PointReason.COMMENT;
         PointReason revoke = REF_POST.equals(refType) ? PointReason.POST_REVOKE : PointReason.COMMENT_REVOKE;
-        return isolated.run("point:revoke", () -> revoke(userId, earned, revoke, refType, refId) + revoke(userId, PointReason.LIKE_BONUS, PointReason.LIKE_BONUS_REVOKE,
-                refType, refId), 0L);
+        return isolated.run("point:revoke", () -> {
+            // 대기 중인 보류(추천 보너스·우수 글)는 주지 않는다 — 잔액 행보다 먼저(확정 배치와 같은 잠금 차례: 보류 행 → 잔액 행)
+            ledger.cancelPending(refType, refId, null, CANCEL_DELETED, clock.instant());
+            long taken = revoke(userId, earned, revoke, refType, refId) + revoke(userId, PointReason.LIKE_BONUS, PointReason.LIKE_BONUS_REVOKE, refType, refId);
+            if (REF_POST.equals(refType)) {
+                taken += revoke(userId, PointReason.POST_FEATURED, PointReason.POST_FEATURED_REVOKE, refType, refId); // 확정 뒤 지운 우수 글(추천 보너스와 같은 규칙)
+            }
+            return taken;
+        }, 0L);
     }
 
     /**
@@ -720,6 +883,51 @@ public class PointService {
         return take;
     }
 
+    /** 글 복구가 되돌리는 회수 — 글 포인트·추천 보너스·우수 글(V238) */
+    private static final List<PointReason> RESTORED_REVOKES = List.of(PointReason.POST_REVOKE, PointReason.LIKE_BONUS_REVOKE, PointReason.POST_FEATURED_REVOKE);
+
+    /** AI 회원이거나(늘 — ai-members-contract 정책 10) 운영팀 계정인가(스위치 {@code excludeAiAndOps} 가 켜졌을 때) — 적립하지 않는 계정 */
+    private boolean excluded(long userId, PointTierRules tiers) {
+        return ledger.aiMember(userId) || (tiers.excludeAiAndOps() && ledger.opsMember(userId));
+    }
+
+    /**
+     * 보류를 시작한다(보류 시간 {@code holdHours} 뒤 확정 — 금액은 지금 값으로 고정). 받을 수 있는 회원(정상·동결 아님)일 때만 → 잔액 행 잠금(같은 회원의 지급·보류가 줄을 선다) →
+     * 이미 준 대상·대기 중이거나 확정된 보류가 있으면 없음 → 잠금 아래 조건({@code blocked} — 하루 횟수) → 보류 한 줄.
+     *
+     * @return 확정 예정 시각(보류를 남기지 않았으면 null)
+     */
+    private Instant hold(long userId, PointReason reason, String refType, long refId, int amount, int holdHours, BooleanSupplier blocked) {
+        if (!ledger.earnable(userId) || restrictions.hasActive(userId, RestrictionType.POINT_FREEZE)) {
+            return null;
+        }
+        Account a = open(userId);
+        if (ledger.exists(reason.name(), refType, refId) || ledger.pendingOpen(reason.name(), refType, refId)) {
+            return null;
+        }
+        if (blocked != null && blocked.getAsBoolean()) {
+            log.debug("하루 상한이라 보류를 남기지 않는다 userId={} reason={}", userId, reason);
+            return null;
+        }
+        Instant releaseAt = a.now.plus(Duration.ofHours(holdHours));
+        return ledger.insertPending(ids.nextId(), userId, reason.name(), refType, refId, amount, releaseAt, a.now) ? releaseAt : null;
+    }
+
+    /**
+     * 정보 등급 「같은 출처 링크 1회」의 열쇠 — 핫딜 글의 같은 딜 키 + 글 출처 목록의 주소마다 같은 딜 키 규칙({@link DealUrlKey} — 추적 파라미터를 뗀 정규 주소의 SHA-256).
+     * 같은 글 안에서 겹치면 하나.
+     */
+    private List<String> sourceKeys(long postId) {
+        LinkedHashSet<String> keys = new LinkedHashSet<>(ledger.postDealKeys(postId));
+        for (PostSource source : PostSources.fromJson(ledger.postSourcesJson(postId))) {
+            String key = DealUrlKey.of(source.url(), List.of());
+            if (key != null) {
+                keys.add(key);
+            }
+        }
+        return List.copyOf(keys);
+    }
+
     private long restore(long userId, long postId) {
         if (!ledger.restorable(userId)) {
             return 0L;
@@ -730,7 +938,7 @@ public class PointService {
         }
         Map<Long, Long> back = new LinkedHashMap<>();
         long untracked = 0;
-        for (PointReason reason : List.of(PointReason.POST_REVOKE, PointReason.LIKE_BONUS_REVOKE)) {
+        for (PointReason reason : RESTORED_REVOKES) {
             Optional<Entry> revoked = ledger.entry(userId, reason.name(), REF_POST, postId);
             if (revoked.isEmpty()) {
                 continue;
@@ -742,7 +950,7 @@ public class PointService {
             }
             untracked += -(long) revoked.get().delta() - tracked; // 묶음 추적 전(V85 이전) 줄
         }
-        List<Shortfall> shortfalls = ledger.shortfalls(userId, List.of(PointReason.POST_REVOKE.name(), PointReason.LIKE_BONUS_REVOKE.name()), REF_POST, postId);
+        List<Shortfall> shortfalls = ledger.shortfalls(userId, RESTORED_REVOKES.stream().map(PointReason::name).toList(), REF_POST, postId);
         long shortSum = shortfalls.stream().mapToLong(Shortfall::shortAmount).sum();
         long debtCut = Math.min(a.debt, shortSum);
         long repaid = shortSum - debtCut; // 이미 상계로 갚은 몫 — 되돌려 준다

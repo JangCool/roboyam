@@ -5,6 +5,12 @@ import com.community.point.entity.PointLotKind;
 import com.community.point.entity.PointRevokeShortfallEntity;
 import com.community.point.entity.QPointLotEntity;
 import com.community.point.entity.QPointRevokeShortfallEntity;
+import com.community.comment.entity.QCommentEntity;
+import com.community.post.entity.QPostEntity;
+import com.querydsl.core.Tuple;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import com.community.zconfiguration.jpa.IrobitRepositoryQDSL;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -30,6 +36,33 @@ public class PointMemberLotQueries extends IrobitRepositoryQDSL {
 
     private static final QPointLotEntity LOT = QPointLotEntity.pointLotEntity;
     private static final QPointRevokeShortfallEntity SHORTFALL = QPointRevokeShortfallEntity.pointRevokeShortfallEntity;
+
+    private static final QPostEntity POST = QPostEntity.postEntity;
+    private static final QCommentEntity COMMENT = QCommentEntity.commentEntity;
+
+    /** 댓글 ID → 그 댓글이 달린 글 ID(확정 대기 줄의 글 제목) */
+    public Map<Long, Long> postIdsOfComments(Collection<Long> commentIds) {
+        Map<Long, Long> out = new HashMap<>();
+        if (commentIds.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(COMMENT.id, COMMENT.postId).from(COMMENT).where(COMMENT.id.in(commentIds)).fetch()) {
+            out.put(t.get(COMMENT.id), t.get(COMMENT.postId));
+        }
+        return out;
+    }
+
+    /** 글 ID → 제목(운영자는 상태와 상관없이 본다 — 파기됐거나 없는 글은 빠진다) */
+    public Map<Long, String> postTitles(Collection<Long> postIds) {
+        Map<Long, String> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        for (Tuple t : query.select(POST.id, POST.title).from(POST).where(POST.id.in(postIds), POST.purgedAt.isNull()).fetch()) {
+            out.put(t.get(POST.id), t.get(POST.title));
+        }
+        return out;
+    }
 
     public PointMemberLotQueries(JPAQueryFactory query) {
         super(query);

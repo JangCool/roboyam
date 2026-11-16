@@ -27,17 +27,18 @@ import java.time.Instant;
  * @param processStatus     처리 상태(V166) — 게시판이 상태를 쓰지 않으면 null, 쓰면 글 값(없으면 RECEIVED)
  * @param processStatusAt   처리 상태를 마지막으로 바꾼 시각(게시판이 상태를 쓰지 않거나 바꾼 적 없으면 null)
  * @param processStatusNote 마지막 상태 변경의 메모(V168) — 글 상세에서만 채우고 목록 줄은 null
+ * @param featured          우수 글로 선정돼 있는가(point-board-tier-contract — 살아 있는 {@code post_features} 줄)
  */
 public record AdminPostItemView(String id, AdminPostBoardRefView board, AdminPostPrefixRefView prefix, String title, AdminPostAuthorView author, String state,
                                 String hiddenReason, Instant hiddenAt, Instant hiddenUntil, Instant deletedAt, Instant deleteScheduledAt, boolean purged,
                                 boolean pinned, boolean notice, boolean adult, boolean debate, boolean poll, int likeCount, int commentCount, int viewCount,
                                 int openReports, Instant createdAt, int opinionCount, int pendingPinRequests, AdminPostGroupView group, boolean restricted,
-                                boolean deal, boolean secret, String processStatus, Instant processStatusAt, String processStatusNote) {
+                                boolean deal, boolean secret, String processStatus, Instant processStatusAt, String processStatusNote, boolean featured) {
 
     /** 글 상세에서 마지막 상태 변경 메모를 채운 사본 */
     public AdminPostItemView withProcessStatusNote(String note) {
         return new AdminPostItemView(id, board, prefix, title, author, state, hiddenReason, hiddenAt, hiddenUntil, deletedAt, deleteScheduledAt, purged, pinned,
                 notice, adult, debate, poll, likeCount, commentCount, viewCount, openReports, createdAt, opinionCount, pendingPinRequests, group, restricted, deal,
-                secret, processStatus, processStatusAt, note);
+                secret, processStatus, processStatusAt, note, featured);
     }
 }

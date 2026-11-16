@@ -43,6 +43,7 @@ import com.community.post.entity.PostProcessStatus;
 import com.community.post.exception.AdminPostNotFoundException;
 import com.community.post.repository.master.AdminPostRepositoryQDSL;
 import com.community.post.repository.master.PostModerationEventRepository;
+import com.community.post.repository.master.PostFeatureRepository;
 import com.community.post.repository.master.PostRepository;
 import com.community.site.dto.SiteValues;
 import com.community.site.service.SiteSettingsService;
@@ -124,11 +125,13 @@ public class AdminPostQueryService {
     private final PostDealRepository deals;
     private final PostProcessStatusHistoryRepository statusHistory;
     private final PostThumbnailChoices thumbnails;
+    private final PostFeatureRepository features;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
                                  UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
                                  GroupRepository groupRepository, PostDealRepository deals, PostProcessStatusHistoryRepository statusHistory,
-                                 PostThumbnailChoices thumbnails) {
+                                 PostThumbnailChoices thumbnails, PostFeatureRepository features) {
+        this.features = features;
         this.statusHistory = statusHistory;
         this.thumbnails = thumbnails;
         this.deals = deals;
@@ -269,16 +272,19 @@ public class AdminPostQueryService {
         // 핫딜 글(딜 줄이 붙은 글 — 지금 핫딜 게시판에 있을 때만 「딜」로 본다)
         Set<Long> dealIds = new java.util.HashSet<>();
         deals.findAllById(ids).forEach(d -> dealIds.add(d.getPostId()));
+        Set<Long> featured = new java.util.HashSet<>(); // 우수 글(point-board-tier-contract — 살아 있는 선정)
+        features.findByPostIdInAndUnfeaturedAtIsNull(ids).forEach(f -> featured.add(f.getPostId()));
         List<AdminPostItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
-            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, dealIds, now));
+            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, dealIds, featured, now));
         }
         return out;
     }
 
     private static AdminPostItemView item(AdminPostListRow r, BoardCatalogSnapshot s, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById,
                                           Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Map<Long, Integer> opinions,
-                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Set<Long> dealIds, Instant now) {
+                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Set<Long> dealIds, Set<Long> featured,
+                                          Instant now) {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         AdminPostBoardRefView board = new AdminPostBoardRefView(r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
                 b == null ? null : b.nameEn(), b == null ? null : b.slug());
@@ -312,7 +318,8 @@ public class AdminPostQueryService {
                 p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
                 pinRequests.getOrDefault(r.id(), 0), group, r.restricted(), b != null && BoardFields.KIND_DEAL.equals(b.kind()) && dealIds.contains(r.id()),
-                Boolean.TRUE.equals(r.secret()), PostProcessStatus.effective(b, r.processStatus()), PostProcessStatus.effectiveAt(b, r.processStatusAt()), null);
+                Boolean.TRUE.equals(r.secret()), PostProcessStatus.effective(b, r.processStatus()), PostProcessStatus.effectiveAt(b, r.processStatusAt()), null,
+                featured.contains(r.id()));
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {

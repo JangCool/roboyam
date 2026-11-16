@@ -12,6 +12,10 @@ import com.community.point.entity.PointReason;
 import com.community.point.repository.master.PointBalanceRepository;
 import com.community.point.repository.master.PointLotQueries;
 import com.community.point.repository.master.PointMemberLotQueries;
+import com.community.point.repository.master.PointPendingGrantStore;
+import com.community.point.dto.response.PointPendingGrantView;
+import com.community.point.entity.PointPendingGrantEntity;
+import com.community.point.service.PointService;
 import com.community.user.repository.master.UserRepository;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -53,9 +57,11 @@ public class PointMemberLotsService {
     private final PointMemberLotQueries memberLots;
     private final Messages messages;
     private final Clock clock;
+    private final PointPendingGrantStore pendings;
 
     public PointMemberLotsService(UserRepository users, PointBalanceRepository balances, PointLotQueries lots, PointMemberLotQueries memberLots, Messages messages,
-                                  ObjectProvider<Clock> clocks) {
+                                  ObjectProvider<Clock> clocks, PointPendingGrantStore pendings) {
+        this.pendings = pendings;
         this.users = users;
         this.balances = balances;
         this.lots = lots;
@@ -96,7 +102,24 @@ public class PointMemberLotsService {
                         s.getCreatedAt()))
                 .toList();
         return new PointMemberLotsView(balance.map(PointBalanceEntity::getFreeBalance).orElse(0L), balance.map(PointBalanceEntity::getPaidBalance).orElse(0L),
-                balance.map(PointBalanceEntity::getRevokeDebt).orElse(0L), expiring, new PointLotPageView(items, total), shortfalls);
+                balance.map(PointBalanceEntity::getRevokeDebt).orElse(0L), expiring, new PointLotPageView(items, total), shortfalls, pending(userId));
+    }
+
+    /** 확정 대기 — 보류 중인 지급 전부(확정 예정이 가까운 것부터, 회원당 하루 상한이 있어 많지 않다) */
+    private List<PointPendingGrantView> pending(long userId) {
+        List<PointPendingGrantEntity> rows = pendings.pendingOf(userId);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Long> commentPosts = memberLots.postIdsOfComments(rows.stream().filter(r -> PointService.REF_COMMENT.equals(r.getRefType()))
+                .map(PointPendingGrantEntity::getRefId).toList());
+        java.util.function.Function<PointPendingGrantEntity, Long> postOf = r -> PointService.REF_POST.equals(r.getRefType()) ? r.getRefId() : commentPosts.get(r.getRefId());
+        Map<Long, String> titles = memberLots.postTitles(rows.stream().map(postOf).filter(java.util.Objects::nonNull).distinct().toList());
+        return rows.stream().map(r -> {
+            Long postId = postOf.apply(r);
+            return new PointPendingGrantView(Long.toString(r.getId()), r.getReason(), r.getRefType(), Long.toString(r.getRefId()), postId == null ? null : titles.get(postId),
+                    r.getAmount(), r.getReleaseAt(), r.getCreatedAt());
+        }).toList();
     }
 
     private PointLotView view(PointLotEntity lot, Instant now, Locale locale) {

@@ -8,6 +8,10 @@ import com.community.point.dto.response.LikeBonusRuleView;
 import com.community.point.dto.response.MyPointLedgerItemView;
 import com.community.point.dto.response.MyPointLedgerPageView;
 import com.community.point.dto.response.MyPointLedgerTargetView;
+import com.community.point.dto.response.MyPointPendingItemView;
+import com.community.point.dto.response.MyPointPendingView;
+import com.community.point.entity.PointPendingGrantEntity;
+import com.community.point.repository.master.PointPendingGrantStore;
 import com.community.point.dto.response.PointCountView;
 import com.community.point.dto.response.PointRestrictionView;
 import com.community.point.dto.response.PointRulesView;
@@ -87,10 +91,12 @@ public class MyPointService {
     private final AttendanceService attendance;
     private final MemberRestrictionService restrictions;
     private final Clock clock;
+    private final PointPendingGrantStore pendings;
 
     public MyPointService(PointBalanceRepository balances, PointService points, PointPolicy policy, MyPointLedgerQueries ledger, PointLotQueries lots,
                           BoardCatalog catalog, Messages messages, NicknameTicketService tickets, AttendanceService attendance, MemberRestrictionService restrictions,
-                          ObjectProvider<Clock> clocks) {
+                          ObjectProvider<Clock> clocks, PointPendingGrantStore pendings) {
+        this.pendings = pendings;
         this.attendance = attendance;
         this.restrictions = restrictions;
         this.balances = balances;
@@ -181,6 +187,33 @@ public class MyPointService {
                     restored.get(r.getId()), r.getCreatedAt());
         }).toList();
         return new MyPointLedgerPageView(items, more, more ? items.get(items.size() - 1).entryId() : null);
+    }
+
+    /**
+     * 확정 대기({@code GET /api/me/points/pending}, point-board-tier-contract) — 본인의 대기 중 보류(추천 문턱 보너스·우수 글)만, 확정 예정이 가까운 것부터. {@code target} 은 내역 줄과 같은 규칙
+     * (댓글이면 그 댓글이 달린 글, 지움·숨김·꺼진 게시판이면 {@code available=false}·{@code title=null}).
+     */
+    @Transactional(readOnly = true)
+    public MyPointPendingView pending(long userId) {
+        List<PointPendingGrantEntity> rows = pendings.pendingOf(userId);
+        if (rows.isEmpty()) {
+            return new MyPointPendingView(List.of());
+        }
+        Map<Long, Long> commentPosts = ledger.postIdsOfComments(rows.stream().filter(r -> PointService.REF_COMMENT.equals(r.getRefType()))
+                .map(PointPendingGrantEntity::getRefId).collect(Collectors.toSet()));
+        Set<Long> postIds = rows.stream().map(r -> pendingPostId(r, commentPosts)).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> activeBoards = catalog.snapshot().boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).collect(Collectors.toSet());
+        Map<Long, String> titles = ledger.visibleTitles(postIds, activeBoards, Instant.now());
+        return new MyPointPendingView(rows.stream().map(r -> {
+            Long postId = pendingPostId(r, commentPosts);
+            String title = postId == null ? null : titles.get(postId);
+            return new MyPointPendingItemView(Long.toString(r.getId()), r.getReason(), r.getAmount(), r.getReleaseAt(),
+                    new MyPointLedgerTargetView(postId == null ? null : Long.toString(postId), title, title != null));
+        }).toList());
+    }
+
+    private static Long pendingPostId(PointPendingGrantEntity row, Map<Long, Long> commentPosts) {
+        return PointService.REF_POST.equals(row.getRefType()) ? row.getRefId() : commentPosts.get(row.getRefId());
     }
 
     /** 글·댓글을 가리키는 줄인가 — 소멸(묶음)·미회수 상계(원장 줄)·포인트 상점 구매 같은 다른 대상은 {@code target} 이 없다 */

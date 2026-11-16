@@ -2,6 +2,8 @@ package com.community.point.repository.master;
 
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
+import com.community.point.dto.PointTierRules;
+import com.community.point.dto.PointTierValues;
 import com.community.point.entity.PointSettingEntity;
 import java.sql.Timestamp;
 import java.util.List;
@@ -19,8 +21,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class PointPolicyQueries {
 
-    /** 정책 한 벌 — 지급·조건 칸과 묶음 칸 */
-    public record PolicyRow(PointRules rules, PointLotRules lots) {
+    /** 정책 한 벌 — 지급·조건 칸 · 묶음 칸 · 게시판 등급 칸(V238) */
+    public record PolicyRow(PointRules rules, PointLotRules lots, PointTierRules tiers) {
     }
 
     private final JdbcTemplate jdbc;
@@ -35,7 +37,11 @@ public class PointPolicyQueries {
                 + "popular_reward_top_n, like_bonus_threshold, like_bonus_points, like_bonus_daily_limit, deal_end_request_points, deal_end_request_daily_limit, "
                 + "signup_points, free_valid_days, restored_lot_valid_days, expiry_notice_days, lot_tracking_started_at, adjust_large_threshold, "
                 + "expiry_notice_interval_days, post_min_length, comment_min_length, comment_own_post_excluded, comment_once_per_post, write_interval_seconds, "
-                + "daily_total_cap, attendance_streak_days, attendance_streak_bonus "
+                + "daily_total_cap, attendance_streak_days, attendance_streak_bonus, "
+                + "tier_normal_like_bonus_points, tier_normal_featured_points, tier_normal_min_images, tier_normal_hold_hours, "
+                + "tier_info_post_points, tier_info_like_bonus_points, tier_info_featured_points, tier_info_min_length, tier_info_min_images, tier_info_hold_hours, "
+                + "tier_core_post_points, tier_core_like_bonus_points, tier_core_featured_points, tier_core_min_length, tier_core_min_images, tier_core_hold_hours, "
+                + "info_source_once, exclude_ai_and_ops "
                 + "from point_settings where id = ?", (rs, i) -> {
                     PointRules rules = new PointRules(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getInt(8),
                             rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13), rs.getInt(20), rs.getInt(21), rs.getBoolean(22),
@@ -43,7 +49,11 @@ public class PointPolicyQueries {
                     Timestamp started = rs.getTimestamp(17);
                     PointLotRules lots = new PointLotRules(rs.getInt(14), rs.getInt(15), rs.getInt(16), rs.getInt(19), started == null ? null : started.toInstant(),
                             rs.getInt(18));
-                    return new PolicyRow(rules, lots);
+                    PointTierRules tiers = new PointTierRules(new PointTierValues(0, rs.getInt(28), rs.getInt(29), 0, rs.getInt(30), rs.getInt(31)),
+                            new PointTierValues(rs.getInt(32), rs.getInt(33), rs.getInt(34), rs.getInt(35), rs.getInt(36), rs.getInt(37)),
+                            new PointTierValues(rs.getInt(38), rs.getInt(39), rs.getInt(40), rs.getInt(41), rs.getInt(42), rs.getInt(43)), rs.getBoolean(44),
+                            rs.getBoolean(45));
+                    return new PolicyRow(rules, lots, tiers);
                 }, PointSettingEntity.ROW_ID);
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
     }

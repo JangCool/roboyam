@@ -63,6 +63,8 @@ public final class BoardFields {
     public static final String STAFF = "STAFF";
     public static final String OFF = "OFF";
 
+    /** 게시판 pointMode 「끔」 — 그 밖의 값은 포인트 등급 NORMAL · INFO · CORE(V238) */
+    public static final String POINT_OFF = "OFF";
     public static final String KIND_GENERAL = "GENERAL";
     public static final String KIND_DEAL = "DEAL";
     public static final String KIND_PROMO = "PROMO";
@@ -222,7 +224,7 @@ public final class BoardFields {
         bool(d, "inHome", true);
         bool(d, "attachmentPurgeEnabled", false);
         number(d, "attachmentRetentionDays", 1, 3650, false, false);
-        choice(d, "pointMode", true, false, "ON", "OFF");
+        choice(d, "pointMode", true, false, POINT_OFF, "NORMAL", "INFO", "CORE"); // 게시판 포인트 등급(V238 — point-board-tier-contract, 예전 ON = NORMAL)
         bool(d, "pointMinLengthApplied", true);
         number(d, "commentProtectMin", 0, 100, true, false);
         bool(d, "commentProtectEdit", true);

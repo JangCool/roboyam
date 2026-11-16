@@ -329,6 +329,7 @@ public class ReportCaseActionService {
                     throw new ReportActionInvalidException();
                 }
                 counters.addCommentCount(comment.getPostId(), -1);
+                points.cancelHeld(PointService.REF_COMMENT, comment.getId(), null, PointService.CANCEL_HIDDEN); // 대기 중인 댓글 추천 보너스 보류 취소(point-board-tier-contract)
                 if (notifyAuthor && comment.getAuthorId() != null) {
                     memberNotices.hiddenByStaff(comment.getAuthorId(), comment.getPostId(), comment.getId(), excerpt, note, reasonCode);
                 }

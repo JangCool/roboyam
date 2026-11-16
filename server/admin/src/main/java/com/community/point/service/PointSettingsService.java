@@ -10,6 +10,9 @@ import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
+import com.community.point.dto.PointTierRules;
+import com.community.point.dto.PointTierValues;
+import com.community.point.entity.PointBoardTier;
 import com.community.point.dto.request.PointSettingsRequest;
 import com.community.point.dto.response.PointSettingsResponse;
 import com.community.point.entity.PointSettingEntity;
@@ -56,18 +59,23 @@ public class PointSettingsService {
 
     @Transactional(readOnly = true)
     public PointSettingsResponse load() {
-        return settings.findById(PointSettingEntity.ROW_ID).map(this::response).orElseGet(() -> PointSettingsResponse.of(PointRules.DEFAULTS, PointLotRules.DEFAULTS, null, null));
+        return settings.findById(PointSettingEntity.ROW_ID).map(this::response).orElseGet(() -> PointSettingsResponse.of(PointRules.DEFAULTS, PointLotRules.DEFAULTS,
+                PointTierRules.DEFAULTS, null, null));
     }
 
     /** 검사를 마친 저장 값 — 지급·조건 칸과 큰 금액 조정 문턱 */
-    record Wanted(PointRules rules, int adjustLargeThreshold) {
+    record Wanted(PointRules rules, int adjustLargeThreshold, PointTierRules tiers) {
 
         Map<String, Object> toMap() {
             Map<String, Object> map = rules.toMap();
             map.put(ADJUST_LARGE_THRESHOLD, adjustLargeThreshold);
+            map.putAll(tiers.toMap());
             return map;
         }
     }
+
+    /** 정보 등급 같은 출처 1회 · AI·운영팀 제외 스위치(point-board-tier-contract) */
+    static final java.util.List<String> TIER_SWITCHES = java.util.List.of("infoSourceOnce", "excludeAiAndOps");
 
     static final String ADJUST_LARGE_THRESHOLD = "adjustLargeThreshold";
     /** 큰 금액 조정 문턱 범위(조정 최대값과 같다 — V85 CHECK) */
@@ -80,6 +88,7 @@ public class PointSettingsService {
                 .orElseThrow(() -> new IllegalStateException("point_settings 행이 없다"));
         Map<String, Object> current = row.values().toMap();
         current.put(ADJUST_LARGE_THRESHOLD, row.lotRules().adjustLargeThreshold());
+        current.putAll(row.tierRules().toMap());
         Map<String, Object> before = new LinkedHashMap<>();
         Map<String, Object> after = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : wanted.toMap().entrySet()) {
@@ -96,6 +105,9 @@ public class PointSettingsService {
         row.change(wanted.rules(), actor.operatorId(), now);
         if (after.containsKey(ADJUST_LARGE_THRESHOLD)) {
             row.changeAdjustLargeThreshold(wanted.adjustLargeThreshold(), actor.operatorId(), now);
+        }
+        if (after.keySet().stream().anyMatch(field -> field.startsWith("boardTiers.") || TIER_SWITCHES.contains(field))) {
+            row.changeTiers(wanted.tiers(), actor.operatorId(), now);
         }
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.POINT_SETTINGS_UPDATE, AuditResult.SUCCESS).target("POINT_SETTINGS", "points")
                 .with("before", before).with("after", after));
@@ -127,10 +139,43 @@ public class PointSettingsService {
             }
         }
         Integer threshold = ranged(raw.get(ADJUST_LARGE_THRESHOLD), ADJUST_LARGE_THRESHOLD_LIMIT, ADJUST_LARGE_THRESHOLD, fields);
+        // 게시판 등급 칸(point-board-tier-contract) — 칸 오류 키 boardTiers.<등급>.<칸>. 일반 등급의 쓰면 바로·최소 글자 수는 받지 않는다(전역 칸)
+        Map<String, PointSettingsRequest.Tier> rawTiers = request.boardTiers() == null ? Map.of() : request.boardTiers();
+        Map<PointBoardTier, PointTierValues> tierValues = new java.util.EnumMap<>(PointBoardTier.class);
+        for (PointBoardTier tier : PointBoardTier.values()) {
+            PointSettingsRequest.Tier given = rawTiers.get(tier.name());
+            Map<String, Number> numbers = given == null ? Map.of() : given.numbers();
+            Map<String, Object> one = new LinkedHashMap<>();
+            for (String field : PointTierValues.FIELDS) {
+                if (tier == PointBoardTier.NORMAL && PointTierRules.NORMAL_FOLLOWS.contains(field)) {
+                    one.put(field, 0);
+                    continue;
+                }
+                String key = "boardTiers." + tier.name() + "." + field;
+                Integer value = ranged(numbers.get(field), PointTierValues.LIMIT, key, fields);
+                if (value != null) {
+                    one.put(field, value);
+                }
+            }
+            if (one.size() == PointTierValues.FIELDS.size()) {
+                tierValues.put(tier, PointTierValues.of(one));
+            }
+        }
+        Map<String, Boolean> tierSwitches = new LinkedHashMap<>();
+        for (String field : TIER_SWITCHES) {
+            Boolean value = switches.get(field);
+            if (value == null) {
+                fields.put(field, new MessageRef("point.settings.boolean"));
+            } else {
+                tierSwitches.put(field, value);
+            }
+        }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        return new Wanted(PointRules.of(values), threshold);
+        PointTierRules tiers = new PointTierRules(tierValues.get(PointBoardTier.NORMAL), tierValues.get(PointBoardTier.INFO), tierValues.get(PointBoardTier.CORE),
+                tierSwitches.get("infoSourceOnce"), tierSwitches.get("excludeAiAndOps"));
+        return new Wanted(PointRules.of(values), threshold, tiers);
     }
 
     /** 정수이고 범위 안이면 그 값, 아니면 칸 오류를 남기고 null */
@@ -161,6 +206,6 @@ public class PointSettingsService {
 
     private PointSettingsResponse response(PointSettingEntity row) {
         String by = row.getUpdatedBy() == null ? null : operators.findById(row.getUpdatedBy()).map(o -> o.getOperatorName()).orElse(null);
-        return PointSettingsResponse.of(row.values(), row.lotRules(), row.getUpdatedAt(), by);
+        return PointSettingsResponse.of(row.values(), row.lotRules(), row.tierRules(), row.getUpdatedAt(), by);
     }
 }

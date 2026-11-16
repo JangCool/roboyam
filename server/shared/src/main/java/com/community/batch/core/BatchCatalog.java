@@ -226,6 +226,20 @@ public enum BatchCatalog implements BatchDefinition {
     POINT_INVARIANT_CHECK("point-invariant-check", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 포인트 보류 확정 — 보류 시간이 지난 추천 문턱 보너스·우수 글 보상({@code point_pending_grants} PENDING)을 {@code SKIP LOCKED} 로 하나씩 잠가 {@code PointService#releaseHeld} 로
+     * 지급하거나(대상이 사라짐·숨김·선정 취소·회원 비정상·동결이면) 취소한다(Java 배치 {@code PointPendingReleaseJob}, point-board-tier-contract 「보류 확정 방식」). 지급이 묶음·미회수 상계·
+     * 경험치·등급 승급으로 이어지는 자바 로직이라 pg_cron 이 아니라 관리자 서버 배치다. 기본 5분마다. 회원 포인트가 바뀌는 업무라 분류는 회원(MEMBER).
+     */
+    POINT_PENDING_RELEASE("point-pending-release", BatchCategory.MEMBER, BatchSource.JAVA, "0 */5 * * * *", true),
+
+    /**
+     * 인기글 보상 — 전날(한국 시간) 인기글 상위 {@code popularRewardTopN} 개 글쓴이에게 {@code popularRewardPoints}(원장 {@code POPULAR}, 대상 글 — 원장 유일). 순위는 인기글 「어제」 탭과
+     * 같은 기준(DB 함수 {@code popular_rank_candidates})이고 날짜마다 뽑은 목록을 남겨 다시 돌려도 한 번만 준다(Java 배치 {@code PointPopularRewardJob}). 기본 매일 00:00 KST.
+     * 정책 둘 중 0 이면 꺼짐. 분류는 회원(MEMBER).
+     */
+    POINT_POPULAR_REWARD("point-popular-reward", BatchCategory.MEMBER, BatchSource.JAVA, "0 0 0 * * *", true),
+
+    /**
      * 미확정(READY) 결제 정리 — 유효 시각 + 여유 시간({@code batch_params} {@code grace_minutes}, 기본 10분)이 지난 READY 를 포트원에 조회해 결제됐으면 확정 코드로, 아니면 EXPIRED
      * (Java 배치 {@code PaymentReadyCleanupJob}, commerce.md 8-2 의 7·15-5, docs/features/commerce-payment-contract.md). 기본 10분마다. 결제가 확정되는 업무라 분류는 회원(MEMBER).
      */

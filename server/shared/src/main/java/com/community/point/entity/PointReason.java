@@ -63,7 +63,11 @@ public enum PointReason {
     /** 포인트 게임 로또 번호 뽑기(사용 — V235). <b>적립(무상) 묶음에서만</b> 뺀다. 대상 = 한 번에 뽑은 묶음({@code LOTTO_DRAW}) */
     LOTTO_DRAW,
     /** 포인트 게임 룰렛 당첨(적립 — V235). 새 무상 묶음(보통 적립과 같은 소멸). 하루 활동 한도·포인트 랭킹·경험치에 들지 않는다. 대상 = 그 돌린 기록 */
-    ROULETTE_WIN;
+    ROULETTE_WIN,
+    /** 우수 글 선정 보상(적립 — V238, point-board-tier-contract). 대상 = 그 글({@code POST}) — 원장 유일로 글마다 한 번. 하루 총 한도 밖, 경험치에 든다 */
+    POST_FEATURED,
+    /** 우수 글 보상 회수(확정 뒤 글 삭제 — 받은 양만, 0P 바닥). 대상 = 그 글. 경험치에서 뺀다 */
+    POST_FEATURED_REVOKE;
 
     /** 묶음 출처 전용 코드 — 기존 잔액을 전환한 묶음(V85, D4). 원장 줄이 없으므로 원장 사유가 아니다. 이름은 번들 {@code point.reason.MIGRATION} */
     public static final String MIGRATION_LOT_SOURCE = "MIGRATION";
@@ -72,7 +76,8 @@ public enum PointReason {
     private static final Set<PointReason> CANCEL_USES = EnumSet.of(POINT_SHOP_REFUND, GB_POINT_RESTORE);
     private static final Set<PointReason> EXPIRES = EnumSet.of(EXPIRE, WITHDRAW_FORFEIT);
     private static final Set<PointReason> REFUNDS = EnumSet.of(CHARGE_REFUND);
-    private static final Set<PointReason> REVOKES = EnumSet.of(POST_REVOKE, COMMENT_REVOKE, LIKE_BONUS_REVOKE, CHARGE_BONUS_REVOKE, REVOKE_DEBT_OFFSET, EVENT_REWARD_REVOKE);
+    private static final Set<PointReason> REVOKES = EnumSet.of(POST_REVOKE, COMMENT_REVOKE, LIKE_BONUS_REVOKE, CHARGE_BONUS_REVOKE, REVOKE_DEBT_OFFSET, EVENT_REWARD_REVOKE,
+            POST_FEATURED_REVOKE);
 
     /** 원장 종류 — 사유마다 정해져 있고({@code ck_point_ledger_reason_kind}) 운영 조정만 부호로 지급·회수 */
     public PointKind kind(long delta) {

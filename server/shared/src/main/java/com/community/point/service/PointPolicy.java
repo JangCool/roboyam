@@ -5,6 +5,7 @@ import com.community.zconfiguration.cache.CacheReloader;
 import org.springframework.cache.CacheManager;
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
+import com.community.point.dto.PointTierRules;
 import com.community.point.repository.master.PointPolicyQueries;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +41,11 @@ public class PointPolicy implements CacheReloader {
         return snapshot().lots;
     }
 
+    /** 게시판 등급별 지급 칸(V238 — point-board-tier-contract) */
+    public PointTierRules tiers() {
+        return snapshot().tiers;
+    }
+
     /** 지금 사본 — 캐시 {@code point.policy} */
     private Loaded snapshot() {
         return caches.getCache(CacheNames.POINT_POLICY).get(CacheNames.SINGLE, this::load);
@@ -58,7 +64,8 @@ public class PointPolicy implements CacheReloader {
 
     /** 정책 행을 읽는다(JDBC — 세이브포인트 안에서 읽혀서다, {@link PointPolicyQueries}). 행이 없으면 기본값 */
     private Loaded load() {
-        return queries.load().map(row -> new Loaded(row.rules(), row.lots())).orElseGet(() -> new Loaded(PointRules.DEFAULTS, PointLotRules.DEFAULTS));
+        return queries.load().map(row -> new Loaded(row.rules(), row.lots(), row.tiers()))
+                .orElseGet(() -> new Loaded(PointRules.DEFAULTS, PointLotRules.DEFAULTS, PointTierRules.DEFAULTS));
     }
 
     /** 이 서버의 사본을 버린다 — 다음 {@link #current()} 가 다시 읽는다(다른 서버는 관리자 저장의 세대 번호로 따라온다) */
@@ -67,6 +74,6 @@ public class PointPolicy implements CacheReloader {
     }
 
     /** 캐시에 담는 값 */
-    private record Loaded(PointRules rules, PointLotRules lots) {
+    private record Loaded(PointRules rules, PointLotRules lots, PointTierRules tiers) {
     }
 }

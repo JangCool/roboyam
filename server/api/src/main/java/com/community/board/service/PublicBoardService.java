@@ -28,6 +28,8 @@ import com.community.post.service.AdultContentGate;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
+import com.community.board.dto.response.BoardPointTierView;
+import com.community.point.service.PointPolicy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,12 +55,14 @@ public class PublicBoardService {
     private final BoardSanctionService boardSanctions;
     private final PostTagQueries tagQueries;
     private final AdultContentGate adultGate;
+    private final PointPolicy pointPolicy;
 
     /** 글쓰기 태그 추천으로 한 번에 주는 최대 태그 수 */
     static final int TAG_SUGGEST_MAX = 300;
 
     public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardStaffActionService staffActions,
-                              BoardSanctionService boardSanctions, PostTagQueries tagQueries, AdultContentGate adultGate) {
+                              BoardSanctionService boardSanctions, PostTagQueries tagQueries, AdultContentGate adultGate, PointPolicy pointPolicy) {
+        this.pointPolicy = pointPolicy;
         this.adultGate = adultGate;
         this.catalog = catalog;
         this.tagQueries = tagQueries;
@@ -134,7 +138,8 @@ public class PublicBoardService {
                 : boardSanctions.pendingWarnings(actor.userId(), b.id()).stream().map(BoardPendingWarningView::of).toList();
         return detail(s, b, actor, BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor),
                 BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.commentBlocked(b, actor, s), b, actor),
-                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null, tools, BoardWriteRestrictionView.of(actor.writeRestriction(b.id())), warnings);
+                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null, tools, BoardWriteRestrictionView.of(actor.writeRestriction(b.id())), warnings,
+                BoardPointTierView.of(b, pointPolicy.current(), pointPolicy.tiers())); // 글쓰기 화면의 포인트 안내(point-board-tier-contract)
     }
 
     /**
@@ -142,7 +147,7 @@ public class PublicBoardService {
      * {@code GET /api/groups/{id}/board}, 소모임 2단계).
      */
     public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked) {
-        return detail(s, b, actor, writeBlocked, commentBlocked, null, null, null, List.of());
+        return detail(s, b, actor, writeBlocked, commentBlocked, null, null, null, List.of(), null);
     }
 
     /**
@@ -150,7 +155,8 @@ public class PublicBoardService {
      * @param pendingWarnings 보는 내가 이 게시판에서 확인하지 않은 경고(없으면 빈 목록)
      */
     public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked, DealSettings deal,
-                                         BoardStaffToolsView staffTools, BoardWriteRestrictionView writeRestriction, List<BoardPendingWarningView> pendingWarnings) {
+                                         BoardStaffToolsView staffTools, BoardWriteRestrictionView writeRestriction, List<BoardPendingWarningView> pendingWarnings,
+                                         BoardPointTierView pointTier) {
         BoardSecurityValues sec = s.security();
         BoardView v = view(b);
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),
@@ -168,7 +174,7 @@ public class PublicBoardService {
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
                 v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled(), b.tagsEnabled(),
-                v.detailList(), v.detailFeedTabsPc(), v.detailFeedTabsMobile(), v.prefixRequired(), v.tagRequired(), v.adultOnly(), b.sourcesEnabled(), b.indexable());
+                v.detailList(), v.detailFeedTabsPc(), v.detailFeedTabsMobile(), v.prefixRequired(), v.tagRequired(), v.adultOnly(), b.sourcesEnabled(), b.indexable(), pointTier);
     }
 
     /**

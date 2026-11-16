@@ -143,7 +143,7 @@ public class BoardCatalog implements CacheReloader {
                 or(p.staffHiddenNotice(), d.staffHiddenNotice()), or(p.commentDislikeEnabled(), d.commentDislikeEnabled()),
                 or(p.commentLikeLabel(), d.commentLikeLabel()), or(p.commentDislikeLabel(), d.commentDislikeLabel()),
                 or(p.pinRequestReviewers(), d.pinRequestReviewers()), or(p.debateEnabled(), d.debateEnabled()), or(p.pollEnabled(), d.pollEnabled()),
-                "ON".equals(or(p.pointMode(), d.pointMode())), or(p.pointMinLengthApplied(), d.pointMinLengthApplied()), prefixes,
+                or(p.pointMode(), d.pointMode()), or(p.pointMinLengthApplied(), d.pointMinLengthApplied()), prefixes,
                 Set.copyOf(b.getGadgetExclusions()), b.isAdsHidden(),
                 // 운영 게시판 설정(V166·V168) — 일반·소모임 게시판만 받는다(관리자 저장이 막지만, 핫딜·직접홍보는 늘 꺼진 값으로 본다)
                 BoardFields.opsAllowed(b.getKind()) ? b.getSecretMode() : BoardFields.SECRET_OFF,

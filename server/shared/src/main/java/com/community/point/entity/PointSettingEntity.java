@@ -2,6 +2,8 @@ package com.community.point.entity;
 
 import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
+import com.community.point.dto.PointTierRules;
+import com.community.point.dto.PointTierValues;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -54,6 +56,25 @@ public class PointSettingEntity {
     private Instant lotTrackingStartedAt;
     @Column(insertable = false)
     private int adjustLargeThreshold;
+    // ── V238 게시판 등급별 지급(point-board-tier-contract) — 일반 등급의 쓰면 바로·최소 글자 수는 위 postPoints·postMinLength ──
+    private int tierNormalLikeBonusPoints;
+    private int tierNormalFeaturedPoints;
+    private int tierNormalMinImages;
+    private int tierNormalHoldHours;
+    private int tierInfoPostPoints;
+    private int tierInfoLikeBonusPoints;
+    private int tierInfoFeaturedPoints;
+    private int tierInfoMinLength;
+    private int tierInfoMinImages;
+    private int tierInfoHoldHours;
+    private int tierCorePostPoints;
+    private int tierCoreLikeBonusPoints;
+    private int tierCoreFeaturedPoints;
+    private int tierCoreMinLength;
+    private int tierCoreMinImages;
+    private int tierCoreHoldHours;
+    private boolean infoSourceOnce;
+    private boolean excludeAiAndOps;
     private Instant updatedAt;
     private Long updatedBy;
 
@@ -88,6 +109,38 @@ public class PointSettingEntity {
         this.dailyTotalCap = v.dailyTotalCap();
         this.attendanceStreakDays = v.attendanceStreakDays();
         this.attendanceStreakBonus = v.attendanceStreakBonus();
+        this.updatedAt = now;
+        this.updatedBy = operatorId;
+    }
+
+    /** 게시판 등급 칸(V238) — 일반 등급의 쓰면 바로·최소 글자 수 자리는 0(전역 칸을 따른다) */
+    public PointTierRules tierRules() {
+        return new PointTierRules(new PointTierValues(0, tierNormalLikeBonusPoints, tierNormalFeaturedPoints, 0, tierNormalMinImages, tierNormalHoldHours),
+                new PointTierValues(tierInfoPostPoints, tierInfoLikeBonusPoints, tierInfoFeaturedPoints, tierInfoMinLength, tierInfoMinImages, tierInfoHoldHours),
+                new PointTierValues(tierCorePostPoints, tierCoreLikeBonusPoints, tierCoreFeaturedPoints, tierCoreMinLength, tierCoreMinImages, tierCoreHoldHours),
+                infoSourceOnce, excludeAiAndOps);
+    }
+
+    /** 게시판 등급 칸을 바꾼다(범위 검사는 부르는 쪽) — 일반 등급의 쓰면 바로·최소 글자 수는 받지 않는다(전역 칸) */
+    public void changeTiers(PointTierRules t, long operatorId, Instant now) {
+        this.tierNormalLikeBonusPoints = t.normal().likeBonusPoints();
+        this.tierNormalFeaturedPoints = t.normal().featuredPoints();
+        this.tierNormalMinImages = t.normal().minImages();
+        this.tierNormalHoldHours = t.normal().holdHours();
+        this.tierInfoPostPoints = t.info().postPoints();
+        this.tierInfoLikeBonusPoints = t.info().likeBonusPoints();
+        this.tierInfoFeaturedPoints = t.info().featuredPoints();
+        this.tierInfoMinLength = t.info().minLength();
+        this.tierInfoMinImages = t.info().minImages();
+        this.tierInfoHoldHours = t.info().holdHours();
+        this.tierCorePostPoints = t.core().postPoints();
+        this.tierCoreLikeBonusPoints = t.core().likeBonusPoints();
+        this.tierCoreFeaturedPoints = t.core().featuredPoints();
+        this.tierCoreMinLength = t.core().minLength();
+        this.tierCoreMinImages = t.core().minImages();
+        this.tierCoreHoldHours = t.core().holdHours();
+        this.infoSourceOnce = t.infoSourceOnce();
+        this.excludeAiAndOps = t.excludeAiAndOps();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

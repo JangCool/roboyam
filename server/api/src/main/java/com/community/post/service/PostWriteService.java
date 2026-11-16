@@ -246,7 +246,7 @@ public class PostWriteService {
             }
             if (authorId != null) {
                 // 실패·조건 미달·상한이어도 글은 그대로 올라간다(커머스 1-3 — 게시판 pointMode·최소 글자 수 스위치)
-                points.earnPost(new PointService.PostEarn(authorId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
+                points.earnPost(new PointService.PostEarn(authorId, id, content.plain(), b.pointMode(), b.pointMinLengthApplied(), content.imageIds().size()));
             }
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 글이면 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
@@ -320,7 +320,7 @@ public class PostWriteService {
             polls.create(id, poll, now);
         }
         // 실패·조건 미달·상한이어도 글은 그대로 올라간다(일반 글과 같은 규칙 — 커머스 1-3 의 게시판 pointMode·최소 글자 수 스위치)
-        long earned = points.earnPost(new PointService.PostEarn(authorId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
+        long earned = points.earnPost(new PointService.PostEarn(authorId, id, content.plain(), b.pointMode(), b.pointMinLengthApplied(), content.imageIds().size()));
         return new GroupWrite(id, earned);
     }
 
@@ -624,7 +624,7 @@ public class PostWriteService {
                 throw new AlreadyLikedException(false);
             }
             int likes = counters.incrementPostLikes(post.getId()); // 글 행 갱신 — 같은 글의 추천이 여기서 줄을 선다
-            points.likeBonus(post.getAuthorId(), PointService.REF_POST, post.getId(), userId, board.pointsEnabled());
+            points.likeBonus(post.getAuthorId(), PointService.REF_POST, post.getId(), userId, board.pointMode());
             return new PostLikeResult(likes, true);
         });
     }

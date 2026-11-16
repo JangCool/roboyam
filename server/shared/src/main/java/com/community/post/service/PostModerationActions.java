@@ -63,6 +63,8 @@ public class PostModerationActions {
         requirePublic(post, now);
         boolean wasPinned = post.getPinnedAt() != null;
         post.staffHide(now);
+        // 운영자·스텝 숨김(신고 처리 숨김 포함) — 대기 중인 보류 지급(추천 보너스·우수 글)은 주지 않는다(point-board-tier-contract, 실패해도 숨김은 그대로)
+        points.cancelHeld(PointService.REF_POST, post.getId(), null, PointService.CANCEL_HIDDEN);
         Map<String, Object> detail = new LinkedHashMap<>(extra);
         if (wasPinned) {
             detail.put("unpinned", true);

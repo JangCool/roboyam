@@ -222,7 +222,7 @@ public class AiContentWriter {
                 tagStore.replace(created, savedTags, now);
             }
             emoticons.recordUse(userId, c.body().content());
-            points.earnPost(new PointService.PostEarn(userId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
+            points.earnPost(new PointService.PostEarn(userId, id, content.plain(), b.pointMode(), b.pointMinLengthApplied(), content.imageIds().size()));
         });
         promotion.afterWrite(userId); // 커밋 뒤 — 활동 수 조건 즉시 승급(실패해도 글은 그대로)
         return id;
@@ -269,7 +269,7 @@ public class AiContentWriter {
             created.initOps(PostWriteRules.secretOnCreate(b, null), b.statusEnabled());
             posts.persist(created);
             emoticons.recordUse(userId, c.body().content());
-            points.earnPost(new PointService.PostEarn(userId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
+            points.earnPost(new PointService.PostEarn(userId, id, content.plain(), b.pointMode(), b.pointMinLengthApplied(), content.imageIds().size()));
             group.touchActivity(Instant.now());
             return id;
         });

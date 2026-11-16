@@ -2,6 +2,7 @@ package com.community.point.controller;
 
 import com.community.auth.dto.AuthUser;
 import com.community.point.dto.response.MyPointLedgerPageView;
+import com.community.point.dto.response.MyPointPendingView;
 import com.community.point.dto.response.PointSummaryView;
 import com.community.point.service.MyPointService;
 import com.community.zconfiguration.exception.CommonException;
@@ -33,6 +34,15 @@ public class MyPointController {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.summary(principal.id())));
+    }
+
+    /** 확정 대기(point-board-tier-contract) — 보류 중인 추천 문턱 보너스·우수 글 보상, 확정 예정이 가까운 것부터. 로그인 필요 401, no-store */
+    @GetMapping("/pending")
+    public ResponseEntity<ApiResponse<MyPointPendingView>> pending(Authentication authentication) {
+        if (!(authentication != null && authentication.getPrincipal() instanceof AuthUser principal)) {
+            throw new CommonException(ErrorCode.UNAUTHENTICATED);
+        }
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.pending(principal.id())));
     }
 
     /** 내 포인트 내역 — {@code kind}(EARN·USE·REVOKE·CANCEL_USE·EXPIRE, 없으면 전체) · {@code size}(1~50, 기본 20) · {@code cursor}. 최신이 위 */

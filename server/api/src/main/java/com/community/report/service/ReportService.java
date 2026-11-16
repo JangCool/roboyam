@@ -23,6 +23,7 @@ import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
 import com.community.permission.entity.MemberPermission;
+import com.community.point.service.PointService;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
@@ -124,12 +125,14 @@ public class ReportService {
     private final GroupRepository groups;
     private final GroupBuyUgcReportService groupBuyReports;
     private final DealStateService dealStates;
+    private final PointService points;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
                          SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate,
-                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports, DealStateService dealStates) {
+                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports, DealStateService dealStates, PointService points) {
+        this.points = points;
         this.dealStates = dealStates;
         this.groupBuyReports = groupBuyReports;
         this.groupGate = groupGate;
@@ -403,6 +406,8 @@ public class ReportService {
             if (!locked.hide(hideReason, until, now)) {
                 return;
             }
+            // 신고 숨김 — 대기 중인 보류 지급(추천 보너스·우수 글)은 주지 않는다(point-board-tier-contract, 같은 트랜잭션 · 실패해도 숨김은 그대로)
+            points.cancelHeld(PointService.REF_POST, locked.getId(), null, PointService.CANCEL_HIDDEN);
             // 관리자 게시글 관리의 조치 기록 — 자동 숨김(SYSTEM, 숨김 까닭·기간)
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("hiddenReason", hideReason);
@@ -424,6 +429,7 @@ public class ReportService {
         }
         if (madeHidden) {
             caseLog.system(caseId, ReportEventEntity.AUTO_HIDDEN, hidden, now);
+            points.cancelHeld(PointService.REF_COMMENT, locked.getId(), null, PointService.CANCEL_HIDDEN); // 대기 중인 댓글 추천 보너스 보류 취소
         }
         if (madeHidden && notifyAuthor && locked.getAuthorId() != null) {
             memberNotices.contentHidden(locked.getAuthorId(), locked.getPostId(), locked.getId(), RichText.plainOf(locked.getContentFormat(), locked.getContent()),

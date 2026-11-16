@@ -15,6 +15,7 @@ import com.community.post.dto.response.AdminPostBoardOptionsView;
 import com.community.post.dto.response.AdminPostBulkResultView;
 import com.community.post.dto.response.AdminPostDetailView;
 import com.community.post.dto.response.AdminPostListView;
+import com.community.post.service.AdminPostFeatureService;
 import com.community.post.service.AdminPostModerationService;
 import com.community.post.service.AdminPostQueryService;
 import com.community.zconfiguration.response.ApiResponse;
@@ -41,10 +42,12 @@ public class AdminPostController {
 
     private final AdminPostQueryService queries;
     private final AdminPostModerationService moderation;
+    private final AdminPostFeatureService features;
 
-    public AdminPostController(AdminPostQueryService queries, AdminPostModerationService moderation) {
+    public AdminPostController(AdminPostQueryService queries, AdminPostModerationService moderation, AdminPostFeatureService features) {
         this.queries = queries;
         this.moderation = moderation;
+        this.features = features;
     }
 
     /**
@@ -117,6 +120,25 @@ public class AdminPostController {
     @PostMapping("/{id}/notice")
     public ResponseEntity<Void> notice(@PathVariable String id, @RequestBody(required = false) AdminPostReasonRequest body, AdminActor actor) {
         moderation.notice(actor, id, body);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 우수 글로 선정(point-board-tier-contract) — {@code post.feature}, 본문 없음 → 204. 공개 글만(그 밖·이미 선정 409 POST_STATE_INVALID), 없는 글 404 POST_NOT_FOUND.
+     * 글쓴이에게 그 게시판 등급의 우수 글 포인트(보류 시간이 있으면 보류). 감사 {@code POST_FEATURE}
+     */
+    @RequirePermission(Permission.POST_FEATURE)
+    @PostMapping("/{id}/feature")
+    public ResponseEntity<Void> feature(@PathVariable String id, AdminActor actor) {
+        features.feature(actor, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 우수 글 선정 취소 — {@code post.feature} → 204. 선정돼 있지 않으면 409 POST_STATE_INVALID. 대기 중인 우수 글 보류는 취소, 확정 뒤면 회수하지 않는다. 감사 {@code POST_UNFEATURE} */
+    @RequirePermission(Permission.POST_FEATURE)
+    @DeleteMapping("/{id}/feature")
+    public ResponseEntity<Void> unfeature(@PathVariable String id, AdminActor actor) {
+        features.unfeature(actor, id);
         return ResponseEntity.noContent().build();
     }
 

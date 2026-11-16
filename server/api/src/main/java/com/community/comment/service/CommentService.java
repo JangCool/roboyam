@@ -766,7 +766,7 @@ public class CommentService {
             if (counters.deleteCommentDislike(comment.getId(), userId)) {
                 counters.addCommentDislikes(comment.getPostId(), comment.getId(), -1); // 추천과 비추천은 둘 중 하나만
             }
-            points.likeBonus(comment.getAuthorId(), PointService.REF_COMMENT, comment.getId(), userId, b.pointsEnabled());
+            points.likeBonus(comment.getAuthorId(), PointService.REF_COMMENT, comment.getId(), userId, b.pointMode());
             return reactionResult(comment, b, true, false);
         });
     }

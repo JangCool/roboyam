@@ -287,6 +287,111 @@ public class PointLedgerWriter {
                 userId).isEmpty();
     }
 
+    /**
+     * 운영팀 계정인가(point-board-tier-contract 「AI 회원·운영팀 계정은 적립 안 함」) — 운영자에 이어진 회원 계정({@code operator_member_accounts}, V141). 운영자가 잠겼거나 승인 전이어도
+     * 이어진 계정이면 운영팀 계정으로 본다(적립 쪽은 넓게 막는다).
+     */
+    public boolean opsMember(long userId) {
+        return !jdbc.queryForList("select 1 from operator_member_accounts where user_id = ?", Integer.class, userId).isEmpty();
+    }
+
+    // ── 보류 지급(V238 point_pending_grants — point-board-tier-contract 「보류 확정 방식」) ─────────────
+    // 세이브포인트 안(추천·우수 글 선정·삭제·숨김의 같은 트랜잭션)에서 쓰므로 JDBC 다(클래스 머리말 (1)). 확정 배치의 행 잠금은 엔티티 저장소(PointPendingGrantStore)가 한다.
+
+    /** 그 사유·대상의 보류가 대기 중이거나 이미 확정됐나(취소된 것은 세지 않는다 — 다시 선정하면 새로 보류한다) */
+    public boolean pendingOpen(String reason, String refType, long refId) {
+        return !jdbc.queryForList("select 1 from point_pending_grants where reason = ? and ref_type = ? and ref_id = ? and status in ('PENDING', 'RELEASED') limit 1",
+                Integer.class, reason, refType, refId).isEmpty();
+    }
+
+    /** 회원이 {@code sinceId} 뒤에(오늘) 그 사유로 시작해 아직 대기 중인 보류 수 — 추천 보너스 하루 횟수가 원장 줄과 함께 센다 */
+    public int pendingCountSince(long userId, String reason, long sinceId) {
+        Integer count = jdbc.queryForObject("select count(*) from point_pending_grants where user_id = ? and reason = ? and status = 'PENDING' and id >= ?",
+                Integer.class, userId, reason, sinceId);
+        return count == null ? 0 : count;
+    }
+
+    /** 보류 한 줄 — 같은 (사유, 대상)에 대기 중인 줄이 있으면 넣지 않는다(유일 부분 색인). 넣었으면 true */
+    public boolean insertPending(long id, long userId, String reason, String refType, long refId, int amount, Instant releaseAt, Instant now) {
+        return jdbc.update("insert into point_pending_grants (id, user_id, reason, ref_type, ref_id, amount, release_at, status, created_at) "
+                + "values (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?) on conflict (reason, ref_type, ref_id) where status = 'PENDING' do nothing", id, userId, reason, refType, refId,
+                amount, Timestamp.from(releaseAt), Timestamp.from(now)) > 0;
+    }
+
+    /**
+     * 그 대상의 대기 중인 보류를 취소한다(삭제·숨김·선정 취소의 같은 트랜잭션).
+     *
+     * @param reason 그 사유만(null 이면 모든 사유)
+     * @return 취소한 줄 수
+     */
+    public int cancelPending(String refType, long refId, String reason, String cancelReason, Instant now) {
+        if (reason == null) {
+            return jdbc.update("update point_pending_grants set status = 'CANCELLED', cancel_reason = ?, settled_at = ? where ref_type = ? and ref_id = ? and status = 'PENDING'",
+                    cancelReason, Timestamp.from(now), refType, refId);
+        }
+        return jdbc.update("update point_pending_grants set status = 'CANCELLED', cancel_reason = ?, settled_at = ? "
+                + "where ref_type = ? and ref_id = ? and reason = ? and status = 'PENDING'", cancelReason, Timestamp.from(now), refType, refId, reason);
+    }
+
+    /**
+     * 보류를 확정할 때 대상이 아직 보이는가 — 글: 공개(임시저장 아님)·지우지 않음·예약 삭제 시각 전·숨김 아님(임시조치가 끝났으면 보임). 댓글: 지우지 않음·숨김 아님.
+     * 판정은 {@code PostEntity#isGoneAt}·{@code isHiddenAt}, {@code CommentEntity#isDeleted}·{@code isHiddenAt} 과 같다(한쪽을 고치면 같이 고친다).
+     */
+    public boolean contentAlive(String refType, long refId, Instant now) {
+        Timestamp at = Timestamp.from(now);
+        if ("POST".equals(refType)) {
+            return !jdbc.queryForList("select 1 from posts where id = ? and status = 'PUBLISHED' and deleted_at is null "
+                    + "and (delete_scheduled_at is null or delete_scheduled_at > ?) and (hidden_at is null or (hidden_until is not null and hidden_until <= ?))",
+                    Integer.class, refId, at, at).isEmpty();
+        }
+        return !jdbc.queryForList("select 1 from comments where id = ? and deleted_at is null and (hidden_at is null or (hidden_until is not null and hidden_until <= ?))",
+                Integer.class, refId, at).isEmpty();
+    }
+
+    /** 그 글이 지금 우수 글로 선정돼 있나({@code post_features} 의 살아 있는 줄) — 우수 글 보류를 확정할 때 다시 본다 */
+    public boolean featureActive(long postId) {
+        return !jdbc.queryForList("select 1 from post_features where post_id = ? and unfeatured_at is null", Integer.class, postId).isEmpty();
+    }
+
+    // ── 정보 등급 「같은 출처 링크 1회」(V238 point_source_claims) ─────────────────────────────
+
+    /** 핫딜 글의 같은 딜 키({@code post_deals.product_url_key}) — 정보 등급 「같은 출처 링크 1회」의 열쇠. 글을 저장한 같은 트랜잭션에서 부른다(세이브포인트가 먼저 내보낸 행을 읽는다) */
+    public List<String> postDealKeys(long postId) {
+        return jdbc.queryForList("select product_url_key from post_deals where post_id = ? and product_url_key is not null", String.class, postId);
+    }
+
+    /** 글 출처 목록 JSON({@code posts.sources}, V232) — 없으면 null */
+    public String postSourcesJson(long postId) {
+        return jdbc.queryForList("select sources::text from posts where id = ?", String.class, postId).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
+    }
+
+    /**
+     * 출처 열쇠마다 트랜잭션 잠금을 잡는다(정렬한 차례 — 교착 없음). 같은 링크로 동시에 쓴 두 글이 둘 다 「처음」으로 보지 않게 한다.
+     * Native 인 이유: {@code pg_advisory_xact_lock}(repository.md 가 인정하는 DB 전용 기능) — 아직 없는 열쇠 행은 행 잠금으로 잡을 수 없다.
+     */
+    public void lockSourceKeys(Collection<String> keys) {
+        for (String key : keys.stream().sorted().toList()) {
+            jdbc.query("select pg_advisory_xact_lock(hashtextextended(?, 0))", (java.sql.ResultSet rs) -> { }, "point-source:" + key);
+        }
+    }
+
+    /** 이 열쇠 중 하나라도 이미 글 적립을 받았나(사이트 전체) */
+    public boolean sourceClaimed(Collection<String> keys) {
+        if (keys.isEmpty()) {
+            return false;
+        }
+        String in = keys.stream().map(key -> "?").collect(Collectors.joining(", "));
+        return !jdbc.queryForList("select 1 from point_source_claims where source_key in (" + in + ") limit 1", Integer.class, keys.toArray()).isEmpty();
+    }
+
+    /** 글 적립을 받은 출처 열쇠를 남긴다(이미 있으면 그대로) */
+    public void claimSources(Collection<String> keys, long postId, long userId, Instant now) {
+        for (String key : keys) {
+            jdbc.update("insert into point_source_claims (source_key, post_id, user_id, created_at) values (?, ?, ?, ?) on conflict (source_key) do nothing", key, postId,
+                    userId, Timestamp.from(now));
+        }
+    }
+
     /** 인정되는 추천인가 — {@code l.user_id} 를 바깥에서 받는다 */
     private static final String RECOGNIZED = "select 1 from users u join profiles p on p.user_id = u.id join grades g on g.grade_key = p.grade_key "
             + "where u.id = l.user_id and u.status = 'ACTIVE' and u.deleted_at is null and g.level > (select min(level) from grades)";
