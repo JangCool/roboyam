@@ -12,7 +12,9 @@
           그때는 이 브라우저의 「보지 않기」 기록·이번 방문에 닫은 것을 보지 않고(처음 온 사람이 보는 팝업) 닫기·보지 않기·링크 이동도 하지 않는다(저장 값을 건드리지 않는다).
           숨겨 둔 동안에도 띄울 창 수를 데이터로 알려(`cacheDataCounts['site.popups']`) 관리자의 「이 쪽에서 찾은 영역」에 남는다. 테마 미리보기·공개 화면은 그대로다.
     -->
-    <Dialog
+    <!-- 띄울 창이 있을 때만 대화상자·창 코드를 받는다(첫 화면 조각에서 뺀다 — 관리자 QA 2026-11-17 E2). 한 번 뜬 뒤에는 닫는 애니메이션을 위해 그대로 둔다 -->
+    <LazyDialog
+        v-if="dialogMounted"
         :visible="open"
         modal
         dismissable-mask
@@ -26,10 +28,10 @@
         @update:visible="(v: boolean) => !v && closeAll()"
     >
         <div v-if="isDesktop" class="flex max-h-[calc(100dvh-2rem)] items-center gap-4 overflow-auto" :class="vertical ? 'flex-col justify-start py-1' : 'justify-center'">
-            <SitePopupWindow v-for="group in windows" :key="group.no" :items="group.items" class="w-[400px]! shrink-0" @close="closeWindow" @hide="hide" @go="go" />
+            <LazySitePopupWindow v-for="group in windows" :key="group.no" :items="group.items" class="w-[400px]! shrink-0" @close="closeWindow" @hide="hide" @go="go" />
         </div>
-        <SitePopupWindow v-else-if="windows[0]" :key="windows[0].no" :items="windows[0].items" @close="closeWindow" @hide="hide" @go="go" />
-    </Dialog>
+        <LazySitePopupWindow v-else-if="windows[0]" :key="windows[0].no" :items="windows[0].items" @close="closeWindow" @hide="hide" @go="go" />
+    </LazyDialog>
 </template>
 
 <script setup lang="ts">
@@ -73,6 +75,14 @@ const list = computed(() => {
 /** 창 번호별로 묶은 것(창 번호 차례, 창 안은 목록 차례) */
 const windows = computed(() => UtilSitePopup.windows(list.value));
 const open = computed(() => windows.value.length > 0 && (!cacheMode.value || (cache.value?.keys.includes(POPUP_AREA) ?? false)));
+const dialogMounted = ref(false);
+watch(
+    open,
+    (value) => {
+        if (value) dialogMounted.value = true;
+    },
+    { immediate: true },
+);
 
 // 캐시 영역 미리보기 — 숨겨 둔 동안에도 띄울 창 수를 알린다(관리자의 「이 쪽에서 찾은 영역」). 미리보기가 아니면 아무것도 하지 않는다
 watch(

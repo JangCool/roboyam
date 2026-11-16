@@ -27,7 +27,8 @@
 
         <!-- 바깥 누르기·Esc 로 닫히고, 열릴 때 안쪽 패널이 만들어지며 목록을 새로 받는다 -->
         <Popover ref="popover" :aria-label="t('notification.title')" class="w-[24rem] max-w-[calc(100vw-1rem)]" :pt="{ content: { class: 'p-0!' } }" @show="open = true" @hide="open = false">
-            <NotificationPanel @close="close" />
+            <!-- 패널 코드는 처음 열 때 받는다(`toggle` 이 먼저 받아 두고 연다 — 크기가 정해진 뒤 자리를 잡게) -->
+            <LazyNotificationPanel @close="close" />
         </Popover>
     </span>
 </template>
@@ -35,9 +36,12 @@
 <script setup lang="ts">
 /** 팝오버의 열고 닫기 — PrimeVue `Popover` 가 바깥 클릭·Esc·초점 가두기를 맡는다 */
 interface PopoverHandle {
-    toggle: (event: Event) => void;
+    toggle: (event: Event, target?: Element | null) => void;
     hide: () => void;
 }
+
+/** 알림 패널 코드 — 처음 열 때 한 번 받는다(첫 화면 조각에서 뺀다, 관리자 QA 2026-11-17 E2) */
+let panelLoaded: Promise<unknown> | null = null;
 
 const { t } = useI18n();
 const route = useRoute();
@@ -46,8 +50,11 @@ const { text, label } = useNotificationBadge();
 const popover = ref<PopoverHandle | null>(null);
 const open = ref(false);
 
-function toggle(event: Event) {
-    popover.value?.toggle(event);
+async function toggle(event: Event) {
+    // 받는 사이 이벤트의 currentTarget 이 비므로 누른 단추를 기준으로 따로 넘긴다
+    const target = (event.currentTarget as Element | null) ?? null;
+    await (panelLoaded ??= import('~/components/notification/NotificationPanel.vue'));
+    popover.value?.toggle(event, target);
 }
 
 function close() {

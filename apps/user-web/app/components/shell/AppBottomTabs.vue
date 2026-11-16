@@ -32,7 +32,8 @@
                 </NuxtLink>
             </li>
         </ul>
-        <AppMenuDrawer />
+        <!-- 서랍(PrimeVue Drawer + 메뉴 본문)은 처음 열 때 받는다 — 한 번 열린 뒤에는 닫는 애니메이션을 위해 그대로 둔다 -->
+        <LazyAppMenuDrawer v-if="drawerMounted" />
     </nav>
 </template>
 
@@ -42,6 +43,10 @@ const { t } = useI18n();
 const { tabs } = useBottomTabs();
 /** 메뉴 탭의 서랍 */
 const drawer = useMenuDrawer();
+const drawerMounted = ref(drawer.open.value);
+watch(drawer.open, (open) => {
+    if (open) drawerMounted.value = true;
+});
 
 const TAB = 'flex w-full flex-col items-center gap-0.5 px-0.5 py-2 text-[0.6875rem] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary';
 </script>
