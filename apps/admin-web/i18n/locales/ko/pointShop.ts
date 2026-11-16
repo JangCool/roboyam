@@ -14,7 +14,7 @@ export default {
     purchasesEmpty: '아직 구매가 없어요',
     purchasesEmptyHint: '회원이 포인트 상점에서 품목을 사면 여기에 쌓여요.',
     settingsTitle: '포인트 상점 설정',
-    settingsSubtitle: '포인트 상점 전체에 적용되는 규칙이에요.',
+    settingsSubtitle: '포인트 상점과 포인트 게임 전체에 적용되는 규칙이에요.',
     forbidden: '이 화면을 볼 권한이 없어요',
     clearFilter: '조건 지우기',
     reset: '초기화',

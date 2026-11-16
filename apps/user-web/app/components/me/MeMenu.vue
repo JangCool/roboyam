@@ -1,8 +1,8 @@
 <template>
     <!-- 내 정보 메뉴 — 묶음마다 한 카드 안에서 줄로 나눈다. 지금 화면 줄은 짚어 둔다(aria-current). 아래에 관리자 앱(운영자·운영진만) · 로그아웃 -->
     <div class="flex flex-col gap-4" data-testid="me-menu">
-        <!-- 상점 두 칸 — 메뉴 맨 위(모바일은 포인트 요약 바로 아래, 데스크톱은 오른쪽 열 맨 위) -->
-        <MeShopLinks />
+        <!-- 상점·게임 칸(포인트 상점 · 로보티콘 상점 / 룰렛 · 로또 번호) — 메뉴 맨 위(모바일은 포인트 요약 바로 아래, 데스크톱은 오른쪽 열 맨 위) -->
+        <MeShopGameLinks />
 
         <nav class="panel-card p-2" :aria-label="t('me.menuLabel')">
             <template v-for="(group, gi) in shown" :key="group.key">

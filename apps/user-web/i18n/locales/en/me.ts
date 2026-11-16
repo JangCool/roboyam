@@ -23,8 +23,10 @@ export default {
     menuGroupActivity: 'My activity',
     menuGroupStorage: 'My stuff',
     menuGroupInbox: 'Notifications & messages',
-    // Two shop tiles at the top of the menu (`MeShopLinks`) — one-line hint under the name
-    shopLinksLabel: 'Shops',
+    // Shop & game tiles at the top of the menu (`MeShopGameLinks`) — one-line hint under the name
+    shopLinksLabel: 'Shops & games',
     shopPointHint: 'Name colors, borders, avatars',
     shopEmoticonHint: 'Emoticon packs',
+    gameRouletteHint: 'Spin with earned points',
+    gameLottoHint: 'Pick & keep numbers',
 };

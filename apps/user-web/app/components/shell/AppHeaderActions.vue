@@ -70,6 +70,7 @@ import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 import UtilDm from '~/utils/util-dm';
 import UtilPoint from '~/utils/util-point';
+import UtilPointGame from '~/utils/util-point-game';
 import UtilRedirect from '~/utils/util-redirect';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilEmoticon from '~/utils/util-emoticon';
@@ -102,6 +103,7 @@ const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
 /**
  * 프로필 드롭다운 — 맨 위에 보유 포인트, "내 정보" 다음에 "계정·로그인 연결"(`/settings/account`), "포인트·출석체크"(오늘 출석 전이면 "· +10P", 출석 기능이 없으면(`attendanceAvailable=false`) 그냥 "포인트")(8단계), "포인트 상점"(공동구매와 따로),
  * "사업자 센터"(신청했거나 사업자 전용 계정)·"사업자 신청"(일반 회원, 신청 전)(H-2). 사업자 전용 계정에는 포인트 줄·포인트 요약이 없다.
+ * 그 아래 구분선으로 묶은 포인트 게임 두 줄("룰렛"·"로또 번호" — 사업자 전용 계정 제외)이 보기 설정 바로 위에 온다.
  * 운영자·운영진(`adminUrl` 이 있을 때)에게만 "관리자 앱"이 더해진다 — 별도 사이트라 `url`·`target` 으로 새 탭에서 연다.
  * 스크린리더 이름(`label`)에 새 탭이라는 말을 담고 보이는 글자(`text`)는 "관리자 앱"이다.
  */
@@ -140,6 +142,14 @@ const menuItems = computed(() => [
           ]
         : []),
     ...(adminUrl.value ? [{ label: t('shell.adminAppNewTab'), text: t('shell.adminApp'), icon: UtilAdminLink.ICON, url: adminUrl.value, target: '_blank' }] : []),
+    // 포인트 게임(룰렛 · 로또 번호) — 구분선으로 따로 묶어 보기 설정 바로 위에 둔다(2026-11-16). 사업자 전용 계정은 포인트가 없어 묶음째 없다(구분선도 함께 빠져 겹치지 않는다)
+    ...(businessAccount.value
+        ? []
+        : [
+              { separator: true },
+              { label: t('pointGame.rouletteTitle'), icon: 'pi pi-sync', command: () => void navigateTo(UtilPointGame.ROULETTE_PATH) },
+              { label: t('pointGame.lottoShort'), icon: 'pi pi-ticket', command: () => void navigateTo(UtilPointGame.LOTTO_PATH) },
+          ]),
     { separator: true },
     // 보기 설정(위) · 설정(맨 아래) — 보기 설정을 설정 안에서 꺼내 바로 가게 했다(사용자 결정 2026-11-12). 설정은 내 정보와 따로 둔 묶음(2026-11-05)
     { label: t('view.shortcut'), icon: 'pi pi-palette', command: () => void navigateTo('/settings/view') },

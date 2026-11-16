@@ -1,6 +1,7 @@
 <template>
-    <!-- 상점 두 칸 — 내 정보 메뉴 맨 위(사용자 결정 2026-11-06: 목록 줄에서 빼고 위로 올림, 칸 높이는 두 줄 — 아이콘·이름 / 짧은 설명).
-         포인트 상점은 사업자 전용 계정에 없다(포인트가 없다) — 그때는 로보티콘 상점 한 칸이 폭을 다 쓴다 -->
+    <!-- 상점·게임 칸 — 내 정보 메뉴 맨 위(사용자 결정 2026-11-06: 목록 줄에서 빼고 위로 올림, 칸 높이는 두 줄 — 아이콘·이름 / 짧은 설명).
+         두 칸씩 두 줄: 포인트 상점 · 로보티콘 상점 / 룰렛 · 로또 번호(포인트 게임, 2026-11-16).
+         포인트 상점과 포인트 게임은 사업자 전용 계정에 없다(포인트가 없다) — 그때는 로보티콘 상점 한 칸이 폭을 다 쓴다 -->
     <nav :aria-label="t('me.shopLinksLabel')" class="grid gap-2" :class="links.length > 1 ? 'grid-cols-2' : 'grid-cols-1'" data-testid="me-shop-links">
         <NuxtLink
             v-for="link in links"
@@ -23,6 +24,7 @@
 <script setup lang="ts">
 import UtilBusiness from '~/utils/util-business';
 import UtilEmoticon from '~/utils/util-emoticon';
+import UtilPointGame from '~/utils/util-point-game';
 import UtilPointShop from '~/utils/util-point-shop';
 
 const { t } = useI18n();
@@ -31,12 +33,22 @@ const { user } = useAuth();
 /** 포인트 상점 이름은 서비스 이름(`POINT_SHOP`) — 운영자가 바꾸면 따라 바뀐다 */
 const { term } = useSiteTerms();
 
-const links = computed(() => [
-    ...(UtilBusiness.isBusinessAccount(user.value?.role) ? [] : [{ key: 'point', to: UtilPointShop.PATH, icon: 'pi pi-shopping-bag', label: term('POINT_SHOP'), hint: t('me.shopPointHint') }]),
-    { key: 'emoticon', to: UtilEmoticon.PATH, icon: 'pi pi-face-smile', label: t('emoticon.shopTitle'), hint: t('me.shopEmoticonHint') },
-]);
+const links = computed(() => {
+    const business = UtilBusiness.isBusinessAccount(user.value?.role);
+    return [
+        ...(business ? [] : [{ key: 'point', to: UtilPointShop.PATH, icon: 'pi pi-shopping-bag', label: term('POINT_SHOP'), hint: t('me.shopPointHint') }]),
+        { key: 'emoticon', to: UtilEmoticon.PATH, icon: 'pi pi-face-smile', label: t('emoticon.shopTitle'), hint: t('me.shopEmoticonHint') },
+        // 포인트 게임 — 적립 포인트를 쓰는 곳(사업자 전용 계정은 포인트가 없어 없다)
+        ...(business
+            ? []
+            : [
+                  { key: 'roulette', to: UtilPointGame.ROULETTE_PATH, icon: 'pi pi-sync', label: t('pointGame.rouletteTitle'), hint: t('me.gameRouletteHint') },
+                  { key: 'lotto', to: UtilPointGame.LOTTO_PATH, icon: 'pi pi-ticket', label: t('pointGame.lottoShort'), hint: t('me.gameLottoHint') },
+              ]),
+    ];
+});
 
-/** 지금 그 상점(또는 그 아래 화면)인가 */
+/** 지금 그 상점·게임(또는 그 아래 화면)인가 */
 function isActive(to: string): boolean {
     const path = route.path.replace(/\/$/, '');
     return path === to || path.startsWith(`${to}/`);

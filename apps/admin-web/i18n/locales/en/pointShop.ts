@@ -14,7 +14,7 @@ export default {
     purchasesEmpty: 'No purchases yet',
     purchasesEmptyHint: 'Purchases appear here when members buy items in the point shop.',
     settingsTitle: 'Point shop settings',
-    settingsSubtitle: 'Rules that apply to the whole point shop.',
+    settingsSubtitle: 'Rules that apply to the whole point shop and point games.',
     forbidden: 'You don’t have permission to view this',
     clearFilter: 'Clear filters',
     reset: 'Reset',
