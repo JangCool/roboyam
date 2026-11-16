@@ -576,4 +576,10 @@ export default {
     newsCollected: '출처 {sources}곳을 받아 새 소재 {added}건을 넣었어요.',
     newsCollectedWithFailures: '출처 {sources}곳 중 {failed}곳을 받지 못했어요. 새 소재 {added}건 — 오류 칸을 확인해 주세요.',
     newsCollectBusy: '지금 다른 곳(배치)에서 수집 중이에요. 잠시 뒤 다시 눌러 주세요.',
+    newsKeywordsLabel: '관심 키워드',
+    newsKeywordsHelp: 'RSS·유튜브 기사는 이 낱말이 제목·요약에 들어간 것만 모아요. 비우면 모두 모아요.',
+    newsKeywordsPlaceholder: '쉼표로 나눠 적어요. 예: AI, 로봇, 반도체',
+    newsKeywordsCount: '{n}/{max}개 · 낱말당 {len}자까지 · 검색어 출처는 거르지 않아요',
+    newsKeywordsSave: '키워드 저장',
+    newsKeywordsSaved: '관심 키워드를 저장했어요.',
 };

@@ -232,6 +232,13 @@ public class AiMemberAdminController {
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(newsSources.create(actor, body)));
     }
 
+    /** 관심 키워드 저장(V230) — RSS·YOUTUBE 수집 항목은 제목·요약에 하나라도 들어간 것만 모은다(빈 목록 = 거르지 않음). 400 {@code VALIDATION}(keywords) */
+    @RequirePermission(Permission.AI_MEMBER_MANAGE)
+    @PutMapping("/news-sources/keywords")
+    public ResponseEntity<ApiResponse<AiMemberViews.NewsSourceList>> saveNewsKeywords(@RequestBody(required = false) AiMemberRequests.NewsKeywordsSave body, AdminActor actor) {
+        return noStore(newsSources.saveKeywords(actor, body));
+    }
+
     /** 「지금 수집」 — 켜진 출처를 모두 받는다(배치 ai-news-collect 와 같은 서비스, 돌고 있으면 busy) */
     @RequirePermission(Permission.AI_MEMBER_MANAGE)
     @PostMapping("/news-sources/collect")

@@ -4,6 +4,7 @@
         한 건씩 바로 반영(더하기·고치기·켜기·지우기 — `…/news-sources` API, `ai-member.manage`). 「지금 수집」은 배치 `ai-news-collect` 와 같은 서비스를 곧바로 부른다(돌고 있으면 건너뜀).
         표: 켜짐 · 종류 · 이름 · 주소(채널 ID·검색어) · 마지막 수집(시각 · 읽은 수) · 오류(마지막 실패 사유 — 성공하면 지워진다) · 고치기·지우기.
         수집 주기는 배치 관리 화면에서 바꾼다(기본 30분마다). 본문 전체·사진은 받지 않는다는 안내를 위에 둔다.
+        표 위 「관심 키워드」(V230 — `PUT …/news-sources/keywords`): RSS·유튜브 항목은 제목·요약에 낱말이 하나라도 들어간 것만 모은다(검색어 출처는 거르지 않음, 비우면 모두).
     -->
     <AppGadget :title="t('aiMember.newsSourcesTitle')">
         <template #actions>
@@ -38,6 +39,41 @@
                     <span>{{ t('aiMember.newsSourceUnused', { n: list.unusedItems }) }}</span>
                     <span>{{ t('aiMember.newsBatchHint', { name: t('aiMember.newsBatchName') }) }}</span>
                 </p>
+
+                <!-- 관심 키워드(V230) — RSS·유튜브 항목은 제목·요약에 하나라도 들어간 것만 모은다. 쉼표로 나눠 적고 따로 저장한다(출처 줄과 따로 바로 반영) -->
+                <form class="flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2.5" novalidate @submit.prevent="saveKeywords">
+                    <LabeledField :label="t('aiMember.newsKeywordsLabel')" :help="t('aiMember.newsKeywordsHelp')" :error="keywordsError">
+                        <template #default="{ id, describedBy, invalid }">
+                            <Textarea
+                                :id="id"
+                                v-model="keywordsText"
+                                rows="2"
+                                auto-resize
+                                fluid
+                                spellcheck="false"
+                                :placeholder="t('aiMember.newsKeywordsPlaceholder')"
+                                :invalid="invalid"
+                                :aria-describedby="describedBy"
+                                :disabled="!canManage || savingKeywords"
+                            />
+                        </template>
+                    </LabeledField>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <small class="text-xs tabular-nums" :class="keywordsDraft.length > list.limits.keywordsMax ? 'text-red-700 dark:text-red-400' : 'text-muted-color'">
+                            {{ t('aiMember.newsKeywordsCount', { n: keywordsDraft.length, max: list.limits.keywordsMax, len: list.limits.keywordMax }) }}
+                        </small>
+                        <Button
+                            v-if="canManage"
+                            type="submit"
+                            icon="pi pi-check"
+                            :label="t('aiMember.newsKeywordsSave')"
+                            size="small"
+                            class="ml-auto"
+                            :loading="savingKeywords"
+                            :disabled="!keywordsDirty || Boolean(busyId) || saving"
+                        />
+                    </div>
+                </form>
 
                 <DataTable :value="list.items" data-key="id" size="small" scrollable class="min-w-0">
                     <template #empty>
@@ -197,6 +233,35 @@ const form = ref<AiNewsSourceSaveRequest>(blankForm());
 const fieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
 
+/** 관심 키워드 입력(쉼표로 나눔) — 불러오거나 저장하면 서버 값으로 다시 맞춘다 */
+const keywordsText = ref('');
+const keywordsError = ref('');
+const savingKeywords = ref(false);
+
+/** 입력을 서버와 같은 규칙으로 정리(앞뒤 공백 · 빈 낱말 · 중복(대소문자 무시)) — 개수 표시·바뀜 판단용, 최종 검사는 서버가 한다 */
+const keywordsDraft = computed(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const part of keywordsText.value.split(/[,\n]/)) {
+        const k = part.replace(/\s+/g, ' ').trim();
+        if (k && !seen.has(k.toLowerCase())) {
+            seen.add(k.toLowerCase());
+            out.push(k);
+        }
+    }
+    return out;
+});
+const keywordsDirty = computed(() => (list.value?.keywords ?? []).join(',') !== keywordsDraft.value.join(','));
+
+// 서버 값이 실제로 바뀔 때만 입력을 다시 맞춘다(출처 저장 등으로 목록만 새로 와도 고치던 입력은 그대로)
+watch(
+    () => list.value?.keywords?.join(','),
+    () => {
+        keywordsText.value = (list.value?.keywords ?? []).join(', ');
+        keywordsError.value = '';
+    },
+);
+
 const kindOptions = computed(() => AI_NEWS_SOURCE_KINDS.map((value) => ({ value, label: t(`aiMember.newsSourceKind.${value}`) })));
 const canManage = computed(() => props.canManage);
 
@@ -299,6 +364,21 @@ async function remove(row: AiNewsSource): Promise<void> {
         if (errorOf(e).code === 'AI_NEWS_SOURCE_NOT_FOUND') void reload();
     } finally {
         busyId.value = null;
+    }
+}
+
+async function saveKeywords(): Promise<void> {
+    if (savingKeywords.value || !keywordsDirty.value) return;
+    savingKeywords.value = true;
+    keywordsError.value = '';
+    try {
+        list.value = await api.saveNewsKeywords({ keywords: [...keywordsDraft.value] });
+        toast.success(t('aiMember.newsKeywordsSaved'));
+    } catch (e) {
+        const error = errorOf(e);
+        keywordsError.value = error.fields?.keywords ?? UtilAiMemberMessages.error(t, error);
+    } finally {
+        savingKeywords.value = false;
     }
 }
 

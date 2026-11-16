@@ -1,7 +1,10 @@
 package com.community.aimember.service;
 
+import com.community.aimember.entity.AiMemberSettingsEntity;
 import com.community.aimember.entity.AiNewsItemEntity;
 import com.community.aimember.entity.AiNewsSourceEntity;
+import com.community.aimember.entity.AiNewsSourceKind;
+import com.community.aimember.repository.master.AiMemberSettingsRepository;
 import com.community.aimember.repository.master.AiNewsItemRepository;
 import com.community.aimember.repository.master.AiNewsSourceRepository;
 import com.community.batch.core.BatchLockService;
@@ -34,6 +37,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <ul>
  *   <li>켜진 출처마다 피드를 받는다(<b>트랜잭션 밖</b> — 연결 {@value #CONNECT_SECONDS}초 · 응답 {@value #REQUEST_SECONDS}초 · 최대 {@value #MAX_BYTES}바이트, http·https 만).
  *       읽기는 {@link AiNewsFeeds#parse}(제목·링크·짧은 요약·출처 이름·발행 시각만 — 본문·사진은 받지 않는다).</li>
+ *   <li>관심 키워드(V230 — {@code ai_member_settings.news_collect_keywords}): RSS·YOUTUBE 출처 항목은 제목 또는 요약에 낱말이 하나라도 들어간 것만 넣는다({@link AiNewsFeeds#matchesKeywords}).
+ *       KEYWORD 출처는 이미 검색이라 거르지 않는다. 키워드가 비면 거르지 않는다. 출처 줄의 「읽은 수」는 거르기 전 수.</li>
  *   <li>넣기: 이미 받은 링크 · 발행 시각이 {@value #KEEP_DAYS}일보다 오래된 항목은 버린다. 출처 줄에 마지막 수집 시각·읽은 수, 실패면 짧은 사유(HTTP 상태 · TIMEOUT · NOT_FEED …).</li>
  *   <li>끝에 받은 지 {@value #KEEP_DAYS}일 지난 항목을 지운다.</li>
  *   <li>배치와 「지금 수집」이 겹치지 않게 DB 어드바이저리 잠금({@value #LOCK_KEY}) — 못 잡으면 {@code busy}.</li>
@@ -53,15 +58,17 @@ public class AiNewsCollector {
 
     private final AiNewsSourceRepository sources;
     private final AiNewsItemRepository items;
+    private final AiMemberSettingsRepository settings;
     private final BatchLockService locks;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate tx;
     private final HttpClient http;
 
-    public AiNewsCollector(AiNewsSourceRepository sources, AiNewsItemRepository items, BatchLockService locks, SnowflakeIdGenerator ids,
+    public AiNewsCollector(AiNewsSourceRepository sources, AiNewsItemRepository items, AiMemberSettingsRepository settings, BatchLockService locks, SnowflakeIdGenerator ids,
                            PlatformTransactionManager txManager) {
         this.sources = sources;
         this.items = items;
+        this.settings = settings;
         this.locks = locks;
         this.ids = ids;
         this.tx = new TransactionTemplate(txManager);
@@ -87,6 +94,7 @@ public class AiNewsCollector {
                 return new Result(0, 0, 0, 0, true);
             }
             List<AiNewsSourceEntity> on = tx.execute(status -> sources.findByEnabledTrueOrderBySortOrderAscIdAsc());
+            List<String> keywords = tx.execute(status -> settings.findById(AiMemberSettingsEntity.ID).map(AiMemberSettingsEntity::getNewsCollectKeywords).orElse(List.of()));
             int failed = 0;
             int added = 0;
             for (AiNewsSourceEntity s : on == null ? List.<AiNewsSourceEntity>of() : on) {
@@ -95,7 +103,7 @@ public class AiNewsCollector {
                     failed++;
                     log.info("뉴스 출처 수집 실패 sourceId={} 사유={}", s.getId(), f.error());
                 }
-                Integer n = tx.execute(status -> store(s.getId(), f));
+                Integer n = tx.execute(status -> store(s.getId(), f, keywords));
                 added += n == null ? 0 : n;
             }
             Instant before = Instant.now().minus(Duration.ofDays(KEEP_DAYS));
@@ -140,8 +148,8 @@ public class AiNewsCollector {
         }
     }
 
-    /** 넣기 + 출처 줄 결과 — 새로 넣은 수. 출처가 그사이 지워졌으면 0 */
-    private int store(long sourceId, Fetched f) {
+    /** 넣기 + 출처 줄 결과 — 새로 넣은 수(관심 키워드로 거른 뒤). 출처가 그사이 지워졌으면 0 */
+    private int store(long sourceId, Fetched f, List<String> keywords) {
         AiNewsSourceEntity s = sources.findById(sourceId).orElse(null);
         if (s == null) {
             return 0;
@@ -153,9 +161,10 @@ public class AiNewsCollector {
         }
         s.fetched(f.items().size(), now);
         Instant oldest = now.minus(Duration.ofDays(KEEP_DAYS));
+        boolean filter = s.getKind() != AiNewsSourceKind.KEYWORD && keywords != null && !keywords.isEmpty();
         Map<String, AiNewsFeeds.FeedItem> byLink = new LinkedHashMap<>();
         for (AiNewsFeeds.FeedItem it : f.items()) {
-            if (it.publishedAt() != null && it.publishedAt().isBefore(oldest)) {
+            if (it.publishedAt() != null && it.publishedAt().isBefore(oldest) || (filter && !AiNewsFeeds.matchesKeywords(it, keywords))) {
                 continue;
             }
             byLink.putIfAbsent(it.link(), it);

@@ -2,9 +2,11 @@ package com.community.aimember.service;
 
 import com.community.aimember.dto.AiMemberRequests;
 import com.community.aimember.dto.AiMemberViews;
+import com.community.aimember.entity.AiMemberSettingsEntity;
 import com.community.aimember.entity.AiNewsSourceEntity;
 import com.community.aimember.entity.AiNewsSourceKind;
 import com.community.aimember.exception.AiNewsSourceNotFoundException;
+import com.community.aimember.repository.master.AiMemberSettingsRepository;
 import com.community.aimember.repository.master.AiNewsItemRepository;
 import com.community.aimember.repository.master.AiNewsSourceRepository;
 import com.community.audit.dto.AuditActions;
@@ -18,21 +20,27 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * AI 회원 설정 「뉴스 출처」(V228 — ai-news-reporter-contract 「관리자 화면」) — 목록 · 더하기 · 고치기 · 지우기 · 지금 수집. 읽기 {@code ai-member.read}, 쓰기 {@code ai-member.manage}(컨트롤러).
+ * AI 회원 설정 「뉴스 출처」(V228 — ai-news-reporter-contract 「관리자 화면」) — 목록 · 더하기 · 고치기 · 지우기 · 지금 수집 · 관심 키워드(V230). 읽기 {@code ai-member.read}, 쓰기 {@code ai-member.manage}(컨트롤러).
  *
  * <ul>
  *   <li>칸 검사: {@code kind} RSS·YOUTUBE·KEYWORD · {@code name} 1~{@value AiNewsSourceEntity#NAME_MAX}자 · {@code address} 1~{@value AiNewsSourceEntity#ADDRESS_MAX}자 —
  *       RSS 는 http·https 주소, YOUTUBE 는 채널 ID 모양({@link AiNewsFeeds#CHANNEL_ID} — 「UC…」, 주소를 넣으면 거절), KEYWORD 는 아무 글자. 출처는 최대 {@value #SOURCES_MAX}개.</li>
- *   <li>감사: 따로 행위를 늘리지 않고 {@code AI_MEMBER_SETTINGS_UPDATE}(대상 {@value #AUDIT_TARGET}/출처 ID, {@code op} CREATE·UPDATE·DELETE·COLLECT)로 남긴다.</li>
+ *   <li>감사: 따로 행위를 늘리지 않고 {@code AI_MEMBER_SETTINGS_UPDATE}(대상 {@value #AUDIT_TARGET}/출처 ID, {@code op} CREATE·UPDATE·DELETE·COLLECT · 관심 키워드는 대상 {@value #AUDIT_TARGET}/KEYWORDS, {@code op} KEYWORDS)로 남긴다.</li>
+ *   <li>관심 키워드: 낱말마다 앞뒤 공백 정리(안쪽 공백은 하나로) · 쉼표로 나눔 · 빈 낱말 버림 · 중복(대소문자 무시) 제거 뒤 낱말당 1~{@value AiMemberSettingsEntity#NEWS_KEYWORD_MAX}자 ·
+ *       최대 {@value AiMemberSettingsEntity#NEWS_KEYWORDS_MAX}개(400 {@code fields.keywords}). 빈 목록 = 거르지 않음.</li>
  *   <li>지금 수집: 트랜잭션 밖에서 {@link AiNewsCollector#collectAll}(배치와 같은 서비스 — 돌고 있으면 {@code busy}).</li>
  * </ul>
  */
@@ -45,13 +53,16 @@ public class AiNewsSourceAdminService {
 
     private final AiNewsSourceRepository sources;
     private final AiNewsItemRepository items;
+    private final AiMemberSettingsRepository settings;
     private final AiNewsCollector collector;
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
 
-    public AiNewsSourceAdminService(AiNewsSourceRepository sources, AiNewsItemRepository items, AiNewsCollector collector, SnowflakeIdGenerator ids, AuditLogService audit) {
+    public AiNewsSourceAdminService(AiNewsSourceRepository sources, AiNewsItemRepository items, AiMemberSettingsRepository settings, AiNewsCollector collector,
+                                    SnowflakeIdGenerator ids, AuditLogService audit) {
         this.sources = sources;
         this.items = items;
+        this.settings = settings;
         this.collector = collector;
         this.ids = ids;
         this.audit = audit;
@@ -60,8 +71,9 @@ public class AiNewsSourceAdminService {
     public AiMemberViews.NewsSourceList list() {
         List<AiMemberViews.NewsSource> rows = sources.findAllByOrderBySortOrderAscIdAsc().stream().map(AiNewsSourceAdminService::row).toList();
         return new AiMemberViews.NewsSourceList(rows, Arrays.stream(AiNewsSourceKind.values()).map(Enum::name).toList(),
-                new AiMemberViews.NewsSourceLimits(AiNewsSourceEntity.NAME_MAX, AiNewsSourceEntity.ADDRESS_MAX, SOURCES_MAX), items.countByUsedAtIsNull(),
-                BatchCatalog.AI_NEWS_COLLECT.key());
+                new AiMemberViews.NewsSourceLimits(AiNewsSourceEntity.NAME_MAX, AiNewsSourceEntity.ADDRESS_MAX, SOURCES_MAX, AiMemberSettingsEntity.NEWS_KEYWORD_MAX,
+                        AiMemberSettingsEntity.NEWS_KEYWORDS_MAX), items.countByUsedAtIsNull(),
+                BatchCatalog.AI_NEWS_COLLECT.key(), settings.findById(AiMemberSettingsEntity.ID).map(AiMemberSettingsEntity::getNewsCollectKeywords).orElse(List.of()));
     }
 
     /** 더하기 — 400 {@code VALIDATION}(kind · name · address · sources 개수) */
@@ -112,7 +124,49 @@ public class AiNewsSourceAdminService {
         return new AiMemberViews.NewsCollectResult(r.sources(), r.failed(), r.added(), r.deleted(), r.busy(), list());
     }
 
+    /** 관심 키워드 저장(V230) — 400 {@code VALIDATION}(keywords). 바뀐 게 없어도 저장·감사한다 */
+    @Transactional
+    public AiMemberViews.NewsSourceList saveKeywords(AdminActor actor, AiMemberRequests.NewsKeywordsSave body) {
+        List<String> next = checkKeywords(body == null ? null : body.keywords());
+        AiMemberSettingsEntity row = settings.findWithLockById(AiMemberSettingsEntity.ID).orElseThrow(() -> new IllegalStateException("ai_member_settings 행이 없다(V183)"));
+        List<String> before = row.getNewsCollectKeywords();
+        row.saveNewsCollectKeywords(next);
+        audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.AI_MEMBER_SETTINGS_UPDATE, AuditResult.SUCCESS).target(AUDIT_TARGET, "KEYWORDS")
+                .with("op", "KEYWORDS").with("before", before).with("after", next));
+        return list();
+    }
+
     // ── 검사 ──────────────────────────────────────────────────────────────
+
+    /** 관심 키워드 정리·검사 — 목록이 없으면(null) 400 */
+    static List<String> checkKeywords(List<String> raw) {
+        if (raw == null) {
+            throw ValidationException.of("keywords", new MessageRef("aiMember.newsKeywords.required"));
+        }
+        List<String> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String entry : raw) {
+            if (entry == null) {
+                continue;
+            }
+            for (String part : entry.split(",")) {
+                String k = part.replaceAll("\\s+", " ").strip();
+                if (k.isEmpty()) {
+                    continue;
+                }
+                if (k.codePointCount(0, k.length()) > AiMemberSettingsEntity.NEWS_KEYWORD_MAX) {
+                    throw ValidationException.of("keywords", new MessageRef("aiMember.newsKeywords.length", AiMemberSettingsEntity.NEWS_KEYWORD_MAX));
+                }
+                if (seen.add(k.toLowerCase(Locale.ROOT))) {
+                    out.add(k);
+                }
+            }
+        }
+        if (out.size() > AiMemberSettingsEntity.NEWS_KEYWORDS_MAX) {
+            throw ValidationException.of("keywords", new MessageRef("aiMember.newsKeywords.max", AiMemberSettingsEntity.NEWS_KEYWORDS_MAX));
+        }
+        return out;
+    }
 
     private record Checked(AiNewsSourceKind kind, String name, String address, boolean enabled) {
     }

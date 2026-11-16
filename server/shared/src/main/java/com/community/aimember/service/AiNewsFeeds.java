@@ -42,7 +42,7 @@ public final class AiNewsFeeds {
     /** 유튜브 채널 ID 모양(관리자 저장 검사와 같이 본다) */
     public static final Pattern CHANNEL_ID = Pattern.compile("[A-Za-z0-9_-]{10,64}");
     /** 출처 하나에서 한 번에 받는 최대 항목 수(피드 앞쪽 = 최신) */
-    static final int ITEMS_PER_SOURCE = 30;
+    static final int ITEMS_PER_SOURCE = 10;
 
     private static final Pattern TAGS = Pattern.compile("<[^>]*>");
     private static final Pattern SPACES = Pattern.compile("\\s+");
@@ -68,6 +68,25 @@ public final class AiNewsFeeds {
         public String code() {
             return code;
         }
+    }
+
+    /**
+     * 관심 키워드 거르기(V230) — 제목 또는 요약에 낱말이 하나라도 들어 있나(대소문자 무시, 한글은 그대로 포함 비교). 키워드가 비면 늘 참.
+     * 마이그레이션 V230 의 정리 질의({@code ILIKE ANY})와 같은 기준이다. RSS·YOUTUBE 출처에만 쓴다(KEYWORD 는 이미 검색).
+     */
+    public static boolean matchesKeywords(FeedItem item, List<String> keywords) {
+        if (keywords == null || keywords.isEmpty()) {
+            return true;
+        }
+        String title = item.title() == null ? "" : item.title().toLowerCase(Locale.ROOT);
+        String summary = item.summary() == null ? "" : item.summary().toLowerCase(Locale.ROOT);
+        for (String k : keywords) {
+            String needle = k == null ? "" : k.strip().toLowerCase(Locale.ROOT);
+            if (!needle.isEmpty() && (title.contains(needle) || summary.contains(needle))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 출처 → 받을 주소. 주소가 틀리면 null(관리자 저장 검사가 먼저 막는다) */

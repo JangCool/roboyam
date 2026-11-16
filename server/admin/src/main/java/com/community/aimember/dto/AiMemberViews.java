@@ -200,12 +200,15 @@ public final class AiMemberViews {
                              String lastError, Instant lastErrorAt, Instant updatedAt) {
     }
 
-    /** 입력 한도(서버 검사와 같다) */
-    public record NewsSourceLimits(int nameMax, int addressMax, int sourcesMax) {
+    /** 입력 한도(서버 검사와 같다) — {@code keywordMax} 관심 키워드 낱말 하나 최대 글자 · {@code keywordsMax} 최대 개수(V230) */
+    public record NewsSourceLimits(int nameMax, int addressMax, int sourcesMax, int keywordMax, int keywordsMax) {
     }
 
-    /** 뉴스 출처 목록 — {@code kinds} 고를 수 있는 종류 · {@code unusedItems} 아직 안 쓴 수집 항목 수(7일 보관) · {@code batchKey} 수집 배치 키(배치 화면에서 주기·켜기) */
-    public record NewsSourceList(List<NewsSource> items, List<String> kinds, NewsSourceLimits limits, long unusedItems, String batchKey) {
+    /**
+     * 뉴스 출처 목록 — {@code kinds} 고를 수 있는 종류 · {@code unusedItems} 아직 안 쓴 수집 항목 수(7일 보관) · {@code batchKey} 수집 배치 키(배치 화면에서 주기·켜기) ·
+     * {@code keywords} 관심 키워드(V230 — RSS·YOUTUBE 항목은 제목·요약에 하나라도 들어간 것만 모은다, 비면 거르지 않음)
+     */
+    public record NewsSourceList(List<NewsSource> items, List<String> kinds, NewsSourceLimits limits, long unusedItems, String batchKey, List<String> keywords) {
     }
 
     /** 「지금 수집」 결과 — {@code busy} 다른 곳(배치)에서 수집 중이라 건너뛰었다. {@code list} 수집 뒤 목록 */

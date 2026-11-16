@@ -45,6 +45,10 @@ public final class AiMemberRequests {
     public record NewsSourceSave(String kind, String name, String address, Boolean enabled) {
     }
 
+    /** 뉴스 관심 키워드 저장(V230) — 낱말마다 앞뒤 공백 정리 · 쉼표로 나눔 · 빈 낱말 버림 · 중복(대소문자 무시) 제거. 빈 목록 = 거르지 않음 */
+    public record NewsKeywordsSave(List<String> keywords) {
+    }
+
     public record Enabled(Boolean enabled) {
     }
 

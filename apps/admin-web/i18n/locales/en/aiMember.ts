@@ -570,4 +570,10 @@ export default {
     newsCollected: 'Collected {sources} sources and added {added} new items.',
     newsCollectedWithFailures: '{failed} of {sources} sources could not be fetched. {added} new items — check the Error column.',
     newsCollectBusy: 'Collection is already running elsewhere (batch). Try again shortly.',
+    newsKeywordsLabel: 'Interest keywords',
+    newsKeywordsHelp: 'RSS and YouTube items are collected only when one of these words appears in the title or summary. Leave empty to collect everything.',
+    newsKeywordsPlaceholder: 'Separate with commas, e.g. AI, robot, semiconductor',
+    newsKeywordsCount: '{n}/{max} · up to {len} characters each · search-term sources are not filtered',
+    newsKeywordsSave: 'Save keywords',
+    newsKeywordsSaved: 'Interest keywords saved.',
 };

@@ -538,11 +538,19 @@ export interface AiNewsSource {
 export interface AiNewsSourceList {
     items: AiNewsSource[];
     kinds: AiNewsSourceKind[];
-    limits: { nameMax: number; addressMax: number; sourcesMax: number };
+    /** `keywordMax` 관심 키워드 낱말 하나 최대 글자 · `keywordsMax` 최대 개수(V230) */
+    limits: { nameMax: number; addressMax: number; sourcesMax: number; keywordMax: number; keywordsMax: number };
     /** 아직 쓰지 않은 수집 항목 수(7일 보관) */
     unusedItems: number;
     /** 수집 배치 키(배치 관리 화면에서 주기·켜기 — 기본 30분마다) */
     batchKey: string;
+    /** 관심 키워드(V230) — RSS·유튜브 항목은 제목·요약에 하나라도 들어간 것만 모은다(대소문자 무시). 비면 모두 모은다. 검색어(KEYWORD) 출처는 거르지 않는다 */
+    keywords: string[];
+}
+
+/** 관심 키워드 저장 — 서버가 앞뒤 공백 정리·쉼표로 나눔·중복 제거. 400 `VALIDATION`(`fields.keywords`) */
+export interface AiNewsKeywordsSaveRequest {
+    keywords: string[];
 }
 
 /** 더하기·고치기 — 400 `VALIDATION`(`fields.kind`·`name`·`address`·`sources`) */

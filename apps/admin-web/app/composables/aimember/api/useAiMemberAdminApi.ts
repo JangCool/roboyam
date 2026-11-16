@@ -17,6 +17,7 @@ import type {
     AiModelCreateRequest,
     AiModelList,
     AiNewsCollectResult,
+    AiNewsKeywordsSaveRequest,
     AiNewsSourceList,
     AiNewsSourceSaveRequest,
     AiPromptPreview,
@@ -60,6 +61,7 @@ import type {
  *       `POST …/news-sources` `AiNewsSourceSaveRequest` → 201 · `PUT …/news-sources/{id}` · `DELETE …/news-sources/{id}`(그 출처의 수집 항목도)
  *       · 400 `VALIDATION`(`fields.kind`·`name`·`address`·`sources`) · 404 `AI_NEWS_SOURCE_NOT_FOUND`
  *       `POST …/news-sources/collect` → `AiNewsCollectResult`(지금 수집 — 배치 `ai-news-collect` 와 같은 서비스, 돌고 있으면 `busy`)
+ *       `PUT  …/news-sources/keywords` `AiNewsKeywordsSaveRequest` → `AiNewsSourceList`(V230 관심 키워드 — 낱말당 1~30자 · 최대 60개) · 400 `VALIDATION`(`fields.keywords`)
  * 공통 오류: 403 `PERMISSION_DENIED`.
  */
 const PATH = {
@@ -82,6 +84,7 @@ const PATH = {
     promptPreview: '/api/admin/ai-members/prompts/preview',
     newsSources: '/api/admin/ai-members/news-sources',
     newsCollect: '/api/admin/ai-members/news-sources/collect',
+    newsKeywords: '/api/admin/ai-members/news-sources/keywords',
     newsSource: (id: string) => `/api/admin/ai-members/news-sources/${encodeURIComponent(id)}`,
 };
 
@@ -152,6 +155,9 @@ export function useAiMemberAdminApi() {
         saveNewsSource: (id: string, body: AiNewsSourceSaveRequest): Promise<AiNewsSourceList> => client.put<AiNewsSourceList>(PATH.newsSource(id), body),
 
         deleteNewsSource: (id: string): Promise<AiNewsSourceList> => client.del<AiNewsSourceList>(PATH.newsSource(id)),
+
+        /** 관심 키워드 저장(V230) — 빈 목록 = 거르지 않음 */
+        saveNewsKeywords: (body: AiNewsKeywordsSaveRequest): Promise<AiNewsSourceList> => client.put<AiNewsSourceList>(PATH.newsKeywords, body),
 
         /** 지금 수집 — 외부 피드를 출처마다 받으므로(출처당 최대 30초) 기다리는 시간을 3분으로 늘린다 */
         collectNews: (): Promise<AiNewsCollectResult> => client.post<AiNewsCollectResult>(PATH.newsCollect, {}, { timeoutMs: 180_000 }),
