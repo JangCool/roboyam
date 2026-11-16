@@ -21,6 +21,8 @@ import type {
     BoardStaffCandidate,
     BoardStaffMember,
 } from '~/composables/board/api/useBoardApi.types';
+// MOCK: 포인트 등급(`pointMode` OFF|NORMAL|INFO|CORE)을 옛 서버 값(ON|OFF)과 바꿔 읽고 보낸다 — 서버가 등급을 받으면 이 줄을 지운다
+import { readDefaultsResponse, readDetail, sendDefaults, sendDetail } from '~/composables/board/api/mock/board-point-mode-mock';
 
 /**
  * 게시판 관리 API — 서버 주소 문자열(`/api/admin/boards…`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -73,12 +75,19 @@ export function useBoardApi() {
 
     return {
         /** 기본 설정 + 기본값을 따르는/따로 정한 게시판 */
-        defaults: (): Promise<BoardDefaultsResponse> =>
-            client.get<BoardDefaultsResponse>(PATH.defaults),
+        defaults: async (): Promise<BoardDefaultsResponse> => {
+            const res = await client.get<BoardDefaultsResponse>(PATH.defaults);
+            // MOCK: 포인트 칸의 옛 값 `ON` 을 등급으로 읽는다(point-board-tier-contract)
+            return readDefaultsResponse(res);
+            // REAL: return res;
+        },
 
         /** 기본 설정을 한 번에 저장한다 */
-        saveDefaults: (body: BoardDefaultsSaveRequest): Promise<BoardDefaultsResponse> =>
-            client.put<BoardDefaultsResponse>(PATH.defaults, body),
+        saveDefaults: async (body: BoardDefaultsSaveRequest): Promise<BoardDefaultsResponse> => {
+            // MOCK: 서버가 등급 값을 받기 전까지 등급을 `ON` 으로 보내고 받은 `ON` 을 등급으로 읽는다
+            return readDefaultsResponse(await client.put<BoardDefaultsResponse>(PATH.defaults, sendDefaults(body)));
+            // REAL: return client.put<BoardDefaultsResponse>(PATH.defaults, body);
+        },
 
         /** 게시판 목록 — 순서대로, 꺼진 것 포함 */
         list: (): Promise<BoardListResponse> =>
@@ -89,10 +98,18 @@ export function useBoardApi() {
             client.post<BoardListItem>(PATH.boards, body),
 
         /** 게시판 하나(설정 화면) — 화면 주소의 slug 로 */
-        bySlug: (slug: string): Promise<BoardDetail> => client.get<BoardDetail>(PATH.bySlug(slug)),
+        bySlug: async (slug: string): Promise<BoardDetail> => {
+            // MOCK: 포인트 칸의 옛 값 `ON` 을 등급으로 읽는다(point-board-tier-contract)
+            return readDetail(await client.get<BoardDetail>(PATH.bySlug(slug)));
+            // REAL: return client.get<BoardDetail>(PATH.bySlug(slug));
+        },
 
         /** 기본 정보 + 정책 + 말머리를 한 번에 저장한다 */
-        save: (id: string, body: BoardSaveRequest): Promise<BoardDetail> => client.put<BoardDetail>(PATH.board(id), body),
+        save: async (id: string, body: BoardSaveRequest): Promise<BoardDetail> => {
+            // MOCK: 서버가 등급 값을 받기 전까지 등급을 `ON` 으로 보내고 받은 `ON` 을 등급으로 읽는다
+            return readDetail(await client.put<BoardDetail>(PATH.board(id), sendDetail(id, body)));
+            // REAL: return client.put<BoardDetail>(PATH.board(id), body);
+        },
 
         /** 게시판을 켜고 끈다 */
         setActive: (id: string, active: boolean): Promise<BoardListItem> =>

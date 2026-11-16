@@ -126,4 +126,30 @@ export default {
     // Business-only accounts
     businessTitle: 'Business accounts don’t use points',
     businessText: 'Points and history are available on regular member accounts.',
+
+    // Pending confirmation (point-board-tier-contract) — held like bonuses and featured rewards
+    pendingTitle: 'Pending confirmation',
+    pendingReason: {
+        LIKE_BONUS: 'Like bonus',
+        POST_FEATURED: 'Featured post',
+    },
+    pendingRelease: 'Confirms {at}',
+    pendingUnavailable: 'Post not available',
+    pendingNote: 'Points arrive when the hold ends. If the post is deleted or hidden by reports in the meantime, they won’t be paid.',
+
+    // Points guide when writing (point-board-tier-contract — Info and Core boards)
+    writeTierTitle: '{tier} board points',
+    writeTierTierName: {
+        NORMAL: 'Standard',
+        INFO: 'Info',
+        CORE: 'Core',
+    },
+    writeTierWrite: '{n}P for posting',
+    writeTierLike: '{n}P more at {k} likes',
+    writeTierFeatured: '{n}P if featured',
+    writeTierLength: 'Length {current}/{min} chars',
+    writeTierImages: 'Photos {current}/{min}',
+    writeTierMet: 'Earning conditions met',
+    writeTierUnmet: 'Earning conditions not met yet',
+    writeTierHold: 'Like bonuses and featured points are confirmed after {h} hours.',
 };

@@ -154,7 +154,28 @@ export type MyPointReasonCode =
     // 포인트 게임(`point-games-contract.md`) — 룰렛 돌리기·로또 번호 뽑기(USE, 적립 포인트만) · 룰렛 당첨(EARN). 이름은 서버 `reason`(룰렛 돌리기 · 로또 번호 뽑기 · 룰렛 당첨)
     | 'ROULETTE_SPIN'
     | 'LOTTO_DRAW'
-    | 'ROULETTE_WIN';
+    | 'ROULETTE_WIN'
+    // 게시판 등급별 포인트(`point-board-tier-contract.md`) — 우수 글 선정(EARN) · 우수 글 회수(REVOKE, 확정 뒤 본인 삭제). 이름은 서버 `reason`(우수 글 선정 · 우수 글 회수)
+    | 'POST_FEATURED'
+    | 'POST_FEATURED_REVOKE';
+
+/** 보류 중인 지급의 사유 — 추천 문턱 보너스 · 우수 글 선정 */
+export type MyPointPendingReason = 'LIKE_BONUS' | 'POST_FEATURED';
+
+/**
+ * 확정 대기 한 줄(point-board-tier-contract 「보류 확정 방식」) — 보류 시간이 지나면 지급된다. 그 사이 글이 지워지거나 신고로 숨겨지면 취소된다.
+ * ⚠ 서버 API 가 아직 없다(후보 `GET /api/me/points/pending` → `{ items }`) — `usePointApi.pending` 이 목업 줄을 준다(MOCK).
+ */
+export interface MyPointPendingItem {
+    id: string;
+    reason: MyPointPendingReason;
+    /** 확정 때 받을 양 */
+    amount: number;
+    /** 확정 예정 시각(UTC ISO) */
+    releaseAt: string;
+    /** 그 보상이 걸린 글 — 볼 수 없으면 `available=false`, `title=null`(내역 줄의 `target` 과 같은 모양) */
+    target: MyPointLedgerTarget;
+}
 
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {

@@ -1,5 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { AttendanceStreakRule, AttendResult, PointRules } from '~/composables/point/api/usePointApi.types';
+import type { BoardPointTierView } from '~/composables/board/api/useBoardApi.types';
 import UtilPoint, { type AttendanceCalendarCell, type PointBlockedReason } from '~/utils/util-point';
 
 /** 제목과 설명 한 쌍 — 배너·안내 상자에 쓴다 */
@@ -19,6 +20,20 @@ function monthName(month: number): string {
  * 상수 문구(포인트 화면 입구 이름 `point.entry`)는 컴포넌트가 `t` 로 바로 읽는다.
  */
 export default class UtilPointMessages {
+    /**
+     * 글쓰기 포인트 안내 한 줄(point-board-tier-contract) — 「쓰면 50P, 추천 5개 받으면 150P 더, 우수 글로 뽑히면 500P」. 0P 인 것은 뺀다.
+     * @param {Translate} t - 번역 함수.
+     * @param {BoardPointTierView} tier - 게시판 등급의 금액·조건.
+     * @returns {string} 안내 한 줄(모두 0P 면 빈 글자).
+     */
+    static writeTierLine(t: Translate, tier: BoardPointTierView): string {
+        const parts: string[] = [];
+        if (tier.postPoints > 0) parts.push(t('point.writeTierWrite', { n: UtilPoint.number(tier.postPoints) }));
+        if (tier.likeBonusPoints > 0) parts.push(t('point.writeTierLike', { k: UtilPoint.number(tier.likeThreshold), n: UtilPoint.number(tier.likeBonusPoints) }));
+        if (tier.featuredPoints > 0) parts.push(t('point.writeTierFeatured', { n: UtilPoint.number(tier.featuredPoints) }));
+        return parts.join(', ');
+    }
+
     /**
      * 출석 단추의 글자 — 받을 포인트는 서버 설정값이다. 값을 아직 모르면 금액 없이 "오늘 출석하기".
      * @param {Translate} t - 번역 함수.

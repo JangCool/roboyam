@@ -158,6 +158,12 @@
             </Select>
         </template>
 
+        <!-- 고른 값의 풀이 한 줄(포인트 칸 — 그 등급의 금액·조건) -->
+        <p v-if="detail" class="m-0 flex items-start gap-1.5 text-xs leading-relaxed" data-testid="board-field-detail">
+            <i class="pi pi-wallet mt-0.5 text-[11px] text-muted-color" aria-hidden="true" />
+            <span>{{ detail }}</span>
+        </p>
+
         <div :id="messageId" aria-live="polite" class="min-h-0 text-xs leading-relaxed">
             <p v-if="error" role="alert" class="m-0 text-red-600 dark:text-red-400">{{ error }}</p>
             <p v-else-if="note" class="m-0 text-amber-700 dark:text-amber-400">{{ note }}</p>
@@ -209,9 +215,11 @@ interface Props {
     excludeGrades?: string[];
     /** 칸 아래 안내를 바꾼다(비우면 `board.fieldHelp.<칸>`) — 게시판 설정의 이름 칸처럼 화면마다 뜻이 다를 때 */
     help?: string;
+    /** 고른 값의 풀이 한 줄 — 입력 바로 아래, 안내 위(포인트 칸이 그 등급의 금액·조건을 보인다). 비우면 그리지 않는다 */
+    detail?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { inheritable: false, defaultValue: null, grades: () => [], editable: true, error: '', inactive: false, note: '', overrides: () => [], allowGuest: false, excludeGrades: () => [], help: '' });
+const props = withDefaults(defineProps<Props>(), { inheritable: false, defaultValue: null, grades: () => [], editable: true, error: '', inactive: false, note: '', overrides: () => [], allowGuest: false, excludeGrades: () => [], help: '', detail: '' });
 const emit = defineEmits<{ 'update:modelValue': [value: BoardFieldValue] }>();
 
 const { t } = useI18n();

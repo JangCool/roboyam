@@ -15,6 +15,8 @@
         태그(post-tags-contract): 게시판 `tagsEnabled` 면 본문(·대표 이미지) 아래 태그 칸(`PostTagInput` — 최대 5개). 게시판을 바꿔도 값은 들고 가고, 꺼진 게시판이면 칸을 감추고 보내지 않는다.
         출처(shared V232): 게시판 `sourcesEnabled` 면 태그 위에 출처 칸(`PostSourcesField` — 줄마다 이름 + 주소, 최대 5). 태그와 같게 게시판을 바꿔도 값은 들고 가고, 꺼진 게시판이면 감추고 보내지 않는다.
         대표 이미지(list-thumbnail-contract 「2단계」): 게시판 `authorThumbnailEnabled`(기본 끔)를 켠 게시판의 회원 글쓰기면 본문 바로 아래 「대표 이미지」 줄(`PostThumbnailPicker` — 본문 이미지 고르기 · 자동 · 따로 올리기 · 없음). 자동이 아니면 본문 `thumbnail` 로 보낸다.
+        포인트 안내(point-board-tier-contract — 화면 목업): 고른 게시판 등급이 정보·핵심 글이고 회원이면 본문 바로 아래 받을 포인트(쓰면·추천 문턱·우수 글) + 지금 글자 수·사진 수와 적립 조건(채웠는지 표시). 일반·끔·비회원은 안내 없음.
+          ⚠ MOCK: 등급은 게시판 응답 `pointTier`(서버 미구현 — `useBoardApi.board` 가 slug 기본 배정으로 채운다).
         게시판 제재(board-sanction-contract): 고른 게시판에서 쓰기 제한 중이면 폼 대신 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」. 등록 때 `403 BOARD_WRITE_RESTRICTED` 면 폼 위에 같은 안내(쓰던 글은 그대로).
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
@@ -104,6 +106,26 @@
                     <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
                 </template>
                 <template #belowContent="{ imageUpload }">
+                    <!-- 포인트 안내(point-board-tier-contract) — 정보·핵심 글 게시판의 회원 글쓰기만. 받을 포인트 + 지금 글자 수·사진 수와 적립 조건. ⚠ MOCK: 게시판 등급은 `useBoardApi` 목업 -->
+                    <div v-if="tierGuide" class="rounded-lg border border-surface px-3 py-2.5 text-sm" role="note" data-testid="write-point-tier">
+                        <p class="flex items-center gap-1.5 font-semibold">
+                            <i class="pi pi-wallet text-xs text-primary" aria-hidden="true" />
+                            {{ t('point.writeTierTitle', { tier: t(`point.writeTierTierName.${tierGuide.tier}`) }) }}
+                        </p>
+                        <p v-if="tierGuideLine" class="mt-1">{{ tierGuideLine }}</p>
+                        <template v-if="tierConditions.length">
+                            <ul class="m-0 mt-2 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-xs tabular-nums" data-testid="write-point-conditions">
+                                <li v-for="c in tierConditions" :key="c.key" class="inline-flex items-center gap-1" :class="c.met ? 'text-green-700 dark:text-green-400' : 'text-muted-color'">
+                                    <i :class="c.met ? 'pi pi-check-circle' : 'pi pi-circle'" class="text-[11px]" aria-hidden="true" />
+                                    {{ c.label }}
+                                </li>
+                            </ul>
+                            <p class="mt-1 text-xs" :class="tierMet ? 'text-green-700 dark:text-green-400' : 'text-muted-color'" aria-live="polite" data-testid="write-point-met">
+                                {{ tierMet ? t('point.writeTierMet') : t('point.writeTierUnmet') }}
+                            </p>
+                        </template>
+                        <p v-if="tierGuide.holdHours > 0 && (tierGuide.likeBonusPoints > 0 || tierGuide.featuredPoints > 0)" class="mt-1 text-xs text-muted-color">{{ t('point.writeTierHold', { h: tierGuide.holdHours }) }}</p>
+                    </div>
                     <!-- 출처(V232) — 게시판 옵션 「출처 칸 쓰기」(`sourcesEnabled`)를 켠 게시판만. 본문 바로 아래(대표 이미지보다 먼저 — 글 보기에서도 본문 바로 밑에 보인다, 사용자 2026-11-16) -->
                     <PostSourcesField v-if="sourcesShown" v-model="sources" :disabled="submitting" :error="fieldErrors.sources ?? ''" :show-problems="sourcesTried" />
                     <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 회원 글쓰기만 -->
@@ -150,6 +172,8 @@ import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
+import UtilPoint from '~/utils/util-point';
+import UtilPointMessages from '~/utils/util-point-messages';
 import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
@@ -345,6 +369,34 @@ const tagsError = computed(() => tagsServerError.value || (tagsTried.value && ta
 watch(tags, () => {
     if (tagsServerError.value) fieldErrors.value = UtilPostTag.withoutFieldErrors(fieldErrors.value);
 });
+
+/*
+ * ── 포인트 안내(point-board-tier-contract) — 고른 게시판 등급이 정보·핵심 글이고 회원 글쓰기일 때만. 일반·끔·비회원은 안내 없음(일반은 대부분의 게시판이라 매번 보이면 시끄럽다 — 가정).
+ * 지금 글자 수(서식·공백·그림 뺀 글자)·사진 수와 적립 조건을 같이 보인다. 판정은 서버다(화면은 안내만). ⚠ MOCK: 등급은 `useBoardApi.board` 가 slug 기본 배정으로 채운다 ──
+ */
+const tierGuide = computed(() => {
+    const b = board.value;
+    const tier = b?.pointTier;
+    if (!b || !tier || b.viewer.guest || (tier.tier !== 'INFO' && tier.tier !== 'CORE')) return null;
+    return tier;
+});
+const tierGuideLine = computed(() => (tierGuide.value ? UtilPointMessages.writeTierLine(t, tierGuide.value) : ''));
+/** 적립 조건 — 0 인 조건은 뺀다 */
+const tierConditions = computed(() => {
+    const g = tierGuide.value;
+    if (!g) return [];
+    const out: { key: string; label: string; met: boolean }[] = [];
+    if (g.minLength > 0) {
+        const n = UtilPost.pointLength(form.value.content, form.value.contentFormat);
+        out.push({ key: 'length', label: t('point.writeTierLength', { current: UtilPoint.number(n), min: UtilPoint.number(g.minLength) }), met: n >= g.minLength });
+    }
+    if (g.minImages > 0) {
+        const n = UtilPost.photoCount(form.value.content, form.value.contentFormat);
+        out.push({ key: 'images', label: t('point.writeTierImages', { current: UtilPoint.number(n), min: UtilPoint.number(g.minImages) }), met: n >= g.minImages });
+    }
+    return out;
+});
+const tierMet = computed(() => tierConditions.value.every((c) => c.met));
 
 /* ── 출처(V232) — 게시판을 바꿔도 값은 들고 가고, 출처 칸을 쓰지 않는 게시판이면 칸을 감추고 보내지 않는다 ── */
 const sources = ref<PostSourceRow[]>([]);

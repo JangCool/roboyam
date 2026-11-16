@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { PointSettingsNumberField } from '~/composables/point/api/usePointApi.types';
+import type { PointBoardTier, PointBoardTiers, PointBoardTierValues, PointSettingsNumberField } from '~/composables/point/api/usePointApi.types';
 import type { PointAdjustMode, PointAmountProblem, PointReasonProblem, PointSettingsProblem } from '~/utils/util-point';
 import UtilPoint from '~/utils/util-point';
 
@@ -20,6 +20,46 @@ export default class UtilPointMessages {
         if (problem === 'NOT_INTEGER') return t('point.problemNotInteger');
         const [min, max] = UtilPoint.limitsOf(field);
         return t('point.problemRange', { min: min.toLocaleString(locale), max: max.toLocaleString(locale) });
+    }
+
+    // ── 게시판 등급(point-board-tier-contract) ─
+
+    /** 등급 칸의 입력 범위 글자 — `0 ~ 10,000` */
+    static tierRange(t: Translate, locale: string): string {
+        const [min, max] = UtilPoint.TIER_LIMITS;
+        return t('point.range', { min: min.toLocaleString(locale), max: max.toLocaleString(locale) });
+    }
+
+    /** 등급 칸 문제를 칸 아래 한 줄로 */
+    static tierProblem(t: Translate, problem: PointSettingsProblem, locale: string): string {
+        if (problem === 'REQUIRED') return t('point.problemRequired');
+        if (problem === 'NOT_INTEGER') return t('point.problemNotInteger');
+        const [min, max] = UtilPoint.TIER_LIMITS;
+        return t('point.problemRange', { min: min.toLocaleString(locale), max: max.toLocaleString(locale) });
+    }
+
+    /**
+     * 등급 하나의 금액·조건을 한 줄로 — 「쓰면 30P · 추천 5개 받으면 +50P · 우수 글 +100P · 100자 이상 · 보너스 24시간 뒤 확정」.
+     * 0 인 금액·조건은 뺀다. 보류는 보너스(추천 문턱·우수 글)가 있을 때만. 모두 0 이면 「포인트 없음」.
+     * @param likeThreshold - 추천 문턱(정책 `likeBonusThreshold` — 등급이 함께 쓴다)
+     */
+    static tierSummary(t: Translate, values: PointBoardTierValues, likeThreshold: number, locale: string): string {
+        const n = (value: number) => value.toLocaleString(locale);
+        const parts: string[] = [];
+        if (values.postPoints > 0) parts.push(t('point.tierSummary.write', { n: n(values.postPoints) }));
+        if (values.likeBonusPoints > 0) parts.push(t('point.tierSummary.like', { k: n(likeThreshold), n: n(values.likeBonusPoints) }));
+        if (values.featuredPoints > 0) parts.push(t('point.tierSummary.featured', { n: n(values.featuredPoints) }));
+        if (parts.length === 0) return t('point.tierSummary.none');
+        if (values.minLength > 0) parts.push(t('point.tierSummary.minLength', { n: n(values.minLength) }));
+        if (values.minImages > 0) parts.push(t('point.tierSummary.minImages', { n: n(values.minImages) }));
+        if (values.holdHours > 0 && (values.likeBonusPoints > 0 || values.featuredPoints > 0)) parts.push(t('point.tierSummary.hold', { h: n(values.holdHours) }));
+        return parts.join(' · ');
+    }
+
+    /** 게시판 설정의 포인트 칸 아래 한 줄 — 끔이면 「포인트를 주지 않아요」, 아니면 「정보 등급 — 쓰면 30P · …」 */
+    static boardTierLine(t: Translate, tier: PointBoardTier | null, tiers: PointBoardTiers, likeThreshold: number, locale: string): string {
+        if (!tier) return t('point.tierSummary.off');
+        return t('point.tierSummary.line', { tier: t(`point.tier.${tier}`), summary: UtilPointMessages.tierSummary(t, tiers[tier], likeThreshold, locale) });
     }
 
     /** 조정 금액 문제 */

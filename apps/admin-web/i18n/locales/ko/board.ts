@@ -396,7 +396,7 @@ export default {
         inHome: '끄면 홈·인기글·최신글 모음에서 빠져요(게시판 자체는 그대로).',
         attachmentPurgeEnabled: '켜면 삭제된 글의 첨부를 보존 기간 뒤 영구히 지워요.',
         attachmentRetentionDays: '삭제된 글의 첨부를 남겨 두는 기간이에요.',
-        pointMode: '「지급 안 함」이면 이 게시판의 글·댓글·추천 받음에 포인트를 주지 않아요.',
+        pointMode: '게시판 등급에 따라 글 포인트와 보너스가 달라요(포인트 정책 › 게시판 등급별 지급). 「끔」이면 이 게시판의 글·댓글·추천 받음에 포인트를 주지 않아요.',
         pointMinLengthApplied: '끄면 이 게시판의 글은 포인트 정책의 최소 글자 수와 관계없이 적립돼요(사진 게시판처럼 그림 위주인 곳). 댓글 최소 글자 수와 다른 적립 조건은 그대로예요.',
         commentProtectMin: '보이는 댓글이 이 수 이상인 글을 「보호 중」으로 봐요. 0이면 끔.',
         commentProtectEdit: '켜면 보호 중인 글을 글쓴이가 고칠 수도 없어요.',
@@ -502,9 +502,12 @@ export default {
             NONE: '평문',
             SIMPLE: '간단',
         },
+        // 포인트 등급(point-board-tier-contract) — 옛 값 `ON` 은 화면이 일반으로 읽는다
         pointMode: {
-            ON: '규칙대로 지급',
-            OFF: '지급 안 함',
+            OFF: '끔',
+            NORMAL: '일반',
+            INFO: '정보',
+            CORE: '핵심 글',
         },
         commentDelayNotice: {
             TIME: '남은 시간 알리기',
@@ -604,7 +607,7 @@ export default {
         attachmentOrphan: '글쓰기 중 올렸다가 저장하지 않은 임시 첨부는 이 설정과 무관하게 매일 자동으로 정리돼요(배치 file-orphan-cleanup).',
         attachmentRestore: '휴지통에서 글을 복원하면 보존 기간 안의 첨부도 함께 복원돼요.',
         protectStaff: '운영진·매니저·스텝의 숨기기·삭제와 신고 처리는 보호와 무관하게 바로 처리돼요.',
-        pointAmount: '지급 포인트 값은 포인트 설정이 정해요. 이미 받은 포인트의 회수는 그대로예요.',
+        pointAmount: '등급마다 지급 포인트 값은 포인트 정책 › 게시판 등급별 지급이 정해요. 이미 받은 포인트의 회수는 그대로예요.',
         guestDelay: '0이면 바로 보여요. 회원·운영진에게는 늘 바로 보여요.',
         reactionDebate: '토론 의견도 그 글의 게시판 설정을 따라요. 운영자는 관리자 의견 관리의 「고정 요청」 탭에서 처리해요.',
         staffEligible: '지정 자격: 정상 회원 · 이메일 인증 완료 · 첫 등급(새싹) 아님 · 사업자 아님. 한 회원은 최대 5개 게시판을 맡아요.',

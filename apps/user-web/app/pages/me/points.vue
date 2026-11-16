@@ -104,6 +104,31 @@
                 </template>
             </section>
 
+            <!--
+                확정 대기(point-board-tier-contract) — 보류 중인 추천 문턱 보너스·우수 글 보상. 「+150P · 추천 보너스 · 글 제목 · 11월 18일 14:00 확정 예정」. 없거나 못 받으면 구획을 그리지 않는다(내역이 본체라 실패를 따로 알리지 않는다).
+                ⚠ MOCK: 서버 API 가 없어 `usePointApi.pending` 이 목업 줄을 준다(`?mock=pending-empty` 면 빈 목록).
+            -->
+            <section v-if="pending.length" class="panel-card p-4" :aria-labelledby="`${uid}-pending`" data-testid="points-pending">
+                <h2 :id="`${uid}-pending`" class="text-sm font-semibold">{{ t('point.pendingTitle') }}</h2>
+                <ul class="m-0 mt-2 flex list-none flex-col divide-y divide-surface p-0">
+                    <li v-for="p in pending" :key="p.id" class="flex items-start justify-between gap-3 py-2.5 first:pt-1 last:pb-0" data-testid="points-pending-row">
+                        <div class="min-w-0 text-sm">
+                            <p class="flex min-w-0 flex-wrap items-center gap-x-1.5">
+                                <span class="font-medium">{{ t(`point.pendingReason.${p.reason}`) }}</span>
+                                <span aria-hidden="true" class="text-muted-color">·</span>
+                                <NuxtLink v-if="p.target.available && p.target.title" :to="`/posts/${p.target.postId}`" class="min-w-0 truncate hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ p.target.title }}</NuxtLink>
+                                <span v-else class="text-muted-color">{{ t('point.pendingUnavailable') }}</span>
+                            </p>
+                            <p class="mt-0.5 text-xs text-muted-color">
+                                <time :datetime="p.releaseAt" :title="time.full(p.releaseAt)">{{ t('point.pendingRelease', { at: time.slot(p.releaseAt) }) }}</time>
+                            </p>
+                        </div>
+                        <span class="shrink-0 text-sm font-semibold tabular-nums text-muted-color">+{{ UtilPoint.points(p.amount) }}</span>
+                    </li>
+                </ul>
+                <p class="mt-3 text-xs leading-relaxed text-muted-color">{{ t('point.pendingNote') }}</p>
+            </section>
+
             <!-- 출석체크(커머스 1-3, community AttendancePanel) — 출석 기능이 있을 때만. 월간 달력(출석한 날·오늘) · 연속 N일 · 다음 연속 보너스까지 · [오늘 출석하기] -->
             <section v-if="summary?.attendanceAvailable" class="panel-card p-4" :aria-labelledby="`${uid}-attendance`" data-testid="attendance-panel">
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -306,7 +331,7 @@
 <script setup lang="ts">
 import UtilHoliday, { type HolidayMark } from '#layers/display-time/utils/util-holiday';
 import UtilHolidayMessages from '#layers/display-time/utils/util-holiday-messages';
-import type { MyPointLedgerItem, MyPointLedgerKind, PointCount } from '~/composables/point/api/usePointApi.types';
+import type { MyPointLedgerItem, MyPointLedgerKind, MyPointPendingItem, PointCount } from '~/composables/point/api/usePointApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilBusiness from '~/utils/util-business';
 import UtilPoint from '~/utils/util-point';
@@ -480,14 +505,26 @@ async function loadLedger(reset: boolean) {
 watch(kind, () => void loadLedger(true));
 onBeforeUnmount(() => ledgerSeq++);
 
+// ── 확정 대기(point-board-tier-contract) — 못 받으면 빈 목록(구획을 그리지 않는다) ─
+const pending = ref<MyPointPendingItem[]>([]);
+async function loadPending(): Promise<void> {
+    try {
+        pending.value = await api.pending();
+    } catch {
+        pending.value = [];
+    }
+}
+
 // 로그인한 사람이 정해지면 요약·내역을 받는다(요약은 받아 둔 값이 있으면 그대로 보이면서 바꾼다). 사람이 바뀌면 출석 달력도 처음으로
 watch(
     () => user.value?.id ?? null,
     (id) => {
         attendance.reset();
+        pending.value = [];
         if (!id || businessAccount.value) return;
         void points.load();
         void loadLedger(true);
+        void loadPending();
     },
     { immediate: true },
 );

@@ -9,6 +9,7 @@
  */
 
 import type { GradeKey } from '~/composables/grade/api/useGradeApi.types';
+import type { PointBoardTier } from '~/composables/point/api/usePointApi.types';
 
 /** 최소 자격의 「비회원 포함 모두」 값 — 게시판별로만 고른다(기본 설정은 회원부터). 핫딜·직접홍보 게시판은 받지 않는다 */
 export const BOARD_MIN_GUEST = 'GUEST';
@@ -45,8 +46,11 @@ export type BoardChipPosition = 'ABOVE' | 'BEFORE' | 'BELOW';
  * 값 목록 원천은 서버 `BoardFields`(칩 위치와 같은 틀). 처리 상태·19·투표·광고 같은 기능 표시는 이 값과 상관없다
  */
 export type BoardPrefixStyle = 'TEXT' | 'MUTED' | 'COLOR';
-/** 포인트 지급 — 포인트 규칙을 따름 · 지급 안 함 */
-export type BoardPointMode = 'ON' | 'OFF';
+/**
+ * 포인트 — 끔 · 일반 · 정보 · 핵심 글(point-board-tier-contract — 등급마다 금액·조건은 포인트 정책 「게시판 등급별 지급」).
+ * ⚠ 서버는 아직 옛 값 `ON`·`OFF` 만 안다 — `useBoardApi` 가 받은 `ON` 을 `NORMAL` 로 읽고, 보낼 때 등급을 `ON` 으로 바꿔 보낸다(MOCK).
+ */
+export type BoardPointMode = 'OFF' | PointBoardTier;
 /** 댓글 많은 글(보호 중) 삭제 방식 — 막기 · 예약 삭제 · 바로 삭제 */
 export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 /**

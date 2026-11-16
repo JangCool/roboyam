@@ -83,6 +83,7 @@ export default {
     chip: {
         notice: '공지',
         pinned: '고정',
+        featured: '우수 글',
         adult: '19금',
         secret: '비밀글',
         debate: '토론',
@@ -138,6 +139,23 @@ export default {
         PIN: '고정',
         UNPIN: '고정 해제',
         POLL_DELETE: '투표 지우기',
+        FEATURE: '우수 글로 선정',
+        UNFEATURE: '우수 글 선정 취소',
+    },
+    // 우수 글 선정·취소 확인(point-board-tier-contract) — 사유 없이 확인만
+    featureDialog: {
+        FEATURE: {
+            title: '우수 글로 선정할까요?',
+            hold: '글쓴이에게 {n}P({tier} 등급의 우수 글 금액)를 줘요. 보류 {h}시간 뒤 확정돼요 · 홈·매거진 노출 후보가 돼요.',
+            now: '글쓴이에게 {n}P({tier} 등급의 우수 글 금액)를 바로 줘요 · 홈·매거진 노출 후보가 돼요.',
+            noPoints: '{tier} 등급 게시판은 우수 글 포인트가 0P라 포인트 없이 우수 글로만 선정돼요 · 홈·매거진 노출 후보가 돼요.',
+            offBoard: '포인트를 주지 않는 게시판이라 포인트 없이 우수 글로만 선정돼요 · 홈·매거진 노출 후보가 돼요.',
+        },
+        UNFEATURE: {
+            title: '우수 글 선정을 취소할까요?',
+            points: '보류 중인 {n}P 지급은 취소돼요. 이미 확정된 포인트는 회수하지 않아요. 홈·매거진 노출 후보에서도 빠져요.',
+            text: '우수 글 표시를 떼고 홈·매거진 노출 후보에서 빠져요.',
+        },
     },
     dialog: {
         HIDE: {
@@ -191,6 +209,8 @@ export default {
         PIN: '글을 고정했어요.',
         UNPIN: '고정을 풀었어요.',
         POLL_DELETE: '투표를 지웠어요.',
+        FEATURE: '우수 글로 선정했어요.',
+        UNFEATURE: '우수 글 선정을 취소했어요.',
     },
     doneHideNotified: '글을 숨겼어요. 작성자에게 알림을 보냈어요.',
     staleFailed: '{reason} 최신 상태로 다시 불러왔어요.',

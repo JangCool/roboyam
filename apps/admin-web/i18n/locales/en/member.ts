@@ -357,6 +357,19 @@ export default {
                 COMMENT: 'Comment #{id}',
             },
             shortfallLine: 'Requested {requested}P → taken {applied}P',
+            // Pending confirmation (point-board-tier-contract — held like threshold bonuses and featured rewards)
+            pendingTitle: 'Pending confirmation',
+            pendingCount: '{count}',
+            pendingReason: {
+                LIKE_BONUS: 'Like bonus',
+                POST_FEATURED: 'Featured post',
+            },
+            pendingTarget: {
+                POST: 'Post #{id}',
+                COMMENT: 'Comment #{id}',
+            },
+            pendingRelease: 'Confirms {at}',
+            pendingNote: 'Paid when the hold ends. Canceled if the post is deleted or hidden by reports in the meantime.',
             lotsTitle: 'Point lots',
             lotsCount: '{count}',
             lotsFilter: 'Filter point lots',

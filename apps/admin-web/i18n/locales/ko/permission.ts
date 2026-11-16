@@ -198,6 +198,8 @@ export default {
         postRestoreDesc: '지운 게시글을 되살리고 삭제할 때 회수한 포인트를 되돌려 줍니다.',
         postBulkDelete: '게시글 일괄 삭제',
         postBulkDeleteDesc: '게시글을 한꺼번에 삭제합니다. 되돌리기 어렵습니다.',
+        postFeature: '우수 글 선정',
+        postFeatureDesc: '게시글을 우수 글로 선정하거나 선정을 취소합니다. 글쓴이에게 게시판 등급의 우수 글 포인트가 지급되고 홈·매거진 노출 후보가 됩니다.',
         aiMemberRead: 'AI 회원 조회',
         aiMemberReadDesc: 'AI 회원 계정·검수 대기함·설정·활동 기록을 봅니다.',
         aiMemberManage: 'AI 회원 관리',

@@ -357,6 +357,19 @@ export default {
                 COMMENT: '댓글 #{id}',
             },
             shortfallLine: '요청 {requested}P → 실제 {applied}P',
+            // 확정 대기(point-board-tier-contract — 보류 중인 추천 문턱 보너스·우수 글 보상)
+            pendingTitle: '확정 대기',
+            pendingCount: '{count}건',
+            pendingReason: {
+                LIKE_BONUS: '추천 보너스',
+                POST_FEATURED: '우수 글 선정',
+            },
+            pendingTarget: {
+                POST: '글 #{id}',
+                COMMENT: '댓글 #{id}',
+            },
+            pendingRelease: '{at} 확정 예정',
+            pendingNote: '보류 시간이 지나면 지급돼요. 그 사이 글이 지워지거나 신고로 숨겨지면 취소돼요.',
             lotsTitle: '포인트 묶음',
             lotsCount: '{count}개',
             lotsFilter: '포인트 묶음 거르기',

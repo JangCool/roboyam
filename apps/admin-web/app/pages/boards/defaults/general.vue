@@ -162,6 +162,7 @@
                         :editable="canEdit(field) && !saving"
                         :inactive="inactiveOf(field)"
                         :note="noteOf(field)"
+                        :detail="field === 'pointMode' ? pointTierLine : ''"
                         :error="errorOf(field)"
                         :overrides="saved.overrides[field as BoardPolicyField] ?? []"
                         @update:model-value="(value: BoardFieldValue) => onInput(field, value)"
@@ -200,8 +201,10 @@ import type { BoardDefaultsField, BoardDefaultsResponse, BoardPolicyField } from
 import type { BoardDefaultsForm, BoardDefaultsSection, BoardFieldValue } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilPoint from '~/utils/util-point';
+import UtilPointMessages from '~/utils/util-point-messages';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('board.tabTitle.general') });
 
 const api = useBoardApi();
@@ -268,7 +271,16 @@ function countBySection(test: (field: BoardDefaultsField) => boolean): Record<st
 
 onMounted(() => {
     void appearance.ensureLoaded();
+    void pointTiers.ensure();
     void load();
+});
+
+/* ── 포인트 등급 안내 한 줄(point-board-tier-contract) — 고른 등급의 금액·조건. 정책을 못 읽으면 계약 기본값 ── */
+const pointTiers = usePointBoardTiers();
+const pointTierLine = computed(() => {
+    if (!form.value) return '';
+    const { tiers, likeThreshold } = pointTiers.info.value;
+    return UtilPointMessages.boardTierLine(t, UtilPoint.tierOfMode(form.value.pointMode), tiers, likeThreshold, locale.value);
 });
 
 async function load() {

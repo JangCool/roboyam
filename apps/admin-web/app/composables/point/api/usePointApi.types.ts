@@ -42,7 +42,10 @@ export type PointReasonCode =
     // 포인트 게임(point-games-contract) — 룰렛 돌리기·로또 번호 뽑기(USE, 무상 묶음에서만) · 룰렛 당첨(EARN, 새 무상 묶음)
     | 'ROULETTE_SPIN'
     | 'LOTTO_DRAW'
-    | 'ROULETTE_WIN';
+    | 'ROULETTE_WIN'
+    // 게시판 등급별 포인트(point-board-tier-contract) — 우수 글 선정(EARN, 대상 글, 글마다 한 번) · 우수 글 회수(REVOKE, 확정 뒤 본인 삭제 — 받은 양만)
+    | 'POST_FEATURED'
+    | 'POST_FEATURED_REVOKE';
 
 /** 원장 한 줄 — 최신이 위 */
 export interface PointLedgerItem {
@@ -188,7 +191,58 @@ export interface PointMemberLots {
     lots: { items: PointLot[]; total: number };
     /** 최근 것이 먼저, 최대 5건 */
     shortfalls: PointRevokeShortfall[];
+    /**
+     * 확정 대기(point-board-tier-contract 「보류 확정 방식」, `point_pending_grants` 의 PENDING) — 확정 예정이 가까운 것부터.
+     * ⚠ 서버가 아직 주지 않는다 — `usePointApi.memberLots` 가 목업으로 채운다(MOCK). 서버가 주면 이 칸을 필수로 바꾼다.
+     */
+    pending?: PointPendingGrant[];
 }
+
+/** 보류 중인 지급의 사유 — 추천 문턱 보너스 · 우수 글 선정 */
+export type PointPendingReason = 'LIKE_BONUS' | 'POST_FEATURED';
+
+/** 확정 대기 한 줄 — 보류 시간이 지나면 admin 배치가 지급한다(그 사이 글이 지워지거나 신고로 숨겨지면 취소) */
+export interface PointPendingGrant {
+    id: string;
+    reason: PointPendingReason;
+    /** 대상 — 글·댓글 */
+    refType: 'POST' | 'COMMENT';
+    refId: string;
+    /** 대상 글 제목(댓글이면 그 댓글이 달린 글) — 볼 수 없으면 null */
+    postTitle: string | null;
+    /** 확정 때 줄 양(보류를 시작한 순간의 정책값으로 고정) */
+    amount: number;
+    /** 확정 예정 시각(UTC ISO) */
+    releaseAt: string;
+    /** 보류를 시작한 시각(UTC ISO) */
+    createdAt: string;
+}
+
+// ── 게시판 등급별 지급(point-board-tier-contract) ─
+
+/** 게시판 등급 — 일반 · 정보 · 핵심 글. 게시판의 `pointMode` 가 끔(`OFF`)이 아니면 이 셋 중 하나다 */
+export type PointBoardTier = 'NORMAL' | 'INFO' | 'CORE';
+
+/** 등급 하나의 금액·조건 — 칸마다 0~10,000 정수 */
+export interface PointBoardTierValues {
+    /** 쓰면 바로(P) — 하루 총 한도(`dailyTotalCap`)에 든다 */
+    postPoints: number;
+    /** 추천 문턱(`likeBonusThreshold`)을 채우면 주는 보너스(P) — 한도 밖 */
+    likeBonusPoints: number;
+    /** 운영자가 우수 글로 선정하면 주는 포인트(P) — 한도 밖 */
+    featuredPoints: number;
+    /** 최소 글자 수(서식·공백·그림 뺀 글자) — 0 = 조건 없음 */
+    minLength: number;
+    /** 사진 최소(장) — 0 = 조건 없음 */
+    minImages: number;
+    /** 보너스 보류(시간) — 추천 문턱 보너스·우수 글 보상을 이 시간 뒤 확정한다. 0 = 바로 */
+    holdHours: number;
+}
+
+export type PointBoardTierField = keyof PointBoardTierValues;
+
+/** 정책의 등급 칸 — 등급마다 금액·조건 */
+export type PointBoardTiers = Record<PointBoardTier, PointBoardTierValues>;
 
 /**
  * 포인트 정책 값 — community `point_settings` 12칸 + `signupPoints`(irobit 추가) + 커머스 1-3 「적립 규칙 보강」(`docs/domain/commerce.md` 6-2) 칸. `PUT` 은 모두 보낸다.
@@ -230,17 +284,29 @@ export interface PointSettingsValues {
      * 커머스 1-1 은 응답에 읽기 전용으로만 있었고 1-3 부터 저장한다.
      */
     adjustLargeThreshold: number;
+    // ── 게시판 등급별 지급(point-board-tier-contract) — ⚠ 서버가 아직 주지 않는다(응답에 없으면 `usePointApi` 가 목업 기본값으로 채운다 — MOCK)
+    /** 정보 등급: 같은 출처 링크는 한 번만 적립. 기본 true */
+    infoSourceOnce: boolean;
+    /** AI 회원·운영팀 계정은 적립 안 함. 기본 true */
+    excludeAiAndOps: boolean;
 }
 
 /** 정책 값의 칸 이름 */
 export type PointSettingsField = keyof PointSettingsValues;
 /** 켜기/끄기 칸 — 나머지는 모두 정수 칸이다 */
-export type PointSettingsSwitchField = 'commentOwnPostExcluded' | 'commentOncePerPost';
+export type PointSettingsSwitchField = 'commentOwnPostExcluded' | 'commentOncePerPost' | 'infoSourceOnce' | 'excludeAiAndOps';
 /** 정수 칸 */
 export type PointSettingsNumberField = Exclude<PointSettingsField, PointSettingsSwitchField>;
 
-/** `GET·PUT /api/admin/settings/points` 의 응답 — 값 + 마지막 변경(처음 상태면 null) */
+/** `PUT /api/admin/settings/points` 의 본문 — 평평한 칸 전부 + 게시판 등급 칸(point-board-tier-contract) */
+export interface PointSettingsRequest extends PointSettingsValues {
+    boardTiers: PointBoardTiers;
+}
+
+/** `GET·PUT /api/admin/settings/points` 의 응답 — 값 + 게시판 등급 칸 + 마지막 변경(처음 상태면 null) */
 export interface PointSettingsResponse extends PointSettingsValues {
+    /** 게시판 등급별 금액·조건 — ⚠ 서버가 아직 주지 않는다(MOCK 으로 채운다) */
+    boardTiers: PointBoardTiers;
     updatedAt: string | null;
     updatedBy: string | null;
 }

@@ -205,6 +205,27 @@ export default class UtilPost {
     }
 
     /**
+     * 포인트 적립 조건의 글자 수 — 서식·공백·그림을 뺀 글자(포인트 정책 안내 「글자 수는 서식·공백·그림을 뺀 글자로 세요」). 판정은 서버다(화면은 안내만).
+     * @param {string} content - 본문.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {number} 공백을 모두 뺀 글자 수.
+     */
+    static pointLength(content: string, format: ContentFormat = 'TEXT'): number {
+        const text = format === 'HTML' ? UtilRichText.plainText(content) : content;
+        return text.replace(/\s+/g, '').length;
+    }
+
+    /**
+     * 본문 사진 수 — 에디터 HTML 은 올린 이미지(`img[data-image-id]`), 평문은 이미지 주소 꼴(`imageCount`).
+     * @param {string} content - 본문.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {number} 사진 수.
+     */
+    static photoCount(content: string, format: ContentFormat = 'TEXT'): number {
+        return format === 'HTML' ? UtilRichText.imageCount(content) : UtilPost.imageCount(content);
+    }
+
+    /**
      * 내용이 있는가(나가기 확인용) — 에디터 HTML 은 보이는 글자나 이미지·유튜브가 있으면 true
      * @param {string} content - 본문.
      * @param {ContentFormat} format - 본문 형식.

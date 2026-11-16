@@ -20,6 +20,8 @@
         서버 연결됨(`useBoardApi`): 저장 오류는 400 `VALIDATION` 과 409(`BOARD_NAME_DUPLICATE` `fields.name` · `PREFIX_LIMIT` `fields.prefixes` · `PREFIX_IN_USE` · `BOARD_INVESTMENT_NOTICE_LOCKED`) 모두 `fields` 를 칸 아래에 붙이고, 409 는 서버 문구를 저장 줄에 그대로 보인다.
         핫딜 게시판은 글쓰기 최소 자격에 첫 등급을 고를 수 없다(선택지에서 빼고 화면 검사도 같다). 카드형은 서버가 보기 전환을 늘 끈다.
         커머스 1-3: 「보호·공개 시간·포인트」의 포인트 지급(`pointMode`) 옆에 「적립 최소 글자 수 적용」(`pointMinLengthApplied`, 기본값 따름 가능 — 끄면 글 본문 최소 글자 수만 빠진다). 포인트 지급 안 함이면 비활성 + 안내.
+        게시판 등급(point-board-tier-contract — 화면 목업): 포인트 칸이 끔·일반·정보·핵심 글 넷 중 하나(기본값 따름 가능). 칸 아래에 그 등급(유효값)의 금액·조건 한 줄(포인트 정책에서 읽고 못 읽으면 기본값 — `usePointBoardTiers`).
+          ⚠ MOCK: 서버가 아직 `ON`·`OFF` 만 알아 `useBoardApi` 가 `ON` 을 일반으로 읽고 등급을 `ON` 으로 보낸다.
     -->
     <div class="flex flex-col gap-4">
         <!-- 읽는 중 -->
@@ -440,7 +442,15 @@
                 <!-- 6. 보호 · 댓글 공개 시간 · 포인트 · 신고 -->
                 <AppGadget :title="t('board.section.boardProtect')" anchor="board-protect" :changes="changes.protect" :invalid="invalidOf([...PROTECT_FIELDS])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
-                        <BoardSettingField v-for="field in PROTECT_FIELDS" :key="field" v-bind="policyBind(field)" :inactive="protectInactive(field)" :note="protectNote(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
+                        <BoardSettingField
+                            v-for="field in PROTECT_FIELDS"
+                            :key="field"
+                            v-bind="policyBind(field)"
+                            :inactive="protectInactive(field)"
+                            :note="protectNote(field)"
+                            :detail="field === 'pointMode' ? pointTierLine : ''"
+                            @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)"
+                        />
                     </div>
                     <p class="mt-4 flex items-start gap-2 border-t border-(--line) pt-3 text-xs leading-relaxed text-muted-color">
                         <i class="pi pi-lock mt-0.5 text-[11px]" aria-hidden="true" />
@@ -597,6 +607,8 @@ import type { BoardDetail, BoardDetailList, BoardPolicyField, BoardPrefixStyle, 
 import type { BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilPoint from '~/utils/util-point';
+import UtilPointMessages from '~/utils/util-point-messages';
 
 const { t, locale } = useI18n();
 
@@ -946,7 +958,17 @@ function reactionNote(field: (typeof REACTION_FIELDS)[number]): string {
 watch(slug, () => void load());
 onMounted(() => {
     void appearance.ensureLoaded();
+    void pointTiers.ensure();
     void load();
+});
+
+/* ── 포인트 등급 안내 한 줄(point-board-tier-contract) — 유효값(게시판 값 ?? 기본값)의 금액·조건. 정책을 못 읽으면 계약 기본값 ── */
+const pointTiers = usePointBoardTiers();
+const pointTierLine = computed(() => {
+    if (!form.value || !saved.value) return '';
+    const mode = UtilBoard.effective(form.value.policy, saved.value.defaults, 'pointMode');
+    const { tiers, likeThreshold } = pointTiers.info.value;
+    return UtilPointMessages.boardTierLine(t, UtilPoint.tierOfMode(String(mode)), tiers, likeThreshold, locale.value);
 });
 
 async function load() {

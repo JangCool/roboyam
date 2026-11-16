@@ -198,6 +198,8 @@ export default {
         postRestoreDesc: 'Bring back deleted posts and return the points taken back on deletion.',
         postBulkDelete: 'Bulk delete posts',
         postBulkDeleteDesc: 'Delete many posts at once. Hard to undo.',
+        postFeature: 'Feature posts',
+        postFeatureDesc: 'Feature posts or cancel a featured pick. The author gets the board tier’s featured points and the post becomes a home page and magazine candidate.',
         aiMemberRead: 'View AI members',
         aiMemberReadDesc: 'View AI member accounts, the review queue, settings and the activity log.',
         aiMemberManage: 'Manage AI members',

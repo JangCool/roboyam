@@ -3,8 +3,11 @@
         포인트 정책 — 어떤 활동에 몇 포인트를, 하루 몇 번까지 줄지 정한다. community 관리자 앱 `settings/points.vue`(`point_settings` 13칸)를 **빠짐없이** 옮기고 가입 포인트(`signupPoints`, 그누보드의 회원가입 포인트)를 더했다.
         community 와 다른 점: 최고 관리자 전용 → irobit 권한(조회 `point.read`, 변경 `point.settings`). 지급 규칙 표 한 장 대신 업무별 구획(출석 · 글·댓글 · 인기글 보상 · 추천 보너스 · 핫딜 종료 요청 보상 · 가입 포인트 · 운영 원칙)으로 나눠 우측 구역 내비(`SectionNav`)로 이동한다.
         「상점」 구획(닉네임 변경권 가격)은 없앴다 — 변경권 값의 출처는 포인트 상점 품목 가격 하나다(commerce-stage1 결정 2). 그 자리(폼 맨 위)에 「포인트 상점 › 품목 관리에서 정해요」 안내 한 줄 + 링크.
-        community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 서버가 값을 저장만 하고 아직 지급하는 지점이 없는 구획(인기글 보상 · 핫딜 종료 요청 — `point-contract.md` 「적용 지점 없음」)에는
-        「아직 적용되지 않아요」 딱지와 한 줄 안내를 단다(값은 저장된다). 실제로 지급되는 것은 출석(+ 연속 출석 보너스)·글·댓글·추천 보너스(+ 본인 삭제 회수)·가입 포인트다. 인기글 보상이 등급 조건이 될 수 있다는 안내는 문구만이다(등급 조건에 인기글 칸이 아직 없다).
+        community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 서버가 값을 저장만 하고 아직 지급하는 지점이 없는 구획(핫딜 종료 요청 — `point-contract.md` 「적용 지점 없음」)에는
+        「아직 적용되지 않아요」 딱지와 한 줄 안내를 단다(값은 저장된다). 실제로 지급되는 것은 출석(+ 연속 출석 보너스)·글·댓글·추천 보너스(+ 본인 삭제 회수)·가입 포인트·인기글 보상(매일 0시 KST 전날 인기글 상위 N 개 — point-board-tier-contract, 딱지를 뗐다)이다.
+        인기글 보상이 등급 조건이 될 수 있다는 안내는 문구만이다(등급 조건에 인기글 칸이 아직 없다).
+        게시판 등급별 지급(point-board-tier-contract — 화면 목업): 「글·댓글」 다음 구획에 일반·정보·핵심 글 × 여섯 칸 표 + 스위치 둘(`infoSourceOnce`·`excludeAiAndOps`). 같은 PUT 에 `boardTiers` 로 함께 싣는다.
+          일반 등급의 「쓰면 바로」·「최소 글자 수」는 「글·댓글」의 글 포인트·글 최소 글자 수를 그대로 보인다(읽기 전용 — 두 곳에서 따로 고치지 않게). ⚠ MOCK: 서버가 등급 칸을 아직 주지 않아 `usePointApi` 가 채운다.
         값이 0이면 그 항목이 꺼진다(전역 스위치 없음) — 꺼진 묶음에는 「꺼짐」 딱지가 붙는다(입력 중인 값 기준). 운영 원칙 구획은 community 확정 규칙의 읽기 전용 안내다.
         **저장은 한 번에**(13칸 모두, PUT 한 번 — 변경권 가격 칸은 V86 이 지웠다) — [저장]·[되돌리기]·상태 글·저장 실패 문구는 `<form>` 맨 끝의 떠 있는 줄(`StickySaveBar`)에 둔다(`forms.md` 2-4). 칸은 `InputText` + `inputmode=numeric`(등급 설정과 같은 이유 — `InputNumber` 는 범위 밖 값을 말없이 고친다).
         범위 검사는 `UtilPoint`(서버와 같은 범위) — 하나라도 틀리면 저장 단추가 꺼진다. 서버가 거절한 칸(`400 VALIDATION` `fields.<칸>`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 저장 줄 안에 보인다.
@@ -38,83 +41,173 @@
                 <NuxtLink v-if="canOpenPointShop" to="/point-shop/items" class="ml-1.5 whitespace-nowrap font-medium text-primary hover:underline">{{ t('point.ticketPriceMovedLink') }} ›</NuxtLink>
             </Message>
 
-            <AppGadget v-for="section in SECTIONS" :key="section.anchor" :title="t(section.titleKey)" :anchor="section.anchor" :changes="sectionChanges(section)" :invalid="sectionInvalid(section)">
-                <template #title-extra>
-                    <Tag v-if="section.notReady" :value="t('point.notReadyTag')" icon="pi pi-clock" severity="secondary" />
-                    <template v-if="section.groups.length === 1 && section.groups[0]">
-                        <Tag v-if="UtilPoint.groupTag(section.groups[0].group, form) === 'OFF'" :value="t('point.offTag')" icon="pi pi-power-off" severity="warn" />
-                        <Tag v-else-if="UtilPoint.groupTag(section.groups[0].group, form) === 'NO_LIMIT'" :value="t('point.noLimitTag')" icon="pi pi-arrows-v" severity="info" />
+            <template v-for="section in SECTIONS" :key="section.anchor">
+                <AppGadget :title="t(section.titleKey)" :anchor="section.anchor" :changes="sectionChanges(section)" :invalid="sectionInvalid(section)">
+                    <template #title-extra>
+                        <Tag v-if="section.notReady" :value="t('point.notReadyTag')" icon="pi pi-clock" severity="secondary" />
+                        <template v-if="section.groups.length === 1 && section.groups[0]">
+                            <Tag v-if="UtilPoint.groupTag(section.groups[0].group, form) === 'OFF'" :value="t('point.offTag')" icon="pi pi-power-off" severity="warn" />
+                            <Tag v-else-if="UtilPoint.groupTag(section.groups[0].group, form) === 'NO_LIMIT'" :value="t('point.noLimitTag')" icon="pi pi-arrows-v" severity="info" />
+                        </template>
                     </template>
-                </template>
 
-                <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t(section.leadKey) }}</p>
+                    <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t(section.leadKey) }}</p>
 
-                <div class="flex flex-col gap-5">
-                    <div v-for="group in section.groups" :key="group.group" role="group" :aria-label="group.labelKey ? t(group.labelKey) : t(section.titleKey)" class="flex flex-col gap-3">
-                        <div v-if="group.labelKey" class="flex items-center gap-2">
-                            <h3 class="text-sm font-medium">{{ t(group.labelKey) }}</h3>
-                            <Tag v-if="UtilPoint.groupTag(group.group, form) === 'OFF'" :value="t('point.offTag')" icon="pi pi-power-off" severity="warn" />
-                            <Tag v-else-if="UtilPoint.groupTag(group.group, form) === 'NO_LIMIT'" :value="t('point.noLimitTag')" icon="pi pi-arrows-v" severity="info" />
-                        </div>
+                    <div class="flex flex-col gap-5">
+                        <div v-for="group in section.groups" :key="group.group" role="group" :aria-label="group.labelKey ? t(group.labelKey) : t(section.titleKey)" class="flex flex-col gap-3">
+                            <div v-if="group.labelKey" class="flex items-center gap-2">
+                                <h3 class="text-sm font-medium">{{ t(group.labelKey) }}</h3>
+                                <Tag v-if="UtilPoint.groupTag(group.group, form) === 'OFF'" :value="t('point.offTag')" icon="pi pi-power-off" severity="warn" />
+                                <Tag v-else-if="UtilPoint.groupTag(group.group, form) === 'NO_LIMIT'" :value="t('point.noLimitTag')" icon="pi pi-arrows-v" severity="info" />
+                            </div>
 
-                        <div class="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(3,minmax(0,15rem))]">
-                            <LabeledField v-for="f in group.fields" :key="f.field" :label="t(`point.field.${f.field}`)" :hint="UtilPointMessages.range(t, f.field, locale)" :help="t(`point.help.${f.field}`)" :error="errorOf(f.field)">
-                                <!-- 적립 조건 칸은 칸마다 꺼진다(0 = 그 조건 없음) -->
-                                <template v-if="UtilPoint.fieldOff(f.field, form)" #aside>
-                                    <Tag :value="t('point.offTag')" icon="pi pi-power-off" severity="warn" class="shrink-0" />
-                                </template>
-                                <template #default="{ id, describedBy, invalid }">
-                                    <div class="flex items-center gap-2">
-                                        <InputText
-                                            :id="id"
-                                            :model-value="form[f.field]"
-                                            :name="f.field"
-                                            inputmode="numeric"
-                                            autocomplete="off"
-                                            :readonly="!canEdit || saving"
-                                            :invalid="invalid"
-                                            :aria-describedby="describedBy"
-                                            :aria-required="true"
-                                            class="w-32 text-right tabular-nums"
-                                            @update:model-value="(value: string | undefined) => setField(f.field, value ?? '')"
-                                        />
-                                        <span class="text-sm text-muted-color">{{ t(`point.unit.${f.unit}`) }}</span>
+                            <div class="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(3,minmax(0,15rem))]">
+                                <LabeledField v-for="f in group.fields" :key="f.field" :label="t(`point.field.${f.field}`)" :hint="UtilPointMessages.range(t, f.field, locale)" :help="t(`point.help.${f.field}`)" :error="errorOf(f.field)">
+                                    <!-- 적립 조건 칸은 칸마다 꺼진다(0 = 그 조건 없음) -->
+                                    <template v-if="UtilPoint.fieldOff(f.field, form)" #aside>
+                                        <Tag :value="t('point.offTag')" icon="pi pi-power-off" severity="warn" class="shrink-0" />
+                                    </template>
+                                    <template #default="{ id, describedBy, invalid }">
+                                        <div class="flex items-center gap-2">
+                                            <InputText
+                                                :id="id"
+                                                :model-value="form[f.field]"
+                                                :name="f.field"
+                                                inputmode="numeric"
+                                                autocomplete="off"
+                                                :readonly="!canEdit || saving"
+                                                :invalid="invalid"
+                                                :aria-describedby="describedBy"
+                                                :aria-required="true"
+                                                class="w-32 text-right tabular-nums"
+                                                @update:model-value="(value: string | undefined) => setField(f.field, value ?? '')"
+                                            />
+                                            <span class="text-sm text-muted-color">{{ t(`point.unit.${f.unit}`) }}</span>
+                                        </div>
+                                    </template>
+                                </LabeledField>
+                            </div>
+
+                            <!-- 켜기/끄기 칸 — 권한이 없으면 disabled(서버 값이 그대로 보인다). 「꺼짐」 딱지 대상이 아니다 -->
+                            <div v-if="group.switches?.length" class="flex flex-col gap-3">
+                                <div v-for="s in group.switches" :key="s" class="flex items-start gap-2">
+                                    <ToggleSwitch
+                                        :model-value="form[s]"
+                                        :input-id="`${uid}-${s}`"
+                                        :name="s"
+                                        :disabled="!canEdit || saving"
+                                        :invalid="Boolean(serverErrors[s])"
+                                        :aria-describedby="`${uid}-${s}-msg`"
+                                        class="shrink-0"
+                                        @update:model-value="(value: boolean) => setField(s, value)"
+                                    />
+                                    <div class="flex min-w-0 flex-col gap-0.5">
+                                        <label :for="`${uid}-${s}`" class="text-sm">{{ t(`point.field.${s}`) }}</label>
+                                        <span :id="`${uid}-${s}-msg`" aria-live="polite" class="text-xs leading-relaxed" :class="serverErrors[s] ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverErrors[s] ? 'alert' : undefined">
+                                            {{ serverErrors[s] || t(`point.help.${s}`) }}
+                                        </span>
                                     </div>
-                                </template>
-                            </LabeledField>
-                        </div>
-
-                        <!-- 켜기/끄기 칸 — 권한이 없으면 disabled(서버 값이 그대로 보인다). 「꺼짐」 딱지 대상이 아니다 -->
-                        <div v-if="group.switches?.length" class="flex flex-col gap-3">
-                            <div v-for="s in group.switches" :key="s" class="flex items-start gap-2">
-                                <ToggleSwitch
-                                    :model-value="form[s]"
-                                    :input-id="`${uid}-${s}`"
-                                    :name="s"
-                                    :disabled="!canEdit || saving"
-                                    :invalid="Boolean(serverErrors[s])"
-                                    :aria-describedby="`${uid}-${s}-msg`"
-                                    class="shrink-0"
-                                    @update:model-value="(value: boolean) => setField(s, value)"
-                                />
-                                <div class="flex min-w-0 flex-col gap-0.5">
-                                    <label :for="`${uid}-${s}`" class="text-sm">{{ t(`point.field.${s}`) }}</label>
-                                    <span :id="`${uid}-${s}-msg`" aria-live="polite" class="text-xs leading-relaxed" :class="serverErrors[s] ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverErrors[s] ? 'alert' : undefined">
-                                        {{ serverErrors[s] || t(`point.help.${s}`) }}
-                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <ul v-if="section.notes.length" class="m-0 mt-4 flex list-none flex-col gap-1.5 p-0 text-xs leading-relaxed text-muted-color">
-                    <li v-for="key in section.notes" :key="key" class="flex items-start gap-2">
-                        <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />
-                        <span>{{ t(key) }}</span>
-                    </li>
-                </ul>
-            </AppGadget>
+                    <ul v-if="section.notes.length" class="m-0 mt-4 flex list-none flex-col gap-1.5 p-0 text-xs leading-relaxed text-muted-color">
+                        <li v-for="key in section.notes" :key="key" class="flex items-start gap-2">
+                            <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />
+                            <span>{{ t(key) }}</span>
+                        </li>
+                    </ul>
+                </AppGadget>
+
+                <!--
+                    게시판 등급별 지급(point-board-tier-contract) — 「글·댓글」 바로 다음. 일반·정보·핵심 글 세 열 × 여섯 줄 표 + 스위치 둘 + 안내.
+                    일반 등급의 「쓰면 바로」·「최소 글자 수」는 「글·댓글」의 글 포인트·글 최소 글자 수와 같은 값이라 읽기 전용으로 보인다(그곳에서 바꾼다 — 저장 때 그 값을 실어 보낸다).
+                    ⚠ MOCK: 서버가 아직 등급 칸을 주지 않아 `usePointApi` 가 기본값으로 채운다(저장은 PUT 한 번에 함께 싣는다).
+                -->
+                <AppGadget v-if="section.anchor === 'point-activity'" :title="t('point.section.boardTier')" anchor="point-board-tier" :changes="tierSectionChanges" :invalid="tierSectionInvalid">
+                    <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('point.lead.boardTier') }}</p>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[40rem] border-collapse text-sm" :aria-label="t('point.tierTableLabel')">
+                            <thead>
+                                <tr class="border-b border-(--line)">
+                                    <th scope="col" class="w-[34%] py-2 pr-3 text-left text-xs font-medium text-muted-color">{{ t('point.tierColField') }}</th>
+                                    <th v-for="tier in UtilPoint.BOARD_TIERS" :key="tier" scope="col" class="px-2 py-2 text-left text-xs font-semibold">{{ t(`point.tier.${tier}`) }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="field in UtilPoint.TIER_FIELDS" :key="field" class="border-b border-(--line) align-top last:border-b-0">
+                                    <th scope="row" class="py-2.5 pr-3 text-left font-normal">
+                                        <span class="block text-sm font-medium">{{ t(`point.tierField.${field}`) }}</span>
+                                        <span class="block text-xs leading-relaxed text-muted-color">{{ t(`point.tierHelp.${field}`) }} {{ UtilPointMessages.tierRange(t, locale) }}</span>
+                                    </th>
+                                    <td v-for="tier in UtilPoint.BOARD_TIERS" :key="tier" class="px-2 py-2.5">
+                                        <!-- 일반 등급의 따라가는 칸 — 「글·댓글」 칸 값을 그대로 보인다 -->
+                                        <div v-if="UtilPoint.tierMirrorOf(tier, field)" class="flex flex-col gap-0.5">
+                                            <span class="flex min-h-9 items-center gap-1.5 tabular-nums">
+                                                <i class="pi pi-link text-[11px] text-muted-color" aria-hidden="true" />
+                                                {{ mirrorValue(tier, field) }}
+                                                <span class="text-muted-color">{{ t(`point.unit.${TIER_UNITS[field]}`) }}</span>
+                                            </span>
+                                            <a href="#point-activity" class="text-xs text-primary hover:underline">{{ t(`point.tierMirror.${field}`) }} · {{ t('point.tierMirrorHint') }}</a>
+                                        </div>
+                                        <div v-else class="flex flex-col gap-1">
+                                            <div class="flex items-center gap-1.5">
+                                                <InputText
+                                                    :id="`${uid}-tier-${tier}-${field}`"
+                                                    :model-value="tierForm[UtilPoint.tierKey(tier, field)]"
+                                                    :name="`boardTiers.${tier}.${field}`"
+                                                    inputmode="numeric"
+                                                    autocomplete="off"
+                                                    size="small"
+                                                    :readonly="!canEdit || saving"
+                                                    :invalid="Boolean(tierErrorOf(tier, field))"
+                                                    :aria-label="t('point.tierCellLabel', { tier: t(`point.tier.${tier}`), field: t(`point.tierField.${field}`) })"
+                                                    :aria-describedby="tierErrorOf(tier, field) ? `${uid}-tier-${tier}-${field}-msg` : undefined"
+                                                    class="w-24 text-right tabular-nums"
+                                                    @update:model-value="(value: string | undefined) => setTierField(tier, field, value ?? '')"
+                                                />
+                                                <span class="text-sm text-muted-color">{{ t(`point.unit.${TIER_UNITS[field]}`) }}</span>
+                                            </div>
+                                            <span v-if="tierErrorOf(tier, field)" :id="`${uid}-tier-${tier}-${field}-msg`" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ tierErrorOf(tier, field) }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 스위치 둘 — 정보 등급 같은 출처 한 번 · AI 회원·운영팀 적립 안 함(기본 켬) -->
+                    <div class="mt-5 flex flex-col gap-3">
+                        <div v-for="s in TIER_SWITCHES" :key="s" class="flex items-start gap-2">
+                            <ToggleSwitch
+                                :model-value="form[s]"
+                                :input-id="`${uid}-${s}`"
+                                :name="s"
+                                :disabled="!canEdit || saving"
+                                :invalid="Boolean(serverErrors[s])"
+                                :aria-describedby="`${uid}-${s}-msg`"
+                                class="shrink-0"
+                                @update:model-value="(value: boolean) => setField(s, value)"
+                            />
+                            <div class="flex min-w-0 flex-col gap-0.5">
+                                <label :for="`${uid}-${s}`" class="text-sm">{{ t(`point.field.${s}`) }}</label>
+                                <span :id="`${uid}-${s}-msg`" aria-live="polite" class="text-xs leading-relaxed" :class="serverErrors[s] ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverErrors[s] ? 'alert' : undefined">
+                                    {{ serverErrors[s] || t(`point.help.${s}`) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="m-0 mt-4 flex list-none flex-col gap-1.5 p-0 text-xs leading-relaxed text-muted-color">
+                        <li v-for="line in tierNotes" :key="line" class="flex items-start gap-2">
+                            <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />
+                            <span>{{ line }}</span>
+                        </li>
+                    </ul>
+                </AppGadget>
+            </template>
 
             <!-- 운영 원칙 — 읽기 전용 안내(community 확정 규칙) -->
             <AppGadget :title="t('point.section.rules')" anchor="point-rules">
@@ -136,14 +229,14 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { PointSettingsField, PointSettingsNumberField, PointSettingsResponse, PointSettingsSwitchField } from '~/composables/point/api/usePointApi.types';
-import UtilPoint, { type PointSettingsForm, type PointSettingsGroup } from '~/utils/util-point';
+import type { PointBoardTier, PointBoardTierField, PointSettingsField, PointSettingsNumberField, PointSettingsResponse, PointSettingsSwitchField } from '~/composables/point/api/usePointApi.types';
+import UtilPoint, { type PointSettingsForm, type PointSettingsGroup, type PointTierForm, type PointTierKey } from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 
 /** 정수 칸 하나 — 단위 글자 키(`point.unit.*`) */
 interface PolicyField {
     field: PointSettingsNumberField;
-    unit: 'point' | 'times' | 'rank' | 'likes' | 'chars' | 'seconds' | 'days';
+    unit: 'point' | 'times' | 'rank' | 'likes' | 'chars' | 'seconds' | 'days' | 'images' | 'hours';
 }
 /** 같은 딱지 판정을 받는 칸 묶음. 이름(`labelKey`)은 구획에 묶음이 둘 이상일 때만. 켜기/끄기 칸(`switches`)은 정수 칸 아래에 */
 interface PolicyGroup {
@@ -200,8 +293,8 @@ const SECTIONS: PolicySection[] = [
         titleKey: 'point.section.popular',
         leadKey: 'point.lead.popular',
         groups: [{ group: 'popular', fields: [{ field: 'popularRewardPoints', unit: 'point' }, { field: 'popularRewardTopN', unit: 'rank' }] }],
-        notes: ['point.note.popularGrade', 'point.note.popularNotApplied'],
-        notReady: true,
+        // 실제 지급(point-board-tier-contract — 매일 0시 KST 전날 인기글 상위 N 개, admin 배치) — 「아직 적용되지 않아요」 딱지를 뗐다
+        notes: ['point.note.popularGrade'],
     },
     {
         anchor: 'point-like-bonus',
@@ -245,6 +338,18 @@ const SECTIONS: PolicySection[] = [
     // 「상점」 구획은 없앴다 — 변경권 값은 포인트 상점 품목 가격(commerce-stage1 결정 2, V86 이 정책 칸을 지웠다)
 ];
 
+/** 게시판 등급 칸의 단위 글자 키(`point.unit.*`) */
+const TIER_UNITS: Record<PointBoardTierField, PolicyField['unit']> = {
+    postPoints: 'point',
+    likeBonusPoints: 'point',
+    featuredPoints: 'point',
+    minLength: 'chars',
+    minImages: 'images',
+    holdHours: 'hours',
+};
+/** 게시판 등급 구획의 스위치 — 평평한 정책 칸이라 저장·바뀜 셈은 다른 칸과 같다 */
+const TIER_SWITCHES = ['infoSourceOnce', 'excludeAiAndOps'] as const satisfies readonly PointSettingsSwitchField[];
+
 /** 운영 원칙(읽기 전용) — 0이면 꺼짐(총 한도는 한도 없음) · 하루 한도 · 0P 바닥 · 정지·탈퇴·동결 · 삭제 회수 · 게시판별(최소 글자 수만 끌 수 있다) · 15초 반영·소급 없음 · 등급과 무관 · 소멸(적립 1년 · 충전 없음, 커머스 1-1) · 비회원 글·댓글 없음 */
 const RULES = ['point.rule.zeroOff', 'point.rule.dailyCount', 'point.rule.floorZero', 'point.rule.restricted', 'point.rule.revoke', 'point.rule.boardToggle', 'point.rule.apply', 'point.rule.noGrade', 'point.rule.expiry', 'point.rule.noGuest'] as const;
 
@@ -274,14 +379,61 @@ const saving = ref(false);
 const formError = ref('');
 /** 서버가 거절한 칸별 문구 — 그 칸을 고치면 지운다 */
 const serverErrors = ref<Partial<Record<PointSettingsField, string>>>({});
+/** 게시판 등급 칸 입력(point-board-tier-contract) — 평평한 칸과 따로 두고 저장 때 `boardTiers` 로 함께 싣는다 */
+const tierForm = ref<PointTierForm>(UtilPoint.tierFormOf(UtilPoint.TIER_DEFAULTS));
+/** 서버가 거절한 등급 칸 문구(`fields.boardTiers.<등급>.<칸>` — 가정) */
+const tierServerErrors = ref<Partial<Record<PointTierKey, string>>>({});
 
 const problems = computed(() => UtilPoint.validateSettings(form.value));
+const tierProblems = computed(() => UtilPoint.validateTiers(tierForm.value));
 const changed = computed(() => (saved.value ? UtilPoint.changedFields(form.value, saved.value) : []));
-const dirty = computed(() => changed.value.length > 0);
+const tierChanged = computed(() => (saved.value ? UtilPoint.changedTiers(tierForm.value, saved.value.boardTiers) : []));
+const dirty = computed(() => changed.value.length + tierChanged.value.length > 0);
 /** 맞지 않는 칸 수 — 화면이 미리 검사한 것 + 서버가 거절한 것(같은 칸은 한 번) */
-const errorCount = computed(() => UtilPoint.FIELDS.filter((field) => problems.value[field] || serverErrors.value[field]).length);
+const errorCount = computed(() => UtilPoint.FIELDS.filter((field) => problems.value[field] || serverErrors.value[field]).length + tierInvalidKeys.value.length);
 /** 서버가 거절한 칸은 저장을 막지 않는다 — 고치지 않고 다시 보내 볼 수 있어야 하고, 서버가 다시 판정한다 */
-const canSave = computed(() => canEdit.value && dirty.value && Object.keys(problems.value).length === 0);
+const canSave = computed(() => canEdit.value && dirty.value && Object.keys(problems.value).length === 0 && Object.keys(tierProblems.value).length === 0);
+
+// ── 게시판 등급 구획 ─
+const tierInvalidKeys = computed(() => UtilPoint.tierKeys().filter((key) => tierProblems.value[key] || tierServerErrors.value[key]));
+const tierSectionChanges = computed(() => tierChanged.value.length + TIER_SWITCHES.filter((s) => changed.value.includes(s)).length);
+const tierSectionInvalid = computed(() => tierInvalidKeys.value.length + TIER_SWITCHES.filter((s) => serverErrors.value[s]).length);
+/** 구획 아래 안내 — 추천 문턱은 지금 입력 중인 값(읽을 수 없으면 저장된 값) */
+const tierNotes = computed(() => {
+    const threshold = UtilPoint.formNumber(form.value, 'likeBonusThreshold') ?? saved.value?.likeBonusThreshold ?? UtilPoint.DEFAULTS.likeBonusThreshold;
+    return [
+        t('point.note.tierDailyTotal'),
+        t('point.note.tierLikeThreshold', { n: threshold.toLocaleString(locale.value) }),
+        t('point.note.tierHold'),
+        t('point.note.tierNormal'),
+        t('point.note.tierCommentLikeBonus'),
+        t('point.note.tierFeatured'),
+        t('point.note.tierAssign'),
+    ];
+});
+
+/** 일반 등급의 따라가는 칸 값 — 「글·댓글」의 같은 칸 입력 글자 */
+function mirrorValue(tier: PointBoardTier, field: PointBoardTierField): string {
+    const mirror = UtilPoint.tierMirrorOf(tier, field);
+    return mirror ? form.value[mirror] : '';
+}
+
+/** 등급 칸 아래 오류 — 화면이 미리 검사한 문제가 먼저, 없으면 서버가 거절한 문구 */
+function tierErrorOf(tier: PointBoardTier, field: PointBoardTierField): string {
+    const key = UtilPoint.tierKey(tier, field);
+    const problem = tierProblems.value[key];
+    if (problem) return UtilPointMessages.tierProblem(t, problem, locale.value);
+    return tierServerErrors.value[key] ?? '';
+}
+
+/** 등급 칸 하나를 바꾼다 — 그 칸의 서버 오류를 지운다 */
+function setTierField(tier: PointBoardTier, field: PointBoardTierField, value: string) {
+    const key = UtilPoint.tierKey(tier, field);
+    tierForm.value = { ...tierForm.value, [key]: value };
+    if (!tierServerErrors.value[key]) return;
+    const { [key]: _removed, ...rest } = tierServerErrors.value;
+    tierServerErrors.value = rest;
+}
 
 function fieldsOf(section: PolicySection): PointSettingsField[] {
     return section.groups.flatMap((group): PointSettingsField[] => [...group.fields.map((f) => f.field), ...(group.switches ?? [])]);
@@ -325,32 +477,40 @@ async function load() {
 function applySaved(res: PointSettingsResponse) {
     saved.value = res;
     form.value = UtilPoint.formOf(res);
+    tierForm.value = UtilPoint.tierFormOf(res.boardTiers);
     serverErrors.value = {};
+    tierServerErrors.value = {};
     formError.value = '';
 }
 
 function revert() {
     if (!saved.value) return;
     form.value = UtilPoint.formOf(saved.value);
+    tierForm.value = UtilPoint.tierFormOf(saved.value.boardTiers);
     serverErrors.value = {};
+    tierServerErrors.value = {};
     formError.value = '';
 }
 
 async function save() {
     if (saving.value || !canSave.value) return;
-    const body = UtilPoint.toRequest(form.value);
-    if (!body) return;
+    const flat = UtilPoint.toRequest(form.value);
+    const boardTiers = UtilPoint.tiersToRequest(tierForm.value, form.value);
+    if (!flat || !boardTiers) return;
     formError.value = '';
     serverErrors.value = {};
+    tierServerErrors.value = {};
     saving.value = true;
     try {
-        applySaved(await api.saveSettings(body));
+        applySaved(await api.saveSettings({ ...flat, boardTiers }));
         toast.success(t('point.saved'));
     } catch (e) {
         const rejected = UtilPoint.settingsFieldErrorsOf(e);
         if (rejected) {
             serverErrors.value = rejected.fields;
-            formError.value = [Object.keys(rejected.fields).length ? t('point.saveFieldsRejected') : '', rejected.rest].filter(Boolean).join(' ');
+            tierServerErrors.value = rejected.tiers;
+            const anyField = Object.keys(rejected.fields).length + Object.keys(rejected.tiers).length > 0;
+            formError.value = [anyField ? t('point.saveFieldsRejected') : '', rejected.rest].filter(Boolean).join(' ');
         } else {
             formError.value = `${t('point.saveFailed')} — ${toApiError(e).message}`;
         }

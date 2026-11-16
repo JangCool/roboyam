@@ -82,6 +82,7 @@ export default {
     chip: {
         notice: 'Notice',
         pinned: 'Pinned',
+        featured: 'Featured',
         adult: '18+',
         secret: 'Private',
         debate: 'Debate',
@@ -137,6 +138,23 @@ export default {
         PIN: 'Pin',
         UNPIN: 'Unpin',
         POLL_DELETE: 'Remove poll',
+        FEATURE: 'Feature post',
+        UNFEATURE: 'Unfeature post',
+    },
+    // Feature / unfeature confirmation (point-board-tier-contract) — confirm only, no reason
+    featureDialog: {
+        FEATURE: {
+            title: 'Feature this post?',
+            hold: 'The author gets {n}P (the {tier} tier’s featured amount), confirmed after a {h}-hour hold · it becomes a candidate for the home page and magazine.',
+            now: 'The author gets {n}P (the {tier} tier’s featured amount) right away · it becomes a candidate for the home page and magazine.',
+            noPoints: 'The {tier} tier pays 0P for featured posts, so it is featured without points · it becomes a candidate for the home page and magazine.',
+            offBoard: 'This board gives no points, so it is featured without points · it becomes a candidate for the home page and magazine.',
+        },
+        UNFEATURE: {
+            title: 'Unfeature this post?',
+            points: 'The pending {n}P payout is canceled. Points already confirmed are not taken back. It also leaves the home page and magazine candidates.',
+            text: 'The featured mark is removed and it leaves the home page and magazine candidates.',
+        },
     },
     dialog: {
         HIDE: {
@@ -190,6 +208,8 @@ export default {
         PIN: 'Post pinned.',
         UNPIN: 'Post unpinned.',
         POLL_DELETE: 'Poll removed.',
+        FEATURE: 'Post featured.',
+        UNFEATURE: 'Post unfeatured.',
     },
     doneHideNotified: 'Post hidden. The author was notified.',
     staleFailed: '{reason} Reloaded the latest state.',

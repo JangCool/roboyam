@@ -1,7 +1,8 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
 import type { AdminPostItem, AdminPostStateFields, PostBulkResult, PostModerationActor, PostStateFilter } from '~/composables/post/api/usePostApi.types';
-import type { PostMoveProblem, PostReasonProblem } from '~/utils/util-post';
+import type { PointBoardTier, PointBoardTierValues } from '~/composables/point/api/usePointApi.types';
+import type { PostConfirmKind, PostMoveProblem, PostReasonProblem } from '~/utils/util-post';
 import UtilPost from '~/utils/util-post';
 import UtilReportMessages from '~/utils/util-report-messages';
 
@@ -141,6 +142,21 @@ export default class UtilPostMessages {
         if (a.kind === 'GUEST') return t('post.guestAuthor', { name });
         if (a.withdrawn) return t('post.withdrawnAuthor', { name });
         return name;
+    }
+
+    /**
+     * 우수 글 선정·취소 확인 본문(point-board-tier-contract) — 선정은 글쓴이가 받을 금액(그 게시판 등급의 우수 글 금액)·보류 시간 · 홈·매거진 노출 후보,
+     * 금액이 0P(끔·일반 등급 기본)면 포인트 없이 선정만 된다는 안내. 취소는 보류 중 지급 취소 · 확정된 것은 회수하지 않음.
+     * @param tier - 글이 있는 게시판의 등급(끔이면 null)
+     */
+    static featureConfirm(t: Translate, kind: PostConfirmKind, tier: PointBoardTier | null, values: PointBoardTierValues, locale: string): string {
+        const n = values.featuredPoints.toLocaleString(locale);
+        if (kind === 'UNFEATURE') return values.featuredPoints > 0 && tier ? t('post.featureDialog.UNFEATURE.points', { n }) : t('post.featureDialog.UNFEATURE.text');
+        if (!tier) return t('post.featureDialog.FEATURE.offBoard');
+        const tierName = t(`point.tier.${tier}`);
+        if (values.featuredPoints === 0) return t('post.featureDialog.FEATURE.noPoints', { tier: tierName });
+        if (values.holdHours === 0) return t('post.featureDialog.FEATURE.now', { n, tier: tierName });
+        return t('post.featureDialog.FEATURE.hold', { n, tier: tierName, h: values.holdHours.toLocaleString(locale) });
     }
 
     /** 조치 성공 토스트 */

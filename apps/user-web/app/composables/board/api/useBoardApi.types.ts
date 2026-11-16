@@ -270,6 +270,28 @@ export interface BoardNewMemberRules {
     imageLimit: number;
 }
 
+/** 게시판 포인트 등급 — 일반 · 정보 · 핵심 글(point-board-tier-contract) */
+export type BoardPointTier = 'NORMAL' | 'INFO' | 'CORE';
+
+/** 글쓰기 화면용 게시판 등급의 금액·조건(관리자 포인트 정책 「게시판 등급별 지급」의 그 등급 값 + 함께 쓰는 추천 문턱) */
+export interface BoardPointTierView {
+    tier: BoardPointTier;
+    /** 쓰면 바로(P) */
+    postPoints: number;
+    /** 추천 문턱을 채우면 더 주는 보너스(P) */
+    likeBonusPoints: number;
+    /** 추천 문턱(인정된 추천 개수) */
+    likeThreshold: number;
+    /** 우수 글로 뽑히면 주는 포인트(P) */
+    featuredPoints: number;
+    /** 적립 최소 글자 수(서식·공백·그림 뺀 글자) — 0 = 조건 없음. 게시판이 「적립 최소 글자 수 적용」을 껐으면 0 으로 준다 */
+    minLength: number;
+    /** 적립 사진 최소(장) — 0 = 조건 없음 */
+    minImages: number;
+    /** 보너스 보류(시간) — 0 이면 바로 */
+    holdHours: number;
+}
+
 /** 지금 보는 사람 기준의 판정 — 서버가 정한다(화면은 편의로 숨기거나 안내만 한다) */
 export interface BoardViewer {
     /** 로그인하지 않았다 */
@@ -344,6 +366,11 @@ export interface BoardDetail extends BoardView {
     prefixRequired?: boolean;
     /** 태그 필수(유효 정책 `tagRequired`) — 켜져 있으면 태그를 하나 이상 단다(서버 400 `fields.tags`). 「태그 쓰기」(`tagsEnabled`)가 꺼진 게시판은 서버가 늘 false. 옛 응답이면 끔 */
     tagRequired?: boolean;
+    /**
+     * 이 게시판의 포인트 등급과 금액·조건(point-board-tier-contract 「API 후보」 — 게시판 정보 응답에 붙을 예정). 포인트를 주지 않는 게시판(`pointMode` 끔)이면 null.
+     * ⚠ 서버가 아직 주지 않는다 — `useBoardApi.board` 가 slug 기본 배정 + 계약 기본값으로 채운다(MOCK).
+     */
+    pointTier?: BoardPointTierView | null;
     /**
      * 출처 칸 쓰기(유효 정책 `sourcesEnabled` — shared V232, 사이트 기본 끔) — 켜져 있으면 글쓰기·고치기에 「출처」 칸(줄마다 이름 + 주소, 최대 5)을 보인다.
      * 꺼져 있으면 서버가 `sources` 를 무시한다. 옛 응답이면 끔

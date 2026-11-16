@@ -155,6 +155,11 @@ export interface AdminPostItem {
     processStatusAt?: string | null;
     /** 마지막으로 상태를 바꿀 때 남긴 메모(공개 글 보기에 「운영진 메모」로 보인다) — 없으면 null·없음 */
     processStatusNote?: string | null;
+    /**
+     * 우수 글로 선정됐다(point-board-tier-contract) — 줄·서랍의 「우수 글」 칩, ⋯ 메뉴의 선정/선정 취소를 가른다.
+     * ⚠ 서버가 아직 주지 않는다 — `usePostApi` 가 목업 선정 목록으로 채운다(MOCK). 없으면 false.
+     */
+    featured?: boolean;
 }
 
 /** 상태 알약(`PostStateTag`)·상태 줄(`UtilPostMessages.stateLines`)이 읽는 칸 — 공지 관리의 줄(`NoticeItem`)도 같은 칸을 가져 알약을 같이 쓴다 */

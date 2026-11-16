@@ -6,9 +6,11 @@ import type {
     PointMemberCandidate,
     PointMemberLots,
     PointMemberLotsQuery,
+    PointSettingsRequest,
     PointSettingsResponse,
-    PointSettingsValues,
 } from '~/composables/point/api/usePointApi.types';
+// MOCK: 게시판 등급 칸·확정 대기 보충(point-board-tier-contract) — 서버가 주면 이 줄을 지운다
+import { withBoardTierMock, withPendingMock } from '~/composables/point/api/mock/point-board-tier-mock';
 
 /**
  * 포인트 API — 서버 주소 문자열(`/api/admin/points…`·`/api/admin/settings/points`·`/api/admin/members/{id}/points`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -30,6 +32,8 @@ import type {
  *       (칸마다 정수·범위 — 틀린 칸을 모아 400 `VALIDATION` + `fields.<칸>`(서버 문구), 하나라도 틀리면 아무것도 저장하지 않는다. 저장하면 15초 안에 모든 서버에 반영, 소급 없음. 감사 기록 `POINT_SETTINGS_UPDATE`(바뀐 값만). `point.settings`)
  *   공통 오류: 403 `PERMISSION_DENIED`.
  * 커머스 1-3: 정책에 적립 조건·하루 총 한도·연속 출석 보너스 칸이 더해지고 조정 문턱(`adjustLargeThreshold`)도 저장한다(`commerce-stage1-contract.md` 「1-3 화면 목업」).
+ * 게시판 등급별 포인트(`point-board-tier-contract.md` — 화면 목업 단계): 정책 GET·PUT 에 `boardTiers`·`infoSourceOnce`·`excludeAiAndOps`, 회원 묶음 응답에 확정 대기 `pending`.
+ *   ⚠ MOCK — 서버가 아직 주지 않아 응답에 없으면 `mock/point-board-tier-mock.ts` 가 채운다. PUT 에는 실어 보낸다(서버는 모르는 칸을 무시한다고 가정).
  */
 const PATH = {
     ledger: '/api/admin/points/ledger',
@@ -54,15 +58,28 @@ export function usePointApi() {
         /** 수동 지급·차감(적립 포인트만) — 실제 반영값과 잔액을 돌려받는다 */
         adjust: (memberId: string, body: PointAdjustRequest): Promise<PointAdjustResponse> => client.post<PointAdjustResponse>(PATH.adjust(memberId), body),
 
-        /** 회원 한 명의 포인트 묶음 한 쪽 + 적립/충전 잔액 · 소멸 예정 · 미회수 */
-        memberLots: (memberId: string, query: PointMemberLotsQuery): Promise<PointMemberLots> => client.get<PointMemberLots>(PATH.memberLots(memberId), { query: { ...query } }),
+        /** 회원 한 명의 포인트 묶음 한 쪽 + 적립/충전 잔액 · 소멸 예정 · 미회수 + 확정 대기(point-board-tier-contract) */
+        memberLots: async (memberId: string, query: PointMemberLotsQuery): Promise<PointMemberLots> => {
+            const res = await client.get<PointMemberLots>(PATH.memberLots(memberId), { query: { ...query } });
+            // MOCK: 서버가 확정 대기(`pending`)를 주기 전까지 목업 줄로 채운다
+            return withPendingMock(res, memberId);
+            // REAL: return res;
+        },
 
-        /** 포인트 정책(조정 문턱 포함) */
-        loadSettings: (): Promise<PointSettingsResponse> =>
-            client.get<PointSettingsResponse>(PATH.settings),
+        /** 포인트 정책(조정 문턱 · 게시판 등급 칸 포함) */
+        loadSettings: async (): Promise<PointSettingsResponse> => {
+            const res = await client.get<PointSettingsResponse>(PATH.settings);
+            // MOCK: 서버가 게시판 등급 칸(`boardTiers`·`infoSourceOnce`·`excludeAiAndOps`)을 주기 전까지 기본값으로 채운다
+            return withBoardTierMock(res);
+            // REAL: return res;
+        },
 
-        /** 포인트 정책을 통째로 저장한다 — 저장된 값을 돌려준다 */
-        saveSettings: (body: PointSettingsValues): Promise<PointSettingsResponse> =>
-            client.put<PointSettingsResponse>(PATH.settings, body),
+        /** 포인트 정책을 통째로 저장한다(게시판 등급 칸도 함께 — 서버는 아직 모르는 칸을 무시한다고 가정) — 저장된 값을 돌려준다 */
+        saveSettings: async (body: PointSettingsRequest): Promise<PointSettingsResponse> => {
+            const res = await client.put<PointSettingsResponse>(PATH.settings, body);
+            // MOCK: 서버가 등급 칸을 돌려주기 전까지 보낸 값으로 채운다
+            return withBoardTierMock(res, body);
+            // REAL: return res;
+        },
     };
 }

@@ -1,4 +1,6 @@
-import type { AttendanceMonth, AttendResult, MyPointLedgerPage, MyPointLedgerQuery, PointSummary } from '~/composables/point/api/usePointApi.types';
+import type { AttendanceMonth, AttendResult, MyPointLedgerPage, MyPointLedgerQuery, MyPointPendingItem, PointSummary } from '~/composables/point/api/usePointApi.types';
+// MOCK: 확정 대기(point-board-tier-contract) — 서버가 생기면 이 줄을 지운다
+import { mockPending } from '~/composables/point/api/mock/point-pending-mock';
 
 /**
  * 포인트 API — 서버 주소 문자열(`/api/me/points…`·`/api/me/attendance`)이 있는 **유일한 곳**이다. 상태는 없다(요약의 상태는 `usePointSummary`, 출석 달력은 `usePointAttendance`).
@@ -11,11 +13,14 @@ import type { AttendanceMonth, AttendResult, MyPointLedgerPage, MyPointLedgerQue
  *  - `GET /api/me/attendance?month=YYYY-MM` → `AttendanceMonth`(`no-store`). 달 모양이 틀리면 `400 VALIDATION` `fields.month`, 미래 달은 `days: []`.
  *  - `POST /api/me/attendance` → `AttendResult`. `409 ATTENDANCE_ALREADY_DONE`(오늘 이미 출석) · `403 EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`(정지) · 사업자 전용 계정은 `403 BUSINESS_ACCOUNT_RESTRICTED`.
  * 포인트 상점 구매·환불은 `usePointShopApi`·`useMyItemsApi` 다.
+ *  - 확정 대기(point-board-tier-contract — 후보 `GET /api/me/points/pending` → `{ items: MyPointPendingItem[] }`, 로그인 필요 401, `no-store`). ⚠ MOCK — 목업 줄을 준다.
  */
 const PATH = {
     points: '/api/me/points',
     ledger: '/api/me/points/ledger',
     attendance: '/api/me/attendance',
+    /** 확정 대기(point-board-tier-contract 후보) — 목업 단계라 아직 부르지 않는다(REAL 줄이 쓴다) */
+    pending: '/api/me/points/pending',
 };
 
 export function usePointApi() {
@@ -36,5 +41,11 @@ export function usePointApi() {
 
         /** 오늘 출석 */
         attend: (): Promise<AttendResult> => client.post<AttendResult>(PATH.attendance),
+
+        /** 확정 대기(보류 중인 추천 문턱 보너스·우수 글 보상) — 확정 예정이 가까운 것부터 */
+        pending: (): Promise<MyPointPendingItem[]> =>
+            // MOCK: 서버 API 가 생기기 전까지 목업 줄
+            mockPending(),
+        // REAL: pending: (): Promise<MyPointPendingItem[]> => client.get<{ items: MyPointPendingItem[] }>(PATH.pending).then((res) => res.items),
     };
 }

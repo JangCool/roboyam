@@ -393,7 +393,7 @@ export default {
         inHome: 'When off, excluded from home, popular and latest collections (the board itself stays).',
         attachmentPurgeEnabled: 'When on, attachments of deleted posts are removed for good after the retention period.',
         attachmentRetentionDays: 'How long attachments of deleted posts are kept.',
-        pointMode: '"No points" gives no points for posts, comments or likes received on this board.',
+        pointMode: 'Post points and bonuses depend on the board tier (Point policy › Points by board tier). "Off" gives no points for posts, comments or likes received on this board.',
         pointMinLengthApplied: 'When off, posts on this board earn points regardless of the point policy’s minimum length (for image-first boards such as photo boards). The minimum comment length and other earning conditions still apply.',
         commentProtectMin: 'Posts with at least this many visible comments are "protected". 0 means off.',
         commentProtectEdit: 'When on, authors cannot edit protected posts either.',
@@ -499,9 +499,12 @@ export default {
             NONE: 'Plain text',
             SIMPLE: 'Simple',
         },
+        // Point tiers (point-board-tier-contract) — the old value `ON` is read as Standard
         pointMode: {
-            ON: 'Award by rules',
-            OFF: 'No points',
+            OFF: 'Off',
+            NORMAL: 'Standard',
+            INFO: 'Info',
+            CORE: 'Core',
         },
         commentDelayNotice: {
             TIME: 'Show time left',
@@ -601,7 +604,7 @@ export default {
         attachmentOrphan: 'Temporary attachments uploaded while writing but never saved are cleaned up daily regardless of this setting (batch file-orphan-cleanup).',
         attachmentRestore: 'Restoring a post from the trash also restores its attachments within the retention period.',
         protectStaff: 'Hiding/deleting by operators, managers and staff, and report handling, bypass protection.',
-        pointAmount: 'Point amounts are set in point settings. Points already earned are not taken back.',
+        pointAmount: 'Point amounts per tier are set in Point policy › Points by board tier. Points already earned are not taken back.',
         guestDelay: '0 shows comments right away. Members and operators always see them right away.',
         reactionDebate: "Debate opinions follow their post's board settings. Operators handle pin requests in the Pin requests tab of the admin opinion manager.",
         staffEligible: 'Eligible: active member · verified email · not the first grade · not a business account. A member can take up to 5 boards.',

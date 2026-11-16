@@ -127,4 +127,30 @@ export default {
     // 사업자 전용 계정
     businessTitle: '사업자 계정은 포인트를 쓰지 않아요',
     businessText: '포인트 적립과 내역은 일반 회원 계정에서 볼 수 있어요.',
+
+    // 확정 대기(point-board-tier-contract) — 보류 중인 추천 보너스·우수 글 보상
+    pendingTitle: '확정 대기',
+    pendingReason: {
+        LIKE_BONUS: '추천 보너스',
+        POST_FEATURED: '우수 글 선정',
+    },
+    pendingRelease: '{at} 확정 예정',
+    pendingUnavailable: '볼 수 없는 글',
+    pendingNote: '보류 시간이 지나면 포인트가 들어와요. 그 사이 글을 지우거나 신고로 숨겨지면 받지 못해요.',
+
+    // 글쓰기 포인트 안내(point-board-tier-contract — 정보·핵심 글 게시판)
+    writeTierTitle: '{tier} 게시판 포인트',
+    writeTierTierName: {
+        NORMAL: '일반',
+        INFO: '정보',
+        CORE: '핵심 글',
+    },
+    writeTierWrite: '쓰면 {n}P',
+    writeTierLike: '추천 {k}개 받으면 {n}P 더',
+    writeTierFeatured: '우수 글로 뽑히면 {n}P',
+    writeTierLength: '글자 수 {current}/{min}자',
+    writeTierImages: '사진 {current}/{min}장',
+    writeTierMet: '적립 조건을 채웠어요',
+    writeTierUnmet: '아직 적립 조건이 모자라요',
+    writeTierHold: '추천 보너스와 우수 글 포인트는 {h}시간 뒤 확정돼요.',
 };

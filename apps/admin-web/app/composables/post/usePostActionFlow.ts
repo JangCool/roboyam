@@ -1,5 +1,5 @@
 import type { AdminPostBoardOption, AdminPostItem } from '~/composables/post/api/usePostApi.types';
-import type { PostActionKind, PostReasonKind } from '~/utils/util-post';
+import UtilPost, { type PostActionKind, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 
 /**
@@ -47,6 +47,8 @@ export function usePostActionFlow(options: { after: (id: string) => Promise<void
 
     function openAct(item: AdminPostItem, kind: PostActionKind): void {
         if (acting.value) return;
+        // 우수 글 선정·취소는 게시글 관리 화면만 다룬다(이 흐름을 쓰는 화면은 그 조치를 켜지 않는다 — `PostActionPermissions.feature`)
+        if (UtilPost.isConfirmKind(kind)) return;
         if (kind === 'MOVE') {
             moveTarget.value = item;
             moveError.value = '';

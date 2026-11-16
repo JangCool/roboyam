@@ -20,6 +20,9 @@
           제목 자리에 「소모임 비공개 글」(자물쇠·기울임), 서랍은 본문·투표 대신 「신고 상세에서만」 안내(`contentBlocked: GROUP_PRIVATE`). 소모임 글은 이동이 없다(서버도 `409 POST_STATE_INVALID`).
         - 글 대표 썸네일(list-thumbnail-contract 「2단계」): 서랍의 「대표 썸네일」 구획(지금 그림·출처) + [바꾸기](`post.manage`) → `PostThumbnailDialog`(글 이미지 고르기·올리기·없음·자동) → 저장 뒤 서랍을 조용히 다시 받는다.
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
+        - 우수 글(point-board-tier-contract — 화면 목업): ⋯ 메뉴·서랍 바닥에 「우수 글로 선정」(공개 글) / 「우수 글 선정 취소」(선정된 글) → 확인 대화상자(글쓴이가 받을 그 게시판 등급의 우수 글 금액·보류 시간, 0P 등급이면 포인트 없이 선정만)
+          → `usePostApi.feature`·`unfeature`. 줄·서랍에 「우수 글」 칩. 권한 후보 `post.feature`(⚠ MOCK: 서버에 권한이 생기기 전까지 `post.manage` 가 있어도 보인다).
+          ⚠ MOCK: 선정은 이 탭 메모리에만 남고, 글의 게시판 등급은 게시판 slug 기본 배정(`UtilPoint.defaultTierOfBoard`)으로 본다. 「이달의 작가 후보에 넣기」는 칭호 기능 몫이라 여기 없다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('post.title')" :subtitle="t('post.subtitle')">
@@ -188,6 +191,8 @@
                                 <span v-if="data.prefix" class="shrink-0 text-xs text-muted-color">[{{ data.prefix.name }}]</span>
                                 <Tag v-if="data.notice" :value="t('post.chip.notice')" severity="info" class="text-[11px]!" />
                                 <Tag v-if="data.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
+                                <!-- 우수 글(point-board-tier-contract — ⚠ MOCK 선정 목록) -->
+                                <Tag v-if="data.featured" :value="t('post.chip.featured')" icon="pi pi-star-fill" severity="warn" class="text-[11px]!" data-testid="post-row-featured" />
                                 <Tag v-if="data.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                                 <!-- 운영 게시판 — 처리 상태 · 비밀글 -->
                                 <Tag v-if="data.processStatus" :value="t(`post.processStatus.${data.processStatus}`)" :severity="UtilPost.processSeverity(data.processStatus)" class="text-[11px]!" data-testid="post-row-process-status" />
@@ -406,7 +411,8 @@ import type { DebateDrawerInitialTab, DebateDrawerTarget } from '~/components/de
 import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, AdminPostThumbnailRequest, PostBulkAction, PostBulkResult, PostProcessStatus, PostProcessStatusHistoryItem, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import type { PostThumbnailActions } from '~/components/post/PostThumbnailDialog.types';
 import UtilDateRange from '~/utils/util-date-range';
-import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
+import UtilPoint from '~/utils/util-point';
+import UtilPost, { type PostActionKind, type PostConfirmKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
 import type { SanctionCreateRequest } from '~/composables/sanction/api/useSanctionApi.types';
@@ -456,7 +462,42 @@ function openSealedReveal(): void {
 }
 
 function actionsOf(item: AdminPostItem) {
-    return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value });
+    return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value, feature: canFeature.value });
+}
+
+/* ── 우수 글 선정·취소(point-board-tier-contract — 화면 목업) ── */
+/** 우수 글 선정 — 새 권한 후보 `post.feature`. MOCK: 서버에 권한이 생기기 전까지 `post.manage` 가 있어도 보인다 */
+const canFeature = computed(() => can('post.feature') || can('post.manage'));
+/** 등급별 우수 글 금액·보류 시간 — 포인트 정책에서 읽고 못 읽으면 계약 기본값 */
+const pointTiers = usePointBoardTiers();
+const { confirm } = useConfirmDialog();
+
+/** 확인 뒤 선정·취소 → 목록·서랍을 새로 받는다. 실패는 서버 문구 토스트 */
+async function openFeature(item: AdminPostItem, kind: PostConfirmKind): Promise<void> {
+    if (acting.value) return;
+    await pointTiers.ensure();
+    // MOCK: 글 응답에 게시판 등급이 없어 slug 기본 배정으로 본다(뉴스·핫딜 = 정보, 사용기·팁·강좌 = 핵심 글, 그 밖 = 일반)
+    const tier = UtilPoint.defaultTierOfBoard(item.board.slug);
+    const values = pointTiers.info.value.tiers[tier];
+    const ok = await confirm({
+        title: t(`post.featureDialog.${kind}.title`),
+        message: UtilPostMessages.featureConfirm(t, kind, tier, values, locale.value),
+        confirmLabel: t(`post.action.${kind}`),
+        tone: kind === 'UNFEATURE' ? 'danger' : 'primary',
+    });
+    if (!ok) return;
+    acting.value = true;
+    try {
+        if (kind === 'FEATURE') await api.feature(item.id);
+        else await api.unfeature(item.id);
+    } catch (e) {
+        toast.error(errorOf(e).message, 8000);
+        return;
+    } finally {
+        acting.value = false;
+    }
+    toast.success(t(`post.done.${kind}`));
+    await refreshAfter(item.id);
 }
 
 /* ── 주소 ↔ 필터 ── */
@@ -758,6 +799,10 @@ const moveFieldErrors = ref<Record<string, string>>({});
 
 function openAct(item: AdminPostItem, kind: PostActionKind): void {
     if (acting.value) return;
+    if (UtilPost.isConfirmKind(kind)) {
+        void openFeature(item, kind);
+        return;
+    }
     if (kind === 'MOVE') {
         moveTarget.value = item;
         moveError.value = '';
