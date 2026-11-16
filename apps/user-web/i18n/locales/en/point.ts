@@ -136,6 +136,8 @@ export default {
     pendingRelease: 'Confirms {at}',
     pendingUnavailable: 'Post not available',
     pendingNote: 'Points arrive when the hold ends. If the post is deleted or hidden by reports in the meantime, they won’t be paid.',
+    pendingFrozen: 'Your points are frozen. Anything that confirms while they are frozen won’t be paid.',
+    pendingFrozenUntil: 'Your points are frozen until {at}. Anything that confirms before then won’t be paid.',
 
     // Points guide when writing (point-board-tier-contract — Info and Core boards)
     writeTierTitle: '{tier} board points',

@@ -177,6 +177,16 @@ export interface MyPointPendingItem {
     target: MyPointLedgerTarget;
 }
 
+/**
+ * 확정 대기 응답 — 줄들 + 지금 포인트 동결(`POINT_FREEZE`) 여부. 동결 중에 확정 시각이 오면 그 줄은 지급되지 않고 취소된다(계약 「확정 때 다시 본다」).
+ * ⚠ 서버 API 가 아직 없다(후보 `GET /api/me/points/pending` → `{ items, freeze }`) — 목업(MOCK).
+ */
+export interface MyPointPendingResult {
+    items: MyPointPendingItem[];
+    /** 지금 걸린 포인트 동결 — 없으면 null. `until` 은 끝나는 순간(UTC ISO), 무기한이면 null */
+    freeze: { until: string | null } | null;
+}
+
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {
     postId: string;

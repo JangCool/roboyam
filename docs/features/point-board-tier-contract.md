@@ -56,6 +56,7 @@
 - 게시판 정책 `pointMode` 값 확장: `OFF|NORMAL|INFO|CORE`(기존 `ON` → `NORMAL` 전환).
 - `POST /api/admin/posts/{id}/feature`·`DELETE`(우수 글 선정·취소).
 - 회원 글쓰기 화면용: 게시판 정보 응답에 그 게시판의 등급 금액·조건.
+- 회원 확정 대기: `GET /api/me/points/pending` → `{ items, freeze: { until } | null }`. 포인트 동결 중이면 「확정 대기」 구획에 「동결 중에 확정 시각이 오면 받지 못해요」 안내(화면 목업 때 더함 2026-11-17).
 
 ## 미확정
 - 없음(원장 사유·보류 확정 방식은 위 결정으로 닫음).

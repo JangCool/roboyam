@@ -137,6 +137,8 @@ export default {
     pendingRelease: '{at} 확정 예정',
     pendingUnavailable: '볼 수 없는 글',
     pendingNote: '보류 시간이 지나면 포인트가 들어와요. 그 사이 글을 지우거나 신고로 숨겨지면 받지 못해요.',
+    pendingFrozen: '지금 포인트가 동결돼 있어요. 동결 중에 확정 시각이 오면 이 포인트는 받지 못해요.',
+    pendingFrozenUntil: '{at}까지 포인트가 동결돼 있어요. 그 전에 확정 시각이 오면 이 포인트는 받지 못해요.',
 
     // 글쓰기 포인트 안내(point-board-tier-contract — 정보·핵심 글 게시판)
     writeTierTitle: '{tier} 게시판 포인트',
