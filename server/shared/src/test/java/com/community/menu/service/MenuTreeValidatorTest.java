@@ -69,6 +69,14 @@ class MenuTreeValidatorTest {
     }
 
     @Test
+    void 보이는_대상이_빠지면_500_이_아니라_칸_오류다() {
+        // 관리자 QA 2026-11-17 F-3 — List.of(...).contains(null) 이 NullPointerException 을 던져 500 이 났다
+        List<MenuNode> tree = List.of(builtin(null, "HOME", null));
+        assertThatThrownBy(() -> validator.validate(tree, side(), Map.of()))
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("nodes[0].audience"));
+    }
+
+    @Test
     void 위반을_칸_경로로_모은다() {
         List<MenuNode> tree = List.of(
                 folder(null, "", List.of(board(null, "1"), board(null, "1"))),

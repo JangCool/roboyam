@@ -1,5 +1,6 @@
 package com.community.home.dto.request;
 
+import java.time.Instant;
 import java.util.List;
 import tools.jackson.databind.JsonNode;
 
@@ -11,8 +12,19 @@ import tools.jackson.databind.JsonNode;
  *   <li>저장 가젯·시드 가젯({@code seed-<n>}): {@code title}·{@code desktop}·{@code mobile} 은 보낸 값으로 바꾸고(빠지면 그대로), {@code style}·{@code config} 는 보낸 칸만 덮는다(null 이면 그대로).</li>
  *   <li>새 가젯(모르는 ID — {@code new-<n>}): {@code type}·{@code title} 필수, 처음 꾸미기(테마 기본) 위에 보낸 {@code style}, 처음 설정 위에 보낸 {@code config}.</li>
  * </ul>
+ * {@code base}(2026-11-17, 관리자 QA F-1): 화면이 배치를 받을 때의 {@code updatedAt}(저장한 적 없으면 null). 보내면 그사이 다른 저장이 있었는지 보고 409 {@code LAYOUT_VERSION_CONFLICT} —
+ * 본문이 「가젯 전체」라 낡은 화면이 저장하면 남이 넣은 가젯이 지워지기 때문이다. 빠지면(옛 화면·시드 코드) 검사하지 않는다.
  */
-public record HomeLayoutSaveRequest(Layout layout, List<Gadget> gadgets) {
+public record HomeLayoutSaveRequest(Layout layout, List<Gadget> gadgets, Base base) {
+
+    /** 버전 확인 없이(시드·테스트·게시판 레이아웃 안쪽 변환) */
+    public HomeLayoutSaveRequest(Layout layout, List<Gadget> gadgets) {
+        this(layout, gadgets, null);
+    }
+
+    /** @param updatedAt 화면이 받은 배치의 {@code updatedAt} — 저장한 적 없는 배치(테마 기본)면 null */
+    public record Base(Instant updatedAt) {
+    }
 
     /**
      * @param columns     12 · 24

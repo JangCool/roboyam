@@ -8,6 +8,7 @@ export default {
     saveFailed: 'Could not save the home layout.',
     lastSaved: 'Last saved {at} · {by}',
     neverSaved: 'Never saved — this is the theme’s default layout.',
+    reloadAfterConflict: 'Reload the latest layout',
 
     // ── Columns ─
     columns: 'Grid columns',

@@ -96,6 +96,11 @@
                 <p class="m-0 text-xs text-muted-color">
                     {{ view.updatedAt ? t('homeLayout.lastSaved', { at: time.full(view.updatedAt), by: view.updatedBy ?? '—' }) : word('neverSaved') }}
                 </p>
+                <!-- 그사이 다른 저장이 있었다(409) — 지금 편집을 버리고 최신 배치를 받는다 -->
+                <div v-if="conflict" class="flex flex-wrap items-center gap-2" data-testid="layout-conflict">
+                    <Message severity="warn" size="small" variant="simple">{{ saveError }}</Message>
+                    <Button type="button" :label="t('homeLayout.reloadAfterConflict')" icon="pi pi-refresh" size="small" severity="secondary" variant="outlined" @click="reload" />
+                </div>
             </template>
             <p class="sr-only" aria-live="polite">{{ announcement }}</p>
         </div>
@@ -143,7 +148,7 @@ import type { HomeGridColumns } from '#layers/home-layout/utils/util-home-layout
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import UtilHomeStack from '#layers/home-layout/utils/util-home-stack';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { HomeLayoutBody, HomeLayoutGadget } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { HomeLayoutBody, HomeLayoutGadget, HomeLayoutSaveRequest } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { GadgetSettingsPatch } from '~/components/theme/GadgetSettingsDialog.vue';
 import type { GadgetMobileOrderRow } from '~/components/theme/GadgetMobileOrder.vue';
 import type { GadgetPage } from '~/composables/page/api/useGadgetPageApi.types';
@@ -229,6 +234,8 @@ const announcement = ref('');
 
 const saving = ref(false);
 const saveError = ref('');
+/** 저장이 409 `LAYOUT_VERSION_CONFLICT`(그사이 다른 저장) — 저장 줄 위에 [다시 불러오기]를 낸다. 불러오면 지운다 */
+const conflict = ref(false);
 /** 마지막 저장 실패의 가젯별 칸 오류(가젯 ID → 칸 경로 → 문구) — ⚙ 창이 보인다. 그 가젯 설정을 적용하거나 다시 불러오면 지운다 */
 const serverErrors = ref<Record<string, Record<string, string>>>({});
 const addOpen = ref(false);
@@ -305,6 +312,7 @@ function fill(input: HomeLayoutBody & { screens?: BoardLayoutScreens }): void {
     items.value = UtilGadgetLayoutEditor.toEditor(read, typeOf);
     mobileOrder.value = read.mobileOrder ?? null;
     saveError.value = '';
+    conflict.value = false;
     serverErrors.value = {};
 }
 
@@ -500,7 +508,9 @@ async function save(): Promise<void> {
     try {
         // 가젯마다 `{ id, type, title, desktop, mobile, style, config }` — 꾸미기·설정은 마지막 저장 값과 다를 때만(같거나 없으면 null = 그대로 두기)
         const saved = new Map((view.value?.gadgets ?? []).map((g) => [g.id, g]));
-        const body: HomeLayoutBody = {
+        const body: HomeLayoutSaveRequest = {
+            // 받을 때의 저장 시각 — 그사이 다른 저장이 있으면 409 `LAYOUT_VERSION_CONFLICT`(낡은 화면이 남이 넣은 가젯을 지우지 않게, 관리자 QA F-1)
+            base: { updatedAt: view.value?.updatedAt ?? null },
             layout: currentLayout.value,
             gadgets: gadgets.value.map((g) => {
                 const c = UtilGadgetConfig.copy(g);
@@ -520,6 +530,7 @@ async function save(): Promise<void> {
         toast.success(word('saved'));
     } catch (e) {
         const err = toApiError(e);
+        conflict.value = err.code === 'LAYOUT_VERSION_CONFLICT';
         const found = UtilGadgetLayoutEditor.saveErrors(err.fields, sentIds, (id) => UtilGadgetConfig.settable(typeOf(id)));
         serverErrors.value = found.byGadget;
         const titles = Object.keys(found.byGadget)

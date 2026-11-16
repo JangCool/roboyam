@@ -1,0 +1,48 @@
+# 관리자 QA 기록 (2026-11-16 ~)
+
+- 기준: develop `7d5ee9bd`(로컬, 미푸시) · shared V237 적용 · DB 백업 컨테이너 `/tmp/irobit-before-admin-qa-20261116.dump`
+- 서버: api 8910 · admin 8920(jar) · user-web 3100 · admin-web 3200(dev 모드 — 화면 로딩 시간은 번들 전이라 참고값)
+- 브라우저: Chrome(Claude in Chrome). 최고 관리자 = `localhost:3200` 탭(사용자가 로그인), 시험 계정 = `[::1]:3200` 탭(쿠키 분리)
+- 시험 계정: 역할 12개(ROLE_QA_*) + 운영자 14명(QA_*), 비밀번호는 `docs/qa/admin-qa-accounts.local.md`(git 제외)
+  - 최고 관리자는 DB 유일 인덱스로 하나뿐이라 QA_ROOT 는 「모든 운영자 권한(124)을 가진 종합 역할」의 일반 운영자로 DB 에서 만듦
+  - 운영자 이름은 `-` 를 못 써서 `QA_LAYOUT` 처럼 밑줄, 12자 넘는 `QA_SITE_SECRET` 은 `QA_SECRET`
+- 시작 캐시 상태: 전부 켜짐·OK, pollSeconds 3, 노드 api-1·admin-1
+
+## 발견 사항
+| # | 심각도 | 화면/영역 | 내용 | 상태 |
+|---|---|---|---|---|
+| F-1 | 중간 | 홈 배치·가젯 페이지 배치 저장(`PUT /api/admin/home-layouts/{theme}`·`/gadget-pages/{id}/layouts/{theme}`) | 버전 확인이 없어 낡은 탭이 저장하면 다른 탭이 그사이 넣은 가젯이 **경고 없이 지워짐**(본문이 「가젯 전체」라 빠진 가젯을 지움). 재현: 탭1 가젯 추가 저장(17개) → 탭2 옛 화면 저장 → 16개. 메뉴는 `version` 409 로 막음 | 수정 — 저장 본문에 선택 칸 `base.updatedAt`, 다르면 409 `LAYOUT_VERSION_CONFLICT`(홈·가젯 페이지·게시판 레이아웃), 편집기에 [최신 배치 다시 불러오기]. 시험 `HomeLayoutVersionConflictTest` 3건 |
+| F-3 | 낮음 | 공개 메뉴 트리 저장 | 노드에 `audience` 가 빠지면 `MenuTreeValidator` 126행 `AUDIENCES.contains(null)`(List.of) NullPointerException → 400 대신 500 | 수정 — null 이면 칸 오류 400, `MenuTreeValidatorTest` 에 1건 추가 |
+| F-4 | 중간 | 관리자 메뉴·화면 권한(`util-admin-menu.ts`) | 공동구매 **Q&A(`/group-buy-qna`)·리뷰(`/group-buy-reviews`)** 가 서버 `AdminScreenRegistry`·메뉴 구성엔 있는데 화면 쪽 목록에 없음 → ① 관리자 사이드바에 안 보임(대시보드 가젯 링크로만 진입) ② `canOpen` 이 모르는 주소를 통과시켜 권한 없는 QA_NONE 에게도 화면 틀이 열림(데이터 API 는 403). 2b-6(0cbf851e)에서 서버만 추가 | 수정 — `util-admin-menu.ts` 공구 묶음에 두 항목(권한 `commerce.order.read`) |
+| F-2 | 낮음 | 운영자 계정 안내 메일 | `ADMIN_URL` 이 없으면 본문에 빈 「관리자 앱 주소:」「관리 사이트:」 줄이 그대로 나감(로컬 기동 스크립트에 `ADMIN_URL` 없음 → 로컬에선 초대 메일도 못 보냄) | 보류 — 메일 문구 엔진은 「변수만 든 문단」만 지우므로 고치려면 운영자가 편집하는 기본 메일 틀을 바꿔야 함. 운영은 `ADMIN_URL` 설정, 로컬 기동 스크립트에 `ADMIN_URL` 추가 권장 |
+
+## 시나리오 결과
+| 항목 | 결과 | 메모 |
+|---|---|---|
+| 준비: 역할 추가(화면) | 통과 | `layout.settings` 고르면 `layout.read` 자동 체크·잠김(Q6 수정 확인) |
+| 준비: 운영자 직접 추가 | 통과 | 임시 비밀번호 메일 Mailpit 도착, 첫 로그인 비밀번호 변경 강제 없음 |
+| S1 사이트 이름·한 줄 소개 | 통과 | 화면: 빈 값 오류 문구. 서버: 빈 값·공백·51자·소개 101자·null 모두 400. 저장 → 공개 `/api/site/info`·헤더·탭 제목 약 3초 안 반영, 감사 `SITE_BASIC_UPDATE` |
+| S1 로고 4칸 | 통과 | 화면에서 4칸 SVG 넣기·미리보기 정상. 악성 SVG 8종(script·onload·외부 image·javascript: 링크·foreignObject·외부 엔티티·style url·비 SVG)+잘못된 칸 모두 400. 공개 info 2.4KB 유지(SVG 는 `/api/site/logos/{칸}.svg?v=`), 지문 일치 시 1년 immutable·불일치 no-cache·ETag 304·CSP·nosniff, 없는 칸 404. 헤더: 바탕(파란 바·다크)에 맞춰 어두운 바탕용, 「이름 포함」 켜면 이름 글자 숨김·img alt=사이트 이름. 삭제 후 공개 반영·옛 주소 404 |
+| S1 사이트 아이콘·링크 미리보기 | 통과 | 512 PNG·1200×630 PNG 올리기 → 공개 info·manifest(max-age 60) 반영. 300px·비정사각·1200×800·JPEG·가짜 PNG 를 화면과 서버(직접 호출) 모두 400. og 메타는 운영 빌드 index.html(api `IndexHtmlRenderer`) 담당이라 dev 모드에선 확인 못 함 |
+| S1 표시 기본값 | 통과 | 12시간·연.월.일 저장 → 공개 게시판 날짜 `2026.11.12` 형식. 잘못된 언어·시간대·형식 4칸 모두 400 |
+| S1 공지 띠 | 통과 | 직접 입력 빈 문구·`javascript:`·`//evil`·`/\evil`·공백 든 주소 화면·서버 400, 글 수 7 → 400. 끄기 약 2초 안 공개 `version:"off"`, 앞뒤 공백은 잘라 저장 |
+| S1 사이트 소개 | 통과 | script·onerror·javascript: 링크·iframe 제거되어 저장. 비우면 공개 `about:false`·푸터 링크 사라짐. 저장 시 `<br>`→`<br />` 정규화(두 번째부터 동일 — 문제 아님) |
+| S2 테마 고르기 | 통과 | 다음식 고르면 미리보기 즉시 바뀜, [테마 적용] → 공개 `/api/site/theme` 약 2초, 홈 다음식 배치 확인 → 아이로빗으로 복원 |
+| S2 홈 구성 | 통과(+F-1) | 가젯 제목 변경 → 공개 `/api/home/gadgets` 약 3초. 겹침·격자 밖·칸 수 7·31개·제목 200자 모두 400. 제목의 HTML 은 글자로 저장(Vue 가 이스케이프) |
+| S2 테마별 메뉴 배치 | 통과 | menuBold·menuWidth 변경 → 공개 약 1초. 모르는 위치·없는 띠 그룹 400, 모르는 테마 404 |
+| S2 가젯 페이지 | 통과 | 설명 변경 → `/api/pages/community` 약 1초. 잘못된 주소 형식·다른 페이지 주소 중복 400 |
+| S3 공개 메뉴 | 통과(+F-3) | 이름 변경·회원 전용(`audience: MEMBER`) 저장 → 비로그인 `/api/menu` 에서 숨김·회원 세션엔 보임(약 4초). 낡은 version 409 `MENU_VERSION_CONFLICT`. 이름 `<b>` 400, URL `javascript:`·`data:`, PATH `//evil`·`/evil` 400, https 200. 원래 트리 복원 |
+| S4 게시판 만들기·끄기 | 통과 | 빈 이름·잘못된 주소 400, 기존 주소 409 `BOARD_SLUG_DUPLICATE`. 만들면 공개 `/api/boards/qa-test` 200·메뉴 자동 추가. 끄면 공개 403·메뉴에서 빠짐(시험 게시판 qa-test 는 권한 시험용으로 꺼 둔 채 남김) |
+| S5 게시판 설정 | 통과 | 화면에서 설명 수정·저장 → 공개 약 1초. 서버: 목록 크기 범위·없는 자격 400 |
+| S6 게시판 기본값 | 통과 | 같은 값 다시 저장해도 변화 없음, 일부 칸만 보내면 전 칸 400(빈 값으로 덮지 않음), 목록 크기 25 → 기본값 따르는 `free` 에 약 4초 반영 → 복원. 신고·보안·알림·보존 4묶음 그대로 저장 안정. 금지어 등 글쓰기 검사는 회원 글을 써야 해서 미확인 |
+| P0-B API 권한 행렬 | 통과 | 서버 `@RequirePermission` 694개 API × 14계정(약 8,600회): 권한 없는 계정은 읽기·쓰기 모두 403 `PERMISSION_DENIED`, 권한 있는 계정은 읽기에서 막히지 않음·500 없음. 권한 있는 쓰기는 데이터 보호를 위해 부르지 않음(개별 시나리오에서 확인) |
+| P0-B 화면 권한표 대조 | 문제 1(F-4) | 서버 `AdminScreenRegistry` 99화면 vs `util-admin-menu.ts` 115항목 — 주소·권한 모두 일치, 단 공구 Q&A·리뷰 2화면이 화면 쪽에 없음 |
+| P0-B QA_NONE 화면 | 통과(F-4 제외) | 사이드바 대시보드만, 권한 밖 주소 7곳 직접 열면 403 화면 |
+| P0-B 권한 상승 방지(QA_OPMGR) | 통과 | 13건: 종합 유형 역할 만들기·고치기·주기·지우기 403 `ROLE_GENERAL_SUPER_ONLY`, 가진 권한 밖(layout.settings) 넣기·그 권한 든 역할을 남에게 주기 403 `PERMISSION_ESCALATION`, 자기에게 큰 역할 403, 루트 잠그기·고치기 409 `OPERATOR_ROOT_PROTECTED`, 큰 역할로 새 운영자·초대 403. 자기 권한 안 역할 만들기·layout.read 넣기는 허용 |
+| P0-B QA_READALL 화면 | 통과 | 설정·관리 화면 35곳 모두 열림(403 없음), 눌리는 쓰기 버튼(저장·추가·삭제·올리기·적용 등) 0개. 같은 검사로 최고 관리자는 쓰기 버튼이 잡힘(검사 유효) |
+| S7 팝업 | 통과 | 텍스트 팝업 만들기 → 공개 `/api/site/popups` 약 1초·홈에 실제로 뜸, 본문 `<script>` 는 글자로만 표시(`{{ }}`). 기간 거꾸로·`javascript:` 링크·그림 없는 그림 팝업·기기 0개·창 99 모두 400. 삭제 반영 |
+| S8 하이라이트 | 통과 | 숨김 → 공개 홈 가젯에서 약 1초 안 사라짐, 다시 보이기 약 1초 |
+| S9 인기글 설정 | 통과 | 같은 값 다시 저장 200·안정, 범위 밖 3칸 400 |
+| S10 공지 | 통과 | 제목·본문 빈 값 400(본문은 글자 10자 이상), 고정 공지 올리기 → 공지 게시판 목록·공지 띠 즉시, 삭제 → 띠에서 빠지고 글 404 |
+| S11·S16·S18·S19·S20·S22·S24·S27 다시 저장 | 통과 | QA_ROOT(루트 아닌 전권)로 읽은 값 그대로 저장 200, 저장 뒤 값 변화 없음 |
+| S12 운영 주체 | 참고 | 로컬 DB 에 필수 칸(운영자 이름·연락 메일)이 비어 있어 그대로 다시 저장은 400 — 필수 칸 규칙대로 |

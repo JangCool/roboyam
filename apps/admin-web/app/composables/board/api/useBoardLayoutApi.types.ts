@@ -6,7 +6,7 @@
  *   · 적용 화면 `screens` — 게시판 목록(`list`) · 글 보기(`post`)를 각각 켜고 끈다(기본 둘 다 켬). 끈 화면은 지금처럼 본문만.
  *   · 게시판을 고르는 가젯(글 목록·갤러리·게시판 카드)의 대상 범위 `BOARD`(지금 보는 게시판) — 게시판 레이아웃에서만.
  */
-import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { HomeLayoutBody, LayoutSaveBase } from '~/composables/home/api/useHomeLayoutApi.types';
 
 /** 적용 화면 — 게시판 목록 `/boards/{slug}` · 글 보기 `/posts/{id}` */
 export type BoardLayoutScreen = 'LIST' | 'POST';
@@ -30,4 +30,4 @@ export interface BoardLayoutView extends BoardLayoutBody {
 }
 
 /** `PUT /api/admin/board-layouts/{theme}` 본문 — 홈 저장과 같은 가젯 규칙(빠진 가젯은 지우고, 모르는 ID 는 새로 만든다) + 본문 꼭 하나(보낸 `style`·`config` 는 무시) + 적용 화면 */
-export type BoardLayoutSaveRequest = BoardLayoutBody;
+export type BoardLayoutSaveRequest = BoardLayoutBody & LayoutSaveBase;

@@ -9,6 +9,7 @@ export default {
     saveFailed: '홈 배치를 저장하지 못했어요.',
     lastSaved: '마지막 저장 {at} · {by}',
     neverSaved: '아직 저장한 적이 없어 테마 기본 배치예요.',
+    reloadAfterConflict: '최신 배치 다시 불러오기',
 
     // ── 칸 수 ─
     columns: '격자 칸 수',

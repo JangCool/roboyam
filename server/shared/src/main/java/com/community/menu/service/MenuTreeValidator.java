@@ -123,7 +123,8 @@ public class MenuTreeValidator {
                     continue;
                 }
                 String audience = node.audience();
-                if (!MenuLimits.AUDIENCES.contains(audience)) {
+                // List.of 는 contains(null) 에 NullPointerException 을 던진다 — 빠진 값은 400(관리자 QA 2026-11-17 F-3)
+                if (audience == null || !MenuLimits.AUDIENCES.contains(audience)) {
                     fieldErrors.add("audience", new MessageRef("menu.audience.choice"));
                 }
                 String minGrade = null;
