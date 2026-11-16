@@ -52,6 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>말머리: {@code common} 말머리는 같은 이름의 공통 말머리(질문·후기·잡담·공지)를 켜고, 프리셋에 없는 공통 말머리는 꺼 둔다. 고유 말머리의 이름이 공통 말머리 이름과 같으면
  *       (예: 자유게시판의 「잡담」, 공지 게시판의 「공지」) 고유 말머리를 따로 만들지 않고 그 공통 말머리를 켠다 — 관리자 화면의 「이름 중복 없음」 규칙과 맞춘다.
  *       고유 말머리는 활성 한도({@link BoardFields#PREFIX_ACTIVE_MAX})까지만.</li>
+ *   <li>{@code adultOnly} 는 성인 전용 게시판(V226)으로 만든다 — 일반 게시판만.</li>
  *   <li>{@code staffOnlyWrite} 는 글쓰기 최소 자격 STAFF 로 만든다. 만든 이(created_by)는 루트 운영자.</li>
  *   <li>운영 게시판(V168 — 버그 신고 · 기능 요청 + 공개 메뉴 그룹 {@code footer}): 프리셋과 무관하게 일반 게시판 다음에 {@link OpsBoardSeeder} 가 만든다(메인 메뉴에는 넣지 않는다).
  *       이미 설치된 DB 는 마이그레이션 V168 이 같은 값으로 넣는다. 한 번 적용({@link #applyOnceIfMissing})도 게시판을 만들 때 함께 만든다.</li>
@@ -180,6 +181,9 @@ public class BoardPresetApplier {
             BoardEntity entity = creator.create(toNewBoard(board), ++existing.order, operatorId, now);
             if (board.debateOn()) {
                 entity.changeDebateEnabled(true);
+            }
+            if (board.adultOn()) {
+                entity.changeAdultOnly(true); // 성인 전용(V226) — 일반 게시판만
             }
             existing.slugs.add(board.slug());
             existing.names.add(name);

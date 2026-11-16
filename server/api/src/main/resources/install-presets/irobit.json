@@ -406,6 +406,7 @@
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
+      "adultOnly": true,
       "color": null,
       "prefixes": [
         {

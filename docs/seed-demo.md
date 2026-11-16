@@ -84,7 +84,43 @@ node scripts/seed-demo.mjs                  # 데모 데이터
 
 운영 서버에는 Node 가 없어 이 로더를 돌릴 수 없다. 그래서 로더를 한 번 돌린 결과를 **데모 팩**(`seed/demo-pack/` — 표 데이터 `data.json.gz` + 올린 파일 `files/`)으로 저장소에 두고, 설치 마법사에서 「데모 데이터 포함」을 고르면 서버가 설치 직후 팩을 복원한다(시각·ID 를 설치한 때로 옮김). 규칙은 `docs/features/install-contract.md` 「데모 데이터 선택 (2026-11-08)」.
 
-**다시 만들 때**(원고·스키마·구조가 바뀌면 — 팩은 만든 때의 마이그레이션 번호를 담고, 뒤 마이그레이션이 칸을 지우거나 이름을 바꾸면 설치 때 데모만 건너뛴다). 사용자의 로컬 DB(`irobit`)는 건드리지 않는다:
+팩은 만든 때의 마이그레이션 번호를 담고, 뒤 마이그레이션이 칸을 지우거나 이름을 바꾸면 설치 때 데모만 건너뛴다. 사용자의 로컬 DB(`irobit`)는 건드리지 않는다 — 빌드 DB·빌드 서버를 따로 띄운다.
+
+### 갱신 (기본, 2026-11-16 — 약 2분)
+
+지난 팩을 빌드 DB 에 **그대로 복원**하고, 바뀐 부분만 **패치**로 고쳐 다시 내보낸다. seed-demo 를 처음부터 돌리지 않는다(그건 한 시간 가까이 걸린다). 구조는 jar 의 지금 프리셋으로 설치되고, 새 마이그레이션은 서버가 뜰 때 적용된다 — 그래서 구조·스키마만 바뀐 경우(칸 추가 등)는 패치 없이 갱신만 하면 된다.
+
+```bash
+# 0) 구조가 바뀌었으면 먼저: node scripts/export-install-preset.mjs  (로컬 DB 의 운영 설정 → install-presets/irobit.structure.json · irobit.json)
+docker exec irobit-local-postgres psql -U irobit -d postgres -c "DROP DATABASE IF EXISTS irobit_demo_build" -c "CREATE DATABASE irobit_demo_build"
+./gradlew :server:api:bootJar                               # 메인 체크아웃에서 — jar 에 지금 프리셋과 지금 팩(seed/demo-pack/)이 실린다. 다른 폴더로 복사해 띄운다
+#   SERVER_PORT=8911 DB_URL=jdbc:postgresql://localhost:5420/irobit_demo_build NODE_ID=1001 IROBIT_STORAGE_PATH=<빈 빌드 저장소> java -jar irobit-api.jar
+#   (관리자 서버는 띄우지 않아도 된다 — .mjs 패치가 관리자 API 를 쓸 때만 8921 · NODE_ID 1002 로)
+BUILD_STORAGE_PATH=<빌드 저장소> node scripts/build-demo-pack.mjs refresh   # 복원 → 패치 → export(seed/demo-pack/ 를 덮어쓴다)
+```
+빌드 서버를 끄고 빌드 DB·빌드 저장소를 지운다. 팩을 바꾼 뒤 api jar 를 다시 만들어야 서버에 실린다.
+
+`refresh` 가 하는 일:
+1. 설치 마법사 「데모 포함」과 같은 API(`complete`, `demoData: true`)로 설치 — 서버의 `DemoDataInstaller` 가 jar 의 팩을 복원한다(시각·ID 를 「지금 − 1분」으로 옮김). `GET /api/system/installation/demo` 가 `APPLIED` 가 될 때까지 기다린다.
+2. 기준점 = 복원 트랜잭션(복원한 회원·글·댓글의 가장 작은 `xmin`) — 구조 설치·브랜드 그림은 그 앞이라 담기지 않는다(처음부터 만들 때의 「구조만 설치 뒤」와 같은 자리).
+3. **검사**: 복원한 표별 행 수가 저장소 팩의 `manifest.counts` 와 다르면 멈춘다 — jar 에 든 팩이 저장소 팩과 다르다는 뜻이다(팩을 바꾼 뒤 jar 를 다시 만들지 않음).
+4. **기준 시각**: 내보낼 팩의 `builtAt` = 지난 팩의 `builtAt` + 복원이 옮긴 시간(첫 데모 회원 ID 의 차이로 잰다). 내보낸 시각(지금)을 쓰면 갱신할 때마다 「복원 여유 1분 + 분 내림 + 갱신에 걸린 시간」만큼 데이터가 과거로 밀린다 — 이렇게 하면 몇 번을 갱신해도 「가장 새 글이 만든 시각 몇 분 전」이 그대로이고, ID 도 같은 차이로 옮겨 시각과 맞는다(2026-11-16 두 번 연달아 갱신해 확인: 가장 새 글 2.28분 전 · 가장 옛 글 30.02일 전 · 글 ID 시각 그대로).
+5. **패치**(아래) → `export`.
+
+**패치** — `seed/demo/patches/`:
+- 이름 `0001-설명.sql` 또는 `0001-설명.mjs`(4자리 번호 + 소문자·숫자·`-`). 번호 차례로 돈다. 규칙에 안 맞는 이름이 있으면 멈춘다(`.` 으로 시작하는 파일은 무시 — `.gitkeep`).
+- **한 번만**: 팩의 `manifest.patches` 가 이 팩에 이미 적용한 패치 이름 목록이다. `refresh` 는 목록에 없는 것만 돌리고 내보낼 팩의 목록에 더한다. 그래서 적용한 패치 파일을 지우거나 고치지 않는다(새로 고칠 것은 새 번호로).
+- `.sql`: 빌드 DB 에 psql 한 트랜잭션(`-1`, 실패하면 그 패치만 되돌리고 멈춘다). 변수 `:'demo_now'` = 팩의 기준 시각(새 행의 시각은 `now()` 대신 이것을 기준으로 — 설치 때 「지금 − 1분」으로 옮겨진다), `:demo_id_base` = 그 시각의 Snowflake ID(빌드 서버 번호 1001, 순번 0 — 새 행 ID 는 여기에 1, 2, … 를 더한다).
+- `.mjs`: `node` 로. 환경 변수 `BUILD_API` · `BUILD_DB_CONTAINER` · `BUILD_DB_NAME` · `BUILD_DB_USER` · `DEMO_NOW` · `DEMO_ID_BASE`. API 로 쓰면 행의 시각·ID 가 실제 「지금」이라 기준 시각보다 몇 분 뒤가 된다(설치 때 몇 분 앞날로 옮겨진다) — 필요하면 SQL 로 `demo_now` 쪽으로 옮긴다.
+- 처음부터 다시 만든 팩은 폴더의 패치를 **모두 적용된 것**으로 적는다 — 그 내용은 원고(`seed/demo/`)에 들어가 있어야 한다. 그래서 패치로 고친 내용은 원고에도 같이 반영해 둔다.
+
+⚠ **프리셋을 다시 내보냈으면 그 프리셋이 든 api jar 로 빌드 서버를 띄운다** — `run-develop`·`run-jars` 의 옛 jar 를 쓰면 옛 구조로 설치된다(팩은 구조를 담지 않지만 구조 ID 를 가리킨다). 같은 이유로 팩이 바뀐 뒤(직전 갱신·커밋 뒤)에는 jar 를 다시 만든다 — 아니면 3번 검사가 멈추거나, 행 수가 같으면 옛 팩 위에 갱신한다.
+
+사이트 아이콘·링크 미리보기·로고 파일(`site-icon/`·`site-og/`·`site-logo/`)은 팩에 담지 않는다 — 설치 구성(`SiteBrandInstaller`)이 설치마다 새 버전 키로 넣고, 그것을 가리키는 `site_settings` 는 팩 밖이다(담으면 갱신마다 한 벌씩 늘어난다). 2026-11-16 이전 팩에는 6개가 들어 있지만 쓰이지 않는다.
+
+### 처음부터 (원고가 많이 바뀔 때만 — 한 시간 가까이)
+
+원고(`seed/demo/`)를 크게 바꿨거나 패치로 고치기 어려울 때만 빈 사이트에 seed-demo 를 다시 돌린다:
 
 ```bash
 # 0) 구조가 바뀌었으면 먼저: node scripts/export-install-preset.mjs  (로컬 DB 의 운영 설정 → install-presets/irobit.structure.json)
@@ -101,6 +137,8 @@ SEED_API=http://localhost:8911 SEED_ADMIN_API=http://localhost:8921 SEED_DB_NAME
 BUILD_STORAGE_PATH=<빌드 저장소> node scripts/build-demo-pack.mjs export   # → seed/demo-pack/ (덮어쓴다)
 ```
 빌드 서버 두 개를 끄고 빌드 DB 를 지운다. 팩을 바꾼 뒤 api jar 를 다시 만들어야 서버에 실린다.
+
+### 두 방식 공통
 
 - **시험 계정은 넣지 않는다**: `seed-local.mjs` 는 돌리지 않는다. `export` 는 데모 회원(`demo…@example.com`)이 아닌 회원이나 local 공구 시더 상품이 있으면 멈춘다. 공구 카테고리·옵션 종류·배송비 정책 `STANDARD` 는 데모 로더가 없으면 만든다(`groupbuys.json` 의 `categoryParents`·`optionTypes`).
 - **데모 회원 로그인은 막는다**: 팩의 회원 비밀번호는 아무도 모르는 값의 해시로 바뀐다(`--keep-passwords` 면 그대로).

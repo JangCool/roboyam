@@ -67,15 +67,22 @@ public record BoardPreset(String id, String name, String nameEn, String descript
      * @param staffOnlyWrite 운영진만 글쓰기 — 게시판 정책 writeMin = STAFF 로 만든다
      * @param groupCategoryName 소모임 게시판({@code GROUP})만 — 이 이름의 소모임 분류(없으면 만든다)에 게시판을 잇는다. 일반 게시판은 비운다
      * @param debateEnabled  글쓴이가 찬반 토론을 열 수 있음 — 게시판 정책 {@code debateEnabled} 를 켠 채 만든다(비우면 기본값 따름, 예: 시사 — 사용자 2026-11-13)
+     * @param adultOnly      성인 전용 게시판(V226 {@code boards.adult_only}, adult-board-contract)으로 만든다 — 일반 게시판만(소모임 게시판이면 무시). 비우면 false.
+     *                       구조 스냅숏을 넣지 못해 이 목록으로 물러설 때도 성인 게시판(예: 전방/후방 {@code frontback})이 제한 없이 만들어지지 않게(2026-11-16)
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Board(String slug, String name, String nameEn, String kind, int sortOrder, List<Prefix> prefixes, String description, String layout,
                         boolean viewToggle, String color, boolean investmentNotice, boolean staffOnlyWrite, String groupCategoryName,
-                        Boolean debateEnabled) {
+                        Boolean debateEnabled, Boolean adultOnly) {
 
         /** 글쓴이 찬반 토론을 켠 채 만드는가 */
         public boolean debateOn() {
             return Boolean.TRUE.equals(debateEnabled);
+        }
+
+        /** 성인 전용 게시판으로 만드는가 — 일반 게시판만 */
+        public boolean adultOn() {
+            return Boolean.TRUE.equals(adultOnly) && !isGroupBoard();
         }
 
         /** 소모임 게시판인가 */

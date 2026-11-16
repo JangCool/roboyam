@@ -3,6 +3,10 @@
  * 데모 팩(seed/demo-pack/)을 만든다 — 설치 마법사 「데모 데이터 포함」이 설치 직후 넣는 표본 데이터. 정본은 docs/features/install-contract.md 「데모 데이터 선택 (2026-11-08)」,
  * 만드는 차례는 docs/seed-demo.md 「데모 팩」.
  *
+ * 기본(갱신, 몇 분):
+ *   node scripts/build-demo-pack.mjs refresh   # 빈 빌드 DB 에 「데모 포함」으로 설치(서버가 지난 팩을 복원) → seed/demo/patches/ 의 새 패치 → export
+ *
+ * 처음부터(원고가 많이 바뀔 때만, 한 시간 가까이):
  *   node scripts/build-demo-pack.mjs install   # ① 빈 빌드 DB 에 「구조만」(프리셋 IROBIT)으로 설치하고 기준점(이때까지의 행 = 팩에 넣지 않음)을 적는다
  *   (seed-demo.mjs 만 빌드 서버·빌드 DB 로 돌린다 — seed-local.mjs 의 시험 계정은 팩에 넣지 않는다. 빌드 관리자 서버는 배치를 켜고(사업자 핫딜 게시 배치) local 공구 시더를 끈다
  *    --irobit.groupbuy.local-seed=false)
@@ -28,7 +32,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 const API = (process.env.BUILD_API ?? 'http://localhost:8911').replace(/\/+$/, '');
 const DB_CONTAINER = process.env.BUILD_DB_CONTAINER ?? 'irobit-local-postgres';
@@ -39,6 +43,12 @@ const TOKEN = process.env.BUILD_INSTALL_TOKEN ?? 'irobit-demo-token';
 const KEEP_PASSWORDS = process.argv.includes('--keep-passwords');
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'seed', 'demo-pack');
 const PRESET = 'IROBIT';
+/** 갱신 때 지난 팩 위에 차례로 돌릴 패치(이름 규칙·차례: runPatches) */
+const PATCH_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'seed', 'demo', 'patches');
+/** 패치 파일 이름: 4자리 번호-이름.sql|.mjs — 번호 차례로 돈다 */
+const PATCH_NAME = /^\d{4}-[a-z0-9][a-z0-9-]*\.(sql|mjs)$/;
+/** SnowflakeIdGenerator.EPOCH_MS(2026-01-01) — 패치용 ID 기준(demo_id_base)을 만들 때 */
+const SNOWFLAKE_EPOCH_MS = 1_767_225_600_000n;
 /** 빌드 서버가 개인정보 칸을 잠근 키 — 기본은 local 개발 키(저장소에 공개된 값, irobit-shared-local.yml). 팩 목록(dataKey)에 적어 설치 서버가 풀고 다시 잠근다 */
 const DATA_KEY = process.env.BUILD_DATA_KEY
     ?? readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'server', 'shared', 'src', 'main', 'resources', 'irobit-shared-local.yml'), 'utf8')
@@ -93,13 +103,27 @@ if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API)) {
 const command = process.argv[2];
 if (command === 'install') await install();
 else if (command === 'export') exportPack();
+else if (command === 'refresh') await refresh();
 else {
-    console.error('쓰는 법: node scripts/build-demo-pack.mjs install | export');
+    console.error('쓰는 법: node scripts/build-demo-pack.mjs refresh | install | export');
     process.exit(2);
 }
 
-// ── ① 설치(구조만) + 기준점 ──
-async function install() {
+/** 기준점 표 — 빌드 DB 에만 둔다(팩에 담지 않음). built_at = 내보낼 팩의 「만든 시각」(갱신 때만), patches = 이 팩에 적용한 패치(갱신 때만) */
+function ensureBaselineTable() {
+    sql(`CREATE TABLE IF NOT EXISTS demo_pack_baseline (xid bigint NOT NULL, at timestamptz NOT NULL DEFAULT now());
+         ALTER TABLE demo_pack_baseline ADD COLUMN IF NOT EXISTS built_at timestamptz, ADD COLUMN IF NOT EXISTS patches jsonb`);
+}
+
+function requireStorage() {
+    if (!STORAGE || !existsSync(STORAGE)) {
+        console.error('BUILD_STORAGE_PATH(빌드 서버의 저장소 폴더)가 없다.');
+        process.exit(2);
+    }
+}
+
+/** 설치 마법사와 같은 API 로 빌드 서버를 설치한다(구성 IROBIT). demoData 면 서버가 jar 에 든 데모 팩을 복원한다(DemoDataInstaller) */
+async function installSite(demoData) {
     const jar = new Map();
     const call = async (method, path, body) => {
         const headers = { Accept: 'application/json' };
@@ -126,21 +150,142 @@ async function install() {
     const done = await call('POST', '/api/system/installation/complete', {
         root: { email: 'demo-build-root@example.com', nickname: '빌드루트', password },
         site: { name: 'IROBIT', publicUrl: 'http://localhost:3100', tagline: null },
-        mail: null, social: null, boardPreset: PRESET, demoData: false,
+        mail: null, social: null, boardPreset: PRESET, demoData,
     });
     if (done.status !== 201) throw new Error(`설치 실패 ${done.status} ${JSON.stringify(done.body?.error)}`);
-    sql(`CREATE TABLE IF NOT EXISTS demo_pack_baseline (xid bigint NOT NULL, at timestamptz NOT NULL DEFAULT now());
-         DELETE FROM demo_pack_baseline; INSERT INTO demo_pack_baseline (xid) VALUES (txid_current())`);
+    return call;
+}
+
+// ── ① 설치(구조만) + 기준점 — 처음부터 만들 때 ──
+async function install() {
+    await installSite(false);
+    ensureBaselineTable();
+    sql(`DELETE FROM demo_pack_baseline; INSERT INTO demo_pack_baseline (xid) VALUES (txid_current())`);
     const [boards, nodes] = sql(`SELECT (SELECT count(*) FROM boards) || '|' || (SELECT count(*) FROM menu_nodes)`).split('|');
     console.log(`설치함(구조만, ${PRESET}) — 게시판 ${boards} · 메뉴 노드 ${nodes}. 기준점을 적었다. 이제 seed-demo.mjs 를 이 서버·DB 로 돌린다(seed-local.mjs 는 돌리지 않는다 — 시험 계정은 팩에 넣지 않는다).`);
 }
 
+// ── 갱신(기본) — 지난 팩 복원 → 패치 → 내보내기 ──
+/**
+ * 지난 팩(seed/demo-pack/)을 빌드 DB 에 그대로 되살리고, 바뀐 부분만 패치(seed/demo/patches/)로 고친 뒤 내보낸다 — seed-demo 를 처음부터 돌리지 않는다.
+ *  ① 설치 마법사 「데모 포함」과 같은 경로로 설치 — 구조는 jar 의 프리셋, 데모는 jar 의 팩을 서버의 DemoDataInstaller 가 복원(시각·ID 를 「지금 − 1분」으로 옮김)
+ *  ② 기준점 = 구조 설치 트랜잭션 바로 뒤(루트 운영자 행의 xmin + 1) — 복원한 데모 행·패치가 고친 행만 내보낸다(처음부터 만들 때의 「구조만 설치 뒤」와 같은 자리)
+ *  ③ 팩의 「만든 시각」 = 지난 팩의 만든 시각 + 복원이 옮긴 시간(첫 데모 회원 ID 의 차이로 잰다). 내보낸 시각(지금)을 쓰면 갱신할 때마다
+ *     「복원 여유 1분 + 분 내림 + 갱신에 걸린 시간」만큼 데이터가 과거로 밀린다 — 이렇게 하면 몇 번을 갱신해도 데이터와 기준 시각의 간격이 그대로다(ID 도 같은 차이로 옮겨 시각과 맞는다)
+ *  ④ 패치 → ⑤ export
+ */
+async function refresh() {
+    requireStorage();
+    const started = Date.now();
+    const oldManifest = JSON.parse(readFileSync(join(OUT, 'manifest.json'), 'utf8'));
+    const oldData = JSON.parse(gunzipSync(readFileSync(join(OUT, oldManifest.data))).toString('utf8'));
+    const oldUser = oldData.tables.find((t) => t.table === 'users')?.rows?.find((r) => r.email);
+    if (!oldUser) throw new Error('지난 팩에 회원이 없다 — 갱신할 수 없다(처음부터 만든다: install → seed-demo → export)');
+
+    const requestedAt = Date.now();
+    const call = await installSite(true);
+    process.stdout.write('설치함(데모 포함) — 서버가 데모 팩을 복원하는 중');
+    for (const deadline = Date.now() + 15 * 60_000; ;) {
+        const demo = (await call('GET', '/api/system/installation/demo')).body?.data?.demo;
+        if (demo === 'APPLIED') break;
+        if (demo === 'FAILED' || demo === 'NONE') {
+            throw new Error(`\n데모 복원 실패(${demo}) — 빌드 api 서버 로그를 본다. 흔한 원인: 팩 뒤 마이그레이션이 팩의 칸을 지움·이름 바꿈(그때는 처음부터 만든다), 빌드 서버에 IROBIT_DATA_KEY 없음`);
+        }
+        if (Date.now() > deadline) throw new Error('\n데모 복원을 15분 기다렸는데 끝나지 않았다');
+        process.stdout.write('.');
+        await new Promise((r) => setTimeout(r, 3000));
+    }
+    const appliedAt = Date.now();
+    console.log(` 끝(${((appliedAt - started) / 1000).toFixed(0)}초)`);
+
+    // ② 기준점 — 복원 트랜잭션의 번호(복원한 회원·글·댓글 행의 가장 작은 xmin). 구조 설치(루트 운영자 + 구조 스냅숏 — 스냅숏은 저장점 안이라 하위 트랜잭션 번호가 따로다)와
+    //    브랜드 그림은 그 앞이라 담기지 않는다. 데이터 표는 설치가 쓰지 않으므로 이 표들의 첫 행은 복원 트랜잭션이 쓴 것이다
+    const [rootXmin, restoreXmin] = sql(`SELECT (SELECT xmin::text FROM operators ORDER BY id LIMIT 1) || '|' ||
+        (SELECT min(x) FROM (SELECT min(xmin::text::bigint) x FROM users UNION ALL SELECT min(xmin::text::bigint) FROM posts UNION ALL SELECT min(xmin::text::bigint) FROM comments) m)`).split('|');
+    if (!restoreXmin || BigInt(restoreXmin) <= BigInt(rootXmin)) throw new Error(`복원한 행의 트랜잭션(${restoreXmin})이 설치(${rootXmin}) 뒤가 아니다 — 빈 DB 로 다시 한다`);
+    const xid = BigInt(restoreXmin) % 4294967296n;
+
+    // ③ 복원이 옮긴 시간 — 첫 데모 회원의 지난 팩 ID → 지금 ID
+    const newId = sql(`SELECT id::text FROM users WHERE email = ${lit(oldUser.email)}`);
+    if (!newId) throw new Error(`복원한 DB 에 ${oldUser.email} 이 없다 — 빌드 api jar 에 든 팩이 저장소 팩(seed/demo-pack/)과 다르다. jar 를 다시 만든다`);
+    const diff = BigInt(newId) - BigInt(oldUser.id);
+    const deltaMs = diff >> 22n;
+    if (diff < 0n || (diff & ((1n << 22n) - 1n)) !== 0n || deltaMs % 60_000n !== 0n) {
+        throw new Error(`회원 ID 차이(${diff})가 복원 규칙(분 단위 시각 차이 << 22)과 맞지 않는다 — jar 의 팩이 저장소 팩과 다르다. jar 를 다시 만든다`);
+    }
+    // 서버가 저장소 팩과 같은 팩을 복원했다면 옮긴 시간 = 「복원한 때 − 팩 만든 시각 − 1분」의 분 내림(DemoDataInstaller) — 요청~끝 사이의 어느 때로도 맞지 않으면
+    // jar 에 든 팩이 다른 것(예: 지난 갱신 전에 만든 jar)이다. 그대로 두면 기준 시각이 그만큼 틀린다
+    const expected = (t) => Math.floor(Math.max(0, t - Date.parse(oldManifest.builtAt) - 60_000) / 60_000) * 60_000;
+    if (Number(deltaMs) < expected(requestedAt) || Number(deltaMs) > expected(appliedAt)) {
+        throw new Error(`복원이 옮긴 시간(${Number(deltaMs) / 60_000}분)이 저장소 팩의 만든 시각(${oldManifest.builtAt})으로 셈한 값(${expected(requestedAt) / 60_000}~${expected(appliedAt) / 60_000}분)과 다르다 — 빌드 api jar 에 든 팩이 저장소 팩(seed/demo-pack/)과 다르다. 팩을 바꾼 뒤 jar 를 다시 만든다(./gradlew :server:api:bootJar)`);
+    }
+    const builtAt = new Date(Date.parse(oldManifest.builtAt) + Number(deltaMs)).toISOString();
+    // 복원한 행 수 = 저장소 팩의 표별 행 수인가(한 번에 센다) — 다르면 jar 에 든 팩이 저장소 팩과 다르다(팩을 바꾼 뒤 jar 를 다시 만들지 않음)
+    const restored = json(`SELECT json_object_agg(t, n) FROM (VALUES ${Object.keys(oldManifest.counts)
+        .map((t) => `(${lit(t)}, (SELECT count(*) FROM ${ident(t)} WHERE ${FULL_TABLES.includes(t) ? 'true' : `(xmin::text::bigint) >= ${xid}`}))`).join(', ')}) v(t, n)`);
+    const mismatch = Object.entries(oldManifest.counts).filter(([t, n]) => restored[t] !== n);
+    if (mismatch.length) {
+        throw new Error(`복원한 행 수가 저장소 팩과 다르다 — ${mismatch.slice(0, 8).map(([t, n]) => `${t} ${restored[t]}≠${n}`).join(', ')}. 빌드 api jar 에 든 팩이 저장소 팩(seed/demo-pack/)과 다르다 — 팩을 바꾼 뒤 jar 를 다시 만든다`);
+    }
+    ensureBaselineTable();
+    sql(`DELETE FROM demo_pack_baseline;
+         INSERT INTO demo_pack_baseline (xid, built_at, patches) VALUES (${xid}, ${lit(builtAt)}, ${lit(JSON.stringify(oldManifest.patches ?? []))}::jsonb)`);
+    console.log(`복원 — 시각 ${(Number(deltaMs) / 3_600_000).toFixed(1)}시간 옮김, 팩의 기준 시각 ${oldManifest.builtAt} → ${builtAt}`);
+
+    // ④ 패치
+    runPatches(builtAt);
+    // ⑤ 내보내기
+    exportPack();
+    console.log(`갱신 끝 — ${((Date.now() - started) / 1000).toFixed(0)}초`);
+}
+
+// ── 패치(seed/demo/patches/) ──
+
+function listPatches() {
+    if (!existsSync(PATCH_DIR)) return [];
+    const names = readdirSync(PATCH_DIR).filter((n) => !n.startsWith('.'));
+    const bad = names.filter((n) => !PATCH_NAME.test(n));
+    if (bad.length) throw new Error(`패치 이름이 규칙(0001-이름.sql | .mjs)과 다르다: ${bad.join(', ')}`);
+    return names.sort();
+}
+
+/**
+ * 아직 이 팩에 적용하지 않은 패치를 번호 차례로 돌린다 — 적용한 이름은 기준점 표에 적고(export 가 manifest.patches 로 옮긴다) 다음 갱신에서는 건너뛴다.
+ *  .sql  psql 한 트랜잭션(-1)으로. 변수 :'demo_now' = 팩의 기준 시각(새 행의 시각은 now() 대신 이것으로), :demo_id_base = 그 시각의 Snowflake ID(빌드 서버 번호 1001, 순번 0 — 새 행 ID 는 여기에 1, 2, … 를 더한다)
+ *  .mjs  node 로. 환경 변수 BUILD_API · BUILD_DB_CONTAINER · BUILD_DB_NAME · BUILD_DB_USER · DEMO_NOW · DEMO_ID_BASE
+ */
+function runPatches(demoNow) {
+    const applied = new Set(json(`SELECT coalesce(patches, '[]'::jsonb) FROM demo_pack_baseline`) ?? []);
+    const pending = listPatches().filter((n) => !applied.has(n));
+    if (!pending.length) {
+        console.log('패치 — 새로 적용할 것 없음');
+        return;
+    }
+    const idBase = ((BigInt(Date.parse(demoNow)) - SNOWFLAKE_EPOCH_MS) << 22n) | (1001n << 12n);
+    for (const name of pending) {
+        const path = join(PATCH_DIR, name);
+        console.log(`패치 ${name}`);
+        if (name.endsWith('.sql')) {
+            try {
+                execFileSync('docker', ['exec', '-i', DB_CONTAINER, 'psql', '-X', '-q', '-1', '-v', 'ON_ERROR_STOP=1', '-v', `demo_now=${demoNow}`, '-v', `demo_id_base=${idBase}`,
+                    '-U', DB_USER, '-d', DB_NAME, '-f', '-'], { input: readFileSync(path, 'utf8'), stdio: ['pipe', 'inherit', 'pipe'], encoding: 'utf8' });
+            } catch (e) {
+                throw new Error(`패치 ${name} 실패(이 패치는 되돌려졌다): ${String(e.stderr ?? e.message).trim().slice(0, 2000)}`);
+            }
+        } else {
+            execFileSync(process.execPath, [path], {
+                stdio: 'inherit',
+                env: { ...process.env, BUILD_API: API, BUILD_DB_CONTAINER: DB_CONTAINER, BUILD_DB_NAME: DB_NAME, BUILD_DB_USER: DB_USER, DEMO_NOW: demoNow, DEMO_ID_BASE: String(idBase) },
+            });
+        }
+        applied.add(name);
+        sql(`UPDATE demo_pack_baseline SET patches = ${lit(JSON.stringify([...applied]))}::jsonb`);
+    }
+}
+
 // ── ② 내보내기 ──
 function exportPack() {
-    if (!STORAGE || !existsSync(STORAGE)) {
-        console.error('BUILD_STORAGE_PATH(빌드 서버의 저장소 폴더)가 없다.');
-        process.exit(2);
-    }
+    requireStorage();
     const testAccounts = sql(`SELECT count(*) FROM users WHERE email NOT LIKE 'demo%@example.com'`);
     if (testAccounts !== '0') {
         console.error(`데모 회원(demo…@example.com)이 아닌 회원이 ${testAccounts}명 있다 — 시험 계정(seed-local.mjs)은 팩에 넣지 않는다. 빌드 DB 를 새로 만들어 seed-local 없이 다시 한다.`);
@@ -151,9 +296,10 @@ function exportPack() {
         console.error('local 공구 시더의 상품이 있다 — 빌드 관리자 서버를 --irobit.groupbuy.local-seed=false 로 띄워 다시 한다.');
         process.exit(1);
     }
-    const baseline = sql(`SELECT xid FROM demo_pack_baseline`);
-    if (!baseline) throw new Error('기준점이 없다 — 먼저 install 을 돌린다');
-    const xid32 = BigInt(baseline) % 4294967296n;
+    ensureBaselineTable();
+    const baseline = json(`SELECT json_build_object('xid', xid::text, 'builtAt', built_at, 'patches', patches) FROM demo_pack_baseline`);
+    if (!baseline) throw new Error('기준점이 없다 — 먼저 refresh 또는 install 을 돌린다');
+    const xid32 = BigInt(baseline.xid) % 4294967296n;
     const busy = sql(`SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND state <> 'idle'`);
     if (busy !== '0') console.warn(`⚠ 빌드 DB 에 도는 문장이 ${busy}개 있다 — 데모 로더·배치가 끝난 뒤에 내보내는 것이 맞다.`);
 
@@ -246,7 +392,8 @@ function exportPack() {
         counts[name] = rows.length;
     }
 
-    // 올린 파일 — 빌드 저장소 전체(빈 폴더로 띄운 빌드 서버라 모두 데모 로더가 올린 것)
+    // 올린 파일 — 빌드 저장소 전체(빈 폴더로 띄운 빌드 서버라 모두 데모 로더·복원이 올린 것). 사이트 아이콘·미리보기·로고는 빼다 — 설치 구성의 몫(SiteBrandInstaller 가
+    // 설치마다 새 버전 키로 넣고, 그것을 가리키는 site_settings 는 팩에 담지 않는다). 담으면 갱신할 때마다 한 벌씩 늘어난다
     const files = [];
     const walk = (dir) => {
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -255,11 +402,17 @@ function exportPack() {
             else files.push({ key: relative(STORAGE, path).split(sep).join('/'), size: statSync(path).size, path });
         }
     };
+    const SITE_FILE = /^site-(icon|og|logo)\//;
     walk(STORAGE);
+    const siteFiles = files.filter((f) => SITE_FILE.test(f.key)).length;
+    if (siteFiles) files.splice(0, files.length, ...files.filter((f) => !SITE_FILE.test(f.key)));
 
     const operatorIds = sql(`SELECT id::text FROM operators ORDER BY id`).split('\n').filter(Boolean);
     const sharedVersion = sql(`SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1`);
-    const builtAt = new Date().toISOString();
+    // 갱신(refresh)이면 지난 팩의 기준 시각 + 복원이 옮긴 시간(refresh ③), 처음부터 만들었으면 지금
+    const builtAt = baseline.builtAt ? new Date(baseline.builtAt).toISOString() : new Date().toISOString();
+    // 적용한 패치 — 갱신이면 기준점 표의 목록, 처음부터 만들었으면 폴더의 패치 전부(그 내용은 원고에 들어가 있어야 한다)
+    const patches = baseline.patches ?? listPatches();
     const data = { format: 1, preset: PRESET, exportedAt: builtAt, source: { sharedVersion }, tables: out };
 
     rmSync(OUT, { recursive: true, force: true });
@@ -273,7 +426,7 @@ function exportPack() {
     const manifest = {
         format: 1, preset: PRESET, builtAt, source: { sharedVersion, database: DB_NAME }, operatorIds, dataKey: DATA_KEY, data: 'data.json.gz',
         dataSha256: createHash('sha256').update(gz).digest('hex'),
-        counts, files: files.map(({ key, size }) => ({ key, size })),
+        patches, counts, files: files.map(({ key, size }) => ({ key, size })),
     };
     writeFileSync(join(OUT, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
@@ -284,4 +437,6 @@ function exportPack() {
     if (changedStructure.length) console.warn(`⚠ 데모 로더가 구조 표를 바꿨다(팩에 담지 않음 — 구조 스냅숏을 다시 내보내야 하는지 본다): ${changedStructure.join(', ')}`);
     if (cipherCols.size) console.log(`  암호문 칸(설치 때 그곳의 키로 다시 잠근다): ${[...cipherCols].join(', ')}`);
     if (hash) console.log('  회원 비밀번호는 아무도 모르는 값의 해시로 바꿨다(--keep-passwords 면 그대로).');
+    if (siteFiles) console.log(`  사이트 아이콘·미리보기·로고 파일 ${siteFiles}개는 담지 않았다(설치 구성의 몫)`);
+    console.log(`  기준 시각 ${builtAt}${baseline.builtAt ? '(갱신 — 지난 팩 기준 시각 + 복원 이동)' : ''} · 적용한 패치 ${patches.length}개${!baseline.patches && patches.length ? '(처음부터 만든 팩 — 폴더의 패치를 모두 원고에 반영된 것으로 적었다)' : ''}`);
 }

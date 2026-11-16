@@ -199,6 +199,7 @@ const typed = boards
             investmentNotice: b.investment_notice,
             staffOnlyWrite: b.write_min === 'STAFF',
             ...(b.debate_enabled ? { debateEnabled: true } : {}),
+            ...(b.adult_only && b.kind !== 'GROUP' ? { adultOnly: true } : {}), // 성인 전용(V226) — 구조를 넣지 못해 이 목록으로 물러설 때도 성인 제한이 남게
             color: b.color,
             ...(b.kind === 'GROUP' ? { groupCategoryName: categoryOf.get(String(b.id)) } : {}),
             prefixes: own.map((p, i) => {
