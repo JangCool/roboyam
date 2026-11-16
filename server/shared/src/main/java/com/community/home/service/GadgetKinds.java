@@ -57,6 +57,13 @@ public final class GadgetKinds {
     public static final int ADULT_POSTS_COUNT_DEFAULT = 10;
     public static final int ADULT_POSTS_COUNT_MAX = 30;
 
+    /**
+     * 포인트 게임 가젯(point-games-contract 「홈 가젯」 — 룰렛·로또 번호 뽑기 두 입구). 내용 설정({@code config})이 없고 공개 응답의 {@code data} 는 null 이다 —
+     * 오늘 남은 룰렛 횟수는 회원마다 달라 가젯 데이터(공용 캐시·첫 화면 싣기)에 넣지 않고 화면이 로그인한 회원만 {@code GET /api/me/point-games/roulette} 로 받는다.
+     * 최소 크기 12칸 기준 3×5(admin-web {@code UtilGadgetLayoutEditor.KINDS} 에 같은 값을 더한다). 아이로빗 홈 기본 배치는 오른쪽 「광고」 바로 아래(이미 설치된 곳은 shared V234).
+     */
+    public static final String POINT_GAMES = "POINT_GAMES";
+
     /** 광고 배너 가젯 — {@code config.adType}(배너 넷, 처음 {@code WIDE_BANNER} — 날개 배너는 가젯에 없다) */
     public static final String AD = "AD";
     /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
@@ -77,7 +84,7 @@ public final class GadgetKinds {
             Map.entry("BOARD_CARDS", "pi-th-large"), Map.entry("GALLERY", "pi-images"), Map.entry("GROUPS", "pi-users"), Map.entry("GROUP_BUY", "pi-shopping-bag"),
             Map.entry(HOT_DEALS, "pi-ticket"), Map.entry("QUICK_LINKS", "pi-link"), Map.entry("NOTICE_TEXT", "pi-megaphone"), Map.entry(AD, "pi-image"),
             Map.entry(AD_TEXT_LINE, "pi-bars"), Map.entry(TIPS_HEADLINE, "pi-star"), Map.entry(TIPS_LATEST, "pi-clock"), Map.entry(TIPS_POPULAR, "pi-eye"),
-            Map.entry(TIPS_TAGS, "pi-hashtag"), Map.entry(ADULT_POSTS, "pi-eye-slash"));
+            Map.entry(TIPS_TAGS, "pi-hashtag"), Map.entry(ADULT_POSTS, "pi-eye-slash"), Map.entry(POINT_GAMES, "pi-gift"));
 
     /** 종류 → {minW, minH}(12칸 기준) */
     private static final Map<String, int[]> MIN = minSizes();
@@ -235,6 +242,7 @@ public final class GadgetKinds {
         min.put(ADULT_POSTS, new int[]{3, 6});
         min.put("QUICK_LINKS", new int[]{3, 2});
         min.put("NOTICE_TEXT", new int[]{2, 3});
+        min.put(POINT_GAMES, new int[]{3, 5});
         min.put(AD, new int[]{2, 2});
         min.put(AD_TEXT_LINE, new int[]{3, 2});
         return java.util.Collections.unmodifiableMap(min);

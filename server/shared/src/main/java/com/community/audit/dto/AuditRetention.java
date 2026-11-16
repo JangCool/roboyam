@@ -166,6 +166,8 @@ public final class AuditRetention {
             // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
             AuditActions.POINT_SHOP_SETTINGS_UPDATE,
+            // 포인트 게임 설정(당첨 확인 링크) — 일반 운영(돈·포인트가 움직이지 않는다)
+            AuditActions.POINT_GAME_SETTINGS_UPDATE,
             // 로보티콘 심사·판매 중단·운영 팩 — 콘텐츠 운영 일(승인 가격은 승인 감사의 price 칸 — 판매 뒤 가격 바꾸기·설정 저장은 돈 관련, 받기 보상은 감사가 아니라 원장)
             AuditActions.EMOTICON_REVIEW_APPROVE, AuditActions.EMOTICON_REVIEW_REJECT, AuditActions.EMOTICON_PACK_SUSPEND, AuditActions.EMOTICON_PACK_RESUME,
             AuditActions.EMOTICON_PACK_CREATE, AuditActions.EMOTICON_PACK_UPDATE,

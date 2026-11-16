@@ -91,6 +91,10 @@ public class PointService {
     public static final String REF_REWARD_EVENT_RESULT = "REWARD_EVENT_RESULT";
     /** 보상 이벤트 한 줄의 최대 포인트(event-admin-contract 「보상 줄」) */
     public static final int EVENT_REWARD_MAX = 100_000;
+    /** 포인트 게임 룰렛 돌리기·당첨의 대상 — 그 돌린 기록({@code point_game_roulette_spins.id}, V234 — 원장 유일로 기록마다 한 번) */
+    public static final String REF_ROULETTE_SPIN = "ROULETTE_SPIN";
+    /** 포인트 게임 로또 번호 뽑기의 대상 — 한 번에 뽑은 묶음({@code point_game_lotto_draws.batch_id}, V234) */
+    public static final String REF_LOTTO_DRAW = "LOTTO_DRAW";
 
     /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */
     public static final Set<PointReason> DAILY_TOTAL_REASONS = EnumSet.of(PointReason.ATTENDANCE, PointReason.ATTENDANCE_STREAK, PointReason.POST,
@@ -531,6 +535,61 @@ public class PointService {
             throw new PointInsufficientException();
         }
         return debit(a, PointKind.USE, reason, PointDeductionPolicy.allocate(ledger.usableLots(userId, ALL_KINDS, a.now), amount, null), null, refType, refId, null);
+    }
+
+    /**
+     * 적립(무상) 포인트만 사용 — 포인트 게임(point-games-contract 「쓰는 포인트」)처럼 <b>충전(유상) 포인트를 절대 빼면 안 되는</b> 사용. 차감 순서(무상 먼저)에 기대지 않고
+     * 무상 묶음만 골라 뺀다(소멸 임박순). 그 밖은 {@link #use} 와 같다 — 업무 트랜잭션 안에서만, 동결이면 거절, 잔액 행 잠금 뒤 지난 묶음 소멸 → 잔액 확인.
+     *
+     * @param underLock 잔액 행을 잠근 <b>바로 뒤</b>(소멸·잔액 확인 전)에 부른다 — 같은 회원의 동시 요청이 줄을 선 상태에서 볼 업무 조건(하루 횟수·보관 한도 등). 던지면 아무것도 쓰지 않는다
+     * @return 사용 원장 줄 ID
+     * @throws PointFrozenException       포인트 동결 중
+     * @throws PointInsufficientException 쓸 수 있는 <b>적립</b> 포인트가 모자라다(충전 포인트가 많아도)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public long useFree(long userId, long amount, PointReason reason, String refType, long refId, Runnable underLock) {
+        if (amount <= 0 || amount > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("사용 양이 범위 밖이다: " + amount);
+        }
+        if (reason.kind(-amount) != PointKind.USE) {
+            throw new IllegalArgumentException("사용 사유가 아니다: " + reason);
+        }
+        if (restrictions.hasActive(userId, RestrictionType.POINT_FREEZE)) {
+            throw new PointFrozenException();
+        }
+        Account a = open(userId);
+        if (underLock != null) {
+            underLock.run();
+        }
+        expireDue(a);
+        if (a.free < amount) {
+            throw new PointInsufficientException();
+        }
+        return debit(a, PointKind.USE, reason, PointDeductionPolicy.allocate(ledger.usableLots(userId, FREE_ONLY, a.now), amount, null), null, refType, refId, null);
+    }
+
+    /**
+     * 포인트 게임 룰렛 당첨 지급(point-games-contract 「룰렛 당첨」) — 돌리기({@link #useFree})와 같은 트랜잭션에서 그 뒤에 부른다(잔액 행은 이미 잠겼다). <b>무상만</b>: 새 무상 묶음
+     * 하나({@code free_valid_days} — 보통 적립과 같은 소멸), 사유 {@code ROULETTE_WIN}, 대상 = 그 돌린 기록({@code ROULETTE_SPIN} — 원장 유일로 기록마다 한 번).
+     * 하루 활동 한도({@link #DAILY_TOTAL_REASONS})·포인트 랭킹(활동 적립)·경험치에 들지 않는다. 미회수가 있으면 적립 줄 다음에 상계한다(무상 포인트가 들어오면 먼저 갚는다 — 5-4).
+     *
+     * @return 지급한 포인트(이미 지급한 기록이면 0)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public long gameReward(long userId, long spinId, int points) {
+        if (points <= 0) {
+            throw new IllegalArgumentException("당첨 포인트는 양수여야 한다: " + points);
+        }
+        Account a = open(userId);
+        if (ledger.exists(PointReason.ROULETTE_WIN.name(), REF_ROULETTE_SPIN, spinId)) {
+            return 0L;
+        }
+        if (a.debt > 0) {
+            expireDue(a); // 상계는 차감이다 — 지난 묶음을 먼저 소멸
+        }
+        Credit credit = creditNewLot(a, PointReason.ROULETTE_WIN, points, null, REF_ROULETTE_SPIN, spinId, null);
+        offsetDebt(a, credit);
+        return points;
     }
 
     /**

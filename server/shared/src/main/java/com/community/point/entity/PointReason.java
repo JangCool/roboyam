@@ -57,12 +57,18 @@ public enum PointReason {
     /** 보상 이벤트 지급 — 무상 묶음(V163, event-admin-contract). 대상 = 그 줄 결과({@code REWARD_EVENT_RESULT}) — 원장 유일로 줄마다 한 번. 하루 활동 한도에 들지 않는다 */
     EVENT_REWARD,
     /** 보상 이벤트 회수 — 무상에서만 0P 까지(빚을 만들지 않는다). 대상 = 그 줄 결과 */
-    EVENT_REWARD_REVOKE;
+    EVENT_REWARD_REVOKE,
+    /** 포인트 게임 룰렛 돌리기(사용 — V234, point-games-contract). <b>적립(무상) 묶음에서만</b> 뺀다. 대상 = 그 돌린 기록({@code ROULETTE_SPIN}) */
+    ROULETTE_SPIN,
+    /** 포인트 게임 로또 번호 뽑기(사용 — V234). <b>적립(무상) 묶음에서만</b> 뺀다. 대상 = 한 번에 뽑은 묶음({@code LOTTO_DRAW}) */
+    LOTTO_DRAW,
+    /** 포인트 게임 룰렛 당첨(적립 — V234). 새 무상 묶음(보통 적립과 같은 소멸). 하루 활동 한도·포인트 랭킹·경험치에 들지 않는다. 대상 = 그 돌린 기록 */
+    ROULETTE_WIN;
 
     /** 묶음 출처 전용 코드 — 기존 잔액을 전환한 묶음(V85, D4). 원장 줄이 없으므로 원장 사유가 아니다. 이름은 번들 {@code point.reason.MIGRATION} */
     public static final String MIGRATION_LOT_SOURCE = "MIGRATION";
 
-    private static final Set<PointReason> USES = EnumSet.of(TICKET_PURCHASE, POINT_SHOP_PURCHASE, GB_POINT_USE);
+    private static final Set<PointReason> USES = EnumSet.of(TICKET_PURCHASE, POINT_SHOP_PURCHASE, GB_POINT_USE, ROULETTE_SPIN, LOTTO_DRAW);
     private static final Set<PointReason> CANCEL_USES = EnumSet.of(POINT_SHOP_REFUND, GB_POINT_RESTORE);
     private static final Set<PointReason> EXPIRES = EnumSet.of(EXPIRE, WITHDRAW_FORFEIT);
     private static final Set<PointReason> REFUNDS = EnumSet.of(CHARGE_REFUND);

@@ -39,3 +39,14 @@
 - 게임에서 받은 적립 포인트를 공구 무상 포인트 프로모션(`PAID_AND_FREE`)에서 뺄지 — 지금은 구분하지 않음(프로모션을 켤 때 다시 본다).
 - `commerce.md` 「랜덤박스는 팔지 않는다」 원칙: 포인트 게임은 판매가 아니고 적립 포인트·비환금 보상만이라 예외로 둔다(이 계약이 정본).
 - 법무 확인: 사행성(게임산업법) 해당 여부 — 운영 전 확인.
+
+## 서버 구현 결과 (2026-11-16, shared V234)
+- 회원 API(server/api `MyPointGameController`·`MemberPointGameService`): 위 「API 후보」 5개 그대로, 응답 칸 이름은 user-web `usePointGameApi.types.ts` 와 같다. 모두 `Cache-Control: no-store`.
+  - 거절 차례(돌리기·뽑기): 401 → 정지·영구 정지·탈퇴 진행 중 `403 ACCOUNT_RESTRICTED` → 사업자 회원 역할 `403 BUSINESS_ACCOUNT_RESTRICTED` → 포인트 동결 `403 MEMBER_RESTRICTED`(기능 제한 `POINT_USE` — 포인트 상점 구매와 같은 코드). 읽기(GET 둘)는 401 → 사업자 403 만(정지 회원도 자기 기록은 본다). 이메일 인증은 보지 않는다.
+  - 룰렛: 하루 횟수 검사(409 `POINT_GAME_DAILY_LIMIT`)가 잔액 검사(409 `POINT_INSUFFICIENT`)보다 먼저. 로또: 입력 400 → 보관(409 `LOTTO_STORAGE_FULL`) → 잔액 409.
+  - 로또 400 에 하나 더: 고른 조건으로 서로 다른 N세트를 만들 수 없으면 `fields.excluded`(예: 고정 5 + 남은 수 4개로 5세트). 뽑기 응답 `draws` 는 목록과 같은 차례(ID 큰 것 먼저).
+  - 지우기: 남의 줄·모양이 틀린 ID 는 `404 LOTTO_DRAW_NOT_FOUND`.
+- 포인트: `PointService#useFree`(무상 묶음에서만 — 잔액 행 잠금 뒤 `underLock` 조건 → 지난 묶음 소멸 → 무상 잔액 확인) · `PointService#gameReward`(새 무상 묶음 `free_valid_days`, 미회수 상계). 하루 횟수·보관 개수는 잔액 행 잠금 아래에서 센다(동시 요청 시험으로 확인). 원장 사유 `ROULETTE_SPIN`·`LOTTO_DRAW`(USE) · `ROULETTE_WIN`(EARN), 대상 `ROULETTE_SPIN`(돌린 기록)·`LOTTO_DRAW`(묶음). 내역 이름은 번들 `point.reason.*`(룰렛 돌리기·로또 번호 뽑기·룰렛 당첨).
+- 관리자 API(server/admin `PointGameAdminController`): `GET/PUT /api/admin/point-games/settings` → `{lotteryProviderName, lotteryCheckUrl, defaultProviderName, defaultCheckUrl, updatedAt, updatedBy}`(admin-web 목업 타입과 같다 — 위 후보의 `defaults` 대신 두 칸). 400 `fields.lotteryProviderName`·`fields.lotteryCheckUrl`, 감사 `POINT_GAME_SETTINGS_UPDATE`(대상 `POINT_GAME_SETTINGS`, 바뀐 칸만, 일반 운영).
+- 표: `point_game_roulette_spins` · `point_game_lotto_draws`(n1~n6 · mode · batch_id) · `point_game_settings`(1행). 회원 탈퇴 때 지우지 않는다(다른 게임 기록처럼 회원 ID 만 — 필요하면 탈퇴 정책에서 다시 본다).
+- 홈 가젯 `POINT_GAMES`: 설정 칸 없음 · 공개 응답 `data: null`(가젯 캐시 안 함 — 캐시 관리의 「캐시하지 않는 종류」). 오늘 남은 룰렛 횟수는 화면이 로그인한 회원만 `GET /api/me/point-games/roulette` 로 받는다. 최소 크기 12칸 기준 3×5, 아이콘 `pi-gift`. 아이로빗 기본 배치·설치 프리셋·이미 설치된 DB(V234)에서 오른쪽 광고 바로 아래(높이 6), 모바일 순서는 광고 바로 뒤.

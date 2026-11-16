@@ -348,9 +348,10 @@ public class GadgetService {
         List<Long> leaders = null;
         switch (g.type()) {
             case GadgetKinds.BOARD_BODY, GadgetKinds.AD, GadgetKinds.AD_TEXT_LINE, GadgetKinds.TIPS_HEADLINE, GadgetKinds.TIPS_LATEST, GadgetKinds.TIPS_POPULAR,
-                 GadgetKinds.TIPS_TAGS -> {
+                 GadgetKinds.TIPS_TAGS, GadgetKinds.POINT_GAMES -> {
                 // 본문: 화면이 그 자리에 게시판 목록·글 보기를 그린다 · 광고: 화면이 GET /api/ads 로 채우고 비었는지도 화면이 정한다
                 // 매거진 4종(/tips 시스템 페이지): 화면이 GET /api/tips · /api/tips/posts 로 채운다
+                // 포인트 게임: 두 입구는 고정이고 오늘 남은 룰렛 횟수는 회원마다 달라 화면이 GET /api/me/point-games/roulette 로 받는다(point-games-contract)
                 data = null;
                 empty = false;
             }

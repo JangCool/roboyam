@@ -374,6 +374,8 @@ public final class AuditActions {
     public static final String POINT_SHOP_AVATAR_SALE = "POINT_SHOP_AVATAR_SALE";
     /** 포인트 상점 설정(셀프 환불 기한) — {@code before}/{@code after} */
     public static final String POINT_SHOP_SETTINGS_UPDATE = "POINT_SHOP_SETTINGS_UPDATE";
+    /** 포인트 게임 설정(로또 당첨 확인 링크 — point-games-contract) — 대상 POINT_GAME_SETTINGS/1, 바뀐 칸만 {@code before}/{@code after}. 일반 */
+    public static final String POINT_GAME_SETTINGS_UPDATE = "POINT_GAME_SETTINGS_UPDATE";
     /** 구매 예외 환불(운영자 pointshop.refund) — 대상 POINT_SHOP_PURCHASE + 구매 ID, {@code userId}·{@code itemId}·{@code itemCode}·{@code refundedPoints}·{@code reason}·{@code selfRefundable}. 돈 관련(5년) */
     public static final String POINT_SHOP_REFUND = "POINT_SHOP_REFUND";
     /** 정지 중 환불 신청 거절(운영자 pointshop.refund — V87) — 대상 POINT_SHOP_PURCHASE + 구매 ID, {@code requestId}·{@code userId}·{@code itemId}·{@code itemCode}·{@code reason}. 돈 관련(5년). 수락은 {@link #POINT_SHOP_REFUND}({@code kind REQUEST}) */

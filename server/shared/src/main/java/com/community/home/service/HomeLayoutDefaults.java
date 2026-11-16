@@ -122,13 +122,14 @@ public final class HomeLayoutDefaults {
      * <pre>
      *   PC   [새소식(뉴스 게시판 · LINE · 두 열 · 첫 글 작은 사진)            ] [인기글     ]
      *        [함께 보는 글(PC 전용 · 좁은 칸 LIST)] [최신글(PC 전용 · 모바일과 같은      ] [광고       ]
-     *        [상단 띠 배너(반 폭 배너 HALF_BANNER)]  두 줄 모양 · 핫딜 끝까지 길게)     ] [인기 소모임]
+     *        [상단 띠 배너(반 폭 배너 HALF_BANNER)]  두 줄 모양 · 핫딜 끝까지 길게)     ] [포인트 게임]
+     *                                                                                    [인기 소모임]
      *        [핫딜(PC 전용 · 최신순 · 5개)        ] [                                 ]
      *        [띠 배너                                                         ]
      *        [팁과강좌] [사용기] → [영상·짤]                                     [공동구매(PC 전용)]
      *        [함께 보는 글(모바일 전용)] [최신글(모바일 전용)] — PC 에서는 숨어 자리가 없다(배치표 맨 아래)
      *   모바일(배치의 모바일 순서 mobileOrder — PC 배치와 따로) 새소식 → 상단 띠 배너 → 인기글 → 함께 보는 글(모바일 전용) → 최신글(모바일 전용) → 광고
-     *        → 팁과강좌 → 사용기 → 인기 소모임 → 영상·짤 → 띠 배너
+     *        → 포인트 게임 → 팁과강좌 → 사용기 → 인기 소모임 → 영상·짤 → 띠 배너
      * </pre>
      * 모바일 순서는 home-news-contract 「모바일 순서」(이미 설치된 곳은 shared V213 이 같은 순서를 넣는다). 아래 자리의 한 열 계산 차례는 모바일 순서가 없을 때(운영자가 「PC 배치 따르기」)만 쓰인다.
      * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). PC 첫 줄 아래(2026-11-15 사용자): 최신글(PC)을 핫딜 끝까지 길게(15개),
@@ -161,7 +162,9 @@ public final class HomeLayoutDefaults {
         b.add(GadgetKinds.HOT_DEALS, "핫딜", true, false, plain("pi-ticket"),
                 cfg().<ObjectNode>set("boards", HomeLayoutJson.array()).put("sort", GadgetKinds.HOT_DEALS_SORT_DEFAULT).put("count", 5).put("thumbnails", true), null, null, 0, 23, 9, 8);
         String ad = b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
-        String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 17, 6, 7);
+        // 포인트 게임(룰렛·로또 번호 뽑기 입구 — point-games-contract) — 오른쪽 광고 바로 아래(이미 설치된 곳은 shared V234)
+        String games = b.add(GadgetKinds.POINT_GAMES, "포인트 게임", true, true, plain("pi-gift"), cfg(), null, null, 18, 20, 6, 6);
+        String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 26, 6, 7);
         String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 34, 9, 8);
         String reviews = b.add("BOARD_CARDS", "사용기", true, true, tabler("pi-th-large", GadgetTablerIcons.MESSAGE_STAR), boardCard("review"), null, "/boards/review", 9, 34, 9, 8);
         String gallery = b.add("GALLERY", "영상·짤", true, true, tabler("pi-images", GadgetTablerIcons.PHOTO_VIDEO), cfg().put("count", 4).set("boardIds", meta("video")), null, "/boards/video",
@@ -175,7 +178,7 @@ public final class HomeLayoutDefaults {
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 63, 9, 8);
         String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"), latestTwoLine(2, 10), null, "/latest", 9, 63, 9, 9);
         // 모바일 한 열 순서(home-news-contract 「모바일 순서」) — PC 전용(함께 보는 글·최신글 PC · 공동구매)은 모바일에 안 보여 넣지 않는다
-        return b.build(List.of(news, topStrip, popular, pickMobile, latestMobile, ad, tips, reviews, groups, gallery, strip));
+        return b.build(List.of(news, topStrip, popular, pickMobile, latestMobile, ad, games, tips, reviews, groups, gallery, strip));
     }
 
     /** 아이로빗 최신글(PC)의 글 수 — 왼쪽 열(함께 보는 글 + 띠 배너 + 핫딜) 높이에 두 줄 모양으로 들어가는 만큼(로컬 1920 폭에서 잼) */

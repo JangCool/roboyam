@@ -57,9 +57,9 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
     void 아이로빗_기본_배치에는_모바일_순서가_있고_다른_테마는_null() {
         HomeLayoutDefaults.Home irobit = HomeLayoutDefaults.of(THEME);
         List<String> order = irobit.layout().mobileOrder();
-        assertThat(order).hasSize(11).doesNotHaveDuplicates();
+        assertThat(order).hasSize(12).doesNotHaveDuplicates();
         assertThat(order.stream().map(id -> irobit.gadget(id).orElseThrow().title()).toList())
-                .containsExactly("뉴스", "상단 띠 배너", "인기글", "함께 보는 글", "최신글", "광고", "팁과강좌", "사용기", "인기 소모임", "영상·짤", "띠 배너");
+                .containsExactly("뉴스", "상단 띠 배너", "인기글", "함께 보는 글", "최신글", "광고", "포인트 게임", "팁과강좌", "사용기", "인기 소모임", "영상·짤", "띠 배너");
         // 함께 보는 글·최신글은 모바일 전용 가젯
         assertThat(irobit.gadget(order.get(3)).orElseThrow().desktop()).isFalse();
         assertThat(irobit.gadget(order.get(4)).orElseThrow().desktop()).isFalse();
@@ -72,12 +72,12 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
     void 기본_배치를_저장하면_시드_ID_가_실제_가젯_ID_로_바뀐다() {
         HomeLayoutView saved = service.get(THEME);
         List<String> order = saved.layout().mobileOrder();
-        assertThat(order).hasSize(11).noneMatch(id -> id.startsWith(HomeLayoutDefaults.SEED_PREFIX));
+        assertThat(order).hasSize(12).noneMatch(id -> id.startsWith(HomeLayoutDefaults.SEED_PREFIX));
         assertThat(saved.layout().items().stream().map(HomeLayoutItem::gadgetId).toList()).containsAll(order);
         assertThat(order.get(0)).isEqualTo(idOf(saved, "뉴스", false));
         assertThat(order.get(3)).isEqualTo(idOf(saved, "함께 보는 글", true));
         String stored = jdbc.queryForObject("SELECT mobile_order::text FROM home_layouts WHERE theme = ?", String.class, THEME);
-        assertThat(stored).contains(order.get(0), order.get(10));
+        assertThat(stored).contains(order.get(0), order.get(11));
     }
 
     @Test
@@ -124,6 +124,6 @@ class HomeLayoutMobileOrderTest extends CommerceAdminTestBase {
 
         HomeLayoutView saved = service.save(root, THEME, request(gadgets, new HomeGridLayout(before.layout().columns(), items), before.layout().mobileOrder()));
 
-        assertThat(saved.layout().mobileOrder()).hasSize(10).doesNotContain(strip);
+        assertThat(saved.layout().mobileOrder()).hasSize(11).doesNotContain(strip);
     }
 }
