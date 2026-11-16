@@ -50,3 +50,9 @@
 - 관리자 API(server/admin `PointGameAdminController`): `GET/PUT /api/admin/point-games/settings` → `{lotteryProviderName, lotteryCheckUrl, defaultProviderName, defaultCheckUrl, updatedAt, updatedBy}`(admin-web 목업 타입과 같다 — 위 후보의 `defaults` 대신 두 칸). 400 `fields.lotteryProviderName`·`fields.lotteryCheckUrl`, 감사 `POINT_GAME_SETTINGS_UPDATE`(대상 `POINT_GAME_SETTINGS`, 바뀐 칸만, 일반 운영).
 - 표: `point_game_roulette_spins` · `point_game_lotto_draws`(n1~n6 · mode · batch_id) · `point_game_settings`(1행). 회원 탈퇴 때 지우지 않는다(다른 게임 기록처럼 회원 ID 만 — 필요하면 탈퇴 정책에서 다시 본다).
 - 홈 가젯 `POINT_GAMES`: 설정 칸 없음 · 공개 응답 `data: null`(가젯 캐시 안 함 — 캐시 관리의 「캐시하지 않는 종류」). 오늘 남은 룰렛 횟수는 화면이 로그인한 회원만 `GET /api/me/point-games/roulette` 로 받는다. 최소 크기 12칸 기준 3×5, 아이콘 `pi-gift`. 아이로빗 기본 배치·설치 프리셋·이미 설치된 DB(V234)에서 오른쪽 광고 바로 아래(높이 6), 모바일 순서는 광고 바로 뒤.
+
+## 화면 연결 결과 (2026-11-16)
+- user-web `usePointGameApi`·admin-web `usePointGameAdminApi` 를 실제 API 로(목업 파일·`?mock=` 스위치 삭제). 오류 한 줄은 서버 문구, 400 은 첫 칸 문구(로또 `fields.excluded` 포함). 409(횟수·잔액·보관)·404 `LOTTO_DRAW_NOT_FOUND` 뒤에는 상태를 다시 받는다. 관리자 설정 화면의 「목업」 안내 줄은 뺐다.
+- 포인트 내역: user-web 은 서버 `reason` 글자를 그대로 보인다(타입에 `ROULETTE_SPIN`·`LOTTO_DRAW`·`ROULETTE_WIN` 만 더함). admin-web 원장 거르기·이름에 세 사유(ko·en).
+- 홈 가젯 `POINT_GAMES`(`GadgetPointGames`): 룰렛·로또 번호 두 줄 입구. 로그인 회원(사업자 아님)만 `useRouletteToday` 로 룰렛 줄 오른쪽에 「오늘 n/5」(0 이면 「오늘 끝」). 비로그인은 입구만(누르면 로그인 → 그 게임). 사업자 전용 계정은 격자가 자리째 감춘다(`UtilGadget.hiddenForViewer(gadget, viewer)`).
+- admin-web 배치 편집기 `UtilGadgetLayoutEditor.KINDS` 에 `POINT_GAMES`(최소 3×5, 처음 4×6, `pi-gift`, ⚙ 내용 설정 없음) · 이름 「포인트 게임」·설명.

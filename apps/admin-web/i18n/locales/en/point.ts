@@ -192,6 +192,9 @@ export default {
         EMOTICON_CREATOR_REWARD: 'Robotikon pack reward',
         EVENT_REWARD: 'Event reward',
         EVENT_REWARD_REVOKE: 'Event reward revoked',
+        ROULETTE_SPIN: 'Roulette spin',
+        LOTTO_DRAW: 'Lotto number pick',
+        ROULETTE_WIN: 'Roulette prize',
     },
     col: {
         createdAt: 'Date',

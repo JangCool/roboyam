@@ -41,8 +41,14 @@ import UtilPostTag from '~/utils/util-post-tag';
  * **모르는 키는 건너뛴다**: 모르는 종류(`type`)는 `isVisible` 이 false(그리지 않는다), 모르는 값은 칸마다 기본값.
  */
 
+/** 보는 사람 — 사람에 따라 자리째 감추는 가젯(`hiddenForViewer`)이 본다 */
+export interface GadgetViewer {
+    /** 사업자 전용 계정인가(포인트가 없다 — 포인트 게임 가젯을 감춘다) */
+    businessAccount: boolean;
+}
+
 /** 가젯 종류 8종 + 광고 2종 — 화면이 아는 것 */
-const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE', 'TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS', 'ADULT_POSTS'];
+const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE', 'TIPS_HEADLINE', 'TIPS_LATEST', 'TIPS_POPULAR', 'TIPS_TAGS', 'ADULT_POSTS', 'POINT_GAMES'];
 
 /** 머리를 숨기는 것이 처음 꾸미기인 종류(키가 빠진 응답의 기본값) — 광고는 「광고」 표시가 제목 노릇을 한다(admin `UtilGadgetStyle.initial` 과 같다) */
 const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
@@ -249,12 +255,15 @@ export default class UtilGadget {
 
     /**
      * 이 사람에게 자리째 감추는 가젯인가 — 서버 숨김 표시(`hidden` — 지금은 19금 전용 가젯 `ADULT_POSTS` 를 성인이 아닌 사람이 볼 때, adult-board-contract).
-     * 19금 전용 가젯은 숨김 표시가 없는 옛 응답이어도 데이터가 없거나(null) 잠겼으면(비로그인) 자리도 남기지 않는다
+     * 19금 전용 가젯은 숨김 표시가 없는 옛 응답이어도 데이터가 없거나(null) 잠겼으면(비로그인) 자리도 남기지 않는다.
+     * 포인트 게임 가젯(`POINT_GAMES`)은 사업자 전용 계정에게 감춘다(포인트가 없다 — 서버는 공용 응답이라 사람을 모른다, point-games-contract).
      * @param {Gadget} gadget - 가젯.
+     * @param {GadgetViewer} [viewer] - 보는 사람(주지 않으면 사람에 따른 감춤은 하지 않는다).
      * @returns {boolean} 감추면 true.
      */
-    static hiddenForViewer(gadget: Gadget): boolean {
+    static hiddenForViewer(gadget: Gadget, viewer?: GadgetViewer): boolean {
         if (gadget.hidden === true) return true;
+        if (gadget.type === 'POINT_GAMES') return viewer?.businessAccount === true;
         return gadget.type === 'ADULT_POSTS' && (gadget.locked || gadget.data === null);
     }
 
@@ -271,11 +280,12 @@ export default class UtilGadget {
      * 지금 폭에서 그리는가 — 아는 종류 · 이 폭에서 켜짐(`desktop`/`mobile`) · 비었는데 감추는 가젯이 아님
      * @param {Gadget} gadget - 가젯.
      * @param {boolean} wide - 데스크톱 폭(`lg` 이상)인가.
+     * @param {GadgetViewer} [viewer] - 보는 사람(`hiddenForViewer`).
      * @returns {boolean} 그리면 true.
      */
-    static isVisible(gadget: Gadget, wide: boolean): boolean {
+    static isVisible(gadget: Gadget, wide: boolean, viewer?: GadgetViewer): boolean {
         if (!isKnownKind(gadget.type)) return false;
-        if (UtilGadget.hiddenForViewer(gadget)) return false;
+        if (UtilGadget.hiddenForViewer(gadget, viewer)) return false;
         if (!(wide ? gadget.desktop : gadget.mobile)) return false;
         return !UtilGadget.hiddenWhenEmpty(gadget);
     }

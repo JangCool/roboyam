@@ -150,7 +150,11 @@ export type MyPointReasonCode =
     | 'DEAL_END_REQUEST'
     // 보상 이벤트(`event-admin-contract.md`) — 지급 · 회수(서버가 「이벤트 보상」·「이벤트 보상 회수」로 `reason` 을, 이벤트 이름을 `note` 로 준다)
     | 'EVENT_REWARD'
-    | 'EVENT_REWARD_REVOKE';
+    | 'EVENT_REWARD_REVOKE'
+    // 포인트 게임(`point-games-contract.md`) — 룰렛 돌리기·로또 번호 뽑기(USE, 적립 포인트만) · 룰렛 당첨(EARN). 이름은 서버 `reason`(룰렛 돌리기 · 로또 번호 뽑기 · 룰렛 당첨)
+    | 'ROULETTE_SPIN'
+    | 'LOTTO_DRAW'
+    | 'ROULETTE_WIN';
 
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {

@@ -80,4 +80,13 @@ export default {
     noteNoWinning: '{site}에서는 당첨 번호를 만들거나 뽑은 번호와 맞춰 보지 않아요. 복권은 판매처에서 직접 사요.',
     noteStorage: '뽑은 번호는 {max}세트까지 내 번호에 남아요. 쓴 포인트는 번호를 지워도 돌려받지 않아요.',
     noteAge: '복권은 만 19세 이상만 살 수 있어요.',
+    // 홈 가젯 `POINT_GAMES` — 두 입구(제목은 운영자가 정한 가젯 이름, 비면 아래)
+    gadgetTitle: '포인트 게임',
+    gadgetRouletteHint: '적립 포인트로 돌려요',
+    gadgetLottoHint: '번호를 뽑아 보관해요',
+    gadgetLoginHint: '로그인하고 시작해요',
+    gadgetRemaining: '오늘 {left}/{limit}',
+    gadgetRemainingLabel: '오늘 남은 횟수 {left}번(하루 {limit}번)',
+    gadgetDone: '오늘 끝',
+    gadgetDoneLabel: '오늘 횟수를 다 썼어요(하루 {limit}번)',
 };

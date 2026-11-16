@@ -115,6 +115,7 @@ import type { GadgetGridCell, GadgetGridSizeHint } from '~/utils/util-gadget-gri
 import UtilGadget from '~/utils/util-gadget';
 import UtilGadgetGrid from '~/utils/util-gadget-grid';
 import UtilAdminPreview, { ADMIN_PREVIEW_LAYOUT, BOARD_BODY } from '~/utils/util-admin-preview';
+import UtilBusiness from '~/utils/util-business';
 import UtilCacheArea from '~/utils/util-cache-area';
 
 interface Props {
@@ -132,6 +133,9 @@ interface Cell extends GadgetGridCell {
 
 const { t } = useI18n();
 const { wide } = useGadgetShared();
+/** 보는 사람 — 사업자 전용 계정이면 포인트 게임 가젯을 자리째 감춘다(`UtilGadget.hiddenForViewer`) */
+const { user } = useAuth();
+const viewer = computed(() => ({ businessAccount: UtilBusiness.isBusinessAccount(user.value?.role) }));
 const { editing, home: previewHome } = useAdminPreview();
 const md = useMediaQuery(UtilGadgetGrid.MD_QUERY);
 /** 게시판 레이아웃이면 본문 그리기(밖이면 null — 본문 칸은 그리지 않는다) */
@@ -157,7 +161,7 @@ const visibleItems = computed(() => {
     // 게시판 본문은 게시판 레이아웃 안에서 늘 그린다(아는 가젯 종류가 아니라 `isVisible` 이 거른다)
     const shown = new Set(
         props.gadgets
-            .filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty && (mode.value !== 'stack' || g.mobile)) || UtilGadget.isVisible(g, wide.value)))
+            .filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty && (mode.value !== 'stack' || g.mobile)) || UtilGadget.isVisible(g, wide.value, viewer.value)))
             .map((g) => g.id),
     );
     return props.layout.items.filter((it) => shown.has(it.gadgetId));

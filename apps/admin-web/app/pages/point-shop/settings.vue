@@ -7,9 +7,9 @@
         범위 검사는 `UtilPointShop`(서버와 같은 1~30) — 틀리면 저장 단추가 꺼진다. 서버가 거절한 칸(400 `fields.refundDays`)은 칸 아래 서버 문구, 칸에 붙지 않는 것은 저장 줄 안.
         **가정(정책 미확정)**: 기한을 바꾸면 그 뒤 구매뿐 아니라 아직 기한 안의 구매에도 적용된다 — 구매 시점 값이 아니라 지금 값으로 판정한다(서버 판정을 따른다). 화면에 안내로 적었다.
         변경 이력 서랍(`components.md` 2-5)은 이력 API 가 계약에 없어 두지 않았다(감사 로그에는 남는다 — 일반 운영).
-        「포인트 게임」 구획(2026-11-16, ⚠ 목업): 로또 번호 뽑기의 「당첨 번호 확인」 링크 — 복권 사업자 이름(1~30자)·주소(`https://` 절대 주소, 300자). 사업자가 바뀔 수 있어 운영자가 바꾼다.
-        포인트 게임은 적립 포인트를 쓰는 곳이라 포인트 상점 설정 옆에 두었다(새 메뉴를 만들면 서버 `AdminScreenRegistry` 도 함께 바꿔야 한다). `usePointGameAdminApi` 의 MOCK 줄 — 이 탭 메모리에만 저장된다.
-        저장 줄은 하나다 — 바뀐 구획만 보내고(환불 기한은 실제 서버, 포인트 게임은 목업), 한쪽이 실패하면 그 까닭만 저장 줄에 남는다.
+        「포인트 게임」 구획(2026-11-16): 로또 번호 뽑기의 「당첨 번호 확인」 링크 — 복권 사업자 이름(1~30자)·주소(`https://` 절대 주소, 300자). 사업자가 바뀔 수 있어 운영자가 바꾼다.
+        포인트 게임은 적립 포인트를 쓰는 곳이라 포인트 상점 설정 옆에 두었다(새 메뉴를 만들면 서버 `AdminScreenRegistry` 도 함께 바꿔야 한다). 실제 서버(`usePointGameAdminApi` — `GET/PUT /api/admin/point-games/settings`, 권한은 포인트 상점과 같은 `pointshop.read`·`pointshop.manage`).
+        저장 줄은 하나다 — 바뀐 구획만 보내고(환불 기한·포인트 게임은 서로 다른 API), 한쪽이 실패하면 그 까닭만 저장 줄에 남는다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('pointShop.settingsTitle')" :subtitle="t('pointShop.settingsSubtitle')" />
@@ -68,7 +68,7 @@
                 </div>
             </AppGadget>
 
-            <!-- 포인트 게임 — 로또 번호 뽑기의 「당첨 번호 확인」 링크(복권 사업자가 바뀔 수 있어 운영자가 바꾼다). ⚠ 목업 저장(`usePointGameAdminApi`) -->
+            <!-- 포인트 게임 — 로또 번호 뽑기의 「당첨 번호 확인」 링크(복권 사업자가 바뀔 수 있어 운영자가 바꾼다). 저장은 `usePointGameAdminApi` -->
             <AppGadget :title="t('pointGame.section')" anchor="point-game" :changes="gameChanges" :invalid="gameInvalid">
                 <div v-if="gameLoading && !gameSaved" class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
                     <Skeleton v-for="n in 2" :key="n" height="3.5rem" />
@@ -129,8 +129,6 @@
                         <Button type="button" :label="t('pointGame.useDefault')" icon="pi pi-replay" size="small" severity="secondary" variant="text" class="px-1! py-0!" :disabled="saving" @click="useGameDefault" />
                     </div>
 
-                    <Message severity="info" :closable="false" size="small">{{ t('pointGame.mockNote') }}</Message>
-
                     <ul class="m-0 flex list-none flex-col gap-1.5 p-0 text-xs leading-relaxed text-muted-color">
                         <li class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('pointGame.noteNoWinning') }}</span></li>
                         <li class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('pointGame.noteNoOfficial') }}</span></li>
@@ -185,7 +183,7 @@ const errorText = computed(() => (problem.value ? UtilPointShopMessages.refundDa
 /** 숫자로 읽어 비교한다(「07」과 「7」은 같다), 읽을 수 없는 글자는 바뀐 것으로 본다 */
 const refundDirty = computed(() => saved.value !== null && UtilPointShop.parseInt(refundDays.value) !== saved.value.refundDays);
 
-/* ── 포인트 게임(당첨 확인 링크) — ⚠ 목업 저장 ── */
+/* ── 포인트 게임(당첨 확인 링크) ── */
 const gameSaved = ref<PointGameSettingsView | null>(null);
 const gameName = ref('');
 const gameUrl = ref('');
@@ -288,7 +286,7 @@ async function saveRefund(): Promise<string | null> {
     }
 }
 
-/** 포인트 게임 링크 저장(목업) — 실패하면 문구를 돌려준다 */
+/** 포인트 게임 링크 저장 — 실패하면 문구를 돌려준다 */
 async function saveGame(): Promise<string | null> {
     try {
         applyGameSaved(await gameApi.saveSettings({ lotteryProviderName: gameName.value.trim(), lotteryCheckUrl: gameUrl.value.trim() }));
@@ -306,7 +304,7 @@ async function saveGame(): Promise<string | null> {
 }
 
 /**
- * 한 번에 저장 — 바뀐 구획만 보낸다. 환불 기한(실제 서버)과 포인트 게임(목업, 나중에 별도 API)은 따로 저장되므로 한쪽만 실패할 수 있다
+ * 한 번에 저장 — 바뀐 구획만 보낸다. 환불 기한(`/api/admin/point-shop/settings`)과 포인트 게임(`/api/admin/point-games/settings`)은 따로 저장되므로 한쪽만 실패할 수 있다
  * (성공한 쪽은 저장된 값으로 바뀌어 「바뀐 칸」에서 빠지고, 실패한 쪽만 남아 저장 줄에 까닭이 선다).
  */
 async function save(): Promise<void> {

@@ -80,4 +80,13 @@ export default {
     noteNoWinning: "{site} doesn't make winning numbers or compare them with yours. Buy tickets from a retailer yourself.",
     noteStorage: "Up to {max} sets are kept in My numbers. Points spent aren't refunded when you delete numbers.",
     noteAge: 'Lottery tickets are for ages 19 and over.',
+    // Home gadget `POINT_GAMES` — two entrances (the title is the gadget name set by operators; this when empty)
+    gadgetTitle: 'Point games',
+    gadgetRouletteHint: 'Spin with earned points',
+    gadgetLottoHint: 'Pick and keep numbers',
+    gadgetLoginHint: 'Log in to play',
+    gadgetRemaining: 'Today {left}/{limit}',
+    gadgetRemainingLabel: '{left} spins left today ({limit} a day)',
+    gadgetDone: 'Done today',
+    gadgetDoneLabel: "You've used today's spins ({limit} a day)",
 };

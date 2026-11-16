@@ -160,6 +160,10 @@ const REASON_CODES: readonly PointReasonCode[] = [
     // 보상 이벤트 — 지급·회수
     'EVENT_REWARD',
     'EVENT_REWARD_REVOKE',
+    // 포인트 게임 — 룰렛 돌리기·로또 번호 뽑기(사용) · 룰렛 당첨(지급)
+    'ROULETTE_SPIN',
+    'LOTTO_DRAW',
+    'ROULETTE_WIN',
 ];
 
 const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'CANCEL_USE', 'REVOKE', 'EXPIRE', 'REFUND'];

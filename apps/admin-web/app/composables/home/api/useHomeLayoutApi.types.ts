@@ -9,7 +9,7 @@
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
 /** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키, 서버 `GadgetKinds.HOT_DEALS`) */
-export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE' | 'ADULT_POSTS' | TipsGadgetKind;
+export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE' | 'ADULT_POSTS' | 'POINT_GAMES' | TipsGadgetKind;
 /** 팁·강좌·사용기 `/tips` 의 가젯(시스템 페이지 TIPS 배치에서만 — 서버 `GadgetKinds`, tips-contract 「/tips 레이아웃 편집」) */
 export type TipsGadgetKind = 'TIPS_HEADLINE' | 'TIPS_LATEST' | 'TIPS_POPULAR' | 'TIPS_TAGS';
 

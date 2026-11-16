@@ -23,7 +23,6 @@ export default {
     openLink: 'Open in new tab',
     defaultValue: 'Default {provider} · {url}',
     useDefault: 'Use default',
-    mockNote: "This is a preview not yet connected to the server — saving only changes this tab and doesn't reach the member site.",
     noteNoWinning: "The site doesn't make winning numbers or compare them with members' numbers. It only shows one link.",
     noteNoOfficial: "The member page doesn't use the operator's logo or wording that looks like an official service.",
     noteFixedRules: 'Roulette (50P per spin · 5 a day · odds table) and lotto prices (1 set 20P · 5 sets 80P) are fixed for now.',

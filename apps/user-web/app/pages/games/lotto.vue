@@ -175,9 +175,9 @@ import UtilPointGameMessages from '~/utils/util-point-game-messages';
  * 로또 번호 뽑기 `/games/lotto` — 로그인 필요. 회원이 실제 로또를 사기 전에 여기서 번호를 뽑아 그 번호로 산다. **사이트는 당첨 번호를 만들거나 자동 비교하지 않는다**(당첨 인증 게시판도 없다).
  * 1~45 중 6개 · 1세트 20P · 5세트 한 번에 80P · 적립 포인트만. 뽑는 방법: 자동(6개 모두 무작위, 기본) · 반자동(고정 번호 1~5개 필수 + 제외 번호 39개까지 선택, 나머지 무작위 — 사용자 요구 2026-11-16).
  * 내 번호 줄마다 자동/반자동 표시.
- * 뽑은 번호는 회원별로 남는다(「내 번호」 — 뽑은 날짜·번호, 한 줄 지우기, 복사, 보관 한도는 서버 값 `storageLimit` — 목업 50세트).
- * 「당첨 번호 확인」 링크 하나 — 사업자 이름·주소는 관리자 설정값(`checkLink`, 목업 기본 「동행복권」 `https://dhlottery.co.kr`), 새 탭. 공식 로고·공식처럼 보이는 표현은 쓰지 않는다.
- * ⚠ 목업(화면 확정 전, 2026-11-16) — `usePointGameApi` 의 MOCK 줄(메모리, 회원별). `?mock=game-poor|lotto-full|game-fail`.
+ * 뽑은 번호는 회원별로 남는다(「내 번호」 — 뽑은 날짜·번호, 한 줄 지우기, 복사, 보관 한도는 서버 값 `storageLimit` — 50세트).
+ * 「당첨 번호 확인」 링크 하나 — 사업자 이름·주소는 관리자 설정값(`checkLink`, 기본 「동행복권」 `https://dhlottery.co.kr`), 새 탭. 공식 로고·공식처럼 보이는 표현은 쓰지 않는다.
+ * 서버 `usePointGameApi`(`/api/me/point-games/lotto…`). 400(조건 — 서로 다른 N세트를 못 만들면 `fields.excluded`)은 칸 문구를 알림으로, 409 는 상태를 다시 받는다.
  */
 definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
@@ -319,7 +319,7 @@ async function draw(sets: number): Promise<void> {
         const outcome = await api.draw({ sets, mode: method.value, fixed: semi ? fixed.value : [], excluded: semi ? excluded.value : [] });
         latest.value = outcome.draws;
         if (data.value) data.value = { ...data.value, freeBalance: outcome.freeBalance, draws: [...outcome.draws, ...data.value.draws] };
-        // 헤더·포인트 화면의 잔액도 맞춘다(서버가 붙으면 실제 잔액이 바뀐다)
+        // 헤더·포인트 화면의 잔액도 맞춘다
         void points.load();
     } catch (e) {
         toast.error(UtilPointGameMessages.error(t, e), 6000);
@@ -355,6 +355,14 @@ async function remove(d: LottoDraw): Promise<void> {
         toast.success(t('pointGame.removed'));
     } catch (e) {
         toast.error(UtilPointGameMessages.error(t, e), 6000);
+        // 내 줄이 아니다(다른 계정으로 바뀌었거나 목록이 낡았다) — 지금 목록을 다시 받는다
+        if (e instanceof ApiError && e.code === 'LOTTO_DRAW_NOT_FOUND') {
+            try {
+                data.value = await api.lotto();
+            } catch {
+                // 받아 둔 값을 그대로 둔다
+            }
+        }
     } finally {
         removing.value = null;
     }

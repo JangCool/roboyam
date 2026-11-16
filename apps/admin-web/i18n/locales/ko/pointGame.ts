@@ -23,7 +23,6 @@ export default {
     openLink: '새 탭에서 열어 보기',
     defaultValue: '처음 값 {provider} · {url}',
     useDefault: '처음 값으로',
-    mockNote: '아직 서버에 연결하지 않은 미리보기예요 — 저장해도 이 탭에서만 바뀌고 회원 화면에는 닿지 않아요.',
     noteNoWinning: '사이트는 당첨 번호를 만들거나 회원이 뽑은 번호와 맞춰 보지 않아요. 링크 하나만 보여 줘요.',
     noteNoOfficial: '회원 화면에는 사업자의 로고를 쓰지 않고, 공식 서비스처럼 보이는 말도 쓰지 않아요.',
     noteFixedRules: '룰렛(1회 50P · 하루 5회 · 확률표)과 로또 번호 값(1세트 20P · 5세트 80P)은 아직 고정이에요.',

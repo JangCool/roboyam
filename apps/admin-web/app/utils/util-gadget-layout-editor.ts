@@ -54,6 +54,8 @@ const KINDS: readonly GadgetKindSpec[] = [
     // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄
     { kind: 'AD', icon: 'pi-image', minW: 2, minH: 2, w: 12, h: 4 },
     { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 6 },
+    // 포인트 게임 입구(point-games-contract 「홈 가젯」 — 룰렛·로또 번호 뽑기, 서버 `GadgetKinds.POINT_GAMES` 와 같은 최소 3×5). ⚙ 내용 설정 없음
+    { kind: 'POINT_GAMES', icon: 'pi-gift', minW: 3, minH: 5, w: 4, h: 6 },
     // 팁·강좌·사용기 `/tips` 의 카드(사용자 2026-11-13 — tips-contract 「/tips 레이아웃 편집」, 서버 `GadgetKinds` 와 같은 최소 크기). 그 배치에서만 넣기 목록에 보인다
     { kind: 'TIPS_HEADLINE', icon: 'pi-star', minW: 6, minH: 10, w: 12, h: 20, systemPage: 'TIPS' },
     { kind: 'TIPS_LATEST', icon: 'pi-clock', minW: 4, minH: 10, w: 8, h: 40, systemPage: 'TIPS' },

@@ -41,7 +41,12 @@ export type GadgetKind =
      * 19금 전용 가젯(adult-board-contract) — 고른 성인 전용 게시판의 글을 목록형으로(`data` 는 `PostListData` 와 같은 모양, 그리기는 글 목록 가젯 부품).
      * 본인인증 성인에게만 — 아니면 서버가 숨김 표시(`hidden`)를 줘 자리째 그리지 않는다(`UtilGadget.isVisible`)
      */
-    | 'ADULT_POSTS';
+    | 'ADULT_POSTS'
+    /**
+     * 포인트 게임 입구(point-games-contract 「홈 가젯」) — 룰렛·로또 번호 뽑기 두 입구. 설정 없음, `data` 는 늘 null(오늘 남은 룰렛 횟수는 회원마다 달라 화면이 `useRouletteToday` 로 받는다).
+     * 사업자 전용 계정에게는 자리째 감춘다(`UtilGadget.hiddenForViewer`)
+     */
+    | 'POINT_GAMES';
 
 /** 머리 모양 — `HIDDEN` 은 머리를 그리지 않는다(제목은 영역 이름으로만 읽힌다) */
 export type GadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDDEN';

@@ -31,13 +31,15 @@ export default class UtilPointGameMessages {
     }
 
     /**
-     * 오류 한 줄 — 서버 문구 그대로(가공하지 않는다), 서버에 닿지 못했으면 연결 문구
+     * 오류 한 줄 — 서버 문구 그대로(가공하지 않는다). 입력 오류(400)는 칸 문구가 까닭이라 첫 칸 문구를 쓴다
+     * (로또 `fields.excluded` — 「서로 다른 N세트를 만들 수 없음」 등). 서버에 닿지 못했으면 연결 문구
      * @param {Translate} t - 번역 함수.
      * @param {unknown} e - 던져진 것.
      * @returns {string} 문구.
      */
     static error(t: Translate, e: unknown): string {
         if (!(e instanceof ApiError)) return UtilAuthMessages.fallback(t, 0, 'NETWORK');
-        return e.message;
+        const field = e.fields ? Object.values(e.fields).find((m) => Boolean(m)) : undefined;
+        return field ?? e.message;
     }
 }

@@ -38,7 +38,11 @@ export type PointReasonCode =
     | 'EMOTICON_CREATOR_REWARD'
     // 보상 이벤트(event-admin-contract) — 지급(무상 묶음 1년, EARN) · 회수(무상에서만 0P 까지, REVOKE). 원장 `note` = 이벤트 이름
     | 'EVENT_REWARD'
-    | 'EVENT_REWARD_REVOKE';
+    | 'EVENT_REWARD_REVOKE'
+    // 포인트 게임(point-games-contract) — 룰렛 돌리기·로또 번호 뽑기(USE, 무상 묶음에서만) · 룰렛 당첨(EARN, 새 무상 묶음)
+    | 'ROULETTE_SPIN'
+    | 'LOTTO_DRAW'
+    | 'ROULETTE_WIN';
 
 /** 원장 한 줄 — 최신이 위 */
 export interface PointLedgerItem {

@@ -2,7 +2,7 @@ import type { LottoPickMode, RoulettePrize } from '~/composables/pointgame/api/u
 
 /**
  * 포인트 게임(룰렛 · 로또 번호 뽑기) 규칙 — 입구 주소, 룰렛 판의 칸 각도, 로또 번호 조건 검사, 공 색을 계산하는 순수 함수. 상태도 요청도 없다.
- * 판정(차감·결과·횟수·보관 한도)은 서버다(후보 `PointGameService` — 아직 없음, 목업 `composables/pointgame/api/mock/point-game-mock.ts`). 화면은 미리 알리고 단추를 끈다.
+ * 판정(차감·결과·횟수·보관 한도)은 서버다(server/api `MemberPointGameService` · `LottoRules`). 화면은 미리 알리고 단추를 끈다.
  * 사이트는 돈·실물 상금을 주지 않는다 — 룰렛은 적립 포인트로 돌려 적립 포인트로 받고, 로또는 번호만 뽑아 준다(당첨 번호를 만들거나 비교하지 않는다).
  */
 

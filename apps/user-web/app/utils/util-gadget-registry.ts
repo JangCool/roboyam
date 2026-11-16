@@ -30,6 +30,8 @@ const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     TIPS_LATEST: () => import('~/components/gadget/GadgetTipsLatest.vue'),
     TIPS_POPULAR: () => import('~/components/gadget/GadgetTipsPopular.vue'),
     TIPS_TAGS: () => import('~/components/gadget/GadgetTipsTags.vue'),
+    // 포인트 게임 입구(point-games-contract 「홈 가젯」) — 데이터 null, 오늘 남은 룰렛 횟수는 컴포넌트가 `useRouletteToday` 로
+    POINT_GAMES: () => import('~/components/gadget/GadgetPointGames.vue'),
 };
 
 // 조각을 받는 동안은 첫 로딩 스플래시가 기다린다(`UtilBootSplash` — 데이터 요청과 가젯 조각 받기 사이에 스플래시가 걷히지 않게)

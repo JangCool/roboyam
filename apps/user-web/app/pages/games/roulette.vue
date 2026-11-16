@@ -134,7 +134,7 @@ import UtilPointGameMessages from '~/utils/util-point-game-messages';
  * 룰렛 `/games/roulette` — 로그인 필요. 적립 포인트를 쓰는 포인트 게임(사이트는 돈·실물 상금을 주지 않는다). 내 정보 메뉴 맨 위 칸·헤더 계정 메뉴가 온다.
  * 1회 50P · 하루 5회(한국 시간 자정에 다시 찬다) · 적립 포인트만. 판의 칸 크기 = 실제 확률(꽝 70% 면 판의 70%), 확률표와 평균 돌려받는 양(약 20%)을 공개한다.
  * 결과는 서버가 정한다(`POST …/roulette/spins`) — 화면은 받은 칸에 바늘이 오도록 판을 돌려 멈춘 뒤 결과·잔액·남은 횟수를 바꾼다.
- * ⚠ 목업(화면 확정 전, 2026-11-16) — `usePointGameApi` 의 MOCK 줄(메모리 지갑, 처음 1,000P). `?mock=game-poor|game-used|game-fail` 로 모자람·다 씀·오류를 본다.
+ * 서버 `usePointGameApi`(`/api/me/point-games/roulette…`). 409(횟수·잔액)면 상태를 다시 받는다. 정지·포인트 동결은 403 문구를 알림으로.
  */
 definePageMeta({ middleware: 'auth', meMenu: true });
 const { t } = useI18n();
@@ -232,7 +232,7 @@ async function spin(): Promise<void> {
             if (data.value) data.value = { ...data.value, freeBalance: outcome.freeBalance, usedToday: outcome.usedToday };
             result.value = outcome;
             spinning.value = false;
-            // 헤더·포인트 화면의 잔액도 맞춘다(서버가 붙으면 실제 잔액이 바뀐다)
+            // 헤더·포인트 화면의 잔액도 맞춘다
             void points.load();
         }, spinMs.value);
     } catch (e) {

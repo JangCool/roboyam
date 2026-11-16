@@ -192,6 +192,9 @@ export default {
         EMOTICON_CREATOR_REWARD: '로보티콘 받기 보상',
         EVENT_REWARD: '이벤트 보상',
         EVENT_REWARD_REVOKE: '이벤트 보상 회수',
+        ROULETTE_SPIN: '룰렛 돌리기',
+        LOTTO_DRAW: '로또 번호 뽑기',
+        ROULETTE_WIN: '룰렛 당첨',
     },
     col: {
         createdAt: '일시',

@@ -1,5 +1,5 @@
 /**
- * 포인트 게임 API 모양 — ⚠ 목업(화면 확정 전, 2026-11-16). 서버 계약이 없어 화면이 바라는 모양을 먼저 적었다(이름은 서버 DTO 후보).
+ * 포인트 게임 API 모양 — 서버 DTO(server/api `RouletteStatusView`·`RouletteSpinResultView`·`LottoStatusView`·`LottoDrawView`·`LottoDrawResultView`·`LottoDrawRequest`) 와 같다.
  * 포인트는 모두 **적립(무상) 포인트**다 — 충전(유상) 포인트는 쓰지 않는다. 잔액도 `freeBalance`(적립 잔액)만 온다.
  */
 

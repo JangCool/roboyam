@@ -1,6 +1,6 @@
 /**
  * 포인트 게임 관리자 설정 규칙 — 당첨 확인 링크(복권 사업자 이름·주소)의 입력 검사. 상태도 요청도 없다.
- * 판정은 서버다(후보 `PointGameSettingsService` — 아직 없음, 목업 `composables/pointgame/api/mock/point-game-mock.ts`). 화면은 미리 알리고 저장 단추를 끈다.
+ * 판정은 서버다(shared `PointGameSettingsService`). 화면은 미리 알리고 저장 단추를 끈다.
  * 회원 화면(user-web `UtilPointGame.safeLink`)도 `https://` 주소가 아니면 링크를 그리지 않는다 — 같은 규칙.
  */
 
