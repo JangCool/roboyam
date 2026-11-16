@@ -11,10 +11,13 @@ import UtilAdminSite from '~/utils/util-admin-site';
 // (titleTemplate 함수 안에서 읽으면 반응하지 않는다). 언어가 바뀌어도 "관리자" 글자가 따라온다.
 const { t } = useI18n();
 const { siteLabel } = useAdminAuth();
+// 화면 언어를 <html lang> 에(관리자 QA 2026-11-17 F-8 — 공개 사이트와 같다)
+const { language } = useLanguage();
 useHead(() => {
     const site = siteLabel.value;
     const admin = t('shell.adminBadge');
     return {
+        htmlAttrs: { lang: language.value },
         titleTemplate: (title?: string) => UtilAdminSite.formatTitle(title, site, admin),
     };
 });

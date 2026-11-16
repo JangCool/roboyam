@@ -17,10 +17,13 @@ import UtilSiteName from '~/utils/util-site-name';
 const { siteName, siteLabel } = useSiteName();
 const { tagline } = useSiteTagline();
 const siteInfo = useSiteInfoState();
+// 화면 언어를 <html lang> 에 — 영어 화면인데 lang="ko" 로 남아 화면 읽기 프로그램이 영어 문장을 한국어로 읽었다(관리자 QA 2026-11-17 F-8)
+const { language } = useLanguage();
 useHead(() => {
     const name = siteName.value;
     const slogan = tagline.value;
     return {
+        htmlAttrs: { lang: language.value },
         titleTemplate: (title?: string) => UtilSiteName.formatTitle(title, name, slogan),
         meta: [{ name: 'apple-mobile-web-app-title', content: siteLabel.value }],
         // 개발 서버 전용 — Nuxt 개발 서버가 `index.html` 을 내려 주어 서버의 `<head>` 채우기가 보이지 않으므로 올린 아이콘·manifest 를 화면이 넣어 확인할 수 있게 한다.
