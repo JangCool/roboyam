@@ -2,6 +2,7 @@ package com.community.audit.dto;
 
 import com.community.audit.entity.AuditActorType;
 import com.community.audit.entity.AuditResult;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -18,7 +19,9 @@ public record AuditEvent(AuditActorType actorType, Long actorId, String action, 
                          Map<String, Object> detail) {
 
     public AuditEvent {
-        detail = detail == null ? Map.of() : Map.copyOf(detail);
+        // 값이 null 인 사실도 받는다(「전에는 없었다」 — 예: 처음 넣은 오픈소스 안내 문구의 from). Map.copyOf 는 null 값에 NullPointerException 을 던져
+        // 감사 기록을 남기려던 저장이 500 이 됐다(관리자 QA 2026-11-17 F-5). JSON 에는 null 로 남는다
+        detail = detail == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(detail));
     }
 
     /** 로그인한 운영자가 한 일 */
@@ -40,7 +43,7 @@ public record AuditEvent(AuditActorType actorType, Long actorId, String action, 
         return new AuditEvent(actorType, actorId, action, result, type, id, ip, detail);
     }
 
-    /** 덧붙일 사실을 더한다(같은 이름은 덮어쓴다). 입력 순서는 지키지 않는다 */
+    /** 덧붙일 사실을 더한다(같은 이름은 덮어쓴다). 넣은 차례를 지키고 값이 null 이어도 된다 */
     public AuditEvent with(String name, Object value) {
         Map<String, Object> next = new LinkedHashMap<>(detail);
         next.put(name, value);
