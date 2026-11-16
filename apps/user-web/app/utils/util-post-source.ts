@@ -8,7 +8,7 @@ export interface PostSourceRow {
 
 /**
  * 글 출처 규칙(shared V232 — 서버 `PostSources`) — 화면은 미리 알리고 판정은 서버다(`400 VALIDATION fields.sources`). 상태도 요청도 없다.
- *  - 최대 5개 · 이름 0~40자(앞뒤 공백 정리, 비면 글 보기가 주소의 도메인) · 주소 필수 http(s) 500자 · 같은 주소는 하나
+ *  - 최대 5개 · 이름 0~40자(앞뒤 공백 정리, 비면 글 보기가 주소의 도메인) · 주소 필수 http(s) 500자 · 같은 주소는 하나(화면은 두 번째 줄부터 알리고 등록을 막는다)
  */
 export default class UtilPostSource {
     /** 글당 최대 출처 수 */
@@ -48,12 +48,31 @@ export default class UtilPostSource {
     }
 
     /**
-     * 입력 줄 가운데 문제가 있는 줄이 있는가
+     * 줄마다의 문제 — 한 줄 규칙(`rowProblem`)에 더해, 위 줄과 주소가 같으면 `DUPLICATE`(서버와 같은 기준 — 앞뒤 공백을 뗀 글자 그대로).
+     * 같은 주소는 서버·보낼 값(`toRequest`)이 처음 것 하나만 남겨 조용히 사라지므로, 두 번째 줄부터 알려 고치게 한다(사용자 2026-11-16).
+     * @param {readonly PostSourceRow[]} rows - 입력 줄.
+     * @returns {('URL' | 'NAME' | 'DUPLICATE' | null)[]} 줄과 같은 차례의 문제.
+     */
+    static problems(rows: readonly PostSourceRow[]): ('URL' | 'NAME' | 'DUPLICATE' | null)[] {
+        const seen = new Set<string>();
+        return rows.map((row) => {
+            const problem = UtilPostSource.rowProblem(row);
+            if (problem) return problem;
+            const url = row.url.trim();
+            if (!url) return null;
+            if (seen.has(url)) return 'DUPLICATE';
+            seen.add(url);
+            return null;
+        });
+    }
+
+    /**
+     * 입력 줄 가운데 문제가 있는 줄이 있는가(같은 주소 포함)
      * @param {readonly PostSourceRow[]} rows - 입력 줄.
      * @returns {boolean} 하나라도 틀리면 true.
      */
     static hasProblem(rows: readonly PostSourceRow[]): boolean {
-        return rows.some((row) => UtilPostSource.rowProblem(row) !== null);
+        return UtilPostSource.problems(rows).some((problem) => problem !== null);
     }
 
     /**

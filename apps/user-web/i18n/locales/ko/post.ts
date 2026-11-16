@@ -44,6 +44,7 @@ export default {
     sourceRemove: '이 출처 지우기',
     sourceUrlInvalid: '주소는 http:// 또는 https:// 로 시작하는 {max}자 이하로 적어 주세요.',
     sourceNameTooLong: '출처 이름은 {max}자까지 적을 수 있어요.',
+    sourceUrlDuplicate: '위에 같은 주소가 있어요. 한 줄만 남겨 주세요.',
     sourcesTitle: '출처',
 
     // 댓글 많은 글 보호
