@@ -46,6 +46,8 @@ public class BoardEntity {
     private String chipPosition;
     /** 글 목록 말머리 모양(V195) TEXT · MUTED · COLOR, NULL = 사이트 기본({@link BoardDefaultsEntity} {@code listPrefixStyle})을 따름 */
     private String prefixStyle;
+    /** 글 상세 아래 게시판 목록(V224) OFF · LIST · COMPACT — 게시판마다의 값(사이트 기본 없음, post-detail-board-list-contract) */
+    private String detailList = BoardFields.DETAIL_LIST_LIST;
     private boolean investmentNotice;
     private boolean active;
     private int sortOrder;
@@ -161,6 +163,11 @@ public class BoardEntity {
     /** 글 목록 말머리 모양을 바꾼다 — null 이면 사이트 기본을 따른다(값 검사는 부르는 쪽이 끝냈다) */
     public void changePrefixStyle(String prefixStyle) {
         this.prefixStyle = prefixStyle;
+    }
+
+    /** 글 상세 아래 게시판 목록을 바꾼다(값 검사는 부르는 쪽이 끝냈다) */
+    public void changeDetailList(String detailList) {
+        this.detailList = detailList;
     }
 
     /** 잠금·안내문을 바꾼다 */
@@ -304,6 +311,11 @@ public class BoardEntity {
     /** 글 목록 말머리 모양 — null 이면 사이트 기본 */
     public String getPrefixStyle() {
         return prefixStyle;
+    }
+
+    /** 글 상세 아래 게시판 목록 OFF · LIST · COMPACT(V224) */
+    public String getDetailList() {
+        return detailList;
     }
 
     public boolean isInvestmentNotice() {

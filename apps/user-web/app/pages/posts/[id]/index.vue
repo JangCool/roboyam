@@ -449,6 +449,39 @@
                         @staff-delete="(c) => openCommentDelete(c, 'general')"
                     />
                 </div>
+
+                <!-- 그 게시판 글 목록(post-detail-board-list-contract) — 게시판 설정 `detailList` 가 끄기가 아니면. 화면이 근처에 오면 받는다 -->
+                <PostDetailBoardList
+                    v-if="detailListMode !== 'OFF'"
+                    :key="post.id"
+                    ref="detailListRef"
+                    :board="board"
+                    :title="post.group ? post.group.name : boardName"
+                    :mode="detailListMode"
+                    :state="detailListState"
+                    :list="detailListPage"
+                    :error-message="detailListError"
+                    :link-query="detailListLinkQuery"
+                    :active-id="post.id"
+                    :page-to="detailListPageTo"
+                    :date-display="boardDisplay.dateDisplay"
+                    :new-post-hours="boardDisplay.newPostHours"
+                    @near="onDetailListNear"
+                    @retry="retryDetailList"
+                />
+
+                <!-- 맨 아래 [인기글] [최신글] 탭(사용자 2026-11-16 — `detailList` 와 상관없이·소모임 글에도). 근처에 오면 고른 탭만 받고, 받은 것은 이 화면 동안 기억 -->
+                <PostDetailFeedTabs
+                    :active="feedTabs.active.value"
+                    :lists="feedTabs.lists"
+                    :active-id="post.id"
+                    :date-display="boardDisplay.dateDisplay"
+                    :new-post-hours="boardDisplay.newPostHours"
+                    :chip-position="boardDisplay.listChipPosition"
+                    @near="feedTabs.onNear"
+                    @select="feedTabs.select"
+                    @retry="feedTabs.retry"
+                />
             </article>
         </BoardLayoutFrame>
 
@@ -1074,15 +1107,36 @@ watch(
     },
 );
 
+/* ── 글 상세 아래 게시판 목록(post-detail-board-list-contract) — 주소의 목록 문맥(쪽·거르기), 없으면 이 글이 든 쪽 ── */
+const { display: boardDisplay, ensureLoaded: ensureBoardDisplay } = useBoardDisplay();
+void ensureBoardDisplay();
+const detailListRef = ref<{ scrollToTop: () => void } | null>(null);
+const {
+    mode: detailListMode,
+    state: detailListState,
+    list: detailListPage,
+    errorMessage: detailListError,
+    linkQuery: detailListLinkQuery,
+    backTarget: detailListBack,
+    pageTo: detailListPageTo,
+    onNear: onDetailListNear,
+    retry: retryDetailList,
+} = usePostDetailBoardList({
+    post,
+    board,
+    // 같은 글에서 쪽만 바꿨다 — 글은 다시 읽지 않고(`watch(id)`) 아래 목록만 다시 받으며 목록 카드 맨 위로
+    onContextChange: () => void nextTick(() => detailListRef.value?.scrollToTop()),
+});
+
+/** 맨 아래 [인기글] [최신글] 탭 — 글과 상관없는 목록이라 이 화면 동안 기억한다 */
+const feedTabs = usePostDetailFeedTabs();
+
+/**
+ * [목록으로]·모바일 뒤로 — 일반 글은 `/boards/{slug}?{같은 문맥}`(주소의 목록 쿼리 + 아래 목록이 보이는 쪽, 없으면 쿼리 없이),
+ * 소모임 글은 소모임 글 탭(같은 문맥·쪽, 해산한 소모임은 소모임 목록)
+ */
 function goBoard(): void {
-    // 소모임 글은 소모임 글 탭으로(해산한 소모임은 소모임 목록으로)
-    const group = post.value?.group;
-    if (group) {
-        void navigateTo(group.dissolved ? UtilGroup.LIST_PATH : UtilGroup.tabPath(group.id, 'posts'));
-        return;
-    }
-    const slug = post.value?.board.slug ?? board.value?.slug;
-    void navigateTo(slug ? `/boards/${slug}` : '/');
+    void navigateTo(detailListBack.value);
 }
 
 /* ── 소모임 글 공개 범위(5단계 — 패널이 부르는 동작, 바뀐 칸은 패널이 `change` 로 올린다) ── */

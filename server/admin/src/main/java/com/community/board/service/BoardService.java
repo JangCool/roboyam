@@ -78,6 +78,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>글 목록 칩 위치({@code chipPosition}, V169 — ABOVE·BEFORE·BELOW): 목록 모양이라 기본 정보 묶음({@code board.manage}). null 이면 그대로, 빈 글자면 사이트 기본 따름(null 저장),
  *       모르는 값 400 {@code chipPosition}. 감사 {@code BOARD_UPDATE} before/after(사이트 기본은 빈 글자로 남는다), {@code diffCount} 에 세지 않는다.</li>
  *   <li>글 목록 말머리 모양({@code prefixStyle}, V195 — TEXT·MUTED·COLOR): 칩 위치와 같은 규칙(null 그대로 · 빈 글자 = 사이트 기본 · 모르는 값 400 {@code prefixStyle}).</li>
+ *   <li>글 상세 아래 게시판 목록({@code detailList}, V224 — OFF·LIST·COMPACT): 목록 모양이라 기본 정보 묶음({@code board.manage}). null 이면 그대로,
+ *       사이트 기본이 없어 빈 글자·모르는 값 400 {@code detailList}. 감사 {@code BOARD_UPDATE} before/after, {@code diffCount} 에 세지 않는다.</li>
  *   <li>말머리 색(V195): 13색 키 · 직접 고른 {@code #rrggbb}(대문자로 와도 소문자로 정리해 저장 — 게시판 표시색은 대문자) · null/빈 글자 = 자동. 그 밖 400 {@code prefixes[i].color}.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)·{@code DEAL}(핫딜)만 — 직접홍보({@code PROMO})는 설치 프리셋만.
@@ -270,7 +272,8 @@ public class BoardService {
                 | diff(before, after, "allowAdult", board.isAllowAdult(), in.allowAdult)
                 | diff(before, after, "investmentNotice", board.isInvestmentNotice(), in.investmentNotice)
                 | diff(before, after, "chipPosition", board.getChipPosition(), in.chipPosition)
-                | diff(before, after, "prefixStyle", board.getPrefixStyle(), in.prefixStyle);
+                | diff(before, after, "prefixStyle", board.getPrefixStyle(), in.prefixStyle)
+                | diff(before, after, "detailList", board.getDetailList(), in.detailList);
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
@@ -380,6 +383,10 @@ public class BoardService {
         if (in.prefixStyle != null && !BoardFields.PREFIX_STYLES.contains(in.prefixStyle)) {
             invalid.put("prefixStyle", new MessageRef("board.field.choice"));
         }
+        // 글 상세 아래 게시판 목록(V224) — 값 목록(사이트 기본이 없어 빈 값도 거절)
+        if (!BoardFields.DETAIL_LISTS.contains(in.detailList)) {
+            invalid.put("detailList", new MessageRef("board.field.choice"));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -427,6 +434,7 @@ public class BoardService {
         board.changeAuthorMode(in.authorMode);
         board.changeChipPosition(in.chipPosition);
         board.changePrefixStyle(in.prefixStyle);
+        board.changeDetailList(in.detailList);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
@@ -570,6 +578,8 @@ public class BoardService {
         String chipPosition;
         /** 글 목록 말머리 모양(V195) — 요청에 없으면 지금 값, 빈 글자면 null(사이트 기본 따름). 앞뒤 공백을 떼고 대문자로 맞춘 값 */
         String prefixStyle;
+        /** 글 상세 아래 게시판 목록(V224) — 요청에 없으면 지금 값. 앞뒤 공백을 떼고 대문자로 맞춘 값(빈 글자·모르는 값은 검사에서 400) */
+        String detailList;
         /** 작성자 표시(V184) — 요청에 없으면 지금 값. 앞뒤 공백을 떼고 대문자로 맞춘 값(모르는 값은 검사에서 400) */
         String authorMode;
 
@@ -597,6 +607,7 @@ public class BoardService {
                 : request.chipPosition().isBlank() ? null : request.chipPosition().strip().toUpperCase(Locale.ROOT);
         in.prefixStyle = request.prefixStyle() == null ? board.getPrefixStyle()
                 : request.prefixStyle().isBlank() ? null : request.prefixStyle().strip().toUpperCase(Locale.ROOT);
+        in.detailList = request.detailList() == null ? board.getDetailList() : request.detailList().strip().toUpperCase(Locale.ROOT);
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());

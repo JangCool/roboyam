@@ -9,7 +9,8 @@
     -->
     <NuxtLink
         v-if="!compact"
-        :to="`/posts/${row.id}`"
+        :to="UtilPost.link(row.id, linkQuery)"
+        :aria-current="current ? 'page' : undefined"
         class="block px-4 py-3 hover:bg-surface-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-1 dark:hover:bg-surface-900"
         :class="over ? 'opacity-55' : ''"
         :data-deal-view="deal?.view"
@@ -62,7 +63,7 @@
     </NuxtLink>
     <NuxtLink
         v-else
-        :to="`/posts/${row.id}`"
+        :to="UtilPost.link(row.id, linkQuery)"
         class="flex items-start gap-3 py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
         :class="over ? 'opacity-55' : ''"
         :data-deal-view="deal?.view"
@@ -83,9 +84,11 @@
 </template>
 
 <script setup lang="ts">
+import type { LocationQueryRaw } from 'vue-router';
 import type { BoardDateDisplay } from '~/composables/board/api/useBoardApi.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilPost from '~/utils/util-post';
 
 interface Props {
     row: PostRow;
@@ -95,9 +98,13 @@ interface Props {
     compact?: boolean;
     /** 좁은 줄의 사진(가젯 설정 `thumbnails` — 기본 켬) */
     thumb?: boolean;
+    /** 글 링크에 붙일 목록 문맥 쿼리(post-detail-board-list-contract) — 게시판 목록·글 상세 아래 목록만 */
+    linkQuery?: LocationQueryRaw | null;
+    /** 지금 보는 글(글 상세 아래 목록) — 링크에 `aria-current="page"`(바탕 강조는 줄을 감싼 목록이 준다) */
+    current?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { dateDisplay: 'STANDARD', compact: false, thumb: true });
+const props = withDefaults(defineProps<Props>(), { dateDisplay: 'STANDARD', compact: false, thumb: true, linkQuery: null, current: false });
 
 const { t } = useI18n();
 const deal = computed(() => props.row.deal ?? null);

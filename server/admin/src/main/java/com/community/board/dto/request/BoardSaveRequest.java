@@ -19,12 +19,24 @@ import java.util.List;
  *                         400 {@code fields.authorMode}. 바꿔도 이미 쓴 글·댓글의 익명 여부는 그대로(anonymous-board-contract 정책 1·2)
  * @param prefixStyle      글 목록 말머리 모양 TEXT · MUTED · COLOR(V195, 목록 모양 — 기본 정보 묶음 {@code board.manage}). null 이면 바꾸지 않는다,
  *                         빈 글자({@code ""})면 「사이트 기본 따르기」(저장 값 null — {@code chipPosition} 과 같은 규칙), 소문자 허용, 모르는 값 400 {@code fields.prefixStyle}
+ * @param detailList       글 상세 아래 게시판 목록 OFF · LIST · COMPACT(V224, 목록 모양 — 기본 정보 묶음 {@code board.manage}, post-detail-board-list-contract).
+ *                         null 이면 바꾸지 않는다, 사이트 기본이 없어 빈 글자도 400, 소문자 허용, 모르는 값 400 {@code fields.detailList}
  */
 public record BoardSaveRequest(String name, String nameEn, String description, String layout, Boolean viewToggle, String color, Boolean allowAdult,
                                Boolean investmentNotice, String writeLock, String introText, String writeGuideText, String writeTemplate, BoardPolicyValues policy,
                                List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
                                List<String> gadgetExclusions, Boolean adsHidden, String secretMode, Boolean statusEnabled, String chipPosition,
-                               String authorMode, String prefixStyle) {
+                               String authorMode, String prefixStyle, String detailList) {
+
+    /** 글 상세 아래 목록 칸 없이(그대로) */
+    public BoardSaveRequest(String name, String nameEn, String description, String layout, Boolean viewToggle, String color, Boolean allowAdult,
+                            Boolean investmentNotice, String writeLock, String introText, String writeGuideText, String writeTemplate, BoardPolicyValues policy,
+                            List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
+                            List<String> gadgetExclusions, Boolean adsHidden, String secretMode, Boolean statusEnabled, String chipPosition,
+                            String authorMode, String prefixStyle) {
+        this(name, nameEn, description, layout, viewToggle, color, allowAdult, investmentNotice, writeLock, introText, writeGuideText, writeTemplate, policy,
+                commonPrefixes, prefixes, gadgetExclusions, adsHidden, secretMode, statusEnabled, chipPosition, authorMode, prefixStyle, null);
+    }
 
     /** 말머리 모양 칸 없이(그대로) */
     public BoardSaveRequest(String name, String nameEn, String description, String layout, Boolean viewToggle, String color, Boolean allowAdult,
@@ -32,7 +44,7 @@ public record BoardSaveRequest(String name, String nameEn, String description, S
                             List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
                             List<String> gadgetExclusions, Boolean adsHidden, String secretMode, Boolean statusEnabled, String chipPosition, String authorMode) {
         this(name, nameEn, description, layout, viewToggle, color, allowAdult, investmentNotice, writeLock, introText, writeGuideText, writeTemplate, policy,
-                commonPrefixes, prefixes, gadgetExclusions, adsHidden, secretMode, statusEnabled, chipPosition, authorMode, null);
+                commonPrefixes, prefixes, gadgetExclusions, adsHidden, secretMode, statusEnabled, chipPosition, authorMode, null, null);
     }
 
     /** 작성자 표시 칸 없이(그대로) */
@@ -41,7 +53,7 @@ public record BoardSaveRequest(String name, String nameEn, String description, S
                             List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
                             List<String> gadgetExclusions, Boolean adsHidden, String secretMode, Boolean statusEnabled, String chipPosition) {
         this(name, nameEn, description, layout, viewToggle, color, allowAdult, investmentNotice, writeLock, introText, writeGuideText, writeTemplate, policy,
-                commonPrefixes, prefixes, gadgetExclusions, adsHidden, secretMode, statusEnabled, chipPosition, null, null);
+                commonPrefixes, prefixes, gadgetExclusions, adsHidden, secretMode, statusEnabled, chipPosition, null, null, null);
     }
 
     /** 운영 게시판 칸 없이(그대로) */
@@ -50,6 +62,6 @@ public record BoardSaveRequest(String name, String nameEn, String description, S
                             List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
                             List<String> gadgetExclusions, Boolean adsHidden) {
         this(name, nameEn, description, layout, viewToggle, color, allowAdult, investmentNotice, writeLock, introText, writeGuideText, writeTemplate, policy,
-                commonPrefixes, prefixes, gadgetExclusions, adsHidden, null, null, null, null, null);
+                commonPrefixes, prefixes, gadgetExclusions, adsHidden, null, null, null, null, null, null);
     }
 }

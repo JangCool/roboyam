@@ -820,6 +820,14 @@ body {
 }
 
 /*
+ * 글 목록에서 지금 보는 글(글 상세 아래 목록 — post-detail-board-list-contract) — 옅은 주 색상 바탕. 모든 목록 모양·테마가 이 클래스 하나를 쓴다(링크에는 `aria-current="page"`).
+ * 고정 공지 바탕(`bg-surface-100`)과 함께 주지 않는다 — 지금 글이면 이 클래스만.
+ */
+@utility post-row-current {
+    background-color: color-mix(in srgb, var(--p-primary-color) 9%, transparent);
+}
+
+/*
  * 상단 바(헤더)의 바탕·글자 — 주 색상을 따른다(라이트: 채움 색 + 그 위 글자, 다크: 주 색상의 아주 진한 단계 + 흰 글자).
  * 원본은 보기 설정의 주 색상(`palettes.css`)이 이 변수를 정한다. 여기서는 기본(파랑)일 때의 값만 둔다.
  */

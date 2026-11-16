@@ -6,6 +6,8 @@ export default {
     // Common
     loading: 'Loading {name}',
     loadFailed: "Couldn't load {name}",
+    detailTabs: 'Popular and latest',
+    detailMore: 'More {name}',
     summaryEmpty: 'No {name} posts',
     summaryCount: '{name}: {count}',
     summaryCountMore: '{name}: {count} · more available',

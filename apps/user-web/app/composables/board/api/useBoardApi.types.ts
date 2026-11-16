@@ -99,7 +99,15 @@ export interface BoardView {
      * 익명 여부는 쓸 때 서버가 이 값으로 정해 글·댓글에 저장한다 — 보이는 이름은 늘 각 작성자 칸(`author.kind`)을 따른다. 옛 응답(칸 없음)은 `NICKNAME`
      */
     authorMode?: BoardAuthorMode;
+    /**
+     * 글 상세 아래 게시판 목록(post-detail-board-list-contract) — `OFF` 안 보임 · `LIST` 게시판 목록과 같은 모양(기본) · `COMPACT` 휴대폰은 촘촘한 한 줄(PC 는 게시판 목록 그대로).
+     * 게시판마다의 값(사이트 기본 없음). 서버가 아직 안 주면(옛 응답) `undefined` — `LIST` 로 본다(`UtilBoard.detailList`)
+     */
+    detailList?: BoardDetailList;
 }
+
+/** 글 상세 아래 게시판 목록 — 끄기 · 게시판 목록과 같게 · 휴대폰은 촘촘한 줄 */
+export type BoardDetailList = 'OFF' | 'LIST' | 'COMPACT';
 
 /** 게시판 작성자 표시 — 닉네임 · 익명 */
 export type BoardAuthorMode = 'NICKNAME' | 'ANONYMOUS';

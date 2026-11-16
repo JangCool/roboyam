@@ -109,6 +109,12 @@ export default {
         CARD: 'Card',
         GALLERY: 'Gallery',
     },
+    detailList: {
+        OFF: 'Off',
+        LIST: 'Same as board list',
+        COMPACT: 'Compact rows on phones',
+    },
+    detailListHelp: "Shows this board's post list with page numbers below the comments on a post. Compact rows show only the title, comment count and date on phones; desktop keeps the board list.",
     color: {
         AUTO: 'Auto',
         BLUE: 'Blue',
@@ -300,6 +306,7 @@ export default {
         description: 'Description',
         layout: 'Layout',
         viewToggle: "Reader's view toggle",
+        detailList: 'List below posts',
         chipPosition: 'Prefix and status chip position',
         prefixStyle: 'Prefix style',
         color: 'Color',

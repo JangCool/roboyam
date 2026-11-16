@@ -66,6 +66,8 @@ export default {
 
     loadingList: 'Loading posts',
     listFailed: 'Couldn’t load posts',
+    detailListTitle: 'Posts in {name}',
+    detailListCurrent: 'Now reading',
     searchEmptyTitle: 'No results',
     searchEmptyText: 'Try different words.',
     pageEmptyTitle: 'No posts on this page',

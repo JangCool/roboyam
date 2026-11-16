@@ -269,7 +269,7 @@
                             </EmptyState>
                         </template>
                         <template v-else>
-                            <component :is="postListComponent" :rows="posts.items" :pinned="[]" :global-pinned="posts.globalPinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="postChipPosition" data-testid="group-posts-list" />
+                            <component :is="postListComponent" :rows="posts.items" :pinned="[]" :global-pinned="posts.globalPinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :chip-position="postChipPosition" :link-query="postsLinkQuery" data-testid="group-posts-list" />
                             <BoardPager :page="posts.page" :total-pages="posts.totalPages" :to="postsPageLink" />
                         </template>
                         <!-- 스크린리더가 불러온 개수를 읽는다 -->
@@ -737,6 +737,8 @@ function postsLink(change: Partial<PostListQuery>) {
 function postsPageLink(page: number) {
     return postsLink({ page });
 }
+/** 글 링크에 싣는 목록 문맥(post-detail-board-list-contract) — 글 상세 아래 목록·[소모임 글 목록으로]가 같은 쪽·거르기를 잇는다 */
+const postsLinkQuery = computed(() => UtilBoardQuery.build(postsQuery.value));
 
 const POST_SORTS: readonly PostSort[] = ['LATEST', 'OLDEST'];
 const VIEW_MODES: readonly BoardViewMode[] = ['LIST', 'GALLERY'];

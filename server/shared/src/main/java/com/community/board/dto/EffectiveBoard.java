@@ -37,6 +37,7 @@ import java.util.Set;
  * @param authorThumbnailEnabled 글쓴이(회원)가 글쓰기·고치기에서 대표 이미지(목록 썸네일)를 고를 수 있는가(게시판 값 ?? 기본값, 기본 false — V206, list-thumbnail-contract 「2단계」).
  *                           나중에 꺼도 이미 고른 글은 그대로. 운영자 교체는 이 값과 무관
  * @param tagsEnabled        글에 태그를 달 수 있는가(게시판 값 ?? 기본값, 기본 false — V215, post-tags-contract). 꺼져 있으면 글쓰기·고치기의 {@code tags} 를 무시한다(이미 단 태그는 그대로)
+ * @param detailList         글 상세 아래 게시판 목록 OFF · LIST · COMPACT(게시판 값 그대로 — V224, post-detail-board-list-contract)
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -48,13 +49,14 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, boolean pointsEnabled,
                              boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
                              boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode,
-                             String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled) {
+                             String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;
         chipPosition = chipPosition == null ? BoardFields.CHIP_ABOVE : chipPosition;
         authorMode = authorMode == null ? BoardFields.AUTHOR_NICKNAME : authorMode;
         prefixStyle = prefixStyle == null ? BoardFields.PREFIX_STYLE_TEXT : prefixStyle;
+        detailList = detailList == null ? BoardFields.DETAIL_LIST_LIST : detailList;
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
     }

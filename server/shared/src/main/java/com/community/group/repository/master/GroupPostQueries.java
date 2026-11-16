@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -100,6 +101,31 @@ public class GroupPostQueries extends IrobitRepositoryQDSL {
 
     /** {@link #page(long, boolean, Long, String, boolean, long, int, Instant)} + 처리 상태 거르기(V168 — null 이면 전체) */
     public Paged page(long groupId, boolean includePrivate, Long prefixId, PostProcessStatus status, String q, boolean oldest, long offset, int limit, Instant now) {
+        BooleanExpression where = pageWhere(groupId, includePrivate, prefixId, status, q, now);
+        Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
+        if (total == null || total == 0 || offset >= total) {
+            return new Paged(List.of(), total == null ? 0 : total);
+        }
+        ConstructorExpression<PostRowData> row = row();
+        List<Tuple> tuples = query.select(row, POST.publicPost).from(POST).where(where).orderBy(oldest ? POST.id.asc() : POST.id.desc()).offset(offset).limit(limit).fetch();
+        return new Paged(tuples.stream().map(t -> new Row(t.get(row), Boolean.TRUE.equals(t.get(POST.publicPost)))).toList(), total);
+    }
+
+    /**
+     * 그 글이 들어 있는 쪽을 찾을 때({@code ?around=} — post-detail-board-list-contract) — {@link #page} 와 같은 조건의 목록에 그 글이 나오면 그 글보다 앞에 오는 글 수
+     * (최신순이면 id 가 더 큰 글, 오래된순이면 더 작은 글), 나오지 않으면 빈 값.
+     */
+    public OptionalLong before(long groupId, boolean includePrivate, Long prefixId, PostProcessStatus status, String q, boolean oldest, long postId, Instant now) {
+        BooleanExpression where = pageWhere(groupId, includePrivate, prefixId, status, q, now);
+        if (query.selectOne().from(POST).where(where, POST.id.eq(postId)).fetchFirst() == null) {
+            return OptionalLong.empty();
+        }
+        Long count = query.select(POST.id.count()).from(POST).where(where, oldest ? POST.id.lt(postId) : POST.id.gt(postId)).fetchOne();
+        return OptionalLong.of(count == null ? 0 : count);
+    }
+
+    /** 쪽 번호 목록 조건 — {@link #page} · {@link #before} 가 같이 쓴다 */
+    private static BooleanExpression pageWhere(long groupId, boolean includePrivate, Long prefixId, PostProcessStatus status, String q, Instant now) {
         BooleanExpression where = visible(POST, groupId, now).and(PostRepositoryQDSL.processStatusIs(POST, status));
         if (!includePrivate) {
             where = where.and(POST.publicPost.isTrue());
@@ -110,13 +136,7 @@ public class GroupPostQueries extends IrobitRepositoryQDSL {
         if (q != null) {
             where = where.and(PostRepositoryQDSL.search(q, now));
         }
-        Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
-        if (total == null || total == 0 || offset >= total) {
-            return new Paged(List.of(), total == null ? 0 : total);
-        }
-        ConstructorExpression<PostRowData> row = row();
-        List<Tuple> tuples = query.select(row, POST.publicPost).from(POST).where(where).orderBy(oldest ? POST.id.asc() : POST.id.desc()).offset(offset).limit(limit).fetch();
-        return new Paged(tuples.stream().map(t -> new Row(t.get(row), Boolean.TRUE.equals(t.get(POST.publicPost)))).toList(), total);
+        return where;
     }
 
     /** 보이는 글 수 — {@code publicOnly} 면 공개로 전환된 글만 */

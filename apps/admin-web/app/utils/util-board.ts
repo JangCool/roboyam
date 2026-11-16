@@ -6,6 +6,7 @@ import type {
     BoardDefaults,
     BoardDefaultsField,
     BoardDetail,
+    BoardDetailList,
     BoardDisplayColor,
     BoardKind,
     BoardLayout,
@@ -124,6 +125,8 @@ export interface BoardDetailForm {
     chipPosition: BoardChipPosition | null;
     /** 말머리 모양 — `null` = 사이트 기본 따르기(기본 설정 `listPrefixStyle`) */
     prefixStyle: BoardPrefixStyle | null;
+    /** 글 상세 아래 게시판 목록 — 게시판마다의 값(사이트 기본 없음 · `diffCount` 에 세지 않는다) */
+    detailList: BoardDetailList;
     /** 표시색 — `null` 자동 · 13색 이름 · `#RRGGBB`(직접 고르기, 입력 중이면 틀린 글자일 수 있다 — `colorProblem` 이 막는다) */
     color: BoardDisplayColor | null;
     allowAdult: boolean;
@@ -364,6 +367,13 @@ export default class UtilBoard {
     static readonly PREFIX_STYLES: readonly BoardPrefixStyle[] = ['TEXT', 'MUTED', 'COLOR'];
     /** 말머리 모양의 전체 기본값(서버 V195 기본값과 같다) — 옛 서버 응답에 칸이 없으면 이 값으로 본다 */
     static readonly PREFIX_STYLE_DEFAULT: BoardPrefixStyle = 'TEXT';
+    /** 글 상세 아래 게시판 목록 선택지 — 끄기 · 게시판 목록과 같은 모양(기본) · 휴대폰은 촘촘한 줄(서버 `BoardFields` 차례, post-detail-board-list-contract) */
+    static readonly DETAIL_LISTS: readonly BoardDetailList[] = ['OFF', 'LIST', 'COMPACT'];
+
+    /** 글 상세 아래 게시판 목록 값 — 선택지 밖이면(칸이 없는 옛 응답 포함) 기본 `LIST` */
+    static detailList(value: unknown): BoardDetailList {
+        return value === 'OFF' || value === 'COMPACT' ? value : 'LIST';
+    }
 
     /** 말머리 모양 값 — 선택지 밖이면(옛 응답·소문자 등) 전체 기본값 */
     static prefixStyle(value: unknown): BoardPrefixStyle {
@@ -710,6 +720,8 @@ export default class UtilBoard {
             chipPosition: detail.chipPosition ?? null,
             // 옛 서버 응답에 칸이 없으면 사이트 기본 따르기
             prefixStyle: detail.prefixStyle ?? null,
+            // 옛 서버 응답에 칸이 없으면 게시판 목록과 같은 모양(기본)
+            detailList: UtilBoard.detailList(detail.detailList),
             color: detail.color,
             allowAdult: detail.allowAdult,
             investmentNotice: detail.investmentNotice,
@@ -752,6 +764,7 @@ export default class UtilBoard {
             chipPosition: form.chipPosition ?? '',
             // 말머리 모양도 같은 규칙 — 「사이트 기본 따르기」는 빈 글자
             prefixStyle: form.prefixStyle ?? '',
+            detailList: form.detailList,
             color: UtilBoard.normalizeColor(form.color), // 13색 이름 또는 대문자 #RRGGBB(서버도 같은 모양으로 정리)
             allowAdult: form.allowAdult,
             investmentNotice: form.investmentNotice,
@@ -802,7 +815,7 @@ export default class UtilBoard {
         const base = UtilBoard.detailFormOf(saved);
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
         const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
-        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'color', 'allowAdult', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
+        const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'detailList', 'color', 'allowAdult', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,

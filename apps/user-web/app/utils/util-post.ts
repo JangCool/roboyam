@@ -1,3 +1,4 @@
+import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router';
 import type { BoardGuestRules, BoardNewMemberRules } from '~/composables/board/api/useBoardApi.types';
 import type { ContentFormat } from '~/composables/board/api/usePostApi.types';
 import UtilRichText from '#layers/rich-editor/utils/util-rich-text';
@@ -52,6 +53,17 @@ export default class UtilPost {
     static readonly REPORT_DETAIL_MAX = 300;
     /** 자리 표시 체크("로봇이 아닙니다")가 내는 토큰 — Turnstile 위젯이 붙으면 그 토큰으로 바뀐다. 비밀키가 설정된 서버는 이 값을 `fields['guest.captchaToken']` 으로 거절한다 */
     static readonly PLACEHOLDER_CAPTCHA_TOKEN = 'placeholder-captcha';
+
+    /**
+     * 글 보기 주소 — 목록 문맥 쿼리(쪽·거르기, post-detail-board-list-contract)가 있으면 함께 싣는다
+     * @param {string} id - 글 ID.
+     * @param {LocationQueryRaw | null} [query] - 목록 문맥 쿼리. 비면 쿼리 없이.
+     * @returns {RouteLocationRaw} `/posts/{id}` 또는 `{ path, query }`.
+     */
+    static link(id: string, query?: LocationQueryRaw | null): RouteLocationRaw {
+        const path = `/posts/${id}`;
+        return query && Object.keys(query).length > 0 ? { path, query } : path;
+    }
 
     /**
      * 본문에 든 링크 수

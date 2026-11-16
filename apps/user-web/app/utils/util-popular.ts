@@ -33,6 +33,8 @@ export default class UtilPopular {
     static readonly PAGE_SIZE = 20;
     /** 최신글 전체의 한 번 받는 글 수 */
     static readonly LATEST_PAGE_SIZE = 20;
+    /** 글 상세 아래 [인기글]·[최신글] 탭의 글 수(사용자 2026-11-16) */
+    static readonly DETAIL_TAB_SIZE = 10;
     static readonly MAX_PAGE = 100;
 
     /**

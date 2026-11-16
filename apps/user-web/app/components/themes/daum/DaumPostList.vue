@@ -6,17 +6,17 @@
         community 시안 `design/_shared/botbi-news.css` `.nw-li` · `.nw-meta`.
     -->
     <div>
-        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" :link-query="linkQuery" :active-id="activeId" />
         <ul class="m-0 list-none p-0" data-testid="post-list-headline">
             <template v-for="(row, i) in rows" :key="row.id">
-            <li class="border-t border-hairline first:border-t-0">
+            <li class="border-t border-hairline first:border-t-0" :class="row.id === activeId ? 'post-row-current' : ''">
                 <p v-if="row.hiddenReason" class="m-0 flex items-center gap-1.5 py-2.5 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="py-2.5 text-sm" hide-class="pb-2">
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
-                    <NuxtLink :to="`/posts/${row.id}`" class="group block py-2.5 md:py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+                    <NuxtLink :to="UtilPost.link(row.id, linkQuery)" :aria-current="row.id === activeId ? 'page' : undefined" class="group block py-2.5 md:py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                         <!-- 데스크톱 + 「제목 위」(기본) — A 방식 두 줄(`BoardPostRowDesktop`, 사용자 시안 확정 2026-11-12). 모바일·다른 칩 위치는 아래 `PostRowFrame` -->
                         <BoardPostRowDesktop v-if="chipPosition === 'ABOVE'" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden">
                             <!-- 찬반 토론 글 — 날짜 뒤·추천 앞에 찬·반·중 수(섞인 목록과 같다, 2026-11-12) -->
@@ -74,12 +74,13 @@
 <script setup lang="ts">
 import UtilAd from '~/utils/util-ad';
 import UtilAdSense from '~/utils/util-adsense';
+import UtilPost from '~/utils/util-post';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE' });
+withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE', linkQuery: null, activeId: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

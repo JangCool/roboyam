@@ -253,6 +253,11 @@ export interface PostListQuery {
     status?: PostProcessStatus | '';
     /** 태그 거르기(`tag` — 정확히 같은 태그, 대소문자 무시 — post-tags-contract) — 없거나 빈 글자면 전체(보내지 않는다) */
     tag?: string;
+    /**
+     * 이 글이 들어 있는 쪽을 서버가 정한다(`around={postId}` — post-detail-board-list-contract, 글 상세 아래 목록). 있으면 `page` 를 보내지 않는다(서버는 `page` 가 없을 때만 쓴다).
+     * 응답 `page` 가 계산된 쪽. 주소(`UtilBoardQuery`)에는 쓰지 않는다
+     */
+    around?: string;
 }
 
 /**
@@ -269,6 +274,8 @@ export interface DealPostListQuery {
     store: string;
     q: string;
     page: number;
+    /** 이 글이 들어 있는 쪽을 서버가 정한다(`PostListQuery.around` 와 같다) — 있으면 `page` 를 보내지 않는다 */
+    around?: string;
 }
 
 /**

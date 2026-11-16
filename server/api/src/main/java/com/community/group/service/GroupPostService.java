@@ -154,13 +154,25 @@ public class GroupPostService {
     /** {@link #page(String, Long, int, String, String, String)} + 처리 상태 거르기(V168 — {@link #list(String, Long, String, String, String)} 와 같은 규칙) */
     @Transactional(readOnly = true)
     public GroupPostPageView page(String rawId, Long userId, int pageNo, String sort, String q, String prefix, String status) {
+        return page(rawId, userId, Integer.valueOf(pageNo), null, sort, q, prefix, status);
+    }
+
+    /**
+     * 그 글이 들어 있는 쪽까지({@code ?around=} — post-detail-board-list-contract, 게시판 목록과 같은 규칙). {@code pageNo} 가 없고(null) {@code around} 가 있을 때만 —
+     * 같은 조건·정렬로 그 글보다 앞에 오는 글 수 ÷ 한 쪽 글 수 + 1. 그 글이 이 목록에 없으면 1쪽. 응답 {@code page} 가 계산된 쪽이다.
+     *
+     * @param pageNo 1부터 — null 이면 1(또는 {@code around} 로 계산)
+     * @param around 글 ID(글자) — 모양이 틀리면 무시(1쪽)
+     */
+    @Transactional(readOnly = true)
+    public GroupPostPageView page(String rawId, Long userId, Integer pageNo, String around, String sort, String q, String prefix, String status) {
         GroupEntity group = access.active(GroupAccess.parseId(rawId));
         boolean member = isMember(group, userId);
         Instant now = Instant.now();
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = s.board(group.getBoardId()).orElseThrow(GroupNotFoundException::new);
         int listSize = b.listSize();
-        int current = Math.max(1, pageNo);
+        int current = pageNo != null ? Math.max(1, pageNo) : 1;
         Long prefixId = null;
         boolean impossible = false;
         if (prefix != null && !prefix.isBlank()) {
@@ -172,6 +184,14 @@ public class GroupPostService {
             query = query.substring(0, PostRepositoryQDSL.QUERY_MAX);
         }
         StatusFilter filter = statusFilter(b, status);
+        Long aroundId = pageNo == null && !impossible && !filter.impossible() ? PostQueryService.parseId(around) : null;
+        if (aroundId != null) {
+            java.util.OptionalLong ahead = postQueries.before(group.getId(), member, prefixId, filter.status(), query.isEmpty() ? null : query, "OLDEST".equals(sort),
+                    aroundId, now);
+            if (ahead.isPresent()) {
+                current = (int) Math.min(Integer.MAX_VALUE, ahead.getAsLong() / listSize + 1);
+            }
+        }
         GroupPostQueries.Paged found = impossible || filter.impossible() ? new GroupPostQueries.Paged(List.of(), 0)
                 : postQueries.page(group.getId(), member, prefixId, filter.status(), query.isEmpty() ? null : query, "OLDEST".equals(sort), (long) (current - 1) * listSize,
                 listSize, now);

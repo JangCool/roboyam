@@ -77,6 +77,9 @@ export default {
     // 목록 상태
     loadingList: '글 목록을 불러오는 중',
     listFailed: '글 목록을 불러오지 못했어요',
+    // 글 상세 아래 게시판 목록(post-detail-board-list-contract)
+    detailListTitle: '{name} 글 목록',
+    detailListCurrent: '지금 보는 글',
     searchEmptyTitle: '검색 결과가 없어요',
     searchEmptyText: '다른 낱말로 찾아보세요.',
     pageEmptyTitle: '이 쪽에는 글이 없어요',

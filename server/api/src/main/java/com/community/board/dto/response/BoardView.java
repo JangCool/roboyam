@@ -22,10 +22,11 @@ import java.util.List;
  * @param chipPosition   글 목록 말머리·상태 칩 위치 ABOVE(제목 위) · BEFORE(제목 앞) · BELOW(닉네임 아래) — 게시판 값 또는 사이트 기본을 푼 실제 값(V169, post-chip-position-contract)
  * @param authorMode     작성자 표시 NICKNAME · ANONYMOUS(V184 — 익명 게시판은 회원만 쓰고 글·댓글 작성자가 「익명」, anonymous-board-contract). 일반 게시판만 ANONYMOUS 일 수 있다
  * @param prefixStyle    글 목록·글 보기 말머리 모양 TEXT(글자) · MUTED(회색 칩) · COLOR(색상 칩) — 게시판 값 또는 사이트 기본을 푼 실제 값(V195, mobile-nav-prefix-style-contract 1절)
+ * @param detailList     글 상세 아래 게시판 목록 OFF(안 보임) · LIST(게시판 목록 모양, 기본) · COMPACT(휴대폰은 촘촘한 한 줄) — 게시판 값(V224, post-detail-board-list-contract)
  */
 public record BoardView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                         String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor, String layout,
                         boolean dealEnabled, boolean promo,
                         boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, boolean debateEnabled, boolean pollEnabled, String kind,
-                        String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle) {
+                        String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle, String detailList) {
 }

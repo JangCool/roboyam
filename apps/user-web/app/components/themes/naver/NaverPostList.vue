@@ -6,17 +6,17 @@
         community 시안 `design/_shared/botbi-news.css` `.nw-art` · `.nw-cmt`(시안의 2열은 쓰지 않고 한 열이다).
     -->
     <div>
-        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" :link-query="linkQuery" :active-id="activeId" />
         <ul class="m-0 list-none p-0" data-testid="post-list-article">
             <template v-for="(row, i) in rows" :key="row.id">
-            <li class="border-b border-hairline last:border-b-0">
+            <li class="border-b border-hairline last:border-b-0" :class="row.id === activeId ? 'post-row-current' : ''">
                 <p v-if="row.hiddenReason" class="m-0 flex items-center gap-1.5 py-3.5 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="py-3.5 text-sm" hide-class="pb-2">
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — 「제목 위」 윗줄은 썸네일보다 위(줄 폭 전체), 썸네일은 이 테마대로 아래 칸 왼쪽. 말풍선 댓글 수는 메타 줄 오른쪽 그대로 -->
-                    <NuxtLink :to="`/posts/${row.id}`" class="group block py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:py-3.5">
+                    <NuxtLink :to="UtilPost.link(row.id, linkQuery)" :aria-current="row.id === activeId ? 'page' : undefined" class="group block py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:py-3.5">
                         <PostRowFrame :row="row" :position="chipPosition" row-class="gap-3.5" body-class="flex flex-col">
                             <!-- 찬반 토론 글 — 윗줄 숫자 앞에 찬·반·중 수(2026-11-12) -->
                             <template v-if="row.debate" #stats-lead>
@@ -69,12 +69,13 @@
 <script setup lang="ts">
 import UtilAd from '~/utils/util-ad';
 import UtilAdSense from '~/utils/util-adsense';
+import UtilPost from '~/utils/util-post';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE' });
+withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE', linkQuery: null, activeId: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

@@ -7,6 +7,9 @@ export default {
     // 공통
     loading: '{name} 목록을 불러오는 중이에요',
     loadFailed: '{name} 목록을 불러오지 못했어요',
+    // 글 상세 아래 [인기글]·[최신글] 탭(사용자 2026-11-16)
+    detailTabs: '인기글·최신글',
+    detailMore: '{name} 더 보기',
     summaryEmpty: '{name} 글이 없어요',
     summaryCount: '{name} {count}개',
     summaryCountMore: '{name} {count}개 · 더 있어요',

@@ -60,7 +60,7 @@
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <!-- 1. 기본 정보 -->
-                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'prefixStyle', 'authorMode'])">
+                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'prefixStyle', 'detailList', 'authorMode'])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField :label="t('board.field.name')" :hint="t('board.nameHint', { max: UtilBoard.NAME_MAX })" :error="textErrorOf('name')">
                             <template #default="{ id, describedBy, invalid }">
@@ -183,6 +183,27 @@
                             />
                             <p class="m-0 text-xs leading-relaxed" :class="serverFields.prefixStyle ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.prefixStyle ? 'alert' : undefined">
                                 {{ serverFields.prefixStyle || t('board.prefixStyleScope') }}
+                            </p>
+                        </div>
+
+                        <!-- 글 상세 아래 목록(목록 모양 묶음 — post-detail-board-list-contract) — 끄기 · 게시판 목록과 같은 모양(기본) · 휴대폰은 촘촘한 줄. 게시판마다의 값(사이트 기본 없음). 저장은 `board.manage` -->
+                        <div class="flex flex-col gap-1.5 md:col-span-2" data-field="detailList">
+                            <span :id="`${idBase}-detail-list`" class="text-sm font-medium">{{ t('board.field.detailList') }}</span>
+                            <SelectButton
+                                v-model="detailListModel"
+                                :options="detailListOptions"
+                                option-label="label"
+                                option-value="value"
+                                :allow-empty="false"
+                                size="small"
+                                :disabled="!canManage || saving"
+                                :aria-labelledby="`${idBase}-detail-list`"
+                                :invalid="Boolean(serverFields.detailList)"
+                                class="self-start"
+                                data-testid="board-detail-list"
+                            />
+                            <p class="m-0 text-xs leading-relaxed" :class="serverFields.detailList ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.detailList ? 'alert' : undefined">
+                                {{ serverFields.detailList || t('board.detailListHelp') }}
                             </p>
                         </div>
 
@@ -557,7 +578,7 @@
 
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
-import type { BoardDetail, BoardPolicyField, BoardPrefixStyle, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDetail, BoardDetailList, BoardPolicyField, BoardPrefixStyle, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
 import type { BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -714,6 +735,16 @@ const prefixStyleModel = computed<BoardPrefixStyle | null>({
         if (!form.value) return;
         form.value.prefixStyle = value;
         clearServer('prefixStyle');
+    },
+});
+/** 글 상세 아래 게시판 목록 — 끄기 · 게시판 목록과 같은 모양(기본) · 휴대폰은 촘촘한 줄(post-detail-board-list-contract). 고치면 서버 오류를 지운다 */
+const detailListOptions = computed(() => UtilBoard.DETAIL_LISTS.map((value) => ({ value, label: t(`board.detailList.${value}`) })));
+const detailListModel = computed<BoardDetailList>({
+    get: () => form.value?.detailList ?? 'LIST',
+    set: (value) => {
+        if (!form.value) return;
+        form.value.detailList = value;
+        clearServer('detailList');
     },
 });
 /** 도움말의 「지금: …」 — 자동·13색은 이름, 직접 고른 색은 그 값 */

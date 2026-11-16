@@ -9,14 +9,14 @@
         <BoardGlobalNoticeList :rows="globalPinned" :date-display="dateDisplay" />
         <ul class="-mx-4 m-0 list-none p-0" :class="rowsEverywhere ? 'md:mx-0' : 'md:hidden'" data-testid="post-list-rows">
             <template v-for="(row, i) in all" :key="`${row.pinned && pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
-            <li class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
+            <li class="border-b border-surface" :class="row.id === activeId ? 'post-row-current' : pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color md:px-2">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="px-4 py-2.5 text-sm md:px-2" hide-class="px-4 pb-2 md:px-2">
                     <!-- 칩·숫자·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — `PostRowFrame` -->
-                    <NuxtLink :to="`/posts/${row.id}`" class="block px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 md:py-2">
+                    <NuxtLink :to="UtilPost.link(row.id, linkQuery)" :aria-current="row.id === activeId ? 'page' : undefined" class="block px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 md:py-2">
                         <!-- 데스크톱 + 「제목 위」(기본) — A 방식 두 줄(제목 / 닉네임 · 말머리 · 추천·조회 · 날짜, 썸네일 오른쪽 — 사용자 시안 확정 2026-11-12). 모바일·다른 칩 위치는 아래 `PostRowFrame` -->
                         <BoardPostRowDesktop v-if="desktopRow" :row="row" :new-post-hours="newPostHours" :date-display="dateDisplay" class="max-md:hidden">
                             <!-- 찬반 토론 글 — 날짜 뒤·추천 앞에 찬·반·중 수(섞인 목록과 같다, 2026-11-12) -->
@@ -88,13 +88,13 @@
                     table
                     :colspan="5"
                 >
-                    <tr class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : 'hover:bg-surface-50 dark:hover:bg-surface-900'">
+                    <tr class="border-b border-surface" :class="row.id === activeId ? 'post-row-current' : pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : 'hover:bg-surface-50 dark:hover:bg-surface-900'">
                         <td v-if="row.hiddenReason" colspan="5" class="py-2.5 text-muted-color">
                             <i class="pi pi-eye-slash mr-1.5 text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                         </td>
                         <template v-else>
                             <td class="py-2.5 pr-3">
-                                <NuxtLink :to="`/posts/${row.id}`" class="line-clamp-1 hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                                <NuxtLink :to="UtilPost.link(row.id, linkQuery)" :aria-current="row.id === activeId ? 'page' : undefined" class="line-clamp-1 hover:underline focus-visible:outline-2 focus-visible:outline-primary">
                                     <PostRowTitle :row="row" :new-post-hours="newPostHours" />
                                 </NuxtLink>
                                 <button v-if="revealed" type="button" class="rounded px-1 py-0.5 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="folded-hide" @click="hide">
@@ -119,12 +119,13 @@
 <script setup lang="ts">
 import UtilAd from '~/utils/util-ad';
 import UtilAdSense from '~/utils/util-adsense';
+import UtilPost from '~/utils/util-post';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE' });
+const props = withDefaults(defineProps<Props>(), { feedAd: null, feedAdsense: null, chipPosition: 'ABOVE', linkQuery: null, activeId: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

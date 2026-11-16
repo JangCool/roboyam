@@ -17,11 +17,12 @@ import java.util.List;
  * @param chipPosition     글 목록 말머리·상태 칩 위치 ABOVE · BEFORE · BELOW, null = 사이트 기본 따름(그 값은 {@code defaults.listChipPosition} — V169, {@code diffCount} 에 세지 않는다)
  * @param authorMode       작성자 표시 NICKNAME(기본) · ANONYMOUS(V184 — 게시판마다의 값, {@code diffCount} 에 세지 않는다)
  * @param prefixStyle      글 목록 말머리 모양 TEXT · MUTED · COLOR, null = 사이트 기본 따름(그 값은 {@code defaults.listPrefixStyle} — V195, {@code diffCount} 에 세지 않는다)
+ * @param detailList       글 상세 아래 게시판 목록 OFF · LIST(기본) · COMPACT(V224 — 게시판마다의 값·사이트 기본 없음, {@code diffCount} 에 세지 않는다)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                               String color, boolean allowAdult, boolean investmentNotice, boolean active, long postCount, String writeLock, String introText,
                               String writeGuideText, String writeTemplate, List<String> gadgetExclusions, BoardPolicyValues policy, List<BoardPrefixView> prefixes,
                               BoardDefaultsValues defaults, int diffCount, List<BoardGadgetView> gadgets, String groupCategoryId,
                               String groupCategoryName, boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition,
-                              String authorMode, String prefixStyle) {
+                              String authorMode, String prefixStyle, String detailList) {
 }

@@ -1,3 +1,4 @@
+import type { LocationQueryRaw } from 'vue-router';
 import type { PublicAd } from '~/composables/ad/api/usePublicAdApi.types';
 import type { BoardDateDisplay, PostChipPosition } from '~/composables/board/api/useBoardApi.types';
 import type { GlobalNoticeRow, PostRow } from '~/composables/board/api/usePostApi.types';
@@ -39,4 +40,11 @@ export interface BoardPostListProps {
      * 여러 줄 글 줄(모바일 목록 줄·카드형)만 따른다 — PC 표형 한 줄·갤러리 카드 이름 줄·고정 공지 한 줄·핫딜 목록은 늘 제목 앞
      */
     chipPosition?: PostChipPosition;
+    /**
+     * 글 링크(`/posts/{id}`)에 붙일 목록 문맥 쿼리(post-detail-board-list-contract — 쪽·말머리·상태·태그·정렬·검색, 핫딜은 핫딜 조건). 기본 없음.
+     * 같은 게시판 글(일반 글·고정 공지)에만 붙이고 전체 공지(다른 게시판 글)에는 붙이지 않는다
+     */
+    linkQuery?: LocationQueryRaw | null;
+    /** 강조할 글(글 상세 아래 목록의 지금 글) — 줄에 `post-row-current` + 링크에 `aria-current="page"`. 기본 없음 */
+    activeId?: string | null;
 }

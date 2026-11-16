@@ -4,16 +4,17 @@
         카드: 모바일 1열 · 데스크톱 2열(썸네일 왼쪽). 갤러리: 모바일 2열 · 데스크톱 4열(정사각 썸네일). 한 줄 광고는 카드형만(두 열을 가로지르는 한 줄), 갤러리형은 그리지 않는다.
     -->
     <div>
-        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" :link-query="linkQuery" :active-id="activeId" />
         <ul class="m-0 mt-3 grid list-none p-0" :class="variant === 'CARD' ? 'grid-cols-1 gap-3 md:grid-cols-2' : 'grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4'" data-testid="hotdeal-grid" data-cache-area="hotdeal.settings">
             <template v-for="(row, i) in rows" :key="row.id">
-                <li class="min-w-0" :class="variant === 'CARD' ? 'overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900' : ''">
+                <li class="min-w-0" :class="[variant === 'CARD' ? 'overflow-hidden rounded-lg border' : 'rounded-lg', variant === 'CARD' && row.id !== activeId ? 'border-surface bg-surface-0 dark:bg-surface-900' : '', row.id === activeId ? (variant === 'CARD' ? 'post-row-current border-primary' : 'post-row-current outline-2 outline-offset-2 outline-primary') : '']">
                     <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-6 text-sm text-muted-color">
                         <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                     </p>
                     <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked)" kind="post" class="px-4 py-6 text-sm" hide-class="px-3 pb-2">
                         <NuxtLink
-                            :to="`/posts/${row.id}`"
+                            :to="UtilPost.link(row.id, linkQuery)"
+                            :aria-current="row.id === activeId ? 'page' : undefined"
                             class="group focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                             :class="[variant === 'CARD' ? 'flex gap-3 p-3' : 'block rounded-lg', row.deal && UtilHotdeal.isOver(row.deal.view) ? 'opacity-55' : '']"
                             data-testid="hotdeal-grid-item"
@@ -51,13 +52,14 @@
 import UtilAd from '~/utils/util-ad';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilPost from '~/utils/util-post';
 
 interface Props extends BoardPostListProps {
     variant?: 'CARD' | 'GALLERY';
 }
 
 /** 칩 위치(`chipPosition`)는 계약이라 받기만 한다 — 이 목록 모양은 칩을 늘 제목 앞에 둔다(post-chip-position-contract 적용 범위 밖) */
-withDefaults(defineProps<Props>(), { feedAd: null, variant: 'CARD', chipPosition: 'ABOVE' });
+withDefaults(defineProps<Props>(), { feedAd: null, variant: 'CARD', chipPosition: 'ABOVE', linkQuery: null, activeId: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

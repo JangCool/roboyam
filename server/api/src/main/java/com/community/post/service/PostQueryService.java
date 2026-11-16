@@ -53,6 +53,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
@@ -180,11 +181,24 @@ public class PostQueryService {
     @Transactional(readOnly = true)
     public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId, Boolean hideEnded, String store, String status,
                                  String tag) {
+        return list(slug, prefix, sort, q, Integer.valueOf(page), viewerId, hideEnded, store, status, tag, null);
+    }
+
+    /**
+     * 그 글이 들어 있는 쪽까지({@code ?around=} — post-detail-board-list-contract). {@code page} 가 없고(null) {@code around} 가 있을 때만 — 같은 거르기·정렬·제외 조건으로
+     * 그 글보다 앞에 오는 글 수 ÷ 한 쪽 글 수 + 1 이 그 쪽이다. 그 글이 이 목록에 없으면(다른 게시판·삭제·거르기 밖·거르기 없을 때 위에 따로 보이는 고정 공지 등) 1쪽.
+     * 핫딜 게시판은 최신순만 계산하고 인기·마감 임박 정렬이면 1쪽. 응답 {@code page} 가 계산된 쪽이다.
+     *
+     * @param page   1부터 — null 이면 1(또는 {@code around} 로 계산)
+     * @param around 글 ID(글자) — 모양이 틀리면 무시(1쪽)
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse list(String slug, String prefix, String sort, String q, Integer page, Long viewerId, Boolean hideEnded, String store, String status,
+                                 String tag, String around) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
         Instant now = Instant.now();
         int listSize = b.listSize();
-        int current = Math.max(1, page);
 
         Long prefixId = null;
         boolean impossible = false;
@@ -215,6 +229,18 @@ public class PostQueryService {
         int autoExpireDays = deal ? dealSettings.current().autoExpireDays() : 0;
 
         boolean adultViewer = adultGate.adult(viewerId); // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract)
+        int current = page != null ? Math.max(1, page) : 1;
+        Long aroundId = page == null && !impossible ? parseId(around) : null;
+        if (aroundId != null) {
+            OptionalLong ahead = deal
+                    ? dealSort(sort) == PostRepositoryQDSL.DealSort.LATEST
+                            ? postQueries.dealLatestBefore(b.id(), prefixId, tagKey, search, hide, storeName, plain, autoExpireDays, aroundId, now)
+                            : OptionalLong.empty()
+                    : postQueries.before(b.id(), prefixId, statusFilter, tagKey, search, oldest, plain, adultViewer, aroundId, now);
+            if (ahead.isPresent()) {
+                current = (int) Math.min(Integer.MAX_VALUE, ahead.getAsLong() / listSize + 1);
+            }
+        }
         List<PostRowData> pinned = plain && current == 1 ? postQueries.pinned(b.id(), b.pinnedMax(), adultViewer, now) : List.of();
         PostRepositoryQDSL.Page result;
         if (impossible) {

@@ -11,7 +11,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  *  - `GET /api/boards/writable` 지금 사용자가 글을 쓸 수 있는 게시판(글쓰기 화면의 게시판 고르기 — 판정은 서버)
  *  - `GET /api/boards/{slug}` 게시판 + 유효 정책 + 지금 보는 사람의 판정(viewer). 꺼진 게시판 `403 BOARD_INACTIVE`, 없는 게시판 `404 BOARD_NOT_FOUND`.
  *      핫딜 게시판이면 `kind DEAL` + `dealAffiliateMode` + `dealRules`(공개 설정 칸)
- *  - `GET /api/boards/{slug}/posts?prefix&sort&q&page` 글 목록(고정 공지 포함)
+ *  - `GET /api/boards/{slug}/posts?prefix&sort&q&page` 글 목록(고정 공지 포함). `page` 대신 `around={postId}` 면 그 글이 든 쪽(응답 `page` — post-detail-board-list-contract, 글 상세 아래 목록)
  *  - `GET /api/boards/{slug}/tags` 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그 `[{ name, count }]`(많이 쓴 순, 「태그 쓰기」가 꺼졌으면 빈 목록 — post-tags-contract)
  *  - 핫딜 게시판(`kind DEAL`)은 같은 주소에 `?sort=latest|popular|ending&hideEnded=&store=`(응답에 쇼핑몰 칩 `stores`, 줄에 `deal`) — `dealPosts`(`hotdeal-contract.md` 「API 후보」).
  *      `hideEnded` 가 빠지면 서버는 켬으로 본다(화면은 늘 보낸다). 핫딜 게시판이 아니면 `stores` 없음·새 `sort` 값은 무시
@@ -49,17 +49,33 @@ export function useBoardApi() {
         /** 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그(많이 쓴 순) */
         tags: (slug: string, signal?: AbortSignal): Promise<BoardTagSuggestion[]> => client.get<BoardTagSuggestion[]>(PATH.tags(slug), { signal }),
 
-        /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다 */
+        /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다. `around`(그 글이 든 쪽 — 글 상세 아래 목록)가 있으면 `page` 대신 보낸다 */
         posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
             client.get<PostListResponse>(PATH.posts(slug), {
-                query: { prefix: query.prefix || undefined, status: query.status || undefined, tag: query.tag || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
+                query: {
+                    prefix: query.prefix || undefined,
+                    status: query.status || undefined,
+                    tag: query.tag || undefined,
+                    sort: query.sort,
+                    q: query.q || undefined,
+                    page: query.around ? undefined : query.page,
+                    around: query.around || undefined,
+                },
                 signal,
             }),
 
-        /** 핫딜 게시판 글 목록 — 정렬(최신·인기·마감 임박)·종료 숨기기. 기본값(최신·숨김 켬)도 보낸다 */
+        /** 핫딜 게시판 글 목록 — 정렬(최신·인기·마감 임박)·종료 숨기기. 기본값(최신·숨김 켬)도 보낸다. `around` 는 `posts` 와 같다 */
         dealPosts: (slug: string, query: DealPostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
             client.get<PostListResponse>(PATH.posts(slug), {
-                query: { prefix: query.prefix || undefined, sort: UtilHotdeal.sortParam(query.sort), hideEnded: query.hideEnded, store: query.store || undefined, q: query.q || undefined, page: query.page },
+                query: {
+                    prefix: query.prefix || undefined,
+                    sort: UtilHotdeal.sortParam(query.sort),
+                    hideEnded: query.hideEnded,
+                    store: query.store || undefined,
+                    q: query.q || undefined,
+                    page: query.around ? undefined : query.page,
+                    around: query.around || undefined,
+                },
                 signal,
             }),
     };

@@ -128,7 +128,8 @@ public class PublicBoardService {
                         writeRestriction, pendingWarnings),
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
-                v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled(), b.tagsEnabled());
+                v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled(), b.tagsEnabled(),
+                v.detailList());
     }
 
     /**
@@ -165,6 +166,7 @@ public class PublicBoardService {
         return new BoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.description(), b.investmentNotice(),
                 BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),
                 BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color(),
-                b.debateEnabled(), b.pollEnabled(), b.kind(), b.secretMode(), b.statusEnabled(), b.chipPosition(), b.authorMode(), b.prefixStyle());
+                b.debateEnabled(), b.pollEnabled(), b.kind(), b.secretMode(), b.statusEnabled(), b.chipPosition(), b.authorMode(), b.prefixStyle(),
+                b.detailList());
     }
 }

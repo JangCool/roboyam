@@ -63,6 +63,8 @@ export type BoardSecretMode = 'OFF' | 'OPTIONAL' | 'ALWAYS';
  * 쓸 때의 값이 글·댓글에 저장된다 — 나중에 닉네임으로 돌려도 이미 쓴 글은 익명으로 남는다
  */
 export type BoardAuthorMode = 'NICKNAME' | 'ANONYMOUS';
+/** 글 상세 아래 게시판 목록(post-detail-board-list-contract) — `OFF` 안 보임 · `LIST` 게시판 목록과 같은 모양(기본) · `COMPACT` 휴대폰은 촘촘한 한 줄(PC 는 게시판 목록 그대로) */
+export type BoardDetailList = 'OFF' | 'LIST' | 'COMPACT';
 /** 공통 말머리 4개 — 질문 · 후기 · 잡담 · 공지(운영진 전용 고정) */
 export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
 /** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자(`highlight.manage`). 서버 `BoardFields.PIN_REVIEWERS` 차례 */
@@ -339,6 +341,8 @@ export interface BoardDetail extends BoardRef {
      * 옛 서버 응답에는 칸이 없을 수 있다
      */
     prefixStyle?: BoardPrefixStyle | null;
+    /** 글 상세 아래 게시판 목록(게시판마다의 값 — 사이트 기본 없음, post-detail-board-list-contract). 옛 서버 응답에는 칸이 없을 수 있다(없으면 `LIST`) */
+    detailList?: BoardDetailList;
     color: BoardDisplayColor | null;
     allowAdult: boolean;
     /** 「이 게시판에 광고 숨김」(기본 false) — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금 게시판은 이 칸과 상관없이 늘 없다 */
@@ -414,6 +418,8 @@ export interface BoardSaveRequest {
     chipPosition: BoardChipPosition | '' | null;
     /** 말머리 모양 — 빈 글자 `""` = 사이트 기본 따르기(null 저장), `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.prefixStyle` */
     prefixStyle: BoardPrefixStyle | '' | null;
+    /** 글 상세 아래 게시판 목록 — `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.detailList` */
+    detailList: BoardDetailList | null;
     color: BoardDisplayColor | null;
     allowAdult: boolean;
     investmentNotice: boolean;

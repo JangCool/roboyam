@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BoardView, CommentEditorLevel, PostChipPosition, PostEditorLevel, PostPrefixStyle, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDetailList, BoardView, CommentEditorLevel, PostChipPosition, PostEditorLevel, PostPrefixStyle, PrefixView } from '~/composables/board/api/useBoardApi.types';
 import type { ContentFormat } from '~/composables/board/api/usePostApi.types';
 import UtilColor from '~/utils/util-color';
 
@@ -176,6 +176,15 @@ export default class UtilBoard {
      */
     static prefixStyle(raw: unknown): PostPrefixStyle {
         return raw === 'MUTED' || raw === 'COLOR' ? raw : 'TEXT';
+    }
+
+    /**
+     * 글 상세 아래 게시판 목록 — 서버 값이 셋 중 하나가 아니면(칸이 없는 옛 응답 포함) 게시판 목록과 같은 모양(`LIST`, 계약의 기본 — post-detail-board-list-contract).
+     * @param {unknown} raw - 게시판 정보의 `detailList`.
+     * @returns {BoardDetailList} 그릴 방식.
+     */
+    static detailList(raw: unknown): BoardDetailList {
+        return raw === 'OFF' || raw === 'COMPACT' ? raw : 'LIST';
     }
 
     /**

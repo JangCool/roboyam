@@ -1,7 +1,7 @@
 <template>
     <!-- 게시판이 섞인 목록의 글 한 줄(목록의 <li>) — [순위] · [어제/지난주] · 게시판 이름 · 말머리 · 제목(일치 강조)·[댓글 수] / 본문 조각 / 작성자·추천·날짜.
          최신글 전체·인기글 전체·검색·회원 프로필 작성글이 함께 쓴다(community `PostRowItem` + `SearchResultItem`). 줄 전체가 글로 가는 링크라 작성자 이름은 링크가 아니다 -->
-    <li class="border-b border-surface last:border-b-0" :class="ranked ? 'flex items-start' : ''">
+    <li class="border-b border-surface last:border-b-0" :class="[ranked ? 'flex items-start' : '', active ? 'post-row-current' : '']">
         <span v-if="ranked" class="w-9 shrink-0 pl-4 pt-3 text-sm font-bold leading-snug tabular-nums md:pl-2 md:pt-2" :class="[rank <= 3 ? 'text-primary' : 'text-muted-color', desktopRow ? 'md:leading-6' : '']" data-testid="post-rank">
             <span aria-hidden="true">{{ rank }}</span><span class="sr-only">{{ t('feed.rank', { n: rank }) }}</span>
         </span>
@@ -14,6 +14,7 @@
                      「제목 위」 윗줄 오른쪽 = 찬·반·중 → 세로 구분선 → 추천 → 조회, 그 밖의 칩 위치는 메타 줄(글쓴이 다음)에 -->
                 <NuxtLink
                     :to="`/posts/${row.id}`"
+                    :aria-current="active ? 'page' : undefined"
                     class="block min-w-0 flex-1 py-3 hover:bg-surface-100 md:py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
                     :class="padClass"
                 >
@@ -105,9 +106,12 @@ interface Props {
     strongTitle?: boolean;
     /** 데스크톱(md 이상)에서 게시판 목록과 같은 A 방식 두 줄(`BoardPostRowDesktop`) — 인기글·최신글(사용자 결정 2026-11-12). 칩 위치 「제목 위」일 때만 */
     desktopRow?: boolean;
+    /** 지금 보는 글(글 상세 아래 인기글·최신글 탭) — 줄에 `post-row-current` + 링크에 `aria-current="page"` */
+    active?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+    active: false,
     rank: 0,
     fill: null,
     tokens: () => [],

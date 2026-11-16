@@ -110,6 +110,12 @@ export default {
         CARD: '카드형',
         GALLERY: '갤러리형',
     },
+    detailList: {
+        OFF: '끄기',
+        LIST: '게시판 목록과 같게',
+        COMPACT: '휴대폰은 촘촘한 줄',
+    },
+    detailListHelp: '글 보기의 댓글 아래에 이 게시판 글 목록을 쪽 번호와 함께 보여요. 촘촘한 줄은 휴대폰에서 제목·댓글 수·날짜만 한 줄로, PC 는 게시판 목록 그대로예요.',
     color: {
         AUTO: '자동',
         BLUE: '파랑',
@@ -303,6 +309,7 @@ export default {
         description: '설명',
         layout: '목록 모양',
         viewToggle: '읽는 사람의 보기 전환 단추',
+        detailList: '글 상세 아래 목록',
         chipPosition: '말머리·상태 칩 위치',
         prefixStyle: '말머리 모양',
         color: '표시색',

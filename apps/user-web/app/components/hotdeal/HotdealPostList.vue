@@ -8,12 +8,12 @@
     <BoardGlobalNoticeList :rows="globalPinned" :date-display="dateDisplay" />
     <ul class="-mx-4 m-0 list-none p-0 md:mx-0" :aria-label="t('hotdeal.listCaption')" data-testid="hotdeal-list" data-cache-area="hotdeal.settings">
         <template v-for="(row, i) in all" :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
-            <li class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
+            <li class="border-b border-surface" :class="row.id === activeId ? 'post-row-current' : pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color md:px-1">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked)" kind="post" class="px-4 py-2.5 text-sm" hide-class="px-4 pb-2">
-                    <HotdealRowItem :row="row" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+                    <HotdealRowItem :row="row" :date-display="dateDisplay" :new-post-hours="newPostHours" :link-query="linkQuery" :current="row.id === activeId" />
                 </FoldedRow>
             </li>
             <li v-if="UtilAd.feedAdAt(feedAd, i - pinned.length)" class="border-b border-surface"><AdFeedRow :ad="UtilAd.feedAdAt(feedAd, i - pinned.length)!" variant="compact" /></li>
@@ -29,7 +29,7 @@ import type { BoardPostListProps } from '~/components/board/BoardPostList.types'
 interface Props extends BoardPostListProps {}
 
 /** 칩 위치(`chipPosition`)는 계약이라 받기만 한다 — 핫딜 목록은 사용자 시안(2026-11-08)의 한 모양 고정(윗줄 칩·몰 이름·추천·조회 → 사진·제목·가격 → 작성자·시각·댓글, `HotdealRowItem`) */
-const props = withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
+const props = withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE', linkQuery: null, activeId: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

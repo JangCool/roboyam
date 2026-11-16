@@ -254,7 +254,7 @@
                     </template>
 
                     <template v-else-if="list">
-                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :global-pinned="list.globalPinned ?? []" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :feed-adsense="feedAdsense" :chip-position="chipPosition" />
+                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :global-pinned="list.globalPinned ?? []" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" :feed-adsense="feedAdsense" :chip-position="chipPosition" :link-query="rowLinkQuery" />
                         <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                     </template>
                 </div>
@@ -268,8 +268,6 @@ import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi
 import type { DealPostListQuery, PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
 import type { DealSort, DealStoreChip } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
-import HotdealPostGrid from '~/components/hotdeal/HotdealPostGrid.vue';
-import HotdealPostList from '~/components/hotdeal/HotdealPostList.vue';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
@@ -279,7 +277,6 @@ import UtilBoardSanctionMessages from '~/utils/util-board-sanction-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilPostOps from '~/utils/util-post-ops';
-import UtilTheme from '~/utils/util-theme';
 
 const SORTS: readonly PostSort[] = ['LATEST', 'OLDEST'];
 const VIEW_MODES: readonly BoardViewMode[] = ['LIST', 'GALLERY'];
@@ -295,7 +292,6 @@ const current = useCurrentBoard();
 const { prompt } = useLoginPrompt();
 const { localizedName } = useLocalizedName();
 const { display, ensureLoaded: ensureDisplay } = useBoardDisplay();
-const viewMode = useBoardViewMode();
 const recentBoards = useRecentBoards();
 const publicAds = usePublicAds();
 const time = useDisplayTime();
@@ -313,8 +309,10 @@ const boardError = ref('');
 /** 메뉴가 받아 둔 게시판 요약으로 먼저 그리고, 자세한 정보가 오면 그것으로 바꾼다 */
 const view = computed<BoardView | BoardDetail | null>(() => (detail.value?.slug === slug.value ? detail.value : (bySlug(slug.value) ?? null)));
 
+/* ── 목록 부품 고르기(테마·layout·보기 전환·핫딜 — 글 상세 아래 목록과 같은 규칙, `useBoardListView`) ── */
+const { isDeal, canToggleView, activeView, listKind, listComponent, listExtra, chipPosition, chooseView } = useBoardListView(view);
+
 /* ── 핫딜 게시판(`kind DEAL`) ── */
-const isDeal = computed(() => UtilHotdeal.isDealBoard(view.value));
 const dealQuery = computed<DealPostListQuery>(() => UtilHotdeal.parseQuery(route.query));
 const hideEndedId = useId();
 const dealSortOptions = computed(() =>
@@ -429,29 +427,11 @@ const hotdeal = useHotdealAds(
     ),
 );
 
-/** 보기 전환 단추 — 게시판 설정 `viewToggle` 이 켜져 있고 기본 모양이 목록형·갤러리형일 때만 */
-const canToggleView = computed(() => Boolean(view.value?.viewToggle) && view.value?.layout !== 'CARD');
-const activeView = computed<BoardViewMode>(() => {
-    const chosen = canToggleView.value ? viewMode.chosen(slug.value) : null;
-    return chosen ?? (view.value?.layout === 'GALLERY' ? 'GALLERY' : 'LIST');
-});
-/** 그릴 목록 유형 — 카드형은 전환 없이 늘 카드, 모르는 값은 목록형. 유형은 게시판이 정하고 테마는 그 유형의 생김새만 바꾼다 */
-const listKind = computed<'LIST' | 'CARD' | 'GALLERY'>(() => {
-    if (view.value?.layout === 'CARD') return 'CARD';
-    return activeView.value === 'GALLERY' ? 'GALLERY' : 'LIST';
-});
-/** 그릴 목록 컴포넌트 — 현재 테마의 `postList:<유형>`, 없으면 기본 테마 것(`UtilTheme.resolve`, 계약 `BoardPostListProps`) */
-const { theme } = useTheme();
-/** 핫딜 게시판은 가격 줄을 붙인 핫딜 목록(테마 슬롯 없이 하나 — 모양은 역할 변수를 따른다) */
-const listComponent = computed(() => (isDeal.value ? (listKind.value === 'LIST' ? HotdealPostList : HotdealPostGrid) : UtilTheme.resolve(theme.value, 'postList', listKind.value)));
-const listExtra = computed(() => (isDeal.value && listKind.value !== 'LIST' ? { variant: listKind.value } : {}));
-/** 글 줄의 말머리·상태 칩 위치 — 게시판 정보의 `chipPosition`(서버가 사이트 기본까지 푼 값), 칸이 없으면 제목 위(post-chip-position-contract) */
-const chipPosition = computed(() => UtilBoard.chipPosition(view.value?.chipPosition));
 /** 글 줄의 말머리 모양 — 게시판 정보의 `prefixStyle`(서버가 사이트 기본까지 푼 값), 칸이 없으면 글자(mobile-nav-prefix-style-contract 1절). 아래 글 줄 부품들이 읽는다 */
 providePrefixStyle(() => view.value?.prefixStyle);
 
 function onView(mode: BoardViewMode): void {
-    viewMode.choose(slug.value, mode);
+    chooseView(mode);
 }
 
 function pillClass(on: boolean): string {
@@ -476,6 +456,9 @@ function listLink(change: Partial<PostListQuery>) {
 function pageLink(page: number) {
     return listLink({ page });
 }
+
+/** 글 링크에 싣는 목록 문맥(post-detail-board-list-contract) — 상세 아래 목록·[목록으로]가 같은 쪽·거르기를 잇는다. 핫딜은 핫딜 조건 */
+const rowLinkQuery = computed(() => (isDeal.value ? UtilHotdeal.buildQuery(dealQuery.value) : UtilBoardQuery.build(query.value)));
 
 /* ── 검색 ── */
 const searchText = ref('');

@@ -108,6 +108,11 @@ public final class BoardFields {
     public static final String PREFIX_STYLE_MUTED = "MUTED";
     public static final String PREFIX_STYLE_COLOR = "COLOR";
     public static final List<String> PREFIX_STYLES = List.of(PREFIX_STYLE_TEXT, PREFIX_STYLE_MUTED, PREFIX_STYLE_COLOR);
+    /** 글 상세 아래 게시판 목록(V224 — post-detail-board-list-contract, 게시판마다의 값·사이트 기본 없음) — 끔 · 목록 모양(기본) · 휴대폰 촘촘한 한 줄 */
+    public static final String DETAIL_LIST_OFF = "OFF";
+    public static final String DETAIL_LIST_LIST = "LIST";
+    public static final String DETAIL_LIST_COMPACT = "COMPACT";
+    public static final List<String> DETAIL_LISTS = List.of(DETAIL_LIST_OFF, DETAIL_LIST_LIST, DETAIL_LIST_COMPACT);
     /** 비회원 댓글 공개 지연 안내 문구 방식(V199 — board-public-contract 결정 2) — 남은 시간(기본) · 로그인 안내. 사이트 전체 값 하나 */
     public static final String DELAY_NOTICE_TIME = "TIME";
     public static final String DELAY_NOTICE_LOGIN = "LOGIN";

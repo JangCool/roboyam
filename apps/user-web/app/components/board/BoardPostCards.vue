@@ -1,16 +1,16 @@
 <template>
     <!-- 카드형(CARD) — 썸네일 + 제목 + 작성자·날짜·추천·댓글. 모바일 1열 · 데스크톱 2열. 고정 공지는 위에 한 줄씩 -->
     <div>
-        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
+        <BoardPinnedList :rows="pinned" :global="globalPinned" :date-display="dateDisplay" :new-post-hours="newPostHours" :link-query="linkQuery" :active-id="activeId" />
         <ul class="m-0 mt-3 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
             <template v-for="(row, i) in rows" :key="row.id">
-            <li class="overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900">
+            <li class="overflow-hidden rounded-lg border" :class="row.id === activeId ? 'post-row-current border-primary' : 'border-surface bg-surface-0 dark:bg-surface-900'">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-6 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked)" kind="post" class="px-4 py-6 text-sm" hide-class="px-3 pb-2">
                     <!-- 칩·추천·날짜 자리는 칩 위치(`chipPosition`)를 따른다 — 「제목 위」면 윗줄이 카드 폭 전체(썸네일보다 위). 카드는 원래 조회 수를 보이지 않는다 -->
-                    <NuxtLink :to="`/posts/${row.id}`" class="block p-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+                    <NuxtLink :to="UtilPost.link(row.id, linkQuery)" :aria-current="row.id === activeId ? 'page' : undefined" class="block p-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                         <PostRowFrame :row="row" :position="chipPosition" :views="false" row-class="gap-3" body-class="flex flex-col">
                             <template #start>
                                 <div class="aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
@@ -48,11 +48,12 @@
 
 <script setup lang="ts">
 import UtilAd from '~/utils/util-ad';
+import UtilPost from '~/utils/util-post';
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE' });
+const props = withDefaults(defineProps<Props>(), { feedAd: null, chipPosition: 'ABOVE', linkQuery: null, activeId: null });
 
 const { t } = useI18n();
 /** 차단한 회원·단어의 글은 접힌 칸 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 것을 겹친다 */

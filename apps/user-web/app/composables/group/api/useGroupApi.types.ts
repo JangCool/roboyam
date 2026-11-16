@@ -564,6 +564,11 @@ export interface GroupPostListQuery {
     prefix?: string;
     /** 처리 상태 거르기(소모임 게시판 `statusEnabled` 일 때만 — 일반 게시판 목록 `status` 와 같다) */
     status?: PostProcessStatus;
+    /**
+     * 이 글이 들어 있는 쪽(쪽 방식 — post-detail-board-list-contract, 글 상세 아래 목록). `page` 없이 보낸다(서버는 `page` 가 없을 때만 쓴다).
+     * `around` 만 있어도 쪽 방식으로 답한다(응답 `page` 가 계산된 쪽)
+     */
+    around?: string;
 }
 
 /**

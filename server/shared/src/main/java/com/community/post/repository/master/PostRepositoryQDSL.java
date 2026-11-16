@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -180,6 +181,35 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
      */
     public Page page(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean oldest, boolean excludePinned, boolean adultViewer,
                      long offset, int limit, Instant now) {
+        BooleanExpression where = pageWhere(boardId, prefixId, status, tagKey, q, excludePinned, adultViewer, now);
+        Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
+        if (total == null || total == 0 || offset >= total) {
+            return new Page(List.of(), total == null ? 0 : total);
+        }
+        List<PostRowData> items = query.select(row()).from(POST).where(where)
+                .orderBy(oldest ? POST.id.asc() : POST.id.desc())
+                .offset(offset).limit(limit)
+                .fetch();
+        return new Page(items, total);
+    }
+
+    /**
+     * 그 글이 들어 있는 쪽을 찾을 때({@code ?around=} — post-detail-board-list-contract) — {@link #page} 와 같은 거르기·제외 조건의 목록에 그 글이 나오면
+     * 그 글보다 앞에 오는 글 수(최신순이면 id 가 더 큰 글, 오래된순이면 더 작은 글), 나오지 않으면 빈 값(다른 게시판·삭제·거르기 밖·고정 공지로 따로 나옴 등).
+     */
+    public OptionalLong before(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean oldest, boolean excludePinned,
+                               boolean adultViewer, long postId, Instant now) {
+        BooleanExpression where = pageWhere(boardId, prefixId, status, tagKey, q, excludePinned, adultViewer, now);
+        if (query.selectOne().from(POST).where(where, POST.id.eq(postId)).fetchFirst() == null) {
+            return OptionalLong.empty();
+        }
+        Long count = query.select(POST.id.count()).from(POST).where(where, oldest ? POST.id.lt(postId) : POST.id.gt(postId)).fetchOne();
+        return OptionalLong.of(count == null ? 0 : count);
+    }
+
+    /** 글 목록 조건 — {@link #page} · {@link #before} 가 같이 쓴다 */
+    private static BooleanExpression pageWhere(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean excludePinned,
+                                               boolean adultViewer, Instant now) {
         BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now)).and(adultVisible(POST, adultViewer));
         if (prefixId != null) {
             where = where.and(POST.prefixId.eq(prefixId));
@@ -196,15 +226,7 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
         if (q != null) {
             where = where.and(search(q, now));
         }
-        Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
-        if (total == null || total == 0 || offset >= total) {
-            return new Page(List.of(), total == null ? 0 : total);
-        }
-        List<PostRowData> items = query.select(row()).from(POST).where(where)
-                .orderBy(oldest ? POST.id.asc() : POST.id.desc())
-                .offset(offset).limit(limit)
-                .fetch();
-        return new Page(items, total);
+        return where;
     }
 
     /** 게시판 안 검색 — 숨긴 글은 빼고 제목·본문(평문 칸)·비회원 이름·회원 닉네임(대소문자 무시). 소모임 글 목록도 같은 검색을 쓴다({@code GroupPostQueries#page}) */
@@ -236,30 +258,8 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
     public Page dealPage(long boardId, Long prefixId, String tagKey, String q, DealSort sort, boolean hideEnded, String store, boolean excludePinned,
                          int autoExpireDays, long offset, int limit, Instant now) {
         QPostDealEntity deal = QPostDealEntity.postDealEntity;
-        BooleanExpression expired = deal.endsAt.isNotNull().and(deal.endsAt.loe(now));
-        if (autoExpireDays > 0) {
-            expired = expired.or(deal.endsAt.isNull().and(deal.createdAt.loe(now.minus(java.time.Duration.ofDays(autoExpireDays)))));
-        }
-        BooleanExpression ended = deal.postId.isNull().or(deal.status.eq(PostDealEntity.ENDED)).or(expired);
-        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now));
-        if (prefixId != null) {
-            where = where.and(POST.prefixId.eq(prefixId));
-        }
-        if (excludePinned) {
-            where = where.and(POST.pinnedAt.isNull());
-        }
-        if (q != null) {
-            where = where.and(search(q, now));
-        }
-        if (hideEnded) {
-            where = where.and(ended.not());
-        }
-        if (tagKey != null) {
-            where = where.and(PostTagQueries.hasTag(POST, tagKey));
-        }
-        if (store != null) {
-            where = where.and(deal.storeName.eq(store));
-        }
+        BooleanExpression ended = dealEnded(deal, autoExpireDays, now);
+        BooleanExpression where = dealWhere(deal, ended, boardId, prefixId, tagKey, q, hideEnded, store, excludePinned, now);
         Long total = query.select(POST.id.count()).from(POST).leftJoin(deal).on(deal.postId.eq(POST.id)).where(where).fetchOne();
         if (total == null || total == 0 || offset >= total) {
             return new Page(List.of(), total == null ? 0 : total);
@@ -284,6 +284,71 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
                 .offset(offset).limit(limit)
                 .fetch();
         return new Page(items, total);
+    }
+
+    /**
+     * 핫딜 최신순({@link DealSort#LATEST}) 목록에서 그 글보다 앞에 오는 글 수({@code ?around=} — post-detail-board-list-contract). 차례는 {@link #dealPage} 와 같다
+     * (진행 중 → 의심 → 끝남, 그 안에서 id 내림차순). 그 글이 이 목록에 나오지 않으면 빈 값. 인기·마감 임박 정렬은 부르는 쪽이 쓰지 않는다(1쪽).
+     */
+    public OptionalLong dealLatestBefore(long boardId, Long prefixId, String tagKey, String q, boolean hideEnded, String store, boolean excludePinned,
+                                         int autoExpireDays, long postId, Instant now) {
+        QPostDealEntity deal = QPostDealEntity.postDealEntity;
+        BooleanExpression ended = dealEnded(deal, autoExpireDays, now);
+        BooleanExpression where = dealWhere(deal, ended, boardId, prefixId, tagKey, q, hideEnded, store, excludePinned, now);
+        BooleanExpression flagged = ended.not().and(deal.flaggedAt.isNotNull());
+        BooleanExpression active = ended.not().and(deal.flaggedAt.isNull());
+        if (dealRow(deal, where.and(POST.id.eq(postId))) == null) {
+            return OptionalLong.empty();
+        }
+        BooleanExpression later = POST.id.gt(postId);
+        BooleanExpression ahead;
+        if (dealRow(deal, where.and(POST.id.eq(postId)).and(ended)) != null) {
+            ahead = ended.not().or(ended.and(later));
+        } else if (dealRow(deal, where.and(POST.id.eq(postId)).and(flagged)) != null) {
+            ahead = active.or(flagged.and(later));
+        } else {
+            ahead = active.and(later);
+        }
+        Long count = query.select(POST.id.count()).from(POST).leftJoin(deal).on(deal.postId.eq(POST.id)).where(where, ahead).fetchOne();
+        return OptionalLong.of(count == null ? 0 : count);
+    }
+
+    private Integer dealRow(QPostDealEntity deal, BooleanExpression where) {
+        return query.selectOne().from(POST).leftJoin(deal).on(deal.postId.eq(POST.id)).where(where).fetchFirst();
+    }
+
+    /** 끝난 딜 — 종료 · 마감 지남 · 기간 종료(등록 + 설정 일수) · 딜 줄이 없는 옛 글. {@code DealViews#view} 와 같다 */
+    private static BooleanExpression dealEnded(QPostDealEntity deal, int autoExpireDays, Instant now) {
+        BooleanExpression expired = deal.endsAt.isNotNull().and(deal.endsAt.loe(now));
+        if (autoExpireDays > 0) {
+            expired = expired.or(deal.endsAt.isNull().and(deal.createdAt.loe(now.minus(java.time.Duration.ofDays(autoExpireDays)))));
+        }
+        return deal.postId.isNull().or(deal.status.eq(PostDealEntity.ENDED)).or(expired);
+    }
+
+    /** 핫딜 목록 조건 — {@link #dealPage} · {@link #dealLatestBefore} 가 같이 쓴다(딜 표는 왼쪽 조인) */
+    private static BooleanExpression dealWhere(QPostDealEntity deal, BooleanExpression ended, long boardId, Long prefixId, String tagKey, String q,
+                                               boolean hideEnded, String store, boolean excludePinned, Instant now) {
+        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now));
+        if (prefixId != null) {
+            where = where.and(POST.prefixId.eq(prefixId));
+        }
+        if (excludePinned) {
+            where = where.and(POST.pinnedAt.isNull());
+        }
+        if (q != null) {
+            where = where.and(search(q, now));
+        }
+        if (hideEnded) {
+            where = where.and(ended.not());
+        }
+        if (tagKey != null) {
+            where = where.and(PostTagQueries.hasTag(POST, tagKey));
+        }
+        if (store != null) {
+            where = where.and(deal.storeName.eq(store));
+        }
+        return where;
     }
 
     /** 바로 앞(더 오래된) 글 — 같은 게시판, 보이고 숨기지 않은 글(성인이 아니면 19금 글을 건너뛴다) */
