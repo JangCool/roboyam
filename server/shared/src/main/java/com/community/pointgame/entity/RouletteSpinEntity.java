@@ -6,7 +6,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 룰렛 한 번 — {@code point_game_roulette_spins}(V234, docs/features/point-games-contract.md). 돌리기 트랜잭션이 적립 포인트 차감({@code ROULETTE_SPIN})·추첨·당첨 지급
+ * 룰렛 한 번 — {@code point_game_roulette_spins}(V235, docs/features/point-games-contract.md). 돌리기 트랜잭션이 적립 포인트 차감({@code ROULETTE_SPIN})·추첨·당첨 지급
  * ({@code ROULETTE_WIN}) 뒤에 넣고 고치지 않는다. 원장 두 줄의 대상이 이 ID 다. 하루 횟수(한국 시간)는 회원 잔액 행 잠금 아래에서 이 표를 센다.
  */
 @Entity

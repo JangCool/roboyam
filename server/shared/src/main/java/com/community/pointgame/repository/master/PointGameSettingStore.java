@@ -12,7 +12,7 @@ import java.time.Instant;
 import org.springframework.stereotype.Repository;
 
 /**
- * 포인트 게임 설정 행({@code point_game_settings}, V234) 읽기·잠그기·고치기 — {@code PointGameSettingsService} 만 부른다. 트랜잭션은 부르는 서비스가 연다.
+ * 포인트 게임 설정 행({@code point_game_settings}, V235) 읽기·잠그기·고치기 — {@code PointGameSettingsService} 만 부른다. 트랜잭션은 부르는 서비스가 연다.
  */
 @Repository
 public class PointGameSettingStore extends IrobitRepositoryQDSL {

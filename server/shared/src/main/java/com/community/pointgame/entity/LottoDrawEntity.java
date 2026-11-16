@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * 뽑은 로또 번호 한 세트 — {@code point_game_lotto_draws}(V234, point-games-contract 「내 번호」). 작은 수부터 6개({@code n1 < … < n6}, 1~45 — DB CHECK).
+ * 뽑은 로또 번호 한 세트 — {@code point_game_lotto_draws}(V235, point-games-contract 「내 번호」). 작은 수부터 6개({@code n1 < … < n6}, 1~45 — DB CHECK).
  * 한 번에 뽑은 세트들은 같은 {@code batchId}(적립 포인트 사용 원장 줄 {@code LOTTO_DRAW} 의 대상)를 갖는다. 고치지 않고, 회원이 지우면 행을 지운다(쓴 포인트는 돌려주지 않는다).
  */
 @Entity

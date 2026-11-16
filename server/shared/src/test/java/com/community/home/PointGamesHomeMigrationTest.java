@@ -16,7 +16,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * shared V234 의 아이로빗 홈 손질(point-games-contract 「홈 가젯」) — 이미 설치된 DB 의 저장된 배치에서 오른쪽 「광고」(SQUARE_BANNER) 바로 아래에 「포인트 게임」 가젯을 넣고,
+ * shared V235 의 아이로빗 홈 손질(point-games-contract 「홈 가젯」) — 이미 설치된 DB 의 저장된 배치에서 오른쪽 「광고」(SQUARE_BANNER) 바로 아래에 「포인트 게임」 가젯을 넣고,
  * 그 아래 같은 열 가젯을 내리며(위로 당겨 정리 — 겹침 없음), 저장된 모바일 순서에서는 광고 바로 뒤에 둔다. 두 번 돌려도 하나만. 시험 DB 를 같이 쓰므로 한 트랜잭션에서 하고 되돌린다.
  */
 class PointGamesHomeMigrationTest {
@@ -95,7 +95,7 @@ class PointGamesHomeMigrationTest {
     }
 
     private static String doBlock() throws Exception {
-        try (InputStream in = PointGamesHomeMigrationTest.class.getResourceAsStream("/db/migration/shared/V234__point_games.sql")) {
+        try (InputStream in = PointGamesHomeMigrationTest.class.getResourceAsStream("/db/migration/shared/V235__point_games.sql")) {
             String sql = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             return sql.substring(sql.indexOf("DO $v234$"));
         }

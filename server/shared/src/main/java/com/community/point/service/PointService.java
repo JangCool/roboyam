@@ -91,9 +91,9 @@ public class PointService {
     public static final String REF_REWARD_EVENT_RESULT = "REWARD_EVENT_RESULT";
     /** 보상 이벤트 한 줄의 최대 포인트(event-admin-contract 「보상 줄」) */
     public static final int EVENT_REWARD_MAX = 100_000;
-    /** 포인트 게임 룰렛 돌리기·당첨의 대상 — 그 돌린 기록({@code point_game_roulette_spins.id}, V234 — 원장 유일로 기록마다 한 번) */
+    /** 포인트 게임 룰렛 돌리기·당첨의 대상 — 그 돌린 기록({@code point_game_roulette_spins.id}, V235 — 원장 유일로 기록마다 한 번) */
     public static final String REF_ROULETTE_SPIN = "ROULETTE_SPIN";
-    /** 포인트 게임 로또 번호 뽑기의 대상 — 한 번에 뽑은 묶음({@code point_game_lotto_draws.batch_id}, V234) */
+    /** 포인트 게임 로또 번호 뽑기의 대상 — 한 번에 뽑은 묶음({@code point_game_lotto_draws.batch_id}, V235) */
     public static final String REF_LOTTO_DRAW = "LOTTO_DRAW";
 
     /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */

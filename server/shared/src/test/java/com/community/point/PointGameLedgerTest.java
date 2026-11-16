@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 
 /**
- * 포인트 게임의 포인트 규칙(docs/features/point-games-contract.md 「쓰는 포인트」·「룰렛 당첨」, V234) — {@link PointService#useFree}·{@link PointService#gameReward} 를
+ * 포인트 게임의 포인트 규칙(docs/features/point-games-contract.md 「쓰는 포인트」·「룰렛 당첨」, V235) — {@link PointService#useFree}·{@link PointService#gameReward} 를
  * 실제 PostgreSQL 위에서 본다(커머스 18절 — 규칙마다 시험).
  *
  * <ul>

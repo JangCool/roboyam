@@ -162,7 +162,7 @@ public final class HomeLayoutDefaults {
         b.add(GadgetKinds.HOT_DEALS, "핫딜", true, false, plain("pi-ticket"),
                 cfg().<ObjectNode>set("boards", HomeLayoutJson.array()).put("sort", GadgetKinds.HOT_DEALS_SORT_DEFAULT).put("count", 5).put("thumbnails", true), null, null, 0, 23, 9, 8);
         String ad = b.add(GadgetKinds.AD, "광고", true, true, adIcon(), cfg().put("adType", "SQUARE_BANNER"), null, null, 18, 12, 6, 8);
-        // 포인트 게임(룰렛·로또 번호 뽑기 입구 — point-games-contract) — 오른쪽 광고 바로 아래(이미 설치된 곳은 shared V234)
+        // 포인트 게임(룰렛·로또 번호 뽑기 입구 — point-games-contract) — 오른쪽 광고 바로 아래(이미 설치된 곳은 shared V235)
         String games = b.add(GadgetKinds.POINT_GAMES, "포인트 게임", true, true, plain("pi-gift"), cfg(), null, null, 18, 20, 6, 6);
         String groups = b.add("GROUPS", "인기 소모임", true, true, tabler("pi-users", GadgetTablerIcons.USERS_GROUP), cfg().put("count", 3), null, "/groups", 18, 26, 6, 7);
         String tips = b.add("BOARD_CARDS", "팁과강좌", true, true, plain("pi-lightbulb"), boardCard("tip"), null, "/boards/tip", 0, 34, 9, 8);

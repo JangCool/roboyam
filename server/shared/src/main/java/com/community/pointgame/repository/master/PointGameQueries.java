@@ -12,7 +12,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 /**
- * 포인트 게임 읽기·지우기(V234) — 룰렛 하루 횟수, 내 번호 목록·개수·지우기, 적립 잔액. 트랜잭션은 부르는 서비스가 연다.
+ * 포인트 게임 읽기·지우기(V235) — 룰렛 하루 횟수, 내 번호 목록·개수·지우기, 적립 잔액. 트랜잭션은 부르는 서비스가 연다.
  * 횟수·보관 개수는 회원 잔액 행 잠금({@code PointService#useFree} 의 {@code underLock}) 아래에서 세므로 같은 회원의 동시 요청이 한도를 넘지 못한다.
  */
 @Repository

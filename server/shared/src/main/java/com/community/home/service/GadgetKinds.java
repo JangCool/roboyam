@@ -60,7 +60,7 @@ public final class GadgetKinds {
     /**
      * 포인트 게임 가젯(point-games-contract 「홈 가젯」 — 룰렛·로또 번호 뽑기 두 입구). 내용 설정({@code config})이 없고 공개 응답의 {@code data} 는 null 이다 —
      * 오늘 남은 룰렛 횟수는 회원마다 달라 가젯 데이터(공용 캐시·첫 화면 싣기)에 넣지 않고 화면이 로그인한 회원만 {@code GET /api/me/point-games/roulette} 로 받는다.
-     * 최소 크기 12칸 기준 3×5(admin-web {@code UtilGadgetLayoutEditor.KINDS} 에 같은 값을 더한다). 아이로빗 홈 기본 배치는 오른쪽 「광고」 바로 아래(이미 설치된 곳은 shared V234).
+     * 최소 크기 12칸 기준 3×5(admin-web {@code UtilGadgetLayoutEditor.KINDS} 에 같은 값을 더한다). 아이로빗 홈 기본 배치는 오른쪽 「광고」 바로 아래(이미 설치된 곳은 shared V235).
      */
     public static final String POINT_GAMES = "POINT_GAMES";
 
