@@ -70,6 +70,28 @@ public class PublicSiteController {
                 .body(ApiResponse.success(snapshot.response()));
     }
 
+    /**
+     * SVG 로고 한 칸(V237, 2026-11-16) — 사이트 정보의 {@code logos} 가 SVG 칸에 주는 주소. 본문은 저장할 때 위험 요소를 거절한 SVG 지만,
+     * 주소를 직접 열어도 스크립트·외부 자원이 돌지 않게 CSP·nosniff 를 붙인다. 지문({@code v})이 지금 본문과 같으면 1년 캐시, 아니면 매번 확인.
+     */
+    @GetMapping("/logos/{variant}.svg")
+    public ResponseEntity<String> logoSvg(@org.springframework.web.bind.annotation.PathVariable String variant,
+                                          @org.springframework.web.bind.annotation.RequestParam(name = "v", required = false) String version) {
+        return siteService.logoSvg(variant).map(svg -> {
+            String fingerprint = com.community.site.service.SiteAssets.svgFingerprint(svg);
+            CacheControl cache = fingerprint.equals(version)
+                    ? CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic().immutable()
+                    : CacheControl.noCache();
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.valueOf("image/svg+xml;charset=UTF-8"))
+                    .cacheControl(cache)
+                    .eTag(fingerprint)
+                    .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(svg);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     /** 사이트 소개(V203 — 공개 푸터 「사이트 소개」 페이지) — {@code /info} 와 같은 사본·같은 캐시 규칙. 없으면 {@code html: null}({@code info.about} 이 false) */
     @GetMapping("/about")
     public ResponseEntity<ApiResponse<SiteAboutPublicResponse>> about() {

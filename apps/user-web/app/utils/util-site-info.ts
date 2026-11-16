@@ -8,6 +8,7 @@ import UtilGradeSprite from '~/utils/util-grade-sprite';
 import UtilBoard from '~/utils/util-board';
 import UtilColor from '~/utils/util-color';
 import UtilSiteName from '~/utils/util-site-name';
+import UtilSiteLogo, { type SiteLogoSet } from '~/utils/util-site-logo';
 
 /**
  * 공개 사이트 정보(`GET /api/site/info`)의 순수 규칙 — 서버 응답에서 쓸 수 있는 칸만 걸러 낸다. 상태도 요청도 없다
@@ -81,6 +82,22 @@ export default class UtilSiteInfo {
     }
 
     /**
+     * 로고 4칸(`logos`)을 읽는다 — 칸마다 `cleanLogoUrl` 로 거르고, 쓸 수 없는 칸은 null. 서버 값 그대로이고 빈 칸을 기본 그림으로 채우지 않는다(대체 순서는 `UtilSiteLogo.resolve`).
+     * @param {unknown} raw - 응답의 `logos`.
+     * @param {unknown} legacyLogoUrl - 응답의 `logoUrl` — `logos` 칸이 없는 옛 서버면 이것을 ① 칸으로 본다.
+     * @returns {SiteLogoSet} 4칸 값.
+     */
+    static cleanLogos(raw: unknown, legacyLogoUrl: unknown): SiteLogoSet {
+        if (!isObject(raw)) return { ...UtilSiteLogo.EMPTY, koLight: UtilSiteInfo.cleanLogoUrl(legacyLogoUrl) };
+        return {
+            koLight: UtilSiteInfo.cleanLogoUrl(raw.koLight),
+            koDark: UtilSiteInfo.cleanLogoUrl(raw.koDark),
+            enLight: UtilSiteInfo.cleanLogoUrl(raw.enLight),
+            enDark: UtilSiteInfo.cleanLogoUrl(raw.enDark),
+        };
+    }
+
+    /**
      * 아이콘 주소 묶음을 읽는다 — 여섯 주소가 모두 쓸 수 있어야 한다(하나라도 깨졌으면 올린 아이콘이 없는 것으로 본다).
      * @param {unknown} raw - 응답의 `icon`.
      * @returns {SiteIconResponse | null} 아이콘. 없거나 깨졌으면 null.
@@ -108,6 +125,9 @@ export default class UtilSiteInfo {
             siteName: UtilSiteName.clean(raw.siteName),
             tagline: UtilSiteInfo.cleanTagline(raw.tagline),
             logoUrl: UtilSiteInfo.cleanLogoUrl(raw.logoUrl),
+            logos: UtilSiteInfo.cleanLogos(raw.logos, raw.logoUrl),
+            // 「이름 포함」 — `true` 만 켬(칸이 없는 옛 서버·다른 값은 이름 글자를 보인다)
+            logoNameIncluded: raw.logoNameIncluded === true,
             icon: UtilSiteInfo.cleanIcon(raw.icon),
             // 서버 값(`H24`·`YMD_DASH` 등)은 공유 레이어의 표시 값과 같은 이름이라 변환 없이 검사만 한다
             displayDefaults: UtilDisplayValues.sanitize(raw.displayDefaults),

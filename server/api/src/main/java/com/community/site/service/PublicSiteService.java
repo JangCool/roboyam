@@ -10,6 +10,7 @@ import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.SiteFooterNotice;
+import com.community.site.dto.SiteLogoUrls;
 import com.community.site.dto.SiteOperatorValues;
 import com.community.site.dto.SiteThemeMenu;
 import com.community.site.dto.response.BoardDisplayView;
@@ -90,6 +91,16 @@ public class PublicSiteService implements CacheReloader {
         return CacheNames.SITE_INFO;
     }
 
+    /**
+     * SVG 로고 한 칸의 본문 — 공개 주소 {@code /api/site/logos/{칸}.svg}. 칸 이름을 모르거나 그 칸이 SVG 가 아니면 비어 있다.
+     * 주소에 지문({@code v})이 붙어 브라우저가 오래 캐시하므로 요청이 드물어 사본 없이 설정 행을 읽는다.
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Optional<String> logoSvg(String variantKey) {
+        return com.community.site.entity.SiteLogoVariant.fromKey(variantKey)
+                .flatMap(variant -> settings.findById(SiteSettingEntity.ROW_ID).map(row -> row.logoSvg(variant)));
+    }
+
     /** TTL 이 지난 뒤의 다시 읽기({@link CacheReloader}) — 처음 담는 로더와 같은 값. 실패하면 캐시가 이전 값을 쓴다 */
     @Override
     public Object reload(Object key) {
@@ -101,7 +112,11 @@ public class PublicSiteService implements CacheReloader {
         String publicUrl = found.map(SiteSettingEntity::getPublicUrl).orElse(null);
         String siteName = found.map(SiteSettingEntity::getSiteName).orElse(null);
         String tagline = found.map(SiteSettingEntity::getTagline).orElse(null);
-        String logoUrl = found.flatMap(assets::logoUrl).orElse(null);
+        // 로고 4칸(V237) — 원본 칸만, 대체 순서는 화면 규칙. 옛 logoUrl 은 ① 칸 그대로
+        // SVG 칸은 data URI 대신 공개 주소(/api/site/logos/{칸}.svg?v=지문) — 첫 화면 HTML 에 SVG 본문을 싣지 않는다(2026-11-16)
+        SiteLogoUrls logos = found.map(assets::publicLogoUrls).orElse(SiteLogoUrls.EMPTY);
+        String logoUrl = logos.koLight();
+        boolean logoNameIncluded = found.map(SiteSettingEntity::isLogoNameIncluded).orElse(false);
         Optional<SiteIconResponse> icon = found.flatMap(assets::iconUrls).map(urls ->
                 new SiteIconResponse(urls.version(), urls.favicon32(), urls.favicon48(), urls.appleTouch180(), urls.icon192(), urls.icon512()));
         Optional<String> customOg = found.flatMap(assets::ogUrl);
@@ -134,7 +149,7 @@ public class PublicSiteService implements CacheReloader {
                 // 등급 목록(V196) — 이 사본(20초)과 지문(ETag)에 함께 든다. 등급 저장 뒤 길어야 사본 시간만큼 늦게 보인다
                 grades == null ? List.of() : grades.findAllOrdered().stream()
                         .map(g -> new SiteGradeView(g.getGradeKey(), g.getLabel(), g.getLevel(), g.getSprite())).toList(),
-                aboutHtml != null);
+                aboutHtml != null, logos, logoNameIncluded);
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme)));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
