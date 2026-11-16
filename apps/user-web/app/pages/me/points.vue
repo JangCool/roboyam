@@ -36,6 +36,9 @@
                         </div>
                     </div>
 
+                    <!-- 포인트 동결(기능 제한) — 동결 중에는 출석·글 적립이 건너뛰어지고 상점·게임에 쓸 수 없다. 미리 알린다(공개 QA P-5) -->
+                    <FeatureRestrictionNotice v-if="freeze" :restriction="freeze" class="mt-3" />
+
                     <h3 class="mt-4 text-xs font-semibold text-muted-color">{{ t('point.todayTitle') }}</h3>
                     <ul class="m-0 mt-2 flex list-none flex-col gap-3 p-0" data-testid="points-today">
                         <!-- 오늘 총 적립(커머스 1-3) — 하루 총 한도가 있을 때만(cap 0 = 한도 없음이면 그리지 않는다). 단위는 횟수가 아니라 포인트 -->
@@ -66,7 +69,9 @@
                                     <span class="relative top-[-0.09em]">{{ t('point.attendDone') }}</span>
                                 </span>
                             </span>
-                            <span v-if="summary.today.attended" class="tabular-nums text-muted-color">{{ summary.rules.attendance > 0 ? `+${UtilPoint.points(summary.rules.attendance)}` : t('point.ruleOff') }}</span>
+                            <span v-if="summary.today.attended" class="tabular-nums text-muted-color" data-testid="points-today-attend-reward">
+                                {{ freeze ? t('point.frozenNoReward') : summary.rules.attendance > 0 ? `+${UtilPoint.points(summary.rules.attendance)}` : t('point.ruleOff') }}
+                            </span>
                             <Button
                                 v-else
                                 type="button"
@@ -363,8 +368,10 @@ function holidayOf(day: number): HolidayMark {
 
 /** 정지 중·이메일 인증 전 — 화면이 미리 아는 까닭. 서버가 막았다고 하면(`403`) 그 까닭이 먼저 */
 const attendBlocked = computed(() => attendServerBlocked.value ?? UtilPoint.blockedReason({ emailVerified: emailVerified.value, restriction: restriction.value }));
-/** 「오늘 출석하기 +10P」 — 받는 포인트는 서버 설정값 */
-const attendLabel = computed(() => UtilPointMessages.attendLabel(t, summary.value?.rules.attendance));
+/** 포인트 동결 — 요약 응답의 `restriction`(없으면 null) */
+const freeze = computed(() => UtilPoint.freeze(summary.value));
+/** 「오늘 출석하기 +10P」 — 받는 포인트는 서버 설정값. 동결 중에는 적립이 없으니 「오늘 출석하기」만 */
+const attendLabel = computed(() => UtilPointMessages.attendLabel(t, freeze.value ? null : summary.value?.rules.attendance));
 const weekdays = computed(() => UtilPointMessages.weekdays(t));
 /** 다음 연속 출석 보너스까지 — 보너스가 꺼졌거나 연속 일수를 아직 모르면 없다 */
 const streakNextLine = computed(() =>

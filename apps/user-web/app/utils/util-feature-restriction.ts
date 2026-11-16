@@ -32,12 +32,22 @@ export default class UtilFeatureRestriction {
      */
     static fromError(e: unknown): FeatureRestriction | null {
         if (!(e instanceof ApiError) || e.code !== UtilFeatureRestriction.ERROR_CODE) return null;
-        const raw = e.extras?.restriction as Partial<FeatureRestriction> | undefined;
-        if (!raw || !TYPES.includes(raw.type as FeatureRestrictionType)) return null;
+        return UtilFeatureRestriction.normalize(e.extras?.restriction);
+    }
+
+    /**
+     * 서버가 준 제한 모양(`{ type, until, reason }` — 오류 본문·포인트 요약 `restriction`)을 읽는다.
+     * @param {unknown} raw - 받은 값.
+     * @returns {FeatureRestriction | null} 제한. 없거나 모양이 틀리면 null.
+     */
+    static normalize(raw: unknown): FeatureRestriction | null {
+        if (typeof raw !== 'object' || raw === null) return null;
+        const r = raw as Partial<FeatureRestriction>;
+        if (!TYPES.includes(r.type as FeatureRestrictionType)) return null;
         return {
-            type: raw.type as FeatureRestrictionType,
-            until: typeof raw.until === 'string' ? raw.until : null,
-            reason: typeof raw.reason === 'string' ? raw.reason : '',
+            type: r.type as FeatureRestrictionType,
+            until: typeof r.until === 'string' ? r.until : null,
+            reason: typeof r.reason === 'string' ? r.reason : '',
         };
     }
 

@@ -31,6 +31,9 @@
                 <p class="m-0 w-full text-xs text-muted-color">{{ t('pointGame.freeOnly') }}</p>
             </section>
 
+            <!-- 포인트 동결(기능 제한) — 포인트를 쓸 수 없어 돌리기를 끈다(서버도 403 MEMBER_RESTRICTED — 공개 QA P-5) -->
+            <FeatureRestrictionNotice v-if="freeze" :restriction="freeze" />
+
             <!-- 판 — 칸 크기 = 실제 확률. 결과는 서버가 정하고 판은 그 칸에 멈출 뿐이다. 그림은 보조라 읽는 것은 아래 확률표다 -->
             <section class="flex flex-col items-center gap-4" :aria-labelledby="`${uid}-wheel`">
                 <h2 :id="`${uid}-wheel`" class="sr-only">{{ t('pointGame.wheelLabel') }}</h2>
@@ -156,7 +159,14 @@ const loadError = ref('');
 
 const slices = computed(() => (data.value ? UtilPointGame.slices(data.value.prizes) : []));
 const remaining = computed(() => (data.value ? Math.max(0, data.value.dailyLimit - data.value.usedToday) : 0));
-const canSpin = computed(() => Boolean(data.value) && !spinning.value && remaining.value > 0 && (data.value?.freeBalance ?? 0) >= (data.value?.cost ?? Infinity));
+/** 포인트 동결 — 포인트 요약의 `restriction`(요약이 없으면 받아 온다) */
+const freeze = computed(() => UtilPoint.freeze(points.summary.value));
+onMounted(() => {
+    if (!points.summary.value) void points.load();
+});
+const canSpin = computed(
+    () => Boolean(data.value) && !freeze.value && !spinning.value && remaining.value > 0 && (data.value?.freeBalance ?? 0) >= (data.value?.cost ?? Infinity),
+);
 const expectedRatio = computed(() => (data.value ? UtilPointGame.expectedReturn(data.value.prizes, data.value.cost) : 0));
 const expectedPercent = computed(() => Math.round(expectedRatio.value * 100));
 const expectedPoints = computed(() => (data.value ? UtilPoint.number(Math.round(expectedRatio.value * data.value.cost * 10) / 10) : '0'));

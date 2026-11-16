@@ -460,7 +460,14 @@ export interface GroupCreateRequest {
 }
 
 /** 개설 규칙으로 못 내는 까닭 */
-export type GroupCreationBlockedReason = 'NOT_PERMITTED' | 'GRADE_TOO_LOW' | 'LIMIT_REACHED' | 'DISSOLVE_PENALTY';
+export type GroupCreationBlockedReason =
+    | 'EMAIL_NOT_VERIFIED'
+    | 'ACCOUNT_RESTRICTED'
+    | 'BUSINESS_ACCOUNT_RESTRICTED'
+    | 'NOT_PERMITTED'
+    | 'GRADE_TOO_LOW'
+    | 'LIMIT_REACHED'
+    | 'DISSOLVE_PENALTY';
 
 /** 개설 방식 — 승인제 · 자유 개설 */
 export type GroupCreationMode = 'APPROVAL' | 'OPEN';
@@ -476,8 +483,8 @@ export interface GroupCreationRules {
     /** 공개 범위를 고를 수 있나(공개 범위 기능) — true 일 때만 만들기 화면에 라디오가 있다 */
     visibilityChoice?: boolean;
     /**
-     * 로그인했을 때만 — 개설 규칙만 본다(이메일 인증·정지는 신청할 때 403).
-     * `reason`: 서버 `creationBlocked` 차례로 `NOT_PERMITTED`(회원 역할에 `group.create` 권한 없음 — 아이로빗 추가) → `GRADE_TOO_LOW` → `LIMIT_REACHED`
+     * 로그인했을 때만 — 개설 신청과 같은 차례로 본다.
+     * `reason`: 서버 `creationBlocked` 차례로 쓰기 자격 `EMAIL_NOT_VERIFIED` → `ACCOUNT_RESTRICTED`(정지·탈퇴 진행) → `BUSINESS_ACCOUNT_RESTRICTED`(홍보 전용) → `NOT_PERMITTED`(회원 역할에 `group.create` 권한 없음 — 아이로빗 추가) → `GRADE_TOO_LOW` → `LIMIT_REACHED`
      *   → `DISSOLVE_PENALTY`(스스로 해산한 소모임의 패널티 기간 — `penaltyUntil` 까지)
      */
     me: {

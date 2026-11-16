@@ -20,7 +20,7 @@
 - **함께 쓴다.** 기본은 `DAUM`(다음만). `INTERNAL` 은 다음을 부르지 않는다. `DAUM_FALLBACK_INTERNAL` 은 다음 스크립트를 8초 안에 못 불러오면 자체 DB 검색 칸으로 바꾼다
   (다음 화면이 뜬 뒤의 결과 품질로는 바꾸지 않는다). `DAUM` 에서 스크립트를 못 불러오면 직접 입력을 연다.
 - 자체 DB 를 쓰는 제공처인데 DB 가 비었으면 관리자 화면은 경고만 하고 막지 않는다 — 회원 검색은 503 `ADDRESS_DB_NOT_LOADED` 로 직접 입력을 권한다.
-- 다음 스크립트 주소는 설정값(비우면 공식 `https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js`).
+- 다음 스크립트 주소는 설정값(비우면 공식 `https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js`). 옛 공식 주소 `t1.daumcdn.net/…`(2026-11-30 종료)은 저장돼 있어도 새 주소로 바꿔 쓰고, 새로 저장하면 빈 값으로 둔다(`AddressSearchPolicy.LEGACY_DEFAULT_SCRIPT_URL`).
 
 ## 필드·검증
 - 제공처 `DAUM | INTERNAL | DAUM_FALLBACK_INTERNAL` · 스크립트 주소 `https://` 로 시작, 공백 없음, 500자까지(빈 값 = 공식 주소) · 갱신 권고 일수 정수 7~365(기본 60).

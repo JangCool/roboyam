@@ -12,7 +12,12 @@ import java.util.Set;
 public final class AddressSearchPolicy {
 
     /** 다음(카카오) 우편번호 공식 스크립트 — 관리자가 비워 두면 이 값. user-web {@code useAddressSearch} 의 기본값과 같다 */
-    public static final String DEFAULT_SCRIPT_URL = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+    public static final String DEFAULT_SCRIPT_URL = "https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+    /**
+     * 옛 공식 주소 — t1.daumcdn.net 은 2026-11-30 에 끝난다(다음 우편번호 공지). 관리자가 이 값을 그대로 저장해 두었으면 새 공식 주소로 바꿔 쓰고,
+     * 새로 저장할 때도 빈 값(공식 주소)으로 둔다.
+     */
+    public static final String LEGACY_DEFAULT_SCRIPT_URL = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
     public static final int SCRIPT_URL_MAX = 500;
     public static final int STALE_DAYS_MIN = 7;
     public static final int STALE_DAYS_MAX = 365;
@@ -99,13 +104,17 @@ public final class AddressSearchPolicy {
         return null;
     }
 
-    /** 저장할 스크립트 주소 — 비었으면 null(공식 주소) */
+    /** 저장할 스크립트 주소 — 비었거나 옛 공식 주소면 null(공식 주소) */
     public static String storedScriptUrl(String scriptUrl) {
-        return scriptUrl == null || scriptUrl.isBlank() ? null : scriptUrl.strip();
+        if (scriptUrl == null || scriptUrl.isBlank()) {
+            return null;
+        }
+        String value = scriptUrl.strip();
+        return LEGACY_DEFAULT_SCRIPT_URL.equals(value) ? null : value;
     }
 
-    /** 회원 화면이 쓸 스크립트 주소 */
+    /** 회원 화면이 쓸 스크립트 주소 — 비었거나 옛 공식 주소면 새 공식 주소 */
     public static String effectiveScriptUrl(String stored) {
-        return stored == null || stored.isBlank() ? DEFAULT_SCRIPT_URL : stored;
+        return stored == null || stored.isBlank() || LEGACY_DEFAULT_SCRIPT_URL.equals(stored.strip()) ? DEFAULT_SCRIPT_URL : stored;
     }
 }

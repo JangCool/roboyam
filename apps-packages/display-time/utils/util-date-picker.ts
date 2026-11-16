@@ -57,6 +57,18 @@ export default class UtilDatePicker {
     }
 
     /**
+     * 키보드로 다 친 값의 글자 수 — 이보다 짧은 글자는 고르개에 넘기지 않는다(`useDateTypingGuard`).
+     * 날짜는 형식과 상관없이 10자(`2026-10-02` · `02/10/2026`), 시각을 붙이면 ` 14:30`(6자), 12시간제는 ` PM`(3자)을 더한다.
+     * @param {DisplayValues} display - 표시 값.
+     * @param {boolean} withTime - 시각까지 고르나.
+     * @returns {number} 글자 수.
+     */
+    static typingLength(display: DisplayValues, withTime: boolean): number {
+        if (!withTime) return 10;
+        return UtilDatePicker.hourFormat(display) === '12' ? 19 : 16;
+    }
+
+    /**
      * 순간(ISO) → 고르개에 넣을 `Date` — 표시 시간대의 벽시계 숫자를 브라우저 시간대에 그대로 담는다. 보여 주기 위한 값이라 서버로 보내지 않는다.
      * @param {string | null | undefined} iso - 순간(ISO-8601 UTC).
      * @param {DisplayValues} display - 표시 값(시간대를 쓴다).

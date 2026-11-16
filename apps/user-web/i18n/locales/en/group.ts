@@ -205,6 +205,8 @@ export default {
     failRateTitle: 'Please try again later.',
     failRetryAfter: '(try again in {time})',
     failRestrictedTitle: 'You can’t create a club right now.',
+    createRestrictedText: 'You can’t create clubs while your account is restricted (suspended or leaving). You can still browse them.',
+    createBusinessText: 'Promotion-only business accounts can’t create clubs. You can still browse them.',
     openedToast: 'Club created',
     pendingTitle: 'Request sent',
     pendingSteps: 'Progress',

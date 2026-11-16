@@ -346,8 +346,15 @@ public class GroupQueryService {
                 policy.capacityMax(), settings.visibility().visibilityEnabled(), rules.dissolvePenaltyDays());
     }
 
-    /** 개설 규칙으로 못 내는 까닭(낼 수 있으면 null) — 회원 권한 → 최소 등급 → 1인 상한 → 해산 패널티(개설 신청의 차례와 같다) */
+    /**
+     * 개설 규칙으로 못 내는 까닭(낼 수 있으면 null) — 쓰기 자격(이메일 인증 → 정지·탈퇴 진행 → 홍보 전용) → 회원 권한 → 최소 등급 → 1인 상한 → 해산 패널티
+     * (개설 신청 {@link GroupCreateService} 의 차례와 같다 — 정지 회원이 폼을 다 채운 뒤에야 403 을 받지 않게, 공개 QA P-3).
+     */
     static String creationBlocked(BoardActor actor, GroupRuleValues.Creation rules, long ledCount, Instant penaltyUntil, GroupViews.Context ctx) {
+        String writeBlocked = GroupAccess.writeBlocked(actor);
+        if (writeBlocked != null) {
+            return writeBlocked;
+        }
         if (!actor.can(MemberPermission.GROUP_CREATE.code())) {
             return "NOT_PERMITTED";
         }

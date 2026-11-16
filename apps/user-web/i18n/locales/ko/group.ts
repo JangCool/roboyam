@@ -206,6 +206,8 @@ export default {
     failRateTitle: '잠시 후 다시 시도해 주세요.',
     failRetryAfter: '({time} 뒤에 다시 시도할 수 있어요)',
     failRestrictedTitle: '지금은 소모임을 만들 수 없어요.',
+    createRestrictedText: '이용이 제한된 동안(정지·탈퇴 진행 중)에는 소모임을 만들 수 없어요. 목록은 볼 수 있어요.',
+    createBusinessText: '홍보 전용 사업자 계정은 소모임을 만들 수 없어요. 목록은 볼 수 있어요.',
     openedToast: '소모임을 열었어요',
     pendingTitle: '만들기 신청을 보냈어요',
     pendingSteps: '진행 상태',

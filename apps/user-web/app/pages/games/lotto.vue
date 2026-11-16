@@ -43,6 +43,9 @@
                 <p class="m-0 text-xs text-muted-color">{{ t('pointGame.freeOnly') }}</p>
             </section>
 
+            <!-- 포인트 동결(기능 제한) — 포인트를 쓸 수 없어 뽑기를 끈다(서버도 403 MEMBER_RESTRICTED — 공개 QA P-5) -->
+            <FeatureRestrictionNotice v-if="freeze" :restriction="freeze" />
+
             <!-- 뽑는 방법 — 자동(6개 모두 무작위) · 반자동(고정 1~5개 + 나머지 무작위, 제외는 선택). 반자동일 때만 번호판이 열린다 -->
             <section class="flex flex-col gap-3" :aria-labelledby="`${uid}-method`" data-testid="lotto-method">
                 <div class="flex flex-wrap items-center gap-3">
@@ -290,8 +293,14 @@ function costOf(sets: number): number {
     return sets === 1 ? data.value.setCost : data.value.bundleCost;
 }
 
+/** 포인트 동결 — 포인트 요약의 `restriction`(요약이 없으면 받아 온다) */
+const freeze = computed(() => UtilPoint.freeze(points.summary.value));
+onMounted(() => {
+    if (!points.summary.value) void points.load();
+});
+
 function canDraw(sets: number): boolean {
-    if (!data.value || drawing.value || problem.value) return false;
+    if (!data.value || drawing.value || problem.value || freeze.value) return false;
     return data.value.freeBalance >= costOf(sets) && data.value.draws.length + sets <= data.value.storageLimit;
 }
 

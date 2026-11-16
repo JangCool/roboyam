@@ -14,12 +14,34 @@ import org.springframework.http.HttpStatus;
  */
 public class MemberRestrictedException extends CommonException {
 
+    private final RestrictionType type;
+    private final Instant until;
+    private final String reason;
+
     public MemberRestrictedException(RestrictionType type, Instant until, String reason) {
         super(HttpStatus.FORBIDDEN, "MEMBER_RESTRICTED", new MessageRef("error.MEMBER_RESTRICTED"));
+        this.type = type;
+        this.until = until;
+        this.reason = reason;
         Map<String, Object> restriction = new LinkedHashMap<>();
         restriction.put("type", type.name());
         restriction.put("until", until == null ? null : until.toString());
         restriction.put("reason", reason);
         extra("restriction", restriction);
+    }
+
+    /** 막는 제한 종류 */
+    public RestrictionType type() {
+        return type;
+    }
+
+    /** 같은 종류 중 가장 늦은 끝 — 무기한이면 null */
+    public Instant until() {
+        return until;
+    }
+
+    /** 회원에게 공개하는 사유 */
+    public String reason() {
+        return reason;
     }
 }

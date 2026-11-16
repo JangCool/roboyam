@@ -7,11 +7,19 @@
         입력 안 왼쪽에 달력 아이콘을 둔다(`calendarIcon`, 기본 켬 — PrimeVue `IconField` + `InputIcon`, 회원 관리 기간 칸과 같은 모양). 아이콘 자리·패딩 규칙은 `assets/date-field-icon.css`(AppDateTimePicker 와 같이 쓴다).
         달력에 쉬는 날을 표시한다(`useHolidayCalendar` — 공휴일 빨강, 관리자 앱이면 회사 휴무일 보라, 칸 `title`·`aria-label` 에 이름). 달력을 열거나 달을 옮기면 그 해를 받는다.
         `disableHolidays` 를 켜면 쉬는 날을 달력에서 고를 수 없다(PrimeVue `disabledDates` — `disabledDays` 처럼 입력칸에 직접 쓴 날은 막지 않는다).
+        키보드 입력: 덜 친 글자는 고르개에 넘기지 않는다(`useDateTypingGuard` — PrimeVue 가 「2020-06-1」을 6월 1일로 굳히는 것을 막는다).
     -->
-    <IconField class="app-date-field" :class="{ 'app-date-field--icon': calendarIcon }">
+    <IconField
+        class="app-date-field"
+        :class="{ 'app-date-field--icon': calendarIcon }"
+        @focus.capture="typing.onFocusCapture"
+        @keydown.capture="typing.onKeydownCapture"
+        @blur.capture="typing.onBlurCapture"
+    >
         <InputIcon v-if="calendarIcon" class="pi pi-calendar app-date-icon" aria-hidden="true" />
         <DatePicker
             :key="formatKey"
+            :ref="typing.bind"
             :model-value="asDate"
             :input-id="inputId"
             :date-format="dateFormat"
@@ -89,6 +97,8 @@ const values = useDisplayValues();
 
 const dateFormat = computed(() => UtilDatePicker.dateFormat(values.value));
 const defaultPlaceholder = computed(() => UtilDatePicker.placeholder(values.value, false));
+/** 덜 친 글자는 고르개에 넘기지 않는다(공개 QA P-2) */
+const typing = useDateTypingGuard(() => UtilDatePicker.typingLength(values.value, false));
 /** 형식이 바뀌면 고르개를 새로 그린다(입력 중이던 글자가 낡은 형식으로 남지 않게) */
 const formatKey = computed(() => dateFormat.value);
 

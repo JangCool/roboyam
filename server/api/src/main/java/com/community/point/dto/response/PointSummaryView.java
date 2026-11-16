@@ -13,7 +13,8 @@ import com.community.point.dto.PointExpiring;
  * @param revokeDebt          미회수 포인트(0 이상) — 다음 적립에서 먼저 차감된다
  * @param ticketCount         안 쓴 닉네임 변경권 수(포인트 상점 — 커머스 1-2)
  * @param attendanceAvailable 출석 기능이 있는가 — 커머스 1-3 부터 늘 true
+ * @param restriction         포인트 적립·사용을 막는 기능 제한(포인트 동결) — 없으면 null. 동결 중에는 적립을 조용히 건너뛰므로 화면이 미리 알린다(공개 QA P-5)
  */
 public record PointSummaryView(long balance, long freeBalance, long paidBalance, boolean chargeAvailable, PointExpiring expiring, long revokeDebt, int ticketCount,
-                               boolean attendanceAvailable, PointTodayView today, PointRulesView rules) {
+                               boolean attendanceAvailable, PointTodayView today, PointRulesView rules, PointRestrictionView restriction) {
 }
