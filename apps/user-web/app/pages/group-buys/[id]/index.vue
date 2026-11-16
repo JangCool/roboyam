@@ -27,7 +27,8 @@
                 <section :aria-label="t('groupBuy.images')" class="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1" data-testid="group-buy-gallery">
                     <div class="panel-card relative overflow-hidden" :class="BLEED">
                         <img v-if="shownImage" :src="shownImage.url" :alt="shownImage.alt" class="aspect-square w-full bg-surface-100 object-cover dark:bg-surface-800" />
-                        <div v-else class="grid aspect-square place-items-center bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-box text-4xl" /></div>
+                        <!-- 그림이 없으면 빈 썸네일(공동구매 — 회색 면 + 택배 상자 아이콘 + 사이트 이름) -->
+                        <div v-else class="aspect-square"><EmptyThumb kind="groupBuy" /></div>
                         <template v-if="gb.images.length > 1">
                             <button type="button" :class="[ARROW, 'left-3']" :aria-label="t('groupBuy.prevImage')" data-testid="group-buy-image-prev" @click="stepImage(-1)">
                                 <i class="pi pi-angle-left" aria-hidden="true" />

@@ -142,7 +142,7 @@ const menuItems = computed(() => [
     ...(adminUrl.value ? [{ label: t('shell.adminAppNewTab'), text: t('shell.adminApp'), icon: UtilAdminLink.ICON, url: adminUrl.value, target: '_blank' }] : []),
     { separator: true },
     // 보기 설정(위) · 설정(맨 아래) — 보기 설정을 설정 안에서 꺼내 바로 가게 했다(사용자 결정 2026-11-12). 설정은 내 정보와 따로 둔 묶음(2026-11-05)
-    { label: t('view.shortcut'), icon: 'pi pi-eye', command: () => void navigateTo('/settings/view') },
+    { label: t('view.shortcut'), icon: 'pi pi-palette', command: () => void navigateTo('/settings/view') },
     { label: t('settings.title'), icon: 'pi pi-cog', command: () => void navigateTo('/settings') },
     { separator: true },
     { label: t('common.logout'), icon: 'pi pi-sign-out', command: () => void logout() },

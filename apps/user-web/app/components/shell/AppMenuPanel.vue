@@ -34,7 +34,7 @@
                         <!-- 보기 설정 — 로그인했을 때만(그 화면이 로그인 필요). 메뉴 구성과 따로 셸이 붙이는 칸(사용자 결정 2026-11-12) -->
                         <li v-if="user" class="min-w-0">
                             <NuxtLink to="/settings/view" :class="SHORTCUT" data-testid="menu-shortcut-view">
-                                <span :class="SHORTCUT_ICON" aria-hidden="true"><i class="pi pi-eye text-[1.25rem]" /></span>
+                                <span :class="SHORTCUT_ICON" aria-hidden="true"><i class="pi pi-palette text-[1.25rem]" /></span>
                                 <span class="w-full truncate">{{ t('view.shortcut') }}</span>
                             </NuxtLink>
                         </li>

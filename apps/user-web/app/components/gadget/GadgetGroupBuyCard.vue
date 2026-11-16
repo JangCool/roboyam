@@ -5,7 +5,7 @@
         카드 전체가 공구 상세(`UtilGroupBuy.detailPath`) 링크다. 마우스 올림 효과(설정 `hover`)는 사진 카드라 이름 밑줄(`gadget-hover-photo`, `main.css`). 품절·남은 수량은 서버 값이다.
     -->
     <NuxtLink :to="UtilGroupBuy.detailPath(item.id)" class="gadget-hover-photo block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="home-group-buy-card">
-        <GadgetThumb :src="item.thumbnailUrl" ratio="16 / 9" class="w-full">
+        <GadgetThumb :src="item.thumbnailUrl" ratio="16 / 9" variant="groupBuy" class="w-full">
             <span v-if="badge" class="pointer-events-none absolute left-2 top-2 inline-flex items-center rounded bg-surface-950/75 px-1.5 py-1 text-[0.6875rem] font-bold leading-none text-surface-0">
                 <span class="relative top-[-0.09em]">{{ badge }}</span>
             </span>

@@ -16,7 +16,7 @@
             <FoldedRow :reason="foldReason" kind="post" class="py-2.5 text-sm" hide-class="pb-2">
                 <!-- 첫 글을 크게 -->
                 <NuxtLink v-if="hero" :to="`/posts/${row.id}`" class="gadget-hover-photo block pb-3 pt-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-hero">
-                    <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 9" class="w-full" />
+                    <GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 9" class="w-full" />
                     <p class="gadget-hover-title mt-2 line-clamp-2 break-words text-base font-bold leading-snug">
                         <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" inline :class="prefixClass" />
                         <span>{{ row.title }}</span>
@@ -40,7 +40,7 @@
                     <p class="m-0 truncate text-base font-bold leading-snug tracking-tight">{{ row.title }}</p>
                     <div class="mt-2 flex items-start gap-3">
                         <!-- 사진 높이 = 본문 세 줄(0.8125rem × 1.375 × 3) — 글자 크기 배율(`--text-scale`)을 같이 곱해 글자를 키워도 세 줄 높이를 따라간다, 폭은 16:10 -->
-                        <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="w-[calc(5.375rem*var(--text-scale,1))] shrink-0 rounded-md" />
+                        <GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="w-[calc(5.375rem*var(--text-scale,1))] shrink-0 rounded-md" />
                         <p v-if="row.excerpt" class="m-0 line-clamp-3 min-w-0 flex-1 text-[0.8125rem] leading-snug text-muted-color" data-testid="home-post-lead-excerpt">{{ row.excerpt }}</p>
                     </div>
                     <!-- 사진 아래 정보 줄(가로 전체) — 왼쪽 말머리(없으면 게시판 이름)·추천·댓글 수 …… 오른쪽 끝 날짜(켠 것만) -->
@@ -56,7 +56,7 @@
 
                 <!-- 첫 글 작은 사진 줄(`lead: THUMB`). 뉴스형 한 줄 목록(`LINE`)은 사진을 글 세 줄(제목 + 본문 앞부분 두 줄) 높이로 키우고(112px) 제목 줄 = [말머리] 굵은 제목 댓글 수 …… [추천] [날짜], 아래 메타 줄은 두지 않는다 -->
                 <NuxtLink v-else-if="leadThumb" :to="`/posts/${row.id}`" class="gadget-hover flex items-center py-0.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="rowStyle === 'LINE' ? 'gap-4' : 'gap-3'" data-testid="home-post-lead-thumb">
-                    <GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="shrink-0" :class="rowStyle === 'LINE' ? 'w-28 rounded-lg' : 'w-20 rounded-md'" />
+                    <GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="shrink-0" :class="rowStyle === 'LINE' ? 'w-28 rounded-lg' : 'w-20 rounded-md'" />
                     <div v-if="rowStyle === 'LINE'" class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
                             <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="shrink-0 text-sm! font-bold!" />
@@ -115,8 +115,8 @@
                 <!-- 보통 줄 -->
                 <NuxtLink v-else :to="`/posts/${row.id}`" class="gadget-hover flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="[rowPad, thumbRoom]">
                     <!-- 줄 사진은 글 두 줄(제목 + 메타) 높이를 넘지 않는다 — 제목 한 줄이면 그 높이에 꼭 맞추고(thumbFit), 두 줄이면 64×40(2026-11-06·11-15 사용자) -->
-                    <span v-if="thumb === 'LEFT' && thumbFit" class="absolute left-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="size-full" /></span>
-                    <GadgetThumb v-else-if="thumb === 'LEFT'" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
+                    <span v-if="thumb === 'LEFT' && thumbFit" class="absolute left-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="size-full" /></span>
+                    <GadgetThumb v-else-if="thumb === 'LEFT'" :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="w-16 shrink-0" />
                     <!-- 촘촘(`COMPACT`)은 한 줄 — 제목 오른쪽에 메타(게시판·추천·시간)를 나란히 둔다(좁은 칸에 글 10개가 들어가게, 2026-11-06).
                          인기글(기간 탭, `dense`)만 한 줄 약 27px(글자 13px · 줄 높이 1.3 · 위아래 5px) — 하이라이트 가젯 높이에 10개가 들어가고, 덜 찬 쪽(11~15)도 줄 간격이 같다. 그 밖의 촘촘 목록은 위아래 4px(2026-11-06 사용자) -->
                     <div class="min-w-0 flex-1" :class="rowStyle === 'COMPACT' ? 'flex items-baseline gap-2' : ''">
@@ -149,8 +149,8 @@
                             </span>
                         </p>
                     </div>
-                    <span v-if="thumb === 'RIGHT' && row.thumbnailUrl && thumbFit" class="absolute right-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" ratio="16 / 10" class="size-full" /></span>
-                    <GadgetThumb v-else-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" ratio="16 / 10" class="w-16 shrink-0" />
+                    <span v-if="thumb === 'RIGHT' && row.thumbnailUrl && thumbFit" class="absolute right-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="size-full" /></span>
+                    <GadgetThumb v-else-if="thumb === 'RIGHT' && row.thumbnailUrl" :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="w-16 shrink-0" />
                 </NuxtLink>
             </FoldedRow>
         </div>
@@ -271,6 +271,8 @@ const metaParts = computed(() => {
 });
 
 const boardName = computed(() => localizedName(props.row.board.name, props.row.board.nameEn));
+/** 사진이 없을 때 빈 썸네일 모양 — 뉴스 게시판 글은 뉴스 면(남색 · 신문 아이콘), 그 밖은 일반 글 */
+const thumbVariant = computed<'news' | 'default'>(() => (UtilBoard.isNews(props.row.board?.slug) ? 'news' : 'default'));
 /** 게시판 이름 색 — 자동은 운영자가 고른 표시색(없으면 본문 글자색), 고정은 고른 색(`--gx-bc`), 회색은 흐린 글자 */
 const boardStyle = computed(() => {
     const mode = props.cfg.badge.mode;

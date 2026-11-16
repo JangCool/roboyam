@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 /** 이 부품이 그릴 수 있는 Tabler 이름 — 하단 탭·메뉴 바로 가기(`UtilMenu.itemIcon` 의 `tabler:<이름>`) */
-export type TablerIconName = 'flame' | 'speakerphone' | 'rosette-discount' | 'building-store';
+export type TablerIconName = 'flame' | 'speakerphone' | 'rosette-discount' | 'building-store' | 'news' | 'shopping-bag' | 'package';
 
 interface Props {
     name: TablerIconName;
@@ -43,5 +43,12 @@ const PATHS: Readonly<Record<TablerIconName, ReadonlyArray<{ d: string; fill?: s
         { d: 'M19 21l0 -10.15' },
         { d: 'M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4' },
     ],
+    // 빈 썸네일(`EmptyThumb`) — 뉴스 · 핫딜 · 공동구매
+    news: [{ d: 'M16 6h3a1 1 0 0 1 1 1v11a2 2 0 0 1 -4 0v-13a1 1 0 0 0 -1 -1h-10a1 1 0 0 0 -1 1v12a3 3 0 0 0 3 3h11' }, { d: 'M8 8l4 0' }, { d: 'M8 12l4 0' }, { d: 'M8 16l4 0' }],
+    'shopping-bag': [
+        { d: 'M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1 -2.966 2.544h-6.852a3 3 0 0 1 -2.965 -2.544l-1.255 -8.152a2 2 0 0 1 1.977 -2.304' },
+        { d: 'M9 11v-5a3 3 0 0 1 6 0v5' },
+    ],
+    package: [{ d: 'M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5' }, { d: 'M12 12l8 -4.5' }, { d: 'M12 12l0 9' }, { d: 'M12 12l-8 -4.5' }, { d: 'M16 5.25l-8 4.5' }],
 };
 </script>

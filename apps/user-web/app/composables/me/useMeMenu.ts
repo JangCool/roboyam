@@ -100,7 +100,7 @@ export function useMeMenu() {
         list.push({
             key: 'settings',
             title: '',
-            entries: [entry('/settings/view', 'pi pi-eye', t('view.shortcut'), 'me-entry-view'), entry('/settings', 'pi pi-cog', t('settings.title'), 'me-entry-settings')],
+            entries: [entry('/settings/view', 'pi pi-palette', t('view.shortcut'), 'me-entry-view'), entry('/settings', 'pi pi-cog', t('settings.title'), 'me-entry-settings')],
         });
 
         return list;

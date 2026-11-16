@@ -197,6 +197,18 @@ export default class UtilBoard {
         return staffOnly ? undefined : UtilBoard.textStyle(color);
     }
 
+    /** 뉴스 게시판 slug — 서버 `BoardFields.NEWS_SLUG` 와 같다(home-news-contract 「뉴스 게시판」) */
+    static readonly NEWS_SLUG = 'news';
+
+    /**
+     * 뉴스 게시판의 글인가 — 사진이 없는 글의 빈 썸네일을 뉴스 모양(남색 면 · 신문 아이콘)으로 그릴 때 쓴다(`GadgetThumb` `variant`).
+     * @param {string | null | undefined} slug - 글의 게시판 slug.
+     * @returns {boolean} 뉴스 게시판이면 true.
+     */
+    static isNews(slug: string | null | undefined): boolean {
+        return slug === UtilBoard.NEWS_SLUG;
+    }
+
     /** 글 줄 추천 수 강조 기준의 기본값 — 운영자 설정(`boardDisplay.likeHighlight`)을 못 받았을 때만 쓴다(사용자 2026-11-08) */
     static readonly LIKES_HIGHLIGHT = 10;
     /** 글 줄 조회 수 강조 기준의 기본값(`boardDisplay.viewHighlight`) */

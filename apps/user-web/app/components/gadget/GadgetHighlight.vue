@@ -20,7 +20,7 @@
             <li v-for="h in picks" :key="h.id">
                 <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                     <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover-photo block rounded-lg pb-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="home-highlight-slide">
-                        <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(h)" ratio="5 / 2" class="w-full">
+                        <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(h)" :variant="variantOf(h)" ratio="5 / 2" class="w-full">
                             <GadgetDebateBand v-if="h.post.debate" :debate="h.post.debate" size="lg" />
                         </GadgetThumb>
                         <p class="gadget-hover-title mt-2 line-clamp-2 break-words text-base font-bold leading-snug tracking-tight">{{ titleOf(h) }}</p>
@@ -36,7 +36,7 @@
             <div v-if="narrowList" class="@min-[40rem]:hidden" data-testid="home-highlight-stack">
                 <FoldedRow :reason="foldOf(first)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                     <NuxtLink :to="`/posts/${first.post.id}`" class="gadget-hover-photo block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="home-highlight-cover">
-                        <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" ratio="3 / 1" class="w-full rounded-lg">
+                        <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" :variant="variantOf(first)" ratio="3 / 1" class="w-full rounded-lg">
                             <GadgetDebateBand v-if="first.post.debate" :debate="first.post.debate" size="lg" />
                         </GadgetThumb>
                         <p class="gadget-hover-title m-0 mt-2 line-clamp-1 break-words text-base font-bold leading-snug tracking-tight">{{ titleOf(first) }}</p>
@@ -70,7 +70,7 @@
             <div class="gap-x-7 @min-[40rem]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" :class="narrowList ? 'hidden @min-[40rem]:grid' : 'grid'">
                 <FoldedRow :reason="foldOf(first)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                     <NuxtLink :to="`/posts/${first.post.id}`" class="gadget-hover-photo block rounded-lg pb-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary @min-[40rem]:pb-0" data-testid="home-highlight-hero">
-                        <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" ratio="16 / 9" class="w-full">
+                        <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" :variant="variantOf(first)" ratio="16 / 9" class="w-full">
                             <GadgetDebateBand v-if="first.post.debate" :debate="first.post.debate" size="lg" />
                         </GadgetThumb>
                         <p class="gadget-hover-title mt-3.5 line-clamp-2 break-words text-lg font-bold leading-snug tracking-tight @min-[40rem]:text-xl">{{ titleOf(first) }}</p>
@@ -83,7 +83,7 @@
                         <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                             <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover flex items-center gap-3.5 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                                 <!-- 사진 안 모서리 작은 라벨(사용자 2026-11-10 최종 — 사진을 덜 가리게): 오른쪽 위 = 찬반 색 숫자(`GadgetDebateBand` sm), 왼쪽 아래 = 게시판 이름 -->
-                                <GadgetThumb v-if="cfg.thumbs === 'ALL'" :src="imageOf(h)" ratio="16 / 10" class="w-[5.5rem] shrink-0">
+                                <GadgetThumb v-if="cfg.thumbs === 'ALL'" :src="imageOf(h)" :variant="variantOf(h)" ratio="16 / 10" class="w-[5.5rem] shrink-0">
                                     <GadgetDebateBand v-if="h.post.debate" :debate="h.post.debate" />
                                     <!-- 게시판 이름 라벨 — 게시판 표시색 그대로(말머리·게시판 칩과 같은 `tagStyle`: 같은 색 옅은 바탕 + 읽히게 보정한 글자색, 사용자 2026-11-10). 색이 없으면 흰 바탕 기본 글자 -->
                                     <span
@@ -114,7 +114,7 @@
                     :class="[cfg.thumbs === 'NONE' ? '' : '@min-[30rem]:grid-cols-[minmax(0,13rem)_minmax(0,1fr)]', rest.length ? 'border-b border-surface' : '']"
                     data-testid="home-highlight-hero"
                 >
-                    <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" ratio="16 / 10" class="w-full">
+                    <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" :variant="variantOf(first)" ratio="16 / 10" class="w-full">
                         <GadgetDebateBand v-if="first.post.debate" :debate="first.post.debate" size="lg" />
                     </GadgetThumb>
                     <div class="min-w-0">
@@ -132,7 +132,7 @@
                                 <p class="line-clamp-2 break-words text-[0.9375rem] leading-snug">{{ titleOf(h) }}</p>
                                 <GadgetHighlightMeta :post="h.post" :debate="!(cfg.thumbs === 'ALL' && imageOf(h))" :author="cfg.showAuthor" class="mt-1" />
                             </div>
-                            <GadgetThumb v-if="cfg.thumbs === 'ALL' && imageOf(h)" :src="imageOf(h)" ratio="3 / 2" class="w-24 shrink-0">
+                            <GadgetThumb v-if="cfg.thumbs === 'ALL' && imageOf(h)" :src="imageOf(h)" :variant="variantOf(h)" ratio="3 / 2" class="w-24 shrink-0">
                                 <GadgetDebateBand v-if="h.post.debate" :debate="h.post.debate" />
                             </GadgetThumb>
                         </NuxtLink>
@@ -146,7 +146,7 @@
             <li v-for="(h, i) in picks" :key="h.id" class="border-b border-surface last:border-b-0">
                 <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                     <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover flex items-start gap-3 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:gap-3.5">
-                        <GadgetThumb v-if="rowThumb(i)" :src="imageOf(h)" ratio="132 / 86" class="w-24 shrink-0 md:w-[8.25rem]">
+                        <GadgetThumb v-if="rowThumb(i)" :src="imageOf(h)" :variant="variantOf(h)" ratio="132 / 86" class="w-24 shrink-0 md:w-[8.25rem]">
                             <GadgetDebateBand v-if="h.post.debate" :debate="h.post.debate" />
                         </GadgetThumb>
                         <div class="min-w-0 flex-1">
@@ -200,6 +200,11 @@ function titleOf(h: HomeHighlight): string {
 /** 대표 이미지 — 운영자가 올린 것, 없으면 글 썸네일 */
 function imageOf(h: HomeHighlight): string | null {
     return h.imageUrl ?? h.post.thumbnailUrl;
+}
+
+/** 사진이 없을 때 빈 썸네일 모양 — 뉴스 게시판 글은 뉴스 면, 그 밖은 일반 글 */
+function variantOf(h: HomeHighlight): 'news' | 'default' {
+    return UtilBoard.isNews(h.post.board?.slug) ? 'news' : 'default';
 }
 
 /** 행 모양에서 그 줄에 사진을 그리는가 — 모두 · 맨 위 글만(첫 줄) */

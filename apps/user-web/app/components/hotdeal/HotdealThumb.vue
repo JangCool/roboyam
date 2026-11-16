@@ -1,9 +1,9 @@
 <template>
-    <!-- 딜 상품 썸네일 — 이미지가 없으면 꼬리표 아이콘 자리 그림. 크기·비율은 쓰는 곳이 `class` 로 준다 -->
+    <!-- 딜 상품 썸네일 — 이미지가 없거나 못 불러오면 빈 썸네일(`EmptyThumb` 핫딜 — 회색 면 + 쇼핑백 아이콘 + 사이트 이름, 작은 칸은 아이콘만, 사용자 확정 시안 2026-11-16). 크기·비율은 쓰는 곳이 `class` 로 준다 -->
     <span class="block shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
         <img v-if="url && !broken" :src="url" alt="" class="size-full object-cover" loading="lazy" @error="broken = true" />
-        <span v-else class="grid size-full place-items-center text-muted-color" :title="t('hotdeal.noImage')">
-            <i class="pi pi-tag" aria-hidden="true" />
+        <span v-else class="block size-full" :title="t('hotdeal.noImage')">
+            <EmptyThumb kind="deal" />
             <span class="sr-only">{{ t('hotdeal.noImage') }}</span>
         </span>
     </span>

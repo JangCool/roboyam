@@ -1,8 +1,8 @@
 <template>
-    <!-- 공구 대표 그림 — 그림이 없으면 상자 아이콘. 목록 카드·내 주문 목록·주문 상세가 같이 쓴다. 모서리는 테마의 사진 모서리(`gadget-thumb` — `--gadget-thumb-radius`) -->
+    <!-- 공구 대표 그림 — 그림이 없으면 빈 썸네일(`EmptyThumb` 공동구매 — 회색 면 + 택배 상자 아이콘 + 사이트 이름, 작은 칸은 아이콘만, 사용자 확정 시안 2026-11-16). 목록 카드·내 주문 목록·주문 상세가 같이 쓴다. 모서리는 테마의 사진 모서리(`gadget-thumb` — `--gadget-thumb-radius`) -->
     <div class="gadget-thumb relative overflow-hidden bg-surface-100 dark:bg-surface-800" :class="SIZE[size]">
         <img v-if="src" :src="src" :alt="alt" class="size-full object-cover" :class="zoom ? 'transition-transform duration-300 group-hover:scale-[1.04]' : ''" loading="lazy" />
-        <div v-else class="grid size-full place-items-center text-muted-color" aria-hidden="true"><i class="pi pi-box" :class="size === 'sm' ? 'text-xl' : 'text-3xl'" /></div>
+        <EmptyThumb v-else kind="groupBuy" />
         <slot />
     </div>
 </template>

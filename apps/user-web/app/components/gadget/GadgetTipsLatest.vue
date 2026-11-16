@@ -48,7 +48,7 @@
                                             <span class="text-xs text-muted-color" aria-hidden="true">·</span>
                                         </PostRowChips>
                                         <div class="flex items-start gap-2.5">
-                                            <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" :label="false" class="w-16 shrink-0" />
+                                            <GadgetThumb :src="row.thumbnailUrl" ratio="4 / 3" class="w-16 shrink-0" />
                                             <p class="m-0 line-clamp-2 min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-snug group-hover:underline">
                                                 <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" :chips="false" />
                                             </p>

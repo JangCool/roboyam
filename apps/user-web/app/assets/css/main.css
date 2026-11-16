@@ -506,6 +506,22 @@ html[data-theme='naver'] {
     border-radius: var(--gadget-thumb-radius);
 }
 /*
+ * 빈 썸네일(`EmptyThumb` — 사진이 없는 글·뉴스 글·핫딜·공동구매, 사용자 확정 시안 2026-11-16)의 색. 테마 공통 값이고, 테마가 바꿀 때는 이 변수만 다시 채운다(다크는 `[data-color-scheme='dark']`).
+ *   --empty-thumb-bg / --empty-thumb-fg   일반 글·핫딜·공동구매의 바탕 · 가운데 사이트 이름 글자와 아이콘(어두운 화면에서도 보이게 조금 밝힌 회색 — 사용자 지적)
+ *   --empty-thumb-news-bg / --empty-thumb-news-icon / --empty-thumb-news-fg   뉴스 글의 남색 면 · 신문 아이콘 · 「NEWS」 글자(밝은·어두운 화면 같은 색)
+ */
+:root {
+    --empty-thumb-bg: #f2f4f7;
+    --empty-thumb-fg: #a9b2c1;
+    --empty-thumb-news-bg: #0e1f4d;
+    --empty-thumb-news-icon: #8fa6e0;
+    --empty-thumb-news-fg: #dce4fa;
+}
+html[data-color-scheme='dark'] {
+    --empty-thumb-bg: #2a2c31;
+    --empty-thumb-fg: #8a909c;
+}
+/*
  * 가젯 항목 마우스 올림 효과(사용자 2026-11-10 — 게시판 카드 가젯 글 줄의 효과를 모든 가젯 항목으로). 가젯 설정 `hover`(관리자 ⚙ 「마우스 올림 효과」, 기본 켬)일 때
  * 껍데기(`GadgetFrame`)가 뿌리에 `data-gadget-hover` 를 달고, 그 안에서만 반응한다. 클래스는 테마 공통이다(색은 surface 토큰이라 다음식·네이버형·아이로빗·야간 모드가 같이 따라간다).
  *   gadget-hover        줄 항목(글 줄·목록 칸·작은 사진 줄) — 글자 자리는 그대로 두고 바탕만 좌우로 8px 넓혀 칠한다(음수 여백 + 같은 안쪽 여백 · 모서리 6px). 효과를 꺼도 자리는 같다.

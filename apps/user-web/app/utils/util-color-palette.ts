@@ -39,7 +39,8 @@ export default class UtilColorPalette {
     /** 배경색을 저장해 두는 열쇠 */
     static readonly BACKGROUND_STORAGE_KEY = 'irobit:page-background';
 
-    static readonly DEFAULT: ColorPalette = 'DEFAULT';
+    /** 저장한 값이 없을 때 쓰는 색상 테마 — 남색(사용자 2026-11-16). 「밝은 회색」(`DEFAULT`)은 고르는 값으로 남는다 */
+    static readonly DEFAULT: ColorPalette = 'NAVY';
     static readonly DEFAULT_BACKGROUND: PageBackground = 'THEME';
 
     static readonly BACKGROUNDS: readonly PageBackgroundSwatch[] = [
@@ -89,11 +90,11 @@ export default class UtilColorPalette {
     }
 
     /**
-     * `<html data-palette>` 값 — 기본이면 null(속성을 지운다)
+     * `<html data-palette>` 값 — 밝은 회색(`DEFAULT`)이면 null(속성을 지운다)
      * @param {ColorPalette} palette - 색상 테마.
      * @returns {string | null} 소문자 이름.
      */
     static attr(palette: ColorPalette): string | null {
-        return palette === UtilColorPalette.DEFAULT ? null : palette.toLowerCase();
+        return palette === 'DEFAULT' ? null : palette.toLowerCase(); // 속성 없음 = palettes.css 의 밝은 회색(옛 기본)
     }
 }
