@@ -21,7 +21,7 @@ export default class UtilViewSettings {
     /** 보기 설정 화면의 견본 두 칸(바탕 · 카드) — `main.css` 의 다크 값(아이로빗 테마 진한 다크 · 부드러운 다크)과 같게 둔다 */
     static readonly DARK_VARIANT_SWATCHES: Readonly<Record<DarkVariantSetting, { page: string; card: string }>> = Object.freeze({
         DEEP: { page: '#17181b', card: '#202125' },
-        SOFT: { page: '#22272e', card: '#2d333b' },
+        SOFT: { page: '#222e3d', card: '#2b3a4e' },
     });
 
     /** 기본값 — 글자 크기는 PC 100% · 휴대폰 110%(사용자 2026-11-11, 서버 기본값·`main.css` 첫 화면 배율과 같게) */
