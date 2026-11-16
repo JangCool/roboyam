@@ -3,6 +3,7 @@ import type { SiteIconResponse, SiteOperatorPublicResponse } from '~/composables
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
 import type { SiteGrade } from '~/composables/grade/api/useGradeApi.types';
 import type { VisitCollectSwitch } from '#layers/analytics/utils/util-visit-signal';
+import type { SiteLogoSet } from '~/utils/util-site-logo';
 
 /**
  * 화면이 쓰는 사이트 정보 — `GET /api/site/info` 응답을 `UtilSiteInfo.fromResponse` 로 걸러 둔 것(쓸 수 없는 칸은 null).
@@ -13,8 +14,12 @@ export interface SiteInfo {
     siteName: string | null;
     /** 한 줄 소개 — 1~100자. 없으면 null(그 줄을 그리지 않는다) */
     tagline: string | null;
-    /** 로고 `<img src>` — 상대 주소 또는 이미지 data URI. 없으면 null(이름 글자) */
+    /** 로고 ① 칸과 같은 값(서버 하위 호환 칸) — 상대 주소 또는 이미지 data URI. 없으면 null. 화면은 `logos` 를 쓴다 */
     logoUrl: string | null;
+    /** 로고 4칸 — 칸마다 상대 주소·이미지 data URI 또는 null. 네 칸이 모두 비면 이름 글자만 보인다(기본 그림으로 대신 채우지 않는다) */
+    logos: SiteLogoSet;
+    /** 로고 그림에 사이트 이름이 들어 있음(옆 이름 글자 숨김) — `true` 일 때만 켬 */
+    logoNameIncluded: boolean;
     /** 올린 아이콘 — 없으면 null */
     icon: SiteIconResponse | null;
     /** 표시 기본값(사용자 개인 값이 없을 때의 폴백) — 못 읽으면 null(시스템 폴백) */

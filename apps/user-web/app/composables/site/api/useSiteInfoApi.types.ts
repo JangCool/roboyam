@@ -31,8 +31,15 @@ export interface SiteInfoResponse {
     siteName: string | null;
     /** 한 줄 소개 — 없으면 null */
     tagline: string | null;
-    /** 로고 `<img src>` — `/media/…` 상대 주소이거나, SVG 로고면 큰 data URI(최대 약 133KB). 없으면 null */
+    /** 로고 ① 칸(`logos.koLight`)과 같은 값 — 하위 호환으로 남은 칸. `/media/…` 상대 주소이거나, SVG 로고면 큰 data URI(최대 약 133KB). 없으면 null */
     logoUrl: string | null;
+    /**
+     * 로고 4칸(언어 × 바탕 — `docs/features/site-logo-variants-contract.md`, 서버 V237) — 원본 칸만, 빈 칸 null(서버는 대신 채우지 않는다 — 대체 순서는 `UtilSiteLogo.resolve`).
+     * 값 모양은 `logoUrl` 과 같다. 칸이 없는 옛 서버에는 없다(그러면 `logoUrl` 을 ① 로 본다).
+     */
+    logos?: { koLight: string | null; koDark: string | null; enLight: string | null; enDark: string | null } | null;
+    /** 로고 그림에 사이트 이름이 들어 있음 — 켜져 있으면 로고 옆 이름 글자를 숨긴다. 기본 false, 옛 서버에는 없다 */
+    logoNameIncluded?: boolean;
     /** 올린 아이콘이 없으면 null(기본 아이콘) */
     icon: SiteIconResponse | null;
     /** 링크 미리보기 이미지 — 서버가 `<head>` 에 직접 넣는다(화면은 쓰지 않는다) */

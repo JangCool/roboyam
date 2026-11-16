@@ -3,9 +3,10 @@
         일반 — 설정 메뉴의 첫 화면(`/settings/general`). hamonica3 의 설정 > 일반(제품 기본 정보 + 표시 기본값)과 같은 짜임이다: 구획 둘, **저장 단추는 구획마다 따로**다(이름을 고치려던 사람이 표시 기본값까지 같이 저장하지 않게).
           ① 사이트 기본 정보(`site-basic`) — 사이트 이름(필수)·한 줄 소개(선택)·로고·사이트 아이콘·링크 미리보기 이미지. 이름·소개는 서버 `SiteSettingEntity` 에 실제 있는 칸이다. 공개 주소는 뺐다(소셜 로그인 콜백·메일 링크의 기준이라 변경 정책이 먼저다).
             로고는 hamonica3 「제품 기본 정보」의 로고 줄과 같다: 이미지 업로드(PNG·JPG·GIF·WEBP 2MB) 또는 SVG 소스 입력(SVG 는 스크립트를 품을 수 있는 문서라 파일로 받지 않고 소스로 받는다) · 제거. **[저장]이 없고 올리는 즉시 적용**되며(이름·소개의 [저장]과 따로),
-            관리자 화면 상단 로고 자리(`SiteBrand` — `useAdminAuth().siteLogoUrl`)와 공개 사이트 로고 자리가 같이 쓴다. 그림은 `<img src>` 하나로만 그린다(`v-html` 금지). 서버 API(`/api/admin/site/**`·`/api/admin/files`)에 연결돼 있고, 올린 그림 주소는 `/media/…` 상대 주소다.
-            ⚠ 2026-11-06 목업: 로고가 4칸(① 한글·밝은 바탕용 ② 한글·어두운 바탕용 ③ 영문·밝은 바탕용 ④ 영문·어두운 바탕용, 2×2 · 칸마다 `SiteLogoVariantTile`) + 「로고에 사이트 이름이 들어 있음」 스위치로 바뀌었다.
-              빈 칸은 대체 순서(`UtilSiteLogo` — 영문 → 같은 바탕의 한글, 어두운 → 같은 언어의 밝은, 그다음 ①, 없으면 이름 글자)대로 대신 쓰인다. 4칸·스위치는 MOCK(이 탭 메모리)이고 단일 로고 API 는 그대로 남겨 두었다(목업 동안 부르지 않는다).
+            그림은 `<img src>` 하나로만 그린다(`v-html` 금지). 서버 API(`/api/admin/site/logos/**`·`/api/admin/files`)에 연결돼 있고, 올린 그림 주소는 `/media/…` 상대 주소다.
+            로고는 4칸(① 한글·밝은 바탕용 ② 한글·어두운 바탕용 ③ 영문·밝은 바탕용 ④ 영문·어두운 바탕용, 2×2 · 칸마다 `SiteLogoVariantTile`) + 「로고에 사이트 이름이 들어 있음」 스위치다(`docs/features/site-logo-variants-contract.md`).
+              빈 칸은 대체 순서(`UtilSiteLogo` — 영문 → 같은 바탕의 한글, 어두운 → 같은 언어의 밝은, 그다음 ①, 없으면 이름 글자)대로 대신 쓰인다. 서버는 빈 칸을 null 로 주고 대신 채우지 않는다.
+              ① 칸은 관리자 화면 상단 로고 자리(`SiteBrand` — `useAdminAuth().siteLogoUrl`)도 쓴다 — 저장 응답의 ① 로 바로 바꾼다. 공개 사이트는 `GET /api/site/info` 의 `logos`·`logoNameIncluded` 를 쓴다.
             로고 줄 바로 아래에 이미지 줄이 둘 더 있고(`SiteImageField`), 둘 다 로고처럼 **[저장] 없이 올리면 즉시 적용**되며 소제목 옆 "올리면 바로 적용" 표시가 그 차이를 말한다. 아이콘·링크 이미지는 이름·소개와 따로 읽는다(불러오지 못해도 이름·소개 입력은 쓸 수 있고 그 줄에만 오류·다시 시도가 보인다).
               · 사이트 아이콘(탭 아이콘·홈 화면·알림 아이콘): 정사각 PNG 1장, 2MB 이하, 한 변 512~4000px. 파일 머리(PNG 서명 + IHDR 가로·세로)를 브라우저가 먼저 읽어 서버와 같은 순서로 거른다(빈 파일 → 형식 → 용량 → 읽기 → 너무 큼 → 정사각 아님 → 너무 작음, 지금 크기 포함 — `UtilSiteImage`). SVG 는 파일이 아니라 소스 입력(로고의 SVG 소스 입력과 같은 방식, 검사는 `UtilSiteSetting.logoSvg` 재사용, 정사각 여부는 서버 몫).
                 올려 둔 게 있을 때만 [기본으로 되돌리기](확인창). 올려 둔 게 없으면 "기본 아이콘" 상태 문구. 미리보기 타일은 버튼(누르면 파일 선택).
@@ -48,7 +49,7 @@
                 </LabeledField>
 
                 <!--
-                    로고 4칸(언어 × 바탕) — 올리는 즉시 적용된다(아래 [저장]은 이름·소개만). ⚠ 목업: 서버에 칸이 없어 이 탭 메모리만 바뀐다(`useSiteSettingsApi` 의 MOCK 줄).
+                    로고 4칸(언어 × 바탕) — 올리는 즉시 적용된다(아래 [저장]은 이름·소개만). 저장 응답(4칸 전체)으로 다시 그린다.
                     빈 칸은 대체 순서(`UtilSiteLogo`)대로 다른 칸이 대신하고, 타일이 그 그림을 흐리게 보인다. SVG 소스 칸은 한 번에 한 칸만 열린다(칸 아래가 아니라 4칸 아래 한 자리).
                 -->
                 <div role="group" :aria-labelledby="logoTitleId" class="flex flex-col gap-2">
@@ -242,8 +243,8 @@ const api = useSiteSettingsApi();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const { can } = useAdminPermission();
-// 로고 4칸이 목업인 동안 관리자 상단 로고(`setSiteLogoUrl`)는 서버 단일 로고 그대로 둔다
-const { setSiteName } = useAdminAuth();
+// 관리자 상단 로고(`setSiteLogoUrl`)는 로고 ① 칸이다 — 로고 저장 응답으로 바로 바꾼다
+const { setSiteName, setSiteLogoUrl } = useAdminAuth();
 const { confirm } = useConfirmDialog();
 const { load: reloadMyDisplay } = useMyDisplay();
 
@@ -334,8 +335,8 @@ async function saveBasic(): Promise<void> {
 
 /*
  * ── ① 로고 4칸(언어 × 바탕) + 「이름 포함」 — 저장 단추 없이 올리는 즉시 적용 ──────────
- * ⚠ 목업(화면 확정 전, 2026-11-06): `api.logoSet`·`setLogoVariant*`·`clearLogoVariant`·`setLogoNameInLogo` 가 MOCK 이라 이 탭 메모리만 바뀐다(공개 사이트·관리자 상단 로고에는 닿지 않는다).
- * 지금의 단일 로고 API(`uploadLogoFile`·`setLogoFile`·`setLogoSvg`·`clearLogo`)는 `useSiteSettingsApi` 에 그대로 있고 목업 동안 이 화면은 부르지 않는다 — 처음 값의 ① 은 서버 단일 로고(`basic.logoUrl`)가 있으면 그것이다.
+ * 서버 `/api/admin/site/logos/**`(`api.logoSet`·`setLogoVariant*`·`clearLogoVariant`·`setLogoNameInLogo`) — 응답이 늘 4칸 전체 + `nameInLogo` 라 그것으로 다시 그린다(`applyLogoSet`).
+ * 서버 거절 문구는 가공하지 않고 그 칸 아래(`fields.file`·`fileId`·`variant`) 또는 SVG 소스 칸 아래(`fields.svgSource`)에 보인다. 옛 단일 로고 API 는 이 화면이 부르지 않는다.
  * 이름·소개 구획과 따로 읽는다(불러오지 못해도 이름·소개 입력은 쓸 수 있다).
  */
 
@@ -357,6 +358,12 @@ const svgError = ref('');
 function setLogoError(variant: SiteLogoVariant | null, message: string): void {
     logoErrorVariant.value = variant;
     logoError.value = message;
+}
+
+/** 저장 응답(4칸 전체)으로 다시 그린다 — ① 칸은 관리자 상단 로고(`me` 의 `siteLogoUrl`)와 같은 칸이라 함께 바꾼다 */
+function applyLogoSet(res: SiteLogoSetResponse): void {
+    logoSet.value = res;
+    setSiteLogoUrl(res.logos.koLight);
 }
 
 async function loadLogos(): Promise<void> {
@@ -395,12 +402,12 @@ async function onLogoPicked(variant: SiteLogoVariant, file: File): Promise<void>
     }
     logoBusy.value = true;
     try {
-        logoSet.value = await api.setLogoVariantFile(variant, file);
+        applyLogoSet(await api.setLogoVariantFile(variant, file));
         closeSvgInput();
         toast.success(t('site.logoChanged'));
     } catch (e) {
         const error = toApiError(e);
-        setLogoError(variant, error.field('file') ?? error.field('fileId') ?? error.message);
+        setLogoError(variant, error.field('file') ?? error.field('fileId') ?? error.field('variant') ?? error.message);
     } finally {
         logoBusy.value = false;
     }
@@ -418,12 +425,12 @@ async function applySvgLogo(): Promise<void> {
     svgError.value = '';
     setLogoError(null, '');
     try {
-        logoSet.value = await api.setLogoVariantSvg(variant, { svgSource: svgDraft.value.trim() });
+        applyLogoSet(await api.setLogoVariantSvg(variant, { svgSource: svgDraft.value.trim() }));
         closeSvgInput();
         toast.success(t('site.logoSvgApplied'));
     } catch (e) {
         const error = toApiError(e);
-        svgError.value = error.field('svgSource') ?? error.message;
+        svgError.value = error.field('svgSource') ?? error.field('variant') ?? error.message;
     } finally {
         logoBusy.value = false;
     }
@@ -441,11 +448,12 @@ async function removeLogo(variant: SiteLogoVariant): Promise<void> {
     logoBusy.value = true;
     setLogoError(null, '');
     try {
-        logoSet.value = await api.clearLogoVariant(variant);
+        applyLogoSet(await api.clearLogoVariant(variant));
         if (svgVariant.value === variant) closeSvgInput();
         toast.success(t('site.logoRemoved'));
     } catch (e) {
-        setLogoError(variant, toApiError(e).message);
+        const error = toApiError(e);
+        setLogoError(variant, error.field('variant') ?? error.message);
     } finally {
         logoBusy.value = false;
     }
@@ -456,10 +464,12 @@ async function onNameInLogoChange(nameInLogo: boolean): Promise<void> {
     logoBusy.value = true;
     setLogoError(null, '');
     try {
-        logoSet.value = await api.setLogoNameInLogo({ nameInLogo });
+        applyLogoSet(await api.setLogoNameInLogo({ nameInLogo }));
         toast.success(t('site.logoNameInLogoSaved'));
     } catch (e) {
-        toast.error(toApiError(e).message);
+        // 스위치는 칸 아래 문구 자리가 없어 알림으로 — 서버 문구 그대로(`fields.nameInLogo` 가 있으면 그것)
+        const error = toApiError(e);
+        toast.error(error.field('nameInLogo') ?? error.message);
     } finally {
         logoBusy.value = false;
     }

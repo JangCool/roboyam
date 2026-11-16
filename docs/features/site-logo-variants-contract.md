@@ -1,7 +1,7 @@
-# 사이트 로고 4칸 계약 (화면 확정 2026-11-06 · 서버 구현 2026-11-16 · 화면 연결 전)
+# 사이트 로고 4칸 계약 (화면 확정 2026-11-06 · 서버 구현 2026-11-16 · 화면 연결 2026-11-16)
 
 사이트 로고를 언어(한글·영문)와 놓이는 바탕(밝은·어두운)에 따라 다르게 보이도록 4칸으로 나눈다. 로고 그림에 사이트 이름이 들어 있으면 옆의 이름 글자를 숨긴다.
-지금의 단일 로고(`site-settings-contract.md` 의 `logo_file_id`·`logo_svg`)를 넓히는 일이다. 화면은 목업(`// MOCK:`)으로 확정됐고, 서버는 아래 「서버 구현 2026-11-16」이다(화면은 아직 목업).
+지금의 단일 로고(`site-settings-contract.md` 의 `logo_file_id`·`logo_svg`)를 넓히는 일이다. 화면은 목업(`// MOCK:`)으로 확정됐고, 서버는 아래 「서버 구현 2026-11-16」이다 — 화면은 실제 API 에 연결했다(아래 「화면 연결 2026-11-16」).
 
 ## 기본 로고(디자인 확정 — 사용자 결정 2026-11-06)
 - 심볼: 아이로빗 아바타(`robotikon/src/parts.mjs` 좌표) 머리와 짧은 다리를 그린다. 웃는 눈(^^), 흰 테두리, 남색 귀를 쓴다. 안테나·다리는 로보티콘과 같은 A자 — 다리가 꼭짓점(100,42)에서 머리 뒤로 내려가고, 안테나 공(100,36)이 꼭짓점에 얹혀 꼭대기를 가려 공 아래 A 어깨만 살짝 보인다(사용자 2026-11-13 「로보티콘처럼, A 꼭대기는 너무 보이지 않게, 그래도 A 처럼」 — 예전 세운 막대 안테나 대신). 다리 바닥 y=159(원본 164). 사이트 아이콘·링크 미리보기 원본(`design/brand/`)도 같은 모양.
@@ -77,6 +77,10 @@
 - 감사: `SITE_LOGO_CHANGE`·`SITE_LOGO_REMOVE` 에 `variant` 칸을 더했고, 새 행위 `SITE_LOGO_NAME_CHANGE`(`from`·`to`, 같은 값이면 기록 없음). `CacheAutoRefresh` 의 `SITE_SETTINGS_SAVE` 에 넣어 `site.info` 가 바로 비워진다. 일반 운영 보관 분류.
 - 공개 `GET /api/site/info` 에 `logos{koLight,koDark,enLight,enDark}`(원본 칸만, 빈 칸 null — 대체 순서는 화면 `UtilSiteLogo.resolve`)와 `logoNameIncluded` 를 더했다. `logoUrl` 은 `logos.koLight` 와 같은 값으로 남는다.
 - 주의: `/api/site/info` 는 `index.html` 첫 화면 데이터에 실린다. SVG 소스로 넣은 칸은 data URI 라 칸마다 커지고, `logoUrl` 이 ① 을 한 번 더 싣는다(기본 아이로빗 SVG 4장을 SVG 소스로 넣으면 대략 130KB, gzip 전).
+
+## 화면 연결 2026-11-16
+- admin-web `useSiteSettingsApi` 의 4칸·「이름 포함」 메서드를 실제 API 로 바꾸고 목업(`mock/site-logo-mock.ts`, 두 앱 모두)을 지웠다. 일반 화면은 저장 응답(4칸 전체)으로 다시 그리고, ① 칸으로 관리자 상단 로고(`setSiteLogoUrl`)도 바꾼다. 서버 거절 문구는 그 칸 아래(`fields.file`·`fileId`·`variant`)·SVG 소스 칸 아래(`fields.svgSource`)·스위치는 알림(`fields.nameInLogo`).
+- user-web 은 `/api/site/info` 의 `logos`·`logoNameIncluded` 를 쓴다(`UtilSiteInfo.cleanLogos` — `logos` 가 없는 옛 서버면 `logoUrl` 을 ① 로). 네 칸이 모두 비면 이름 글자만 보인다 — 기본 아이로빗 그림으로 대신 채우지 않는다(기본 로고를 설치 때 넣을지는 위 「미확정」).
 
 ## 사이트 이름 바꿈 — 아이로빗 → 아이로빗(IROBIT) (사용자 결정 2026-11-12)
 - 이름: 한글 「아이로빗」, 영문 「IROBIT」. 뜻 = AI · Robot · Our Bit — 로고 속 로봇(안테나와 A자 다리)이 A, 이어지는 I 와 합쳐 AI(사용자 2026-11-13: 「I 는 AI 의 I, A 빼먹지 마」). 한 줄 소개 「AI와 로봇, 그리고 우리(OUR)가 함께 만들어가는 작은 이야기」.

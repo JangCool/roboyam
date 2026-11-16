@@ -44,8 +44,9 @@ export interface SiteLogoResponse {
 }
 
 /**
- * 로고 4칸(언어 × 바탕) + 「로고에 사이트 이름이 들어 있음」 — ⚠ MOCK 후보 모양(화면 확정 전, 2026-11-06). 서버에는 아직 칸이 없다.
- * 칸: `koLight` ① 한글·밝은 바탕용 · `koDark` ② 한글·어두운 바탕용 · `enLight` ③ 영문·밝은 바탕용 · `enDark` ④ 영문·어두운 바탕용 — 값은 `<img src>` 주소(없으면 null, 대체 순서는 `UtilSiteLogo`).
+ * 로고 4칸(언어 × 바탕) + 「로고에 사이트 이름이 들어 있음」 — 서버 `SiteLogosController` 응답(`/api/admin/site/logos/**` 모두 이 모양).
+ * 칸: `koLight` ① 한글·밝은 바탕용 · `koDark` ② 한글·어두운 바탕용 · `enLight` ③ 영문·밝은 바탕용 · `enDark` ④ 영문·어두운 바탕용 — 값은 `/media/…` 상대 주소 또는 SVG data URI(그대로 `<img src>`).
+ * 빈 칸은 null 이고 서버는 대신 채우지 않는다(대체 순서는 `UtilSiteLogo.resolve`).
  * `nameInLogo` 가 켜져 있으면 공개 헤더가 로고 옆 사이트 이름 글자를 붙이지 않는다.
  */
 export interface SiteLogoSetResponse {
@@ -53,7 +54,7 @@ export interface SiteLogoSetResponse {
     nameInLogo: boolean;
 }
 
-/** 「이름 포함」 바꾸기 — ⚠ MOCK 후보 모양 */
+/** 「이름 포함」 바꾸기 — `PUT /api/admin/site/logos/name-in-logo` 본문(null 이면 `fields.nameInLogo`) */
 export interface SiteLogoNameRequest {
     nameInLogo: boolean;
 }
