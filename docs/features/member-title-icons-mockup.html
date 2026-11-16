@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>칭호 도트 아이콘 시안</title>
+<!-- 회원 칭호 전용 도트 아이콘 시안(2026-11-17 확정) — member-title-contract.md 「아이콘」. 12칸 픽셀 지도(M)와 색(P·T)을 화면 코드로 그대로 옮긴다. 그리는 방식은 등급 도트(grade-level-mockup.html)와 같다. -->
+<style>
+:root{--surface-1:#f5f4ef;--surface-2:#ffffff;--border:rgba(0,0,0,.12);--text-secondary:#5f5e5a;--text-muted:#888780;--radius:8px}
+body{margin:0;padding:24px 16px;background:#faf9f5;font-family:system-ui,sans-serif;color:#1f1e1d;max-width:720px}
+.lbl{font-size:12px;color:var(--text-secondary);margin:20px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.tile{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);text-align:center}
+.tt{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 7px 2px 5px;border-radius:var(--radius);white-space:nowrap}
+.a{background:#EEEDFE;color:#3C3489}.b{background:#E1F5EE;color:#085041}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+canvas{image-rendering:pixelated}
+</style>
+</head>
+<body>
+<h1 style="font-size:18px;font-weight:500;margin:0">칭호 도트 아이콘</h1>
+<div class="lbl">도감 크기 (4배) — 기본 칭호 7종 · 리뷰어와 인기글은 동·은·금</div>
+<div class="grid" id="big"></div>
+<div class="lbl">운영자가 새 칭호를 만들 때 고를 수 있는 범용 그림 (메달은 동·은·금)</div>
+<div class="grid" id="extra"></div>
+<div class="lbl">공개 프로필 크기 (2배, 24px)</div>
+<div class="row" id="mid"></div>
+<div class="lbl">글 목록 작성자 줄 크기 (1배, 12px — 등급 도트와 같은 크기)</div>
+<div class="row" id="small"></div>
+<script>
+// 픽셀 지도: 12×12, "." = 투명, 글자 = 아래 색표의 키
+const M={
+pen:["..........lb",".........lbx","........lbx.",".......lbx..","......ggG...",".....lbx....","....lbx.....","...nnN......","..nkN.......",".nN.........","N...........","............"],
+trophy:["..oooooooo..","ooolbbbbxooo","o.olbbbbxo.o","o.olbbbbxo.o",".oolbbbbxoo.","...olbbxo...","....obxo....","....oxxo....","....oxxo....","...oooooo...","..olbbbbxo..","..oooooooo.."],
+wreath:["..g......g..",".gG......Gg.","gG...yy...Gg","g...yyyy...g","gG.yyyyyy.Gg","g...yyyy...g","gG..y..y..Gg",".gG......Gg.","..gG....Gg..","...gGrrGg...","....r..r....","...r....r..."],
+mag:["..oooooo....",".olllbbbo...","olbbyybbbo..","obyyyyyybo..","obbyyyybbo..","obbybbybbo..",".obbbbbbo...","..oooooox...","........xx..",".........xx.","..........xx","............"],
+mic:["....oooo....","...ollbbo...","...olbbxo...","...olbbxo...",".o.olbbxo.o.",".o..oooo..o.","..o......o..","...oooooo...",".....xx.....",".....xx.....","...xxxxxx...","............"],
+popular:["ooooooooo...","obbbbbbbo...","obxxxxxbo...","obbbbbbbo...","obxxxxbbo...","obbbbbbror..","obbbbbbrRr..","obxxxxxOOO..","obbbbbOyyyO.","obxxxbOyYyO.","ooooooOyyyO.",".......OOO.."],
+cal:["...x....x...",".orxrrrrxro.",".orrrrrrrro.",".obbbbbbbbo.",".obbbbbbbgo.",".obbbbbbgbo.",".obgbbbgbbo.",".obbgbgbbbo.",".obbbgbbbbo.",".obbbbbbbbo.",".oooooooooo.","............"],
+medal:["..rr....rr..","...rr..rr...","....rrrr....","...oooooo...","..olllbbxo..",".olbbyybbxo.",".olbyyyybxo.",".obbbyybbxo.",".obbbbbbbxo.","..obbbbbxo..","...oooooo...","............"],
+bulb:["....oooo....","...olyyyo...","..olyyyyyo..","..oyyyyyyo..","..oyywwyyo..","..oyyyyyyo..","...oyyyyo...","....oyyo....","....xxxx....","....oooo....","....xxxx....",".....oo....."],
+heart:["............","..oo....oo..",".olro..orro.","olrrroorrrro","olrrrrrrrrro","orrrrrrrrrro",".orrrrrrrro.","..orrrrrro..","...orrrro...","....orro....",".....oo.....","............"]};
+// 한 가지 색만 있는 그림
+const P={
+pen:{l:"#7F77DD",b:"#534AB7",x:"#26215C",g:"#FAC775",G:"#BA7517",n:"#EF9F27",N:"#854F0B",k:"#412402"},
+trophy:{o:"#854F0B",l:"#FAEEDA",b:"#FAC775",x:"#EF9F27"},
+wreath:{g:"#97C459",G:"#3B6D11",y:"#EF9F27",r:"#E24B4A"},
+mic:{o:"#444441",l:"#F1EFE8",b:"#B4B2A9",x:"#5F5E5A"},
+cal:{o:"#5F5E5A",r:"#E24B4A",x:"#2C2C2A",b:"#ffffff",g:"#3B6D11"},
+bulb:{o:"#854F0B",l:"#ffffff",y:"#FAC775",w:"#FAEEDA",x:"#888780"},
+heart:{o:"#72243E",r:"#D4537E",l:"#F4C0D1"}};
+// 동·은·금 단계가 있는 그림 — 모양은 같고 색만 바뀐다
+const T={
+mag:{동:{o:"#712B13",x:"#993C1D",l:"#ffffff",b:"#E6F1FB",y:"#7F77DD"},은:{o:"#5F5E5A",x:"#888780",l:"#ffffff",b:"#E6F1FB",y:"#7F77DD"},금:{o:"#854F0B",x:"#EF9F27",l:"#ffffff",b:"#E6F1FB",y:"#7F77DD"}},
+popular:{동:{o:"#5F5E5A",b:"#ffffff",x:"#B4B2A9",r:"#378ADD",R:"#0C447C",O:"#712B13",y:"#D85A30",Y:"#F0997B"},은:{o:"#5F5E5A",b:"#ffffff",x:"#B4B2A9",r:"#378ADD",R:"#0C447C",O:"#444441",y:"#B4B2A9",Y:"#F1EFE8"},금:{o:"#5F5E5A",b:"#ffffff",x:"#B4B2A9",r:"#378ADD",R:"#0C447C",O:"#854F0B",y:"#EF9F27",Y:"#FAC775"}},
+medal:{동:{o:"#712B13",l:"#F5C4B3",b:"#D85A30",x:"#993C1D",y:"#F0997B",r:"#378ADD"},은:{o:"#444441",l:"#ffffff",b:"#D3D1C7",x:"#888780",y:"#F1EFE8",r:"#378ADD"},금:{o:"#854F0B",l:"#FAEEDA",b:"#FAC775",x:"#EF9F27",y:"#ffffff",r:"#378ADD"}}};
+const dpr=window.devicePixelRatio||1;
+function icon(shape,tier,k,label){const m=M[shape];const p=tier?T[shape][tier]:P[shape];const c=document.createElement("canvas");const s=Math.max(1,Math.round(k*dpr));c.width=12*s;c.height=12*s;c.style.width=12*k+"px";c.style.height=12*k+"px";c.setAttribute("role","img");c.setAttribute("aria-label",label);const x=c.getContext("2d");m.forEach((row,yy)=>[...row].forEach((ch,xx)=>{if(ch!=="."&&p[ch]){x.fillStyle=p[ch];x.fillRect(xx*s,yy*s,s,s)}}));return c}
+const BASE=[["이달의 작가","pen",null,"a"],["올해의 작가","trophy",null,"a"],["명예 작가","wreath",null,"b"],["리뷰어 동","mag","동","a"],["리뷰어 은","mag","은","a"],["리뷰어 금","mag","금","a"],["기자단","mic",null,"a"],["인기글 동","popular","동","b"],["인기글 은","popular","은","b"],["인기글 금","popular","금","b"],["출석 100일","cal",null,"b"]];
+const EXTRA=[["메달 동","medal","동"],["메달 은","medal","은"],["메달 금","medal","금"],["전구","bulb",null],["하트","heart",null]];
+function tile(where,[n,s,t]){const d=document.createElement("div");d.className="tile";d.append(icon(s,t,4,n));d.insertAdjacentHTML("beforeend","<span>"+n+"</span>");document.getElementById(where).append(d)}
+BASE.forEach(r=>tile("big",r));EXTRA.forEach(r=>tile("extra",r));
+function chip(where,[n,s,t,k],size){const sp=document.createElement("span");sp.className="tt "+(k||"a");sp.append(icon(s,t,size,n));sp.insertAdjacentHTML("beforeend",n);document.getElementById(where).append(sp)}
+BASE.forEach(r=>chip("mid",r,2));
+[["명예 작가","wreath",null,"b"],["11월의 작가","pen",null,"a"],["리뷰어 은","mag","은","a"],["기자단","mic",null,"a"],["인기글 금","popular","금","b"]].forEach(r=>chip("small",r,1));
+</script>
+</body>
+</html>
