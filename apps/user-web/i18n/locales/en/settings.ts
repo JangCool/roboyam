@@ -10,7 +10,7 @@ export default {
     profileHint: 'Nickname and bio',
     notifications: 'Notification settings',
     notificationsHint: 'Choose which notifications you get',
-    display: 'Time display',
+    display: 'Language & time',
     displayHint: 'Language, time zone, time and date format',
     accountHint: 'Sign-in methods and linked social accounts',
     identityHint: 'Phone identity check and age 19+ (to see 18+ posts)',
@@ -36,8 +36,8 @@ export default {
 
     // Time display
     displaySeo: 'Choose the language, time zone and format for times on {site}.',
-    displayLoading: 'Loading time display settings',
-    displayLoadFailed: 'Couldn’t load time display settings',
+    displayLoading: 'Loading language and time settings',
+    displayLoadFailed: 'Couldn’t load language and time settings',
     displayOwnTag: 'My settings',
     displayDefaultTag: 'Site default',
     displayOwnText: 'Times are shown the way you chose.',

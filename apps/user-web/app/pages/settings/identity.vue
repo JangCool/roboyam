@@ -40,8 +40,8 @@
                         </dd>
                     </div>
                 </dl>
-                <Message v-if="!status.adult" severity="warn" :closable="false" size="small" class="mt-3" data-testid="identity-minor">
-                    <b>{{ t('identity.minorBlocked') }}</b>
+                <Message v-if="!status.adult && adultOnly" severity="warn" :closable="false" size="small" class="mt-3" data-testid="identity-minor">
+                    <b>{{ t('identity.minorBlockedFor', { items: adultOnly }) }}</b>
                     <span class="mt-0.5 block">{{ UtilIdentityMessages.minorRelease(t, status.adultFrom) }}</span>
                 </Message>
                 <p class="mt-2 px-1 text-xs leading-relaxed text-muted-color">{{ t('identity.onceNote') }}</p>
@@ -52,14 +52,18 @@
         <template v-else>
             <section class="mb-6" :aria-labelledby="`${uid}-why`">
                 <h2 :id="`${uid}-why`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('identity.whyTitle') }}</h2>
-                <div class="panel-card px-4 py-3.5">
-                    <p class="m-0 text-sm leading-relaxed">{{ t('identity.whyText') }}</p>
-                    <ul class="m-0 mt-2.5 flex list-none flex-col gap-1.5 p-0 text-sm">
-                        <li v-for="use in USES" :key="use.key" class="flex items-center gap-2">
-                            <i :class="use.icon" class="w-4 text-center text-muted-color" aria-hidden="true" />{{ t(use.key) }}
-                        </li>
-                    </ul>
-                    <p class="m-0 mt-2.5 text-xs leading-relaxed text-muted-color">{{ t('identity.whyAdult') }}</p>
+                <!-- 쓰임새는 지금 열린 기능만(충전·공구 판매가 꺼져 있거나 가입 포인트가 0 이면 빼고, 하나도 없으면 「지금은 필요한 기능이 없다」) — 관리자 QA 2026-11-17 -->
+                <div class="panel-card px-4 py-3.5" data-testid="identity-why">
+                    <template v-if="usesReady">
+                        <p class="m-0 text-sm leading-relaxed">{{ uses.length ? t('identity.whyText') : t('identity.whyTextNone') }}</p>
+                        <ul v-if="uses.length" class="m-0 mt-2.5 flex list-none flex-col gap-1.5 p-0 text-sm">
+                            <li v-for="use in uses" :key="use.key" class="flex items-center gap-2">
+                                <i :class="use.icon" class="w-4 text-center text-muted-color" aria-hidden="true" />{{ t(use.key) }}
+                            </li>
+                        </ul>
+                        <p v-if="adultOnly" class="m-0 mt-2.5 text-xs leading-relaxed text-muted-color">{{ t('identity.whyAdultFor', { items: adultOnly }) }}</p>
+                    </template>
+                    <div v-else class="h-14 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
                 </div>
             </section>
 
@@ -100,12 +104,31 @@ const toast = useAppToast();
 const time = useDisplayTime();
 const uid = useId();
 
-const USES = [
-    { key: 'identity.useCharge', icon: 'pi pi-wallet' },
-    { key: 'identity.useGroupBuy', icon: 'pi pi-shopping-bag' },
-    { key: 'identity.useRefund', icon: 'pi pi-replay' },
-    { key: 'identity.useSignupPoint', icon: 'pi pi-gift' },
-] as const;
+/*
+ * 쓰임새는 지금 열린 기능만 보인다 — 포인트 충전·충전 환불은 `/api/me/points` 의 `chargeAvailable`, 공구 결제는 `/api/commerce/info` 의 `salesOpen`,
+ * 가입 포인트는 정책 `signupPoints` 가 0 보다 크고 아직 안 받았을 때. 둘 중 하나를 못 받으면 그 기능은 빼고 보인다(없는 기능을 안내하지 않는다).
+ */
+const points = usePointSummary();
+const commerce = useCommerceInfo();
+const chargeOpen = computed(() => points.summary.value?.chargeAvailable === true);
+const groupBuyOpen = computed(() => commerce.info.value?.salesOpen === true);
+const signupPointOpen = computed(() => {
+    const rule = points.summary.value?.rules.signup;
+    return !!rule && rule.points > 0 && !rule.received;
+});
+const usesReady = computed(() => (points.status.value === 'ready' || points.status.value === 'error') && commerce.info.value !== undefined);
+const uses = computed(() =>
+    [
+        chargeOpen.value && { key: 'identity.useCharge', icon: 'pi pi-wallet' },
+        groupBuyOpen.value && { key: 'identity.useGroupBuy', icon: 'pi pi-shopping-bag' },
+        chargeOpen.value && { key: 'identity.useRefund', icon: 'pi pi-replay' },
+        signupPointOpen.value && { key: 'identity.useSignupPoint', icon: 'pi pi-gift' },
+    ].filter((use): use is { key: string; icon: string } => !!use),
+);
+/** 만 19세 이상만 되는 열린 기능(「포인트 충전 · 공동구매 참여」) — 없으면 빈 문자열이라 나이 안내를 그리지 않는다 */
+const adultOnly = computed(() =>
+    [chargeOpen.value && t('identity.useCharge'), groupBuyOpen.value && t('identity.useGroupBuy')].filter(Boolean).join(' · '),
+);
 
 const verifying = ref(false);
 const retrying = ref(false);
@@ -130,4 +153,6 @@ async function onVerify(): Promise<void> {
 
 // 화면에 들어올 때마다 최신으로(받아 둔 값이 있으면 그대로 보이면서 바꾼다)
 void identity.load();
+void points.load();
+void commerce.ensureLoaded().catch(() => null);
 </script>
