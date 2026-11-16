@@ -1,7 +1,7 @@
-# 사이트 로고 4칸 계약 (화면 확정 2026-11-06 · 서버 미구현)
+# 사이트 로고 4칸 계약 (화면 확정 2026-11-06 · 서버 구현 2026-11-16 · 화면 연결 전)
 
 사이트 로고를 언어(한글·영문)와 놓이는 바탕(밝은·어두운)에 따라 다르게 보이도록 4칸으로 나눈다. 로고 그림에 사이트 이름이 들어 있으면 옆의 이름 글자를 숨긴다.
-지금의 단일 로고(`site-settings-contract.md` 의 `logo_file_id`·`logo_svg`)를 넓히는 일이다. 화면은 목업(`// MOCK:`)으로 확정됐고, 서버와 API는 아직 없다.
+지금의 단일 로고(`site-settings-contract.md` 의 `logo_file_id`·`logo_svg`)를 넓히는 일이다. 화면은 목업(`// MOCK:`)으로 확정됐고, 서버는 아래 「서버 구현 2026-11-16」이다(화면은 아직 목업).
 
 ## 기본 로고(디자인 확정 — 사용자 결정 2026-11-06)
 - 심볼: 아이로빗 아바타(`robotikon/src/parts.mjs` 좌표) 머리와 짧은 다리를 그린다. 웃는 눈(^^), 흰 테두리, 남색 귀를 쓴다. 안테나·다리는 로보티콘과 같은 A자 — 다리가 꼭짓점(100,42)에서 머리 뒤로 내려가고, 안테나 공(100,36)이 꼭짓점에 얹혀 꼭대기를 가려 공 아래 A 어깨만 살짝 보인다(사용자 2026-11-13 「로보티콘처럼, A 꼭대기는 너무 보이지 않게, 그래도 A 처럼」 — 예전 세운 막대 안테나 대신). 다리 바닥 y=159(원본 164). 사이트 아이콘·링크 미리보기 원본(`design/brand/`)도 같은 모양.
@@ -58,12 +58,25 @@
   - (b) 별도 표 `site_logos(variant, file_id, svg)`
 
 ## 미확정
-- 저장 방식 (a)·(b).
-- `nameInLogo` 기본값.
+- ~~저장 방식 (a)·(b).~~ → (a) 로 정함(아래 「서버 구현」).
+- `nameInLogo` 기본값 — 서버는 기존 사이트·새 설치 모두 false 로 시작한다. 데모·아이로빗 설치에서 true 로 둘지는 기본 로고 4장을 어디에 넣을지와 함께 정한다.
 - 관리자 앱 상단 `SiteBrand` 는 20×20 정사각이라, 가로로 긴 로고가 아주 작게 보인다. 관리자 상단도 4칸 중 하나를 쓸지, 아이콘을 쓸지 정해야 한다(이번에는 그대로 둠).
 - `util-site-logo.ts` 가 두 앱에 복사되어 있다. 공용 레이어(`apps-packages`)로 옮길지 정해야 한다.
 - 쓰지 않는 옛 i18n 키(`site.logoHint`·`logoAdd`·`logoChange`·`logoRemoveMessage`)를 정리할지.
 - 기본 로고 4장을 설치 때 기본값으로 넣을지(`boardPreset IROBIT` 처럼), 데모 데이터에만 넣을지.
+
+## 서버 구현 2026-11-16
+- **저장 (a)**: shared **V237** `site_settings` 에 `logo_ko_dark_*`·`logo_en_light_*`·`logo_en_dark_*`(각 `_file_id` → files · `_svg` text, 칸마다 둘 중 하나만·SVG 100,100자 CHECK)와 `logo_name_included boolean NOT NULL DEFAULT false`. ① 은 V12 의 `logo_file_id`·`logo_svg` 를 그대로 쓴다 — 값 옮김 없이 기존 로고가 곧 ① 이다.
+- 칸 이름(경로·JSON): `koLight`·`koDark`·`enLight`·`enDark`(shared `SiteLogoVariant`). 모르는 이름은 400 `VALIDATION` `fields.variant`.
+- 관리자 API(`SiteLogosController`, 응답은 모두 `{logos:{koLight,koDark,enLight,enDark}, nameInLogo}` — 값은 `/media/…` 상대 주소 또는 SVG data URI, 빈 칸 null):
+  - `GET /api/admin/site/logos`(site.read)
+  - `PUT /api/admin/site/logos/{variant}` `{fileId}` · `PUT …/{variant}/svg` `{svgSource}` · `DELETE …/{variant}`(site.manage)
+  - `PUT /api/admin/site/logos/name-in-logo` `{nameInLogo}`(site.manage, null 이면 `fields.nameInLogo`)
+  - 검사·저장 순서는 단일 로고와 같다(`SvgInspector`·`PENDING` 파일만·커밋 뒤 옛 파일 삭제). 파일 하나는 한 칸만 가리킨다 — 다른 칸이 쓰는 파일을 지정하면 `fields.fileId`(`siteSetting.logo.fileNotFound`).
+- 옛 단일 로고 API(`PUT/DELETE /api/admin/site/logo`, `PUT …/logo/svg`)는 남겨 두고 ① 칸을 바꾼다. 관리자 `me`·기본 정보 `logoUrl`·메일 로고·`index.html` 머리(splash)도 ① 칸이다.
+- 감사: `SITE_LOGO_CHANGE`·`SITE_LOGO_REMOVE` 에 `variant` 칸을 더했고, 새 행위 `SITE_LOGO_NAME_CHANGE`(`from`·`to`, 같은 값이면 기록 없음). `CacheAutoRefresh` 의 `SITE_SETTINGS_SAVE` 에 넣어 `site.info` 가 바로 비워진다. 일반 운영 보관 분류.
+- 공개 `GET /api/site/info` 에 `logos{koLight,koDark,enLight,enDark}`(원본 칸만, 빈 칸 null — 대체 순서는 화면 `UtilSiteLogo.resolve`)와 `logoNameIncluded` 를 더했다. `logoUrl` 은 `logos.koLight` 와 같은 값으로 남는다.
+- 주의: `/api/site/info` 는 `index.html` 첫 화면 데이터에 실린다. SVG 소스로 넣은 칸은 data URI 라 칸마다 커지고, `logoUrl` 이 ① 을 한 번 더 싣는다(기본 아이로빗 SVG 4장을 SVG 소스로 넣으면 대략 130KB, gzip 전).
 
 ## 사이트 이름 바꿈 — 아이로빗 → 아이로빗(IROBIT) (사용자 결정 2026-11-12)
 - 이름: 한글 「아이로빗」, 영문 「IROBIT」. 뜻 = AI · Robot · Our Bit — 로고 속 로봇(안테나와 A자 다리)이 A, 이어지는 I 와 합쳐 AI(사용자 2026-11-13: 「I 는 AI 의 I, A 빼먹지 마」). 한 줄 소개 「AI와 로봇, 그리고 우리(OUR)가 함께 만들어가는 작은 이야기」.

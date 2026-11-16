@@ -1,5 +1,7 @@
 package com.community.site.dto.response;
 
+import com.community.site.dto.SiteLogoUrls;
+
 /**
  * {@code GET /api/site/info}(비로그인) — 공개 사이트가 읽는 사이트 설정. <b>허용한 필드만</b> 담는다(이메일·설치 정보·내부 ID·공개 주소 원문 없음).
  *
@@ -15,8 +17,12 @@ package com.community.site.dto.response;
  * @param operator 운영 주체의 단계·연락 이메일·푸터 안내 문구(terms-operator-contract) — 운영 주체 행이 없으면(마이그레이션 전) 개인 단계·이메일 null·안내 처음 값
  * @param grades   등급 목록(서열 순 — V196, grade-level-contract 5절): 키·이름·서열·도트 캐릭터
  * @param about    사이트 소개가 있는가(V203) — 공개 푸터의 「사이트 소개」 링크를 보일지. 본문은 {@code GET /api/site/about}
+ * @param logos    로고 4칸(V237 — {@code koLight}·{@code koDark}·{@code enLight}·{@code enDark}, 값 모양은 {@code logoUrl} 과 같다). 빈 칸은 null — 대체 순서는 화면 규칙({@code UtilSiteLogo.resolve}).
+ *                 설정 행이 없으면 모두 null. {@code logoUrl} 은 하위 호환으로 남긴 ① {@code koLight} 와 같은 값
+ * @param logoNameIncluded 로고 그림에 사이트 이름이 들어 있는가(V237, 기본 false) — 켜져 있으면 로고 옆 이름 글자를 숨긴다
  */
 public record SiteInfoResponse(String siteName, String tagline, String logoUrl, SiteIconResponse icon, String ogImageUrl,
                                SiteDisplayDefaultsView displayDefaults, BoardDisplayView boardDisplay, String theme, SiteAnalyticsView analytics,
-                               SiteOperatorPublicView operator, java.util.List<SiteGradeView> grades, boolean about) {
+                               SiteOperatorPublicView operator, java.util.List<SiteGradeView> grades, boolean about,
+                               SiteLogoUrls logos, boolean logoNameIncluded) {
 }

@@ -10,6 +10,7 @@ import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.SiteFooterNotice;
+import com.community.site.dto.SiteLogoUrls;
 import com.community.site.dto.SiteOperatorValues;
 import com.community.site.dto.SiteThemeMenu;
 import com.community.site.dto.response.BoardDisplayView;
@@ -101,7 +102,10 @@ public class PublicSiteService implements CacheReloader {
         String publicUrl = found.map(SiteSettingEntity::getPublicUrl).orElse(null);
         String siteName = found.map(SiteSettingEntity::getSiteName).orElse(null);
         String tagline = found.map(SiteSettingEntity::getTagline).orElse(null);
-        String logoUrl = found.flatMap(assets::logoUrl).orElse(null);
+        // 로고 4칸(V237) — 원본 칸만, 대체 순서는 화면 규칙. 옛 logoUrl 은 ① 칸 그대로
+        SiteLogoUrls logos = found.map(assets::logoUrls).orElse(SiteLogoUrls.EMPTY);
+        String logoUrl = logos.koLight();
+        boolean logoNameIncluded = found.map(SiteSettingEntity::isLogoNameIncluded).orElse(false);
         Optional<SiteIconResponse> icon = found.flatMap(assets::iconUrls).map(urls ->
                 new SiteIconResponse(urls.version(), urls.favicon32(), urls.favicon48(), urls.appleTouch180(), urls.icon192(), urls.icon512()));
         Optional<String> customOg = found.flatMap(assets::ogUrl);
@@ -134,7 +138,7 @@ public class PublicSiteService implements CacheReloader {
                 // 등급 목록(V196) — 이 사본(20초)과 지문(ETag)에 함께 든다. 등급 저장 뒤 길어야 사본 시간만큼 늦게 보인다
                 grades == null ? List.of() : grades.findAllOrdered().stream()
                         .map(g -> new SiteGradeView(g.getGradeKey(), g.getLabel(), g.getLevel(), g.getSprite())).toList(),
-                aboutHtml != null);
+                aboutHtml != null, logos, logoNameIncluded);
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme)));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();

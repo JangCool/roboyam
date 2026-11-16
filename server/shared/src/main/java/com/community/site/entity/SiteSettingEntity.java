@@ -8,7 +8,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마), V156(공지 띠).
+ * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마), V156(공지 띠), V237(로고 4칸 — {@link SiteLogoVariant}).
  * 사이트 이름과 공개 주소(서버가 밖으로 내보내는 링크의 기준), 슬로건, 로고·사이트 아이콘·링크 미리보기 이미지, 표시 기본값, 공개 사이트 테마다.
  * 행은 설치 때 처음 생기고, 이후 관리자 앱의 설정 > 일반 화면이 고친다(공개 주소는 그 화면이 건드리지 않는다).
  */
@@ -40,6 +40,24 @@ public class SiteSettingEntity {
 
     /** 로고로 지정한 SVG 소스(검사를 마치고 xmlns 를 맞춘 것). 로고 그림 파일과 함께 있을 수 없다 */
     private String logoSvg;
+
+    /** ② 한글·어두운 바탕용 로고 — 그림 파일 또는 SVG 소스 하나(V237). ① 은 위 {@code logoFileId}·{@code logoSvg} 다 */
+    private Long logoKoDarkFileId;
+
+    private String logoKoDarkSvg;
+
+    /** ③ 영문·밝은 바탕용 로고(V237) */
+    private Long logoEnLightFileId;
+
+    private String logoEnLightSvg;
+
+    /** ④ 영문·어두운 바탕용 로고(V237) */
+    private Long logoEnDarkFileId;
+
+    private String logoEnDarkSvg;
+
+    /** 로고 그림에 사이트 이름이 들어 있는가(V237, 기본 끔) — 켜져 있으면 공개 헤더가 로고 옆 이름 글자를 붙이지 않는다 */
+    private boolean logoNameIncluded;
 
     /** 사이트 아이콘의 버전 토큰(저장소 키 {@code site-icon/{버전}/…}). 없으면(null) 기본 아이콘 */
     private String iconToken;
@@ -123,25 +141,84 @@ public class SiteSettingEntity {
         touch(operatorId, now);
     }
 
-    /** 로고를 그림 파일로 바꾼다 — SVG 로고는 비운다 */
+    /** ① 로고를 그림 파일로 바꾼다 — SVG 로고는 비운다 */
     public void changeLogoFile(long fileId, long operatorId, Instant now) {
-        this.logoFileId = fileId;
-        this.logoSvg = null;
-        touch(operatorId, now);
+        changeLogoFile(SiteLogoVariant.KO_LIGHT, fileId, operatorId, now);
     }
 
-    /** 로고를 SVG 소스로 바꾼다 — 그림 파일 로고는 비운다 */
+    /** ① 로고를 SVG 소스로 바꾼다 — 그림 파일 로고는 비운다 */
     public void changeLogoSvg(String svgSource, long operatorId, Instant now) {
-        this.logoSvg = svgSource;
-        this.logoFileId = null;
+        changeLogoSvg(SiteLogoVariant.KO_LIGHT, svgSource, operatorId, now);
+    }
+
+    /** ① 로고를 뗀다 */
+    public void clearLogo(long operatorId, Instant now) {
+        clearLogo(SiteLogoVariant.KO_LIGHT, operatorId, now);
+    }
+
+    /** 한 칸의 로고를 그림 파일로 바꾼다 — 그 칸의 SVG 는 비운다 */
+    public void changeLogoFile(SiteLogoVariant variant, long fileId, long operatorId, Instant now) {
+        putLogo(variant, fileId, null);
         touch(operatorId, now);
     }
 
-    /** 로고를 뗀다 */
-    public void clearLogo(long operatorId, Instant now) {
-        this.logoFileId = null;
-        this.logoSvg = null;
+    /** 한 칸의 로고를 SVG 소스로 바꾼다 — 그 칸의 그림 파일은 비운다 */
+    public void changeLogoSvg(SiteLogoVariant variant, String svgSource, long operatorId, Instant now) {
+        putLogo(variant, null, svgSource);
         touch(operatorId, now);
+    }
+
+    /** 한 칸의 로고를 뗀다 */
+    public void clearLogo(SiteLogoVariant variant, long operatorId, Instant now) {
+        putLogo(variant, null, null);
+        touch(operatorId, now);
+    }
+
+    /** 「로고에 사이트 이름이 들어 있음」을 바꾼다 */
+    public void changeLogoNameIncluded(boolean included, long operatorId, Instant now) {
+        this.logoNameIncluded = included;
+        touch(operatorId, now);
+    }
+
+    /** 한 칸의 그림 파일 번호(없으면 null) */
+    public Long logoFileId(SiteLogoVariant variant) {
+        return switch (variant) {
+            case KO_LIGHT -> logoFileId;
+            case KO_DARK -> logoKoDarkFileId;
+            case EN_LIGHT -> logoEnLightFileId;
+            case EN_DARK -> logoEnDarkFileId;
+        };
+    }
+
+    /** 한 칸의 SVG 소스(없으면 null) */
+    public String logoSvg(SiteLogoVariant variant) {
+        return switch (variant) {
+            case KO_LIGHT -> logoSvg;
+            case KO_DARK -> logoKoDarkSvg;
+            case EN_LIGHT -> logoEnLightSvg;
+            case EN_DARK -> logoEnDarkSvg;
+        };
+    }
+
+    private void putLogo(SiteLogoVariant variant, Long fileId, String svg) {
+        switch (variant) {
+            case KO_LIGHT -> {
+                this.logoFileId = fileId;
+                this.logoSvg = svg;
+            }
+            case KO_DARK -> {
+                this.logoKoDarkFileId = fileId;
+                this.logoKoDarkSvg = svg;
+            }
+            case EN_LIGHT -> {
+                this.logoEnLightFileId = fileId;
+                this.logoEnLightSvg = svg;
+            }
+            case EN_DARK -> {
+                this.logoEnDarkFileId = fileId;
+                this.logoEnDarkSvg = svg;
+            }
+        }
     }
 
     /** 사이트 아이콘의 버전을 바꾼다. {@code null} 이면 기본 아이콘으로 되돌린다 */
@@ -242,6 +319,10 @@ public class SiteSettingEntity {
 
     public String getLogoSvg() {
         return logoSvg;
+    }
+
+    public boolean isLogoNameIncluded() {
+        return logoNameIncluded;
     }
 
     public String getIconToken() {

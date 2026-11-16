@@ -5,6 +5,8 @@ import com.community.media.repository.master.FileRepository;
 import com.community.media.service.ImageStorage;
 import com.community.site.dto.SiteBranding;
 import com.community.site.dto.SiteIconUrls;
+import com.community.site.dto.SiteLogoUrls;
+import com.community.site.entity.SiteLogoVariant;
 import com.community.site.entity.SiteSettingEntity;
 import com.community.site.repository.master.SiteSettingRepository;
 import com.community.site.service.SiteMediaKeys.IconFile;
@@ -46,16 +48,31 @@ public class SiteAssets {
         return settings.findById(SiteSettingEntity.ROW_ID).flatMap(this::logoUrl);
     }
 
-    /** 이미 읽은 설정 행의 로고 주소 */
+    /** 이미 읽은 설정 행의 로고 주소 — ① 한글·밝은 바탕용 칸(옛 단일 로고) */
     @Transactional(readOnly = true)
     public Optional<String> logoUrl(SiteSettingEntity row) {
-        if (row.getLogoSvg() != null) {
-            return Optional.of(svgDataUri(row.getLogoSvg()));
+        return logoUrl(row, SiteLogoVariant.KO_LIGHT);
+    }
+
+    /** 이미 읽은 설정 행의 한 칸 로고 주소 — 빈 칸이면 비어 있다(다른 칸으로 대신하지 않는다) */
+    @Transactional(readOnly = true)
+    public Optional<String> logoUrl(SiteSettingEntity row, SiteLogoVariant variant) {
+        String svg = row.logoSvg(variant);
+        if (svg != null) {
+            return Optional.of(svgDataUri(svg));
         }
-        if (row.getLogoFileId() != null) {
-            return files.findById(row.getLogoFileId()).map(FileEntity::getStorageKey).map(storage::publicUrl);
+        Long fileId = row.logoFileId(variant);
+        if (fileId != null) {
+            return files.findById(fileId).map(FileEntity::getStorageKey).map(storage::publicUrl);
         }
         return Optional.empty();
+    }
+
+    /** 이미 읽은 설정 행의 로고 4칸 주소(V237) — 빈 칸은 null 그대로 둔다(대체 순서는 화면 규칙) */
+    @Transactional(readOnly = true)
+    public SiteLogoUrls logoUrls(SiteSettingEntity row) {
+        return new SiteLogoUrls(logoUrl(row, SiteLogoVariant.KO_LIGHT).orElse(null), logoUrl(row, SiteLogoVariant.KO_DARK).orElse(null),
+                logoUrl(row, SiteLogoVariant.EN_LIGHT).orElse(null), logoUrl(row, SiteLogoVariant.EN_DARK).orElse(null));
     }
 
     /** 올려 둔 사이트 아이콘의 주소들. 올려 둔 것이 없으면 비어 있다 */

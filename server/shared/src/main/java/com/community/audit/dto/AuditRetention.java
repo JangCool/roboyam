@@ -96,7 +96,7 @@ public final class AuditRetention {
             AuditActions.OPERATOR_CREATE, AuditActions.OPERATOR_UPDATE, AuditActions.OPERATOR_STATUS_CHANGE, AuditActions.OPERATOR_REJECT,
             AuditActions.INVITATION_CREATE, AuditActions.INVITATION_CANCEL, AuditActions.GRADE_UPDATE,
             AuditActions.BATCH_TOGGLE, AuditActions.BATCH_SCHEDULE_CHANGE, AuditActions.BATCH_RUN,
-            AuditActions.SITE_BASIC_UPDATE, AuditActions.SITE_LOGO_CHANGE, AuditActions.SITE_LOGO_REMOVE, AuditActions.SITE_ICON_CHANGE, AuditActions.SITE_ICON_RESET,
+            AuditActions.SITE_BASIC_UPDATE, AuditActions.SITE_LOGO_CHANGE, AuditActions.SITE_LOGO_REMOVE, AuditActions.SITE_LOGO_NAME_CHANGE, AuditActions.SITE_ICON_CHANGE, AuditActions.SITE_ICON_RESET,
             AuditActions.SITE_OG_CHANGE, AuditActions.SITE_OG_RESET, AuditActions.SITE_DISPLAY_UPDATE, AuditActions.SITE_THEME_UPDATE,
             AuditActions.SITE_THEME_MENU_UPDATE, AuditActions.SITE_NOTICE_BAR_UPDATE, AuditActions.SITE_ABOUT_UPDATE, AuditActions.HOME_LAYOUT_UPDATE,
             // 팝업 관리(site-popup-contract) — 공지 띠와 같은 사이트 운영 일
