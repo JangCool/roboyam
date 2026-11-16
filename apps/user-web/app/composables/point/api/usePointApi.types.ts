@@ -116,6 +116,11 @@ export interface PointSummary {
     attendanceAvailable: boolean;
     today: PointToday;
     rules: PointRules;
+    /**
+     * 포인트 적립·사용을 막는 기능 제한(포인트 동결 `POINT_FREEZE`) — 없으면 null. 동결 중에는 출석·글 적립이 조용히 건너뛰어지고 사용(상점·게임)은 403 이라
+     * 화면이 미리 알린다(`UtilFeatureRestriction.normalize` 로 읽는다). 옛 서버는 보내지 않는다.
+     */
+    restriction?: unknown;
 }
 
 /**

@@ -28,11 +28,23 @@ import type {
     GroupCategory,
     GroupJoinReason,
     GroupCreateRequest,
+    GroupCreationBlockedReason,
     GroupCreationRules,
     MyGroupRequest,
 } from '~/composables/group/api/useGroupApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilGroupManager from '~/utils/util-group-manager';
+
+/** 개설 규칙 응답 `me.reason` 으로 받는 값(서버 `GroupQueryService.creationBlocked` 차례) — 모르는 값은 null 로 버린다 */
+const CREATION_BLOCKED_REASONS: readonly GroupCreationBlockedReason[] = [
+    'EMAIL_NOT_VERIFIED',
+    'ACCOUNT_RESTRICTED',
+    'BUSINESS_ACCOUNT_RESTRICTED',
+    'NOT_PERMITTED',
+    'GRADE_TOO_LOW',
+    'LIMIT_REACHED',
+    'DISSOLVE_PENALTY',
+];
 
 /**
  * 소모임 화면이 같이 쓰는 순수 함수 — 목록 주소(쿼리)·상세 → 화면 값·가입 단추 상태·정원 범위·채팅 주소 검사·개설/정보 수정/채팅 링크 입력 검사.
@@ -726,7 +738,7 @@ export default class UtilGroup {
         let me: GroupCreationRules['me'] = null;
         if (typeof r.me === 'object' && r.me !== null && !Array.isArray(r.me)) {
             const m = r.me as Record<string, unknown>;
-            const reason = m.reason === 'NOT_PERMITTED' || m.reason === 'GRADE_TOO_LOW' || m.reason === 'LIMIT_REACHED' || m.reason === 'DISSOLVE_PENALTY' ? m.reason : null;
+            const reason = (CREATION_BLOCKED_REASONS as readonly unknown[]).includes(m.reason) ? (m.reason as GroupCreationBlockedReason) : null;
             me = {
                 canCreate: m.canCreate !== false && reason === null,
                 reason,

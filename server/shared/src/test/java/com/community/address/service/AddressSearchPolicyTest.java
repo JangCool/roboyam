@@ -70,6 +70,16 @@ class AddressSearchPolicyTest {
     }
 
     @Test
+    void 옛_다음_공식_주소는_새_카카오_공식_주소로_바꿔_쓴다() {
+        assertThat(AddressSearchPolicy.DEFAULT_SCRIPT_URL).startsWith("https://t1.kakaocdn.net/");
+        // 이미 저장된 옛 주소 — 회원 화면에는 새 주소
+        assertThat(AddressSearchPolicy.effectiveScriptUrl(AddressSearchPolicy.LEGACY_DEFAULT_SCRIPT_URL)).isEqualTo(AddressSearchPolicy.DEFAULT_SCRIPT_URL);
+        assertThat(AddressSearchPolicy.effectiveScriptUrl(" " + AddressSearchPolicy.LEGACY_DEFAULT_SCRIPT_URL + " ")).isEqualTo(AddressSearchPolicy.DEFAULT_SCRIPT_URL);
+        // 새로 저장할 때 옛 주소는 빈 값(공식 주소)으로
+        assertThat(AddressSearchPolicy.storedScriptUrl(AddressSearchPolicy.LEGACY_DEFAULT_SCRIPT_URL)).isNull();
+    }
+
+    @Test
     void 갱신_권고_일수는_7에서_365() {
         assertThat(AddressSearchPolicy.staleDaysProblem(null).key()).isEqualTo("address.settings.staleDaysRequired");
         assertThat(AddressSearchPolicy.staleDaysProblem(6).key()).isEqualTo("address.settings.staleDaysOutOfRange");

@@ -102,6 +102,7 @@ export default {
     writeGradeUnknown: '등급이 올라가면 글을 쓸 수 있어요.',
     writeEmail: '이메일 인증을 마치면 글과 댓글을 쓸 수 있어요.',
     writeRestricted: '이용이 제한된 계정이라 글과 댓글을 쓸 수 없어요.',
+    writeBusiness: '홍보 전용 사업자 계정은 글과 댓글을 쓸 수 없어요. 광고·핫딜은 사업자 센터에서 신청해 주세요.',
     writeBlocked: '지금은 글을 쓸 수 없어요.',
     writeGroupNotMember: '소모임 멤버만 글을 쓸 수 있어요.',
     writeGroupDissolved: '해산한 소모임이라 새 글을 쓸 수 없어요.',
