@@ -1,18 +1,18 @@
 {
   "format": 1,
   "preset": "IROBIT",
-  "builtAt": "2026-11-16T05:01:17.045Z",
+  "builtAt": "2026-11-16T06:30:17.045Z",
   "source": {
-    "sharedVersion": "230",
+    "sharedVersion": "231",
     "database": "irobit_demo_build"
   },
   "operatorIds": [
-    "115674653686403072",
-    "115674809366470697"
+    "115700202316140544"
   ],
   "dataKey": "1:Nkfi1vUhkXnb6dM1b8wzSxEbPhDjKWCqih4IwYR9o34=",
   "data": "data.json.gz",
-  "dataSha256": "833ca3641fb2538231bba9c45d49c895f6f13749f9a87f57aaff7a915b9ddefd",
+  "dataSha256": "13d8b6e6d8443417a60da95bf7ebb5172d8197e1de90ebe589c24f87cee715e5",
+  "patches": [],
   "counts": {
     "users": 52,
     "business_profiles": 1,
@@ -2046,30 +2046,6 @@
     {
       "key": "post-image/202611/ff0ef14d6d4fa561d34f4d8cc2e27b4c.jpg",
       "size": 29739
-    },
-    {
-      "key": "site-icon/dfee35ff2855249c/apple-touch-180.png",
-      "size": 8159
-    },
-    {
-      "key": "site-icon/dfee35ff2855249c/favicon-32.png",
-      "size": 964
-    },
-    {
-      "key": "site-icon/dfee35ff2855249c/favicon-48.png",
-      "size": 2119
-    },
-    {
-      "key": "site-icon/dfee35ff2855249c/icon-192.png",
-      "size": 9274
-    },
-    {
-      "key": "site-icon/dfee35ff2855249c/icon-512.png",
-      "size": 13287
-    },
-    {
-      "key": "site-og/a5d6f3e498e743ea/og.png",
-      "size": 31063
     }
   ]
 }
