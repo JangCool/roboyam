@@ -1137,7 +1137,7 @@ html[data-mobile-header='plain'] .app-top-tabs .app-top-tabs-sub a[data-active='
  *  - 데스크톱: 다음식 셸(`DaumShell`)이 메뉴 카드를 `sticky top-0` 으로 두고, 사이드 메뉴가 그 카드 아래에 붙도록 본문 상자에 붙는 머리 높이(`--shell-header-h`)를 카드 높이로 채운다
  *    (작은 카드 103px · 보통 126px — 메뉴 크기 설정에 따라). 기본 테마·네이버식 셸은 원래 상단 바·탭 바가 붙는다.
  *  - 모바일: 루트 `data-sticky-menu='on'` — 상단 바(`AppHeader`)는 붙지 않고 위로 사라지며, 상단 탭(`app-top-tabs` — 한 줄 탭·메뉴 두 줄)이 창 맨 위에 붙는다.
- *    ⚠ 상단 바 높이(48px)를 전제로 `top-12` 에 붙는 다른 화면 요소(검색·설정 등)는 이 설정의 모바일에서 붙는 자리가 어긋날 수 있다.
+ *    ⚠ 모바일 상단 바 높이(54px — 2026-11-16 그라데이션 여유로 48 에서 늘림)를 전제로 `top-[54px]` 에 붙는 다른 화면 요소(검색 등)는 이 설정의 모바일에서 붙는 자리가 어긋날 수 있다.
  */
 @media (max-width: 47.99rem) {
     html[data-sticky-menu='on'] .app-nav {

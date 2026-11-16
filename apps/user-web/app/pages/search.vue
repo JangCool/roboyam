@@ -6,7 +6,7 @@
             role="search"
             :aria-label="t('search.formLabel')"
             novalidate
-            class="sticky top-12 z-20 -mx-4 -mt-4 border-b border-surface bg-surface-0 px-2 py-1.5 md:static md:mx-0 md:mt-0 md:max-w-2xl md:border-0 md:bg-transparent md:p-0 dark:bg-surface-900 dark:md:bg-transparent"
+            class="sticky top-[54px] z-20 -mx-4 -mt-4 border-b border-surface bg-surface-0 px-2 py-1.5 md:static md:mx-0 md:mt-0 md:max-w-2xl md:border-0 md:bg-transparent md:p-0 dark:bg-surface-900 dark:md:bg-transparent"
             @submit.prevent="submit"
         >
             <div class="flex items-center gap-2">
