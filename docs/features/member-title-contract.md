@@ -1,4 +1,4 @@
-# 회원 칭호 계약 (시안 확정 2026-11-17 · 구현 전)
+# 회원 칭호 계약 (시안 확정 2026-11-17 · 구현 2026-11-17)
 
 **의도**: 등급(경험치 사다리)과 따로, 「무엇을 잘하는 사람인가」를 보여 주는 칭호를 만든다. 한 회원이 여러 개를 가질 수 있고, 자동·신청 심사·운영자 수여 세 가지 방법으로 받는다. 등급은 칭호를 받는 조건으로만 쓴다.
 **관련 계약**: `grade-level-contract.md`(등급 — 섞지 않는다) · `point-board-tier-contract.md`(우수 글) · `trial-group-contract.md`(리뷰어 단계·체험단 우대).
@@ -53,4 +53,19 @@
 - 관리자: `GET/POST/PUT /api/admin/titles` · `GET/PUT /api/admin/titles/settings`(이달의 작가 최대 인원·명예 작가 횟수) · `POST /api/admin/titles/{key}/grants`·`DELETE`(수여·회수) · `GET /api/admin/titles/applications` · `POST .../{id}/approve|reject` · `GET /api/admin/titles/monthly-candidates?month=`.
 
 ## 미확정
-- 자동 칭호 판정을 즉시(활동 시점)로 할지 배치로 할지 — 인기글 횟수는 인기글 보상 배치와 같은 때.
+- 없음(자동 판정 시점은 아래 「구현 결정」 1 로 닫음).
+
+## 구현 결정 (2026-11-17 — 사용자 「다 개발」 지시로 화면·서버를 함께 만든다)
+1. **자동 칭호 판정**: admin 배치 `title-auto-grant` 매일 00:10 KST(인기글 보상 배치 00:00 뒤). 인기글 = 그날 인기글 상위(`popularRewardTopN`, 0 이면 10) 진입 일수 — 인기글 보상 배치가 남기는 날짜별 목록 `point_popular_rewards` 와 같은 뽑기를 포인트와 상관없이 남긴다. 출석 100일 = 출석한 날 수. **명예 작가는 배치를 기다리지 않고** 이달의 작가 수여 트랜잭션에서 바로 준다. 칭호 저장(조건 바꿈) 때 소급 지급은 그 칭호만 배치를 한 번 돌린다(admin 배치 수동 실행과 같은 길).
+2. **표**: `titles`(키·이름·그림·칩 색 PURPLE|GREEN·받는 방법 AUTO|APPLY|AWARD·심사자 OPERATOR|OPERATOR_AND_BOARD_MANAGER·연결 게시판·조건 JSON·단계 칸·혜택·휴면·기본 칭호 여부·켜짐·순서) · `member_titles`(회원·칭호·단계·기간 `period`(이달의 작가 `YYYY-MM`, 올해의 작가 `YYYY`, 그 밖 빈 값)·받은 때·준 사람·회수 때·회수 사유 — 회수해도 줄은 남김) · `title_applications`(상태 PENDING|APPROVED|REJECTED·사유·다시 신청할 수 있는 날) · `title_settings`(한 행) · `title_monthly_candidates`(달·글·회원·넣은 운영자) · 회원 대표 칭호(`member_title_prefs`: 회원·대표 칭호 키·안 보이기). 기본 칭호 7개는 마이그레이션으로 넣는다(모든 설치·데모 공통).
+3. **이달의 작가 후보** = 그 달 `post_features`(살아 있는 선정) 글의 글쓴이 + `title_monthly_candidates`. 관리자 글 관리 ⋯ 메뉴 「이달의 작가 후보에 넣기」/「후보에서 빼기」 = `POST/DELETE /api/admin/titles/monthly-candidates` `{ postId }`(`title.manage`).
+4. **알림·축하 창**: 알림 이벤트 `TITLE_GRANTED`. 축하 창은 `GET /api/me/titles` 의 `unseen[]` → 닫으면 `POST /api/me/titles/seen`.
+5. **게시판 매니저 심사**: 회원 앱 게시판 스텝 화면(`/boards/{slug}/actions` 탭)에 「칭호 신청」 탭 — `GET /api/boards/{slug}/staff/title-applications` · `POST .../{id}/approve|reject`(api 서버, 그 게시판에 연결된 칭호만, 자기 신청 불가).
+6. **리뷰어 단계**: 체험단 「약속 지킴」 횟수로 동·은·금 — 체험단 기능이 생기기 전에는 승인 = 단계 없음(기본). 체험단 쪽 회수(미반납 확정·기한 두 번)는 체험단 구현 때 연결한다.
+7. **응답 모양**
+   - 작성자 DTO `title: { key, label, icon, tier, chip } | null` — 대표 칭호(기본 = 가진 작가 칭호 중 가장 높은 것: 명예 작가 > 올해의 작가 > 이달의 작가), 「안 보이기」면 null, 제재 기간·휴면이면 null. 이달의 작가의 `label` 은 「11월의 작가」(가장 최근 받은 달).
+   - 공개 프로필 `titles: [{ key, label, icon, tier, chip, count, periods[] }]` — 비공개 프로필이면 남에게는 대표 칭호 하나만.
+   - `GET /api/titles` → `[{ key, label, icon, chip, method, tiered, howTo, holders, ratio, tiers: [{ tier, threshold, holders }] }]` · `GET /api/hall-of-fame` → `{ honorary: [회원], yearly: [{ year, members }], monthly: [{ month, members }] }`(회원 = id·닉네임·아바타).
+   - `GET /api/me/titles` → `{ representative: { key } | null, hidden, owned: [...공개 프로필 줄], progress: [{ key, tier, current, target }], applicable: [{ key, label, conditions: [{ label, met }], canApply, reapplyAt }], applications: [{ id, key, status, reason, reapplyAt, createdAt }], unseen: [{ key, label, icon, tier, chip, ratio }] }` · `PUT /api/me/titles/representative` `{ key | null, hidden }` · `POST /api/me/titles/{key}/applications`.
+   - 관리자: `GET/POST/PUT /api/admin/titles`(`title.read`/`title.manage`) · `GET/PUT /api/admin/titles/settings` `{ monthlyMax, honoraryCount }` · `POST /api/admin/titles/{key}/grants` `{ memberId, period?, tier?, reason }` · `DELETE /api/admin/titles/{key}/grants/{grantId}` `{ reason }` · `GET /api/admin/titles/applications?status&key` · `POST /api/admin/titles/applications/{id}/approve|reject` `{ reason }`(`title.review`) · `GET /api/admin/titles/monthly-candidates?month=YYYY-MM` → `{ month, max, awarded: [...], candidates: [{ member, posts: [{ id, title, featured, manual }] }] }` · `GET /api/admin/titles/grants?key&memberId&page&size`(주고 뺀 기록) · 회원 상세에 칭호 목록.
+8. **권한**: `title.read`·`title.manage`·`title.review`(운영자). 칭호 이름은 최대 6자, 등급 이름과 겹치면 400. AI 회원·운영팀 계정(`operator_member_accounts`)은 자동·신청·수여 모두 제외.
