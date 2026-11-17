@@ -62,9 +62,12 @@ public class TrialQueries extends IrobitRepositoryQDSL {
         return query.selectFrom(T).where(T.status.in(statuses)).orderBy(T.applyStartAt.desc(), T.id.desc()).limit(200).fetch();
     }
 
-    /** 광고주의 모집(초안 빼고) — 최근 차례 */
+    /** 광고주의 모집(초안은 선결제 견적이 있는 것만 후보) — 최근 차례 */
     public List<TrialEntity> byAdvertiser(long advertiserId) {
-        return query.selectFrom(T).where(T.advertiserId.eq(advertiserId), T.status.ne(TrialStatus.DRAFT)).orderBy(T.createdAt.desc(), T.id.desc()).limit(200).fetch();
+        // 초안은 선결제 · 견적 > 0 인 것만 후보(신청 건 상태 거르기는 부르는 쪽 — TrialPayments.advertiserSeesDraft)
+        return query.selectFrom(T).where(T.advertiserId.eq(advertiserId), T.status.ne(TrialStatus.DRAFT)
+                        .or(T.paymentTiming.eq(com.community.trial.entity.TrialPaymentTiming.PREPAID).and(T.amount.gt(0L))))
+                .orderBy(T.createdAt.desc(), T.id.desc()).limit(200).fetch();
     }
 
     /** 모집마다 살아 있는(취소 아닌) 신청 수 */

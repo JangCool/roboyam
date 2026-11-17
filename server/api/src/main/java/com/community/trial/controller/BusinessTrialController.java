@@ -23,7 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 광고주 화면 체험단 API(사업자 센터 {@code /business/trials} — trial-group-contract 「구현 결정」 8). 로그인 필요(401), 광고주가 아니면 403 {@code TRIAL_NOT_ADVERTISER},
- * 남의 모집·초안은 404 {@code TRIAL_NOT_FOUND}. 회원 주소·연락처는 동의 범위(광고주가 보내는 모집의 뽑힌 줄)만 싣고, 실리면 개인정보 제공 감사 기록.
+ * 남의 모집·초안은 404 {@code TRIAL_NOT_FOUND} — 다만 목록·상세는 결제 대상 선결제 초안(견적 &gt; 0 · 심사·결제·입금 대기 · 결제 끝 · 만료 · 반려)을 {@code status} DRAFT(공개 전)로 싣는다. 회원 주소·연락처는 동의 범위(광고주가 보내는 모집의 뽑힌 줄)만 싣고, 실리면 개인정보 제공 감사 기록.
  *
  * <ul>
  *   <li>{@code GET /api/business/trials} → 내 모집 목록 · {@code GET /api/business/trials/{id}} → {@code { trial, applicants }}</li>

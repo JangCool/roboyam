@@ -221,9 +221,15 @@ public class ReviewQueueService {
         return rows.stream().map(r -> {
             PostEntity p = byPost.get(r.getPostId());
             String slug = p == null ? null : catalog.snapshot().board(p.getBoardId()).map(b -> b.slug()).orElse(null);
+            // 제재 미리보기(점검 후속): 회원 글이면 member.id 로 GET /api/admin/sanctions/preview?userId= · 익명 글이면 회원을 싣지 않고(봉인) anonymousPostId 로
+            // GET /api/admin/sanctions/preview?anonymousPostId= — 신고 사건 작성자 카드의 봉인 미리보기와 같은 값. 작성 회원이 없거나(비회원) 파기한 글은 sanctionable false.
+            boolean sanctionable = p != null && p.getAuthorId() != null && p.getPurgedAt() == null;
+            boolean anonymous = p != null && p.isAnonymous();
             return new Item("SPONSOR_HIDDEN", Long.toString(r.getPostId()), r.getStatus().name(), p == null ? null : p.getTitle(),
                     p == null || p.getAuthorId() == null || p.isAnonymous() ? null : who.get(p.getAuthorId()), pending ? r.getLastReportedAt() : r.getDecidedAt(), r.getNote(),
-                    refs("postId", Long.toString(r.getPostId()), "boardSlug", slug, "reportCount", String.valueOf(r.getReportCount())));
+                    refs("postId", Long.toString(r.getPostId()), "boardSlug", slug, "reportCount", String.valueOf(r.getReportCount()), "anonymous",
+                            String.valueOf(anonymous), "sanctionable", String.valueOf(sanctionable), "anonymousPostId",
+                            anonymous && sanctionable ? Long.toString(r.getPostId()) : null));
         }).toList();
     }
 

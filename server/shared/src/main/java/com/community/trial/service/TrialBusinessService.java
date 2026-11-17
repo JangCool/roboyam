@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 광고주 화면(사업자 센터 {@code /business/trials} — trial-group-contract 「구현 결정」 8). 광고주 = 회원의 사업자 신원({@code business_profiles})에 이어진 {@code ad_advertisers}
- * (없으면 403 {@code TRIAL_NOT_ADVERTISER}). 자기 모집(초안 빼고)만 보고, 신청자 후보 추천 · (보내는 쪽 광고주일 때) 발송 전 사진·송장 · 반납 받음·반납 사진 · 파손 신고를 한다.
+ * (없으면 403 {@code TRIAL_NOT_ADVERTISER}). 자기 모집만 보고(초안은 결제 대상 선결제 초안만 「공개 전」으로 — {@link TrialPayments#advertiserSeesDraft}, 처리는 못 한다), 신청자 후보 추천 · (보내는 쪽 광고주일 때) 발송 전 사진·송장 · 반납 받음·반납 사진 · 파손 신고를 한다.
  * 회원 주소·연락처는 동의 범위(광고주가 보내는 모집의 뽑힌 줄 — 신청 때 제공 동의)만 보이고, 볼 때마다 개인정보 제공 감사 기록을 남긴다.
  *
  * <p><b>자격</b>(점검 D5 — 광고 이미지 올리기와 같은 기준): 사업자 신원 승인(재심사 중이면 진행 중 건이 그대로 도므로 허용) · 광고 서비스 승인 · 광고주 보관 아님. 하나라도 아니면

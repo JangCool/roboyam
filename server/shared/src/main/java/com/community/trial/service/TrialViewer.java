@@ -218,6 +218,11 @@ public class TrialViewer {
     public List<TrialViews.TrialRow> rows(List<TrialEntity> list, Map<Long, Long> applicants, Instant now) {
         Map<Long, BizApplicationStore.AppRow> apps = new HashMap<>();
         bizApplications.findAll(list.stream().map(TrialEntity::getBizApplicationId).toList()).forEach(a -> apps.put(a.id(), a));
+        return rows(list, applicants, apps, now);
+    }
+
+    /** 모집 목록 — 신청 건을 이미 읽었으면(광고주 목록 거르기) 그대로 쓴다 */
+    public List<TrialViews.TrialRow> rows(List<TrialEntity> list, Map<Long, Long> applicants, Map<Long, BizApplicationStore.AppRow> apps, Instant now) {
         return list.stream().map(t -> row(t, applicants.getOrDefault(t.getId(), 0L), payments.status(t, apps.get(t.getBizApplicationId()), now))).toList();
     }
 

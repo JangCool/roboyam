@@ -18,6 +18,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -40,7 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <h2>복원 규칙</h2>
  * <ul>
  *   <li><b>시각</b>: 모든 시각·날짜 칸을 「팩 만든 시각 → 지금 − 1분」(분 단위로 내림)만큼 옮긴다 — 팩을 몇 달 전에 만들었어도 글이 방금 쓴 것처럼(지난 21일에 흩어져) 보인다.
- *       칸 이름에 {@code birth} 가 든 날짜(생년월일)는 옮기지 않는다.</li>
+ *       칸 이름에 {@code birth} 가 든 날짜(생년월일)는 옮기지 않는다. 기간 글자 칸({@link #PERIOD_COLUMNS} — 칭호 기간 'YYYY-MM'·'YYYY', 이달의 작가 후보 달)은
+ *       팩 전체에 같은 달 수·해 수만큼 옮긴다({@link #periodShift}).</li>
  *   <li><b>ID</b>: 팩 행의 ID(한 칸짜리 bigint 기본 키)를 같은 시간만큼 옮긴다(Snowflake 의 시각 부분 + 차이) — 글 월 조각·「오늘 글」 판정이 ID 범위로 자르므로 ID 와 시각이 같이 움직여야 한다.
  *       bigint 칸, bigint 배열, 글자·JSON 칸 안의 숫자(본문의 {@code data-image-id}, 로보티콘 {@code :emo-ID:} 등)에서 그 ID 를 모두 바꾼다. 구조(게시판·말머리) ID 는 팩 밖이라 그대로다.
  *       「지금 − 1분」으로 맞추므로 옮긴 ID 는 설치가 이미 매긴 ID(루트 운영자)보다 앞이고 앞으로 매길 ID 와 겹치지 않는다.</li>
@@ -107,7 +110,8 @@ public class DemoDataInstaller {
         // 분 단위로 내림 — 분에 맞춰야 하는 칸(사업자 신청 기간 ck_ba_period 등)이 옮긴 뒤에도 맞게
         long deltaMs = Math.max(0L, Duration.between(Instant.parse(manifest.builtAt()), now).toMillis() - MARGIN_MS) / 60_000L * 60_000L;
         Rekey rekey = new Rekey(manifest.dataKey() == null ? null : new DataCipher(manifest.dataKey(), ""), cipher, index);
-        Shift shift = new Shift(deltaMs, ids(data, deltaMs << TIME_SHIFT_BITS, manifest.operatorIds(), Long.toString(rootOperatorId)));
+        Shift shift = new Shift(deltaMs, ids(data, deltaMs << TIME_SHIFT_BITS, manifest.operatorIds(), Long.toString(rootOperatorId)),
+                periodShift(Instant.parse(manifest.builtAt()), deltaMs));
 
         tables.ensurePostPartitions(); // 글은 ID 범위로 월 조각에 들어간다 — 옮긴 ID 의 달 조각이 있어야 한다
         TablePackRestorer.Result result = restorer.restore(data, true, true, (table, row, columns) -> shift.row(table, rekey.row(table, row), columns));
@@ -215,10 +219,57 @@ public class DemoDataInstaller {
         }
     }
 
+    // ── 기간 글자 칸(이달의 작가 'YYYY-MM' · 올해의 작가 'YYYY') ─────────────────────────────
+
+    /** 기간 글자 칸 — 표 → 칸('YYYY-MM' · 'YYYY' · 빈 값). 시각 칸이 아니라 글자라 {@link Shift#time} 이 건드리지 않는다 */
+    static final Map<String, String> PERIOD_COLUMNS = Map.of("member_titles", "period", "title_monthly_candidates", "month");
+    /** 기간은 한국 시간 달력(칭호 계약 — 이달의 작가 달 = 한국 시간) */
+    private static final ZoneId PERIOD_ZONE = ZoneId.of("Asia/Seoul");
+    private static final Pattern YEAR = Pattern.compile("[0-9]{4}");
+    private static final Pattern YEAR_MONTH = Pattern.compile("[0-9]{4}-(0[1-9]|1[0-2])");
+
+    /** 기간을 옮길 양 — 달 수(YYYY-MM) · 해 수(YYYY) */
+    record PeriodShift(long months, int years) {
+    }
+
+    /**
+     * 팩 전체에 <b>하나의</b> 기간 이동 — 팩 만든 시각(한국 시간)의 연월과 그 시각을 {@code deltaMs} 만큼 옮긴 연월의 차이. 「팩을 만든 달의 지난달 작가」는 「설치한 달의 지난달 작가」가 된다.
+     * 줄마다 받은 때(granted_at)로 따로 셈하지 않는다 — 달 길이 때문에 이웃 달 두 줄이 같은 달로 모여 유일 색인(회원·칭호·기간)에 걸릴 수 있어서다(예: 9월 2일·10월 2일에 받은 줄을
+     * 29.6일 옮기면 하나는 다음 달, 하나는 같은 달).
+     */
+    static PeriodShift periodShift(Instant builtAt, long deltaMs) {
+        java.time.ZonedDateTime before = builtAt.atZone(PERIOD_ZONE);
+        java.time.ZonedDateTime after = before.plus(Duration.ofMillis(deltaMs));
+        return new PeriodShift(java.time.temporal.ChronoUnit.MONTHS.between(YearMonth.from(before), YearMonth.from(after)), after.getYear() - before.getYear());
+    }
+
+    /** 기간 글자 하나를 옮긴다 — 'YYYY-MM' 은 달 수, 'YYYY' 는 해 수, 그 밖(빈 값 등)은 그대로 */
+    static String shiftPeriod(String period, PeriodShift shift) {
+        if (period == null) {
+            return null;
+        }
+        if (YEAR_MONTH.matcher(period).matches()) {
+            return YearMonth.parse(period).plusMonths(shift.months()).toString();
+        }
+        if (YEAR.matcher(period).matches()) {
+            return String.format("%04d", Integer.parseInt(period) + shift.years());
+        }
+        return period;
+    }
+
     /** 행·글자 안의 시각·ID 를 옮긴다 */
-    private record Shift(long deltaMs, Map<String, String> ids) {
+    private record Shift(long deltaMs, Map<String, String> ids, PeriodShift periods) {
 
         Map<String, Object> row(String table, Map<String, Object> row, Map<String, TablePackRepository.Column> columns) {
+            Map<String, Object> out = moveIdsAndTimes(table, row, columns);
+            String periodColumn = PERIOD_COLUMNS.get(table);
+            if (periodColumn != null && out.get(periodColumn) != null) {
+                out.put(periodColumn, shiftPeriod(out.get(periodColumn).toString(), periods)); // 시각과 같이 기간도(칭호 「10월의 작가」가 옛 달로 남지 않게)
+            }
+            return out;
+        }
+
+        private Map<String, Object> moveIdsAndTimes(String table, Map<String, Object> row, Map<String, TablePackRepository.Column> columns) {
             Map<String, Object> out = new LinkedHashMap<>(row);
             for (Map.Entry<String, Object> entry : out.entrySet()) {
                 Object value = entry.getValue();

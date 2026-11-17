@@ -285,6 +285,50 @@ class TrialAuditFixAdminHttpTest extends Commerce04AdminTestBase {
     }
 
     @Test
+    void D2_익명글_협찬숨김_줄은_회원없이_anonymousPostId_로_제재미리보기_확인에_곁들인_제재는_봉인() throws Exception {
+        long author = newMember();
+        long postId = ids.nextId();
+        boardFixture.post(postId, board, author, "익명 협찬 숨김", "본문");
+        // SQL 로 남김: 익명 글은 익명 게시판 글쓰기가 정한다 — 이 시험은 확인할 일 처리만 보려고 글 한 줄의 익명 칸만 세운다
+        jdbc.update("UPDATE posts SET anonymous = true WHERE id = ?", postId);
+        long caseId = sponsorCase(postId, author);
+        Cookie sanctioner = login(operatorWith(Permission.TRIAL_REVIEW, Permission.SANCTION_READ, Permission.SANCTION_MANAGE));
+
+        // 확인할 일 줄 — 회원 없음(봉인) · anonymous true · sanctionable true · anonymousPostId = 글 ID
+        String body = mvc.perform(get("/api/admin/review-queue?type=SPONSOR_HIDDEN").cookie(sanctioner)).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+        List<Map<String, Object>> rows = JsonPath.read(body, "$.data.items[?(@.id == '" + postId + "')]");
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).get("member")).isNull();
+        @SuppressWarnings("unchecked")
+        Map<String, String> refs = (Map<String, String>) rows.get(0).get("refs");
+        assertThat(refs).containsEntry("anonymous", "true").containsEntry("sanctionable", "true").containsEntry("anonymousPostId", Long.toString(postId));
+
+        // 그 값으로 제재 미리보기 — 대상 봉인
+        mvc.perform(get("/api/admin/sanctions/preview?anonymousPostId=" + refs.get("anonymousPostId")).cookie(sanctioner)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.user.sealed").value(true));
+
+        // 확인 + 제재(닉네임 확인 없이) → 봉인 제재 · 사건 처리 완료
+        mvc.perform(withCsrf(post("/api/admin/review-queue/sponsor-hidden/" + postId + "/confirm"), sanctioner)
+                .content("{\"note\":\"업체 제공 확인\",\"sanction\":{\"kind\":\"WARNING\",\"reason\":\"협찬 표시 위반\"}}")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.kind").value("WARNING"));
+        assertThat(jdbc.queryForMap("SELECT kind, sealed, report_case_id FROM member_sanctions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", author))
+                .containsEntry("kind", "WARNING").containsEntry("sealed", true).containsEntry("report_case_id", caseId);
+        assertThat(jdbc.queryForObject("SELECT action FROM report_cases WHERE id = ?", String.class, caseId)).isEqualTo("SPONSOR_LABEL");
+
+        // 회원 글 줄은 anonymous false · anonymousPostId 없음 · member 로 미리보기
+        long plain = ids.nextId();
+        boardFixture.post(plain, board, author, "회원 협찬 숨김", "본문");
+        sponsors.reported(plain);
+        body = mvc.perform(get("/api/admin/review-queue?type=SPONSOR_HIDDEN").cookie(sanctioner)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        rows = JsonPath.read(body, "$.data.items[?(@.id == '" + plain + "')]");
+        @SuppressWarnings("unchecked")
+        Map<String, String> plainRefs = (Map<String, String>) rows.get(0).get("refs");
+        assertThat(plainRefs).containsEntry("anonymous", "false").containsEntry("sanctionable", "true").doesNotContainKey("anonymousPostId");
+        assertThat(rows.get(0).get("member")).isNotNull();
+    }
+
+    @Test
     void D2_신고관리에서_사건을_닫으면_확인할일_줄도_닫힌다_협찬숨김_사유로_조치면_협찬_고정_무시면_무시() throws Exception {
         long author = newMember();
         Cookie reporter = login(operatorWith(Permission.REPORT_READ, Permission.REPORT_MANAGE));

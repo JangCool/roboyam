@@ -186,7 +186,8 @@ const fallbackEn = [];
 const typed = boards
     .filter((b) => b.active && !OPS_BOARDS.has(b.slug))
     .map((b) => {
-        const own = prefixes.filter((p) => String(p.board_id) === String(b.id) && p.active);
+        // 체험단 말머리(공통 TRIAL)는 구조 스냅숏에만 — 이 목록(구조를 넣지 못했을 때)은 공통 말머리 4개만 알아 같은 이름의 고유 말머리가 생기므로 뺀다(첫 체험단 사용기 때 서버가 만든다)
+        const own = prefixes.filter((p) => String(p.board_id) === String(b.id) && p.active && p.common_key !== 'TRIAL');
         return {
             slug: b.slug,
             name: b.name,

@@ -212,6 +212,20 @@ public class TrialPayments implements BizTrialLink {
         links.persist(TrialBizApplicationEntity.of(bizApplicationId, trialId, now));
     }
 
+    /** 광고주 화면에 보이는 공개 전(초안) 모집의 신청 건 상태 — 심사 대기 · 결제 대기 · 입금 대기 · 결제 끝 · 만료 · 반려(취소는 빼고) */
+    private static final Set<BizApplicationStatus> ADVERTISER_DRAFT = EnumSet.of(BizApplicationStatus.SUBMITTED, BizApplicationStatus.AWAITING_PAYMENT,
+            BizApplicationStatus.AWAITING_DEPOSIT, BizApplicationStatus.SCHEDULED, BizApplicationStatus.TAKEN_DOWN, BizApplicationStatus.EXPIRED,
+            BizApplicationStatus.REJECTED);
+
+    /**
+     * 광고주가 체험단 화면에서 볼 수 있는 초안인가 — 선결제 · 견적 금액 &gt; 0 · 지금 결제 건이 {@link #ADVERTISER_DRAFT}. 0원 초안 · 견적 전 초안 · 후불 초안 · 취소된 건은 숨긴다.
+     * 초안이 아니면 false(부르는 쪽이 따로 본다).
+     */
+    public boolean advertiserSeesDraft(TrialEntity t, AppRow app) {
+        return t.getStatus() == TrialStatus.DRAFT && t.prepaid() && t.getAmount() != null && t.getAmount() > 0 && app != null
+                && app.id() == t.getBizApplicationId() && ADVERTISER_DRAFT.contains(app.status());
+    }
+
     /** 결제가 끝났나 — 예약·내림, 또는 입금 기록이 있는 입금 대기(돈이 들어왔다 — 금액을 다시 셀 수 없다) */
     public boolean paid(AppRow app) {
         return app.status() == BizApplicationStatus.SCHEDULED || app.status() == BizApplicationStatus.TAKEN_DOWN

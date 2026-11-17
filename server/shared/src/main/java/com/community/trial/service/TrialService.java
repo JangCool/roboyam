@@ -182,23 +182,41 @@ public class TrialService {
         return viewer.rows(rows, counts, now());
     }
 
-    /** 광고주의 모집 목록(초안 빼고) */
+    /**
+     * 광고주의 모집 목록 — 초안은 선결제 결제 대상(견적 &gt; 0 · 심사·결제·입금 대기 · 결제 끝 · 만료 · 반려)만 「공개 전」({@code status} DRAFT)으로 싣는다
+     * ({@link TrialPayments#advertiserSeesDraft}). 0원·견적 전 초안은 숨김.
+     */
     @Transactional(readOnly = true)
     public List<TrialViews.TrialRow> listOf(long advertiserId) {
-        List<TrialEntity> rows = queries.byAdvertiser(advertiserId);
+        List<TrialEntity> candidates = queries.byAdvertiser(advertiserId);
+        Map<Long, BizApplicationStore.AppRow> apps = new HashMap<>();
+        bizApplications.findAll(candidates.stream().map(TrialEntity::getBizApplicationId).toList()).forEach(a -> apps.put(a.id(), a));
+        List<TrialEntity> rows = candidates.stream()
+                .filter(t -> t.getStatus() != TrialStatus.DRAFT || payments.advertiserSeesDraft(t, apps.get(t.getBizApplicationId()))).toList();
         Map<Long, Long> counts = queries.applicantCounts(rows.stream().map(TrialEntity::getId).toList());
-        return viewer.rows(rows, counts, now());
+        return viewer.rows(rows, counts, apps, now());
     }
 
     @Transactional(readOnly = true)
     public TrialViews.TrialDetail detail(String idText, Actor actor) {
-        TrialEntity t = visible(idText, actor);
+        TrialEntity t = readable(idText, actor);
         return viewer.detail(t, actor.type(), now());
     }
 
     @Transactional(readOnly = true)
     public TrialViews.ApplicantPage applicants(String idText, Actor actor) {
-        return viewer.applicants(visible(idText, actor), actor.type());
+        return viewer.applicants(readable(idText, actor), actor.type());
+    }
+
+    /** 읽기(상세·신청자)에 보이는 모집 — {@link #visible} 에 더해 광고주는 결제 대상 선결제 초안({@link TrialPayments#advertiserSeesDraft})도 본다. 처리(사진·발송 등)는 여전히 초안 404 */
+    private TrialEntity readable(String idText, Actor actor) {
+        TrialEntity t = trials.findById(id(idText, TrialException::notFound)).orElseThrow(TrialException::notFound);
+        if (!actor.operator() && t.getStatus() == TrialStatus.DRAFT && t.getAdvertiserId().equals(actor.advertiserId())
+                && payments.advertiserSeesDraft(t, bizApplications.find(t.getBizApplicationId()).orElse(null))) {
+            return t;
+        }
+        requireOwner(t, actor);
+        return t;
     }
 
     /** 보는 쪽에게 보이는 모집 — 광고주는 자기 모집(초안 빼고)만, 아니면 404 */

@@ -53,6 +53,8 @@ class TrialPrepaidTest extends BizApplicationApiTestBase {
     private AddressBookService addresses;
     @Autowired
     private AdAdvertiserStore advertisers;
+    @Autowired
+    private com.community.trial.service.TrialBusinessService business;
 
     private long board;
     private long creator;
@@ -442,6 +444,71 @@ class TrialPrepaidTest extends BizApplicationApiTestBase {
         assertThat(trialStatus(t4)).isEqualTo("DRAFT");
         assertThat(payment(t4).status()).isEqualTo("CANCELED");
         assertThat(payment(t4).requestAllowed()).isTrue();
+    }
+
+    // ── 광고주 체험단 화면의 공개 전 선결제 모집 ───────────────────────────
+
+    @Test
+    void 광고주_체험단화면은_결제대상_선결제_초안을_공개전으로_보이고_온라인결제로_이어지며_0원_견적전_후불_취소된_초안은_숨긴다() throws Exception {
+        price(50000, "PER_PERSON", 0);
+        long t = create("ADVERTISER", 2, null);
+        long appId = bizId(t);
+        String id = Long.toString(t);
+
+        // 심사 대기 — 목록·상세에 「공개 전」(status DRAFT) · 결제 구획 그대로 · 신청자 없음
+        assertThat(business.list(advertiserUser)).filteredOn(r -> r.id().equals(id)).singleElement()
+                .satisfies(r -> assertThat(r.status() + ":" + r.paymentTiming() + ":" + r.paymentStatus()).isEqualTo("DRAFT:PREPAID:AWAITING_APPROVAL"));
+        TrialViews.BusinessTrialDetail d = business.detail(advertiserUser, "127.0.0.1", id);
+        assertThat(d.trial().status()).isEqualTo("DRAFT");
+        assertThat(d.trial().participants()).isEmpty();
+        assertThat(d.applicants().items()).isEmpty();
+        assertThat(d.trial().payment().status()).isEqualTo("AWAITING_APPROVAL");
+        assertThat(d.trial().payment().bizApplicationId()).isEqualTo(Long.toString(appId));
+        assertThat(d.trial().payment().total()).isEqualTo(110000L);
+        assertThat(d.trial().payment().payOnline()).isFalse();
+        // 처리(사진 올리기)는 초안이면 여전히 404
+        assertThat(codeOf(() -> business.uploadPhoto(advertiserUser, id, "PRE_SHIP", png()))).isEqualTo("TRIAL_NOT_FOUND");
+
+        // 승인(온라인) → 결제 대기 · payOnline → 광고주가 그 신청 건으로 온라인 결제 → 결제 끝, 여전히 공개 전으로 보인다
+        approveTrial(appId, "ONLINE");
+        d = business.detail(advertiserUser, "127.0.0.1", id);
+        assertThat(d.trial().payment().status()).isEqualTo("AWAITING_PAYMENT");
+        assertThat(d.trial().payment().payOnline()).isTrue();
+        pay(advertiserUser, Long.parseLong(d.trial().payment().bizApplicationId()));
+        d = business.detail(advertiserUser, "127.0.0.1", id);
+        assertThat(d.trial().status()).isEqualTo("DRAFT");
+        assertThat(d.trial().payment().status()).isEqualTo("PAID");
+        assertThat(business.list(advertiserUser)).filteredOn(r -> r.id().equals(id)).singleElement()
+                .satisfies(r -> assertThat(r.paymentStatus()).isEqualTo("PAID"));
+
+        // 결제 기한 만료 · 반려 초안도 보인다
+        long expired = create("ADVERTISER", 1, null);
+        approveTrial(bizId(expired), "ONLINE");
+        Instant back = clock.instant();
+        clock.set(app(bizId(expired)).paymentDeadlineAt().plusSeconds(1));
+        assertThat(schedules.expire(bizId(expired))).isTrue();
+        clock.set(back);
+        assertThat(business.detail(advertiserUser, "127.0.0.1", Long.toString(expired)).trial().payment().status()).isEqualTo("EXPIRED");
+        long rejected = create("ADVERTISER", 1, null);
+        review.reject(operator, bizId(rejected), "OTHER", "자료 부족");
+        assertThat(business.detail(advertiserUser, "127.0.0.1", Long.toString(rejected)).trial().payment().status()).isEqualTo("REJECTED");
+
+        // 숨김: 견적 전(V244 전 초안) · 후불 초안 · 0원 초안 — 목록에 없고 상세 404
+        long noQuote = create("ADVERTISER", 1, null);
+        jdbc.update("UPDATE trials SET amount = NULL WHERE id = ?", noQuote); // SQL 로 남김: V244 전 견적 없는 초안을 흉내 낸다
+        long postpaid = create("ADVERTISER", 1, "POSTPAID");
+        long canceled = create("ADVERTISER", 1, null); // 결제 뒤 광고 쪽 취소(전액 환불) — 초안 그대로지만 광고주 화면에선 숨김
+        approveTrial(bizId(canceled), "ONLINE");
+        pay(advertiserUser, bizId(canceled));
+        review.cancel(operator, bizId(canceled), "광고주 요청");
+        price(0, "PER_PERSON", 0);
+        long free = create("ADVERTISER", 1, null);
+        List<String> listed = business.list(advertiserUser).stream().map(TrialViews.TrialRow::id).toList();
+        assertThat(listed).contains(id, Long.toString(expired), Long.toString(rejected));
+        for (long hidden : List.of(noQuote, postpaid, canceled, free)) {
+            assertThat(listed).doesNotContain(Long.toString(hidden));
+            assertThat(codeOf(() -> business.detail(advertiserUser, "127.0.0.1", Long.toString(hidden)))).isEqualTo("TRIAL_NOT_FOUND");
+        }
     }
 
     // ── 결제 방식 바꾸기 ─────────────────────────────────────────────────
