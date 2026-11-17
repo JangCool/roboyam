@@ -74,8 +74,10 @@ class HotdealWriterGateTest extends HotdealApiTestBase {
         catalog.invalidate();
         CommonException e = error(() -> write(member("SEEDLING", true), board, deal(url("shop.example.com"))));
         assertThat(e.getErrorCode()).isEqualTo("GRADE_TOO_LOW");
-        assertThat(e.getExtras()).containsEntry("minGrade", "REGULAR");
-        String label = jdbc.queryForObject("SELECT label FROM grades WHERE grade_key = 'REGULAR'", String.class);
+        // 핫딜은 첫 등급(새싹) 바로 위 등급부터 — 등급 11단계(V196) 뒤로는 서열 2 자리 등급이다(시드 REGULAR 는 서열 3)
+        String second = jdbc.queryForObject("SELECT grade_key FROM grades WHERE level = (SELECT min(level) FROM grades WHERE level > (SELECT min(level) FROM grades))", String.class);
+        assertThat(e.getExtras()).containsEntry("minGrade", second);
+        String label = jdbc.queryForObject("SELECT label FROM grades WHERE grade_key = ?", String.class, second);
         assertThat(e.getExtras()).containsEntry("minGradeLabel", label);
 
         // 게시판 최소 자격이 더 높으면 그 등급

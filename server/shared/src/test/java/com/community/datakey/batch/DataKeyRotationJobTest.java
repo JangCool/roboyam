@@ -546,7 +546,7 @@ class DataKeyRotationJobTest {
     /** {@code DataCipher} 가 아니라 설정 비밀값 키(IROBIT_CRYPTO_KEY, {@code SecretEncryptor} — {@code v1:} 암호문)로 잠그는 칸 */
     private static final Set<String> SECRET_ENCRYPTOR_COLUMNS = Set.of("portone_settings.value_cipher", "public_data_settings.value_cipher",
             "social_provider_settings.client_secret_enc", "mail_settings.password_enc", "notification_channels.bot_token_enc",
-            "notification_channels.webhook_url_enc");
+            "notification_channels.webhook_url_enc", "ai_provider_keys.key_cipher");
 
     /** 칸은 있지만 아직 저장하는 코드가 없다 — 저장을 시작하면 여기서 빼고 {@link DataKeyColumns} 에 올린다 */
     private static final Set<String> NOT_WRITTEN_YET = Set.of("group_buy_participations.cash_receipt_no_enc");

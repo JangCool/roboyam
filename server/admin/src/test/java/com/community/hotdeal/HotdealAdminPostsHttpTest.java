@@ -40,7 +40,8 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
             assertThat(menu).contains("{ key: '" + key + "', to: '" + screen.path() + "', icon: '" + screen.icon() + "', labelKey: '" + screen.labelKey() + "', permission: '"
                     + screen.permission().code() + "' }");
         }
-        assertThat(AdminScreenRegistry.screen("hotdealSettings").orElseThrow().permission()).isEqualTo(Permission.HOTDEAL_MANAGE);
+        // 핫딜 설정 메뉴는 읽기 권한으로 열고(읽기 전용 보기 — d3f336ac), 저장만 hotdeal.manage
+        assertThat(AdminScreenRegistry.screen("hotdealSettings").orElseThrow().permission()).isEqualTo(Permission.HOTDEAL_READ);
         for (Permission p : List.of(Permission.HOTDEAL_READ, Permission.HOTDEAL_MANAGE, Permission.HOTDEAL_DOMAIN_MANAGE)) {
             assertThat(p.featureReady()).as(p.code()).isTrue();
         }
