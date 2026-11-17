@@ -16,6 +16,9 @@
         <div v-if="state === 'loading'" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
             <div v-for="n in 3" :key="n" class="h-24 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
+        <EmptyState v-else-if="state === 'blocked'" icon="pi pi-lock" :title="t('trial.bizBlockedTitle')" :description="t('trial.bizBlockedText')" data-testid="business-trial-blocked">
+            <NuxtLink :to="UtilBusiness.CENTER_PATH" class="text-sm font-semibold text-primary hover:underline">{{ t('business.home.title') }}</NuxtLink>
+        </EmptyState>
         <ErrorState v-else-if="state === 'error' || !view" :title="t('trial.loadFailed')" :description="errorMessage" retry @retry="load" />
 
         <template v-else>
@@ -147,7 +150,7 @@
                             </li>
                         </ul>
                         <div v-if="p.photos.length" class="mt-2 flex flex-wrap gap-1.5">
-                            <a v-for="photo in p.photos" :key="photo.id" :href="photo.url" target="_blank" rel="noopener"><img :src="photo.url" alt="" class="size-14 rounded object-cover" loading="lazy" /></a>
+                            <TrialPhotoImage v-for="photo in p.photos" :key="photo.id" :url="photo.url" :purged="photo.purged" zoomable />
                         </div>
                         <div v-if="trial!.shipper === 'ADVERTISER' && !p.cancelledAt" class="mt-2 flex flex-wrap gap-2">
                             <Button v-if="!p.shippedAt" type="button" :label="t('trial.bizShip')" icon="pi pi-truck" size="small" :disabled="!trial!.payment.shippingAllowed" @click="openAction('ship', p)" />
@@ -179,7 +182,7 @@
                 <div class="flex flex-col gap-1.5">
                     <span class="text-sm font-medium">{{ t(`trial.photoLabel.${actionKind}`) }}<span v-if="actionKind !== 'returned'" class="ml-1 text-xs text-red-600 dark:text-red-400">{{ t('trial.sourceRequiredMark') }}</span></span>
                     <div class="flex flex-wrap items-center gap-2">
-                        <img v-for="photo in photos" :key="photo.id" :src="photo.url" alt="" class="size-16 rounded object-cover" />
+                        <TrialPhotoImage v-for="photo in photos" :key="photo.id" :url="photo.url" box-class="size-16" />
                         <input ref="fileInput" type="file" class="sr-only" :accept="UtilTrial.PHOTO_ACCEPT" :aria-label="t('trial.photoAdd')" :disabled="acting || uploading" @change="onPhoto" />
                         <Button type="button" :label="t('trial.photoAdd')" icon="pi pi-camera" size="small" severity="secondary" variant="outlined" :loading="uploading" :disabled="acting" @click="fileInput?.click()" />
                     </div>
@@ -221,7 +224,8 @@ const won = (n: number) => UtilTrialMessages.won(t, n, locale.value);
 const id = computed(() => String(route.params.id ?? ''));
 const view = ref<BizTrialView | null>(null);
 const trial = computed(() => view.value?.trial ?? null);
-const state = ref<'loading' | 'ready' | 'error'>('loading');
+/** `blocked` = 광고주 자격 없음(403 `TRIAL_ADVERTISER_BLOCKED` — 사업자 승인·광고 서비스 정지·광고주 보관, 점검 D5) */
+const state = ref<'loading' | 'ready' | 'error' | 'blocked'>('loading');
 const errorMessage = ref('');
 const busy = ref(false);
 
@@ -231,6 +235,11 @@ async function load(): Promise<void> {
         view.value = await api.detail(id.value);
         state.value = 'ready';
     } catch (e) {
+        if (UtilTrial.isAdvertiserBlocked(e)) {
+            view.value = null;
+            state.value = 'blocked';
+            return;
+        }
         errorMessage.value = UtilBoardMessages.of(t, e);
         state.value = 'error';
     }
@@ -354,7 +363,7 @@ async function submitAction(): Promise<void> {
             if (e.fields.photoIds) photoError.value = e.fields.photoIds;
         } else actionError.value = UtilBoardMessages.of(t, e);
         // 결제 전 송장(409 TRIAL_PAYMENT_PENDING) · 취소된 줄(409 TRIAL_PARTICIPANT_CANCELLED) — 문구를 보이고 결제 상태·줄을 다시 읽는다
-        if (e instanceof ApiError && e.status === 409 && (e.code === 'TRIAL_PAYMENT_PENDING' || e.code === 'TRIAL_PARTICIPANT_CANCELLED')) void load();
+        if (e instanceof ApiError && e.status === 409 && (e.code === 'TRIAL_PAYMENT_PENDING' || e.code === 'TRIAL_PARTICIPANT_CANCELLED' || e.code === 'TRIAL_NOT_RETURNED')) void load();
     } finally {
         acting.value = false;
     }

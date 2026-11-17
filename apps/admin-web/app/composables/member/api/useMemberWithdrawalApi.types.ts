@@ -9,8 +9,8 @@
 /** 탈퇴 신청 기록의 상태 — 서버 `WithdrawalStatus` */
 export type WithdrawalStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELED';
 
-/** 남은 일 종류 — 서버 `WithdrawalPendingCode` */
-export type WithdrawalPendingCode = 'GROUP_BUY_ORDER' | 'RETURN_REQUEST' | 'PAYMENT_CANCEL' | 'POINT_CHARGE_REFUND' | 'POINT_SHOP_REFUND' | 'BIZ_APPLICATION' | 'DELIVERED_RETURN_WINDOW';
+/** 남은 일 종류 — 서버 `WithdrawalPendingCode`(`TRIAL_RETURN` 대여형 체험단 반납 전 — 점검 D8, 라벨 = 모집 제목, 대상 ID = 뽑힌 줄) */
+export type WithdrawalPendingCode = 'GROUP_BUY_ORDER' | 'RETURN_REQUEST' | 'PAYMENT_CANCEL' | 'POINT_CHARGE_REFUND' | 'POINT_SHOP_REFUND' | 'BIZ_APPLICATION' | 'DELIVERED_RETURN_WINDOW' | 'TRIAL_RETURN';
 
 /** 탈퇴 사유 6종(`member_withdrawals.reason`) — 고르지 않으면 null */
 export type WithdrawalReason = 'NOT_USING' | 'PRIVACY' | 'INCONVENIENT' | 'OTHER_SERVICE' | 'REJOIN' | 'OTHER';

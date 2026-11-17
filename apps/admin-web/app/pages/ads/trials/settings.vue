@@ -2,7 +2,7 @@
     <!--
         광고 › 체험단 설정(`/ads/trials/settings`, trial-group-contract 「관리자 화면」 — 사이트 한 번, `trial_settings` 행 하나).
         구획: 제공형 상한 · 표시 문구(체험단 — {광고주}·{제공/대여} 자리표시 + 미리보기 · 협찬) · 반납 독촉(기한 당일 N일 · 다시 알림 N일 · 미반납 확정 N일) ·
-          사용기 기한(처음 값 · 넘기면 신청 금지 N일 · N번이면 리뷰어 칭호 정지) · 구매 인증(보너스 포인트 · 사진 보관 일수) · 입고 보관 일수.
+          사용기 기한(처음 값 · 넘기면 신청 금지 N일 · N번이면 리뷰어 칭호 정지) · 구매 인증(보너스 포인트 · 사진 보관 일수) · 입고 보관 일수 · 체험단 사진 보관 일수(V243).
         화면 하나를 PUT 한 번으로 저장 → 아래 떠 있는 저장 줄(`StickySaveBar`). 검사는 `UtilTrial.settingsProblems`(서버 CHECK 와 같은 범위). 권한: 저장 `trial.settings`(없으면 읽기만).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -27,6 +27,12 @@
                     <LabeledField :label="t('trial.settings.stockKeepDays')" :help="t('trial.settings.stockKeepDaysHelp')" :error="errorOf('stockKeepDays')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputNumber v-model="form.stockKeepDays" :input-id="id" :min="1" :max="365" :allow-empty="false" fluid :suffix="t('trial.daysSuffix')" :readonly="!canSave" :invalid="invalid" :aria-describedby="describedBy" />
+                        </template>
+                    </LabeledField>
+                    <!-- 체험단 사진 보관(V243 — 점검 D3, 1~365 · 기본 90) -->
+                    <LabeledField :label="t('trial.settings.photoKeepDays')" :help="t('trial.settings.photoKeepDaysHelp')" :error="errorOf('photoKeepDays')">
+                        <template #default="{ id, describedBy, invalid }">
+                            <InputNumber v-model="form.photoKeepDays" :input-id="id" :min="1" :max="365" :allow-empty="false" fluid :suffix="t('trial.daysSuffix')" :readonly="!canSave" :invalid="invalid" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
                 </div>

@@ -118,6 +118,8 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     | 'TRIAL_DAMAGE_DECIDED'
     /** 뽑힌 체험단을 운영자가 보내기 전에 취소함(뽑힌 줄 취소·모집 취소 — V242). 사유는 서버 `body`, 이동 `/me/trials` */
     | 'TRIAL_CANCELLED_BY_OPERATOR'
+    /** 운영자 입고 수량이 뽑힌 인원보다 적다(점검 D10 — 광고주 회원에게, 받은 수·뽑힌 수는 서버 `body`). 이동 `/business/trials/{id}` 은 서버가 준다 */
+    | 'TRIAL_STOCK_SHORT'
     /** 구매 인증 승인(보너스 포인트) · 거절(사유 — 다시 올릴 수 있다). 이동은 그 글 */
     | 'PURCHASE_PROOF_APPROVED'
     | 'PURCHASE_PROOF_REJECTED';

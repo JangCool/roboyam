@@ -103,6 +103,8 @@ export default {
     },
     // 구입 경로 받는 게시판 글에서만 보이는 신고 사유(trial-group-contract)
     sponsorReason: '협찬을 숨겼어요',
+    sponsorCaseConfirm: '이 사건을 닫으면 체험단 확인할 일의 협찬 숨김 줄도 함께 닫혀요 — 이 사유로 조치하면 글이 협찬으로 고정돼요(글쓴이가 바꿀 수 없어요).',
+    sponsorCaseDismiss: '이 사건을 닫으면 체험단 확인할 일의 협찬 숨김 줄은 「무시」로 함께 닫혀요. 협찬으로 고정하려면 사유를 「협찬을 숨겼어요」로 골라 조치하세요.',
     // 핫딜 글에서만 보이는 신고 사유(hotdeal-contract)
     dealReason: {
         DEAL_FALSE_PRICE: '가격·정보가 사실과 달라요',
@@ -133,6 +135,7 @@ export default {
         DEACTIVATE: '소모임 비활성화',
         DEAL_END: '핫딜 종료',
         SANCTION_ONLY: '작성자 제재만',
+        SPONSOR_LABEL: '협찬 표시 붙임',
         DISMISS: '무시',
     },
     dialog: {

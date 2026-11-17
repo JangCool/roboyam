@@ -35,6 +35,11 @@ export interface PostPurchaseView {
     source: PurchaseSource | null;
     proof: PurchaseProofState;
     disclosure: string | null;
+    /**
+     * 글쓴이가 구입 경로를 바꿀 수 없다(점검 D2 — 체험단 연결 글 · 운영자가 협찬 숨김을 확인해 협찬으로 고정한 글). 고치기에서 다른 값을 보내면
+     * `400 fields.purchaseSource`(`trial.purchase.sponsorLocked`). 옛 응답엔 없을 수 있다
+     */
+    locked?: boolean;
 }
 
 /**

@@ -21,6 +21,7 @@
             </div>
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(`report.dialog.${kind}.text`) }}</p>
             <Message v-if="dismissNote" severity="secondary" size="small" :closable="false" icon="pi pi-info-circle">{{ dismissNote }}</Message>
+            <Message v-if="sponsorNote" severity="secondary" size="small" :closable="false" icon="pi pi-info-circle">{{ sponsorNote }}</Message>
             <Message v-if="isDeal && reasonCode === 'DEAL_FALSE_PRICE'" severity="secondary" size="small" :closable="false" icon="pi pi-info-circle">{{ t('report.dealFalsePriceNote') }}</Message>
 
             <LabeledField :label="t('report.reasonCodeLabel')" :hint="isDismiss ? t('report.optional') : ''" :error="reasonCodeError">
@@ -55,40 +56,29 @@
                 </label>
             </div>
 
-            <!-- 작성자 제재 — 조치에 곁들이기 / 제재만 -->
-            <section v-if="sanctionAllowed" class="flex flex-col gap-3 rounded-lg border border-(--line) px-3 py-2.5" :aria-label="t('report.sanctionWith')">
-                <p v-if="!sanction?.eligible" class="m-0 flex items-center gap-1.5 text-xs text-muted-color">
-                    <i :class="sanction?.sealed ? 'pi pi-lock' : 'pi pi-info-circle'" class="text-[11px]" aria-hidden="true" />{{ sanction?.sealed ? t('anonymousAuthor.reportSanctionSealed') : t('report.sanctionNotMember') }}
-                </p>
-                <p v-else-if="!UtilSanction.canIssue(sanction.perm)" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock text-[11px]" aria-hidden="true" />{{ t('sanction.noManage') }}</p>
-                <template v-else>
-                    <div v-if="!isSanctionOnly" class="flex items-start gap-2">
-                        <Checkbox v-model="withSanction" binary :input-id="`${formId}-with`" :disabled="busy" />
-                        <label :for="`${formId}-with`" class="flex flex-col text-sm">
-                            {{ t('report.sanctionWithLabel', { name: sanction.authorName }) }}
-                            <span class="text-xs leading-relaxed text-muted-color">{{ t('report.sanctionWithHelp') }}</span>
-                        </label>
-                    </div>
-                    <template v-if="sanctionOn">
-                        <ErrorState v-if="sanction.error" :title="t('sanction.previewFailed')" :description="sanction.error.message" retry :retrying="sanction.loading" @retry="emit('retry-sanction')" />
-                        <Skeleton v-else-if="!sanction.preview" height="6rem" />
-                        <template v-else>
-                            <SanctionStepPicker v-model="step" :preview="sanction.preview" :perm="sanction.perm" :field-errors="stepFieldErrors" :tried="tried" :disabled="busy" />
-                            <LabeledField :label="t('report.sanctionReasonLabel')" :hint="t('sanction.textCounter', { n: UtilSanction.textLength(sanctionReasonShown), max: UtilSanction.TEXT_MAX })" :help="sanctionReasonTouched ? t('sanction.reasonHelp') : t('report.sanctionReasonSame')" :error="sanctionReasonError">
-                                <template #default="{ id, describedBy, invalid }">
-                                    <Textarea :id="id" :model-value="sanctionReasonShown" rows="3" auto-resize fluid :disabled="busy" :invalid="invalid" :aria-describedby="describedBy" @update:model-value="onSanctionReason" />
-                                </template>
-                            </LabeledField>
-                        </template>
-                    </template>
-                </template>
-            </section>
+            <!-- 작성자 제재 — 조치에 곁들이기 / 제재만(체험단 협찬 숨김 확인과 같은 부품) -->
+            <ReportSanctionSection
+                v-if="sanctionAllowed"
+                v-model:with="attach.withSanction.value"
+                v-model:step="attach.step.value"
+                :sanction="sanction"
+                :only="isSanctionOnly"
+                :on="attach.on.value"
+                :busy="busy"
+                :tried="tried"
+                :reason-shown="attach.reasonShown.value"
+                :reason-touched="attach.reasonTouched.value"
+                :reason-error="attach.reasonError.value"
+                :step-field-errors="attach.stepFieldErrors.value"
+                @update:reason="attach.onReason"
+                @retry="emit('retry-sanction')"
+            />
 
             <Message v-if="error" severity="error" size="small" variant="simple" :closable="false">{{ error }}</Message>
         </form>
         <template #footer>
             <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="busy" @click="open = false" />
-            <Button v-if="kind" type="submit" :form="formId" :label="submitLabel" :severity="UtilReport.isDanger(kind) || sanctionOn ? 'danger' : undefined" :loading="busy" :disabled="isSanctionOnly && !sanctionReady" />
+            <Button v-if="kind" type="submit" :form="formId" :label="submitLabel" :severity="UtilReport.isDanger(kind) || attach.on.value ? 'danger' : undefined" :loading="busy" :disabled="isSanctionOnly && !attach.ready.value" />
         </template>
     </Dialog>
 </template>
@@ -96,10 +86,8 @@
 <script setup lang="ts">
 import type { ReportActPayload, ReportSanctionContext } from '~/components/report/ReportActionDialog.types';
 import type { ReportCaseItem, ReportReasonCode } from '~/composables/report/api/useReportApi.types';
-import type { SanctionStepValue } from '~/composables/sanction/useSanctionIssue.types';
 import UtilReport, { type ReportActKind } from '~/utils/util-report';
 import UtilReportMessages from '~/utils/util-report-messages';
-import UtilSanction from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
 
 const open = defineModel<boolean>('visible', { required: true });
@@ -127,16 +115,20 @@ const reasonCode = ref<ReportReasonCode | null>(null);
 const note = ref('');
 const falseReport = ref(false);
 const tried = ref(false);
-const withSanction = ref(false);
-const step = ref<SanctionStepValue>({ kind: null, skipConfirmed: false, confirmNickname: '' });
-const sanctionReason = ref('');
-const sanctionReasonTouched = ref(false);
 
 const isDismiss = computed(() => props.kind === 'DISMISS');
 const isSanctionOnly = computed(() => props.kind === 'SANCTION_ONLY');
 // ⚠ `computed` 다 — 그냥 배열이면 처음 읽은 순간의 언어로 굳는다
 const isDeal = computed(() => (props.item ? UtilReport.isDealCase(props.item) : false));
 const reasonOptions = computed(() => UtilReport.reasonsFor(props.item?.targetType ?? 'POST', isDeal.value, props.item ? UtilReport.isSponsorCase(props.item) : false).map((value) => ({ value, label: UtilReportMessages.reasonName(t, value) })));
+/**
+ * 협찬 숨김 신고가 든 글 사건(점검 D2) — 사건을 닫으면 체험단 「확인할 일」의 협찬 숨김 줄도 함께 닫힌다.
+ * 사유 `SPONSOR_HIDDEN` 으로 조치 = 협찬 고정 확인, 그 밖 조치·무시 = 그 줄은 무시로.
+ */
+const sponsorNote = computed(() => {
+    if (!props.item || !UtilReport.isSponsorCase(props.item)) return '';
+    return !isDismiss.value && reasonCode.value === 'SPONSOR_HIDDEN' ? t('report.sponsorCaseConfirm') : t('report.sponsorCaseDismiss');
+});
 /** 글 최대 — 소모임 비활성화는 200자(모임장에게 사유로 간다) */
 const noteMax = computed(() => UtilReport.noteMax(props.kind));
 const noteHint = computed(() => t('report.noteCounter', { n: UtilReport.noteLength(note.value), max: noteMax.value }));
@@ -147,35 +139,21 @@ const noteError = computed(() => props.fieldErrors.note || (tried.value ? UtilRe
 /* ── 작성자 제재 ── */
 
 const sanctionAllowed = computed(() => props.sanction !== null && UtilReport.allowsSanction(props.kind));
-/** 제재를 함께 보낸다 — 「제재만」은 늘, 그 밖 조치는 체크했을 때 */
-const sanctionOn = computed(() => Boolean(sanctionAllowed.value && props.sanction?.eligible && UtilSanction.canIssue(props.sanction.perm) && (isSanctionOnly.value || withSanction.value)));
-/** 제재 사유 칸 — 고치기 전에는 처리 글과 같다 */
-const sanctionReasonShown = computed(() => (sanctionReasonTouched.value ? sanctionReason.value : note.value));
-const stepFieldErrors = computed(() => ({
-    kind: props.fieldErrors['sanction.kind'] ?? props.fieldErrors.sanction ?? '',
-    skipStep: props.fieldErrors['sanction.skipStep'] ?? '',
-    confirmNickname: props.fieldErrors['sanction.confirmNickname'] ?? '',
-}));
-const sanctionReasonError = computed(() => {
-    if (props.fieldErrors['sanction.reason']) return props.fieldErrors['sanction.reason'];
-    if (!tried.value) return '';
-    return UtilSanctionMessages.textProblem(t, UtilSanction.textProblem(sanctionReasonShown.value), t('report.sanctionReasonLabel'));
-});
-const sanctionReady = computed(() => {
-    const ctx = props.sanction;
-    if (!sanctionOn.value || !ctx?.preview) return !sanctionOn.value;
-    return UtilSanction.hasAnyOption(ctx.preview);
+/** 곁들이는 제재 상태 — 체험단 협찬 숨김 확인과 같은 컴포저블 */
+const attach = useReportSanctionAttach({
+    context: () => props.sanction,
+    allowed: () => sanctionAllowed.value,
+    only: () => isSanctionOnly.value,
+    note: () => note.value,
+    fieldErrors: () => props.fieldErrors,
+    tried: () => tried.value,
 });
 const submitLabel = computed(() => {
     if (!props.kind) return '';
-    if (sanctionOn.value && !isSanctionOnly.value && step.value.kind) return t('report.actWithSanction', { act: t(`report.act.${props.kind}`), kind: UtilSanctionMessages.kindName(t, step.value.kind) });
+    const stepKind = attach.step.value.kind;
+    if (attach.on.value && !isSanctionOnly.value && stepKind) return t('report.actWithSanction', { act: t(`report.act.${props.kind}`), kind: UtilSanctionMessages.kindName(t, stepKind) });
     return t(`report.act.${props.kind}`);
 });
-
-function onSanctionReason(value: string | undefined): void {
-    sanctionReasonTouched.value = true;
-    sanctionReason.value = value ?? '';
-}
 
 /** 무시할 때 대상이 어떻게 되는지 — 자동 숨김은 복구, 운영자 숨김은 그대로 */
 const dismissNote = computed(() => {
@@ -192,34 +170,17 @@ watch(open, (isOpen) => {
     note.value = '';
     falseReport.value = false;
     tried.value = false;
-    withSanction.value = false;
-    sanctionReason.value = '';
-    sanctionReasonTouched.value = false;
-    step.value = props.sanction ? UtilSanction.emptyStep(props.sanction.preview, props.sanction.perm) : { kind: null, skipConfirmed: false, confirmNickname: '' };
+    attach.reset();
 });
-// 작성자 현황이 늦게 오거나 새로 받으면 누를 수 있는 다음 단계를 골라 둔다 — 고른 단계가 여전히 누를 수 있으면 그대로
-watch(
-    () => props.sanction?.preview ?? null,
-    (preview) => {
-        const ctx = props.sanction;
-        if (!ctx) return;
-        const keep = preview && step.value.kind && UtilSanction.choices(preview, ctx.perm).some((c) => c.enabled && c.option.kind === step.value.kind);
-        if (!keep) step.value = UtilSanction.emptyStep(preview, ctx.perm);
-    },
-);
 
 function submit(): void {
     if (props.busy || !props.kind) return;
     tried.value = true;
     if (!isDismiss.value && !reasonCode.value) return;
     if (UtilReport.noteProblem(note.value, !isDismiss.value, noteMax.value)) return;
-    let sanction: ReportActPayload['sanction'] = null;
-    if (sanctionOn.value) {
-        const preview = props.sanction?.preview ?? null;
-        if (!preview || !UtilSanction.stepReady(step.value, preview, props.sanction!.perm)) return;
-        if (UtilSanction.textProblem(sanctionReasonShown.value)) return;
-        sanction = { ...UtilSanction.stepRequest(step.value, preview), reason: sanctionReasonTouched.value ? sanctionReason.value.trim() : null };
-    } else if (isSanctionOnly.value) return;
+    const built = attach.build();
+    if (!built.valid) return;
+    const sanction: ReportActPayload['sanction'] = built.sanction;
     emit('submit', { reasonCode: reasonCode.value, note: note.value.trim(), falseReport: isDismiss.value && falseReport.value, sanction });
 }
 </script>

@@ -23,7 +23,7 @@
                         <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(h)" :variant="variantOf(h)" ratio="5 / 2" class="w-full">
                             <GadgetDebateBand v-if="h.post.debate" :debate="h.post.debate" size="lg" />
                         </GadgetThumb>
-                        <p class="gadget-hover-title mt-2 line-clamp-2 break-words text-base font-bold leading-snug tracking-tight">{{ titleOf(h) }}</p>
+                        <p class="gadget-hover-title mt-2 line-clamp-2 break-words text-base font-bold leading-snug tracking-tight"><PostPurchaseChip :row="h.post" inline />{{ titleOf(h) }}</p>
                         <GadgetHighlightMeta :post="h.post" :debate="cfg.thumbs === 'NONE'" :author="cfg.showAuthor" class="mt-1.5" />
                     </NuxtLink>
                 </FoldedRow>
@@ -39,7 +39,7 @@
                         <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" :variant="variantOf(first)" ratio="3 / 1" class="w-full rounded-lg">
                             <GadgetDebateBand v-if="first.post.debate" :debate="first.post.debate" size="lg" />
                         </GadgetThumb>
-                        <p class="gadget-hover-title m-0 mt-2 line-clamp-1 break-words text-base font-bold leading-snug tracking-tight">{{ titleOf(first) }}</p>
+                        <p class="gadget-hover-title m-0 mt-2 line-clamp-1 break-words text-base font-bold leading-snug tracking-tight"><PostPurchaseChip :row="first.post" inline />{{ titleOf(first) }}</p>
                         <!-- 소개 글 = 하이라이트 요약(`summary`, 운영자가 적는 값) — 없으면 줄 없음 -->
                         <p v-if="first.summary" class="m-0 mt-1 line-clamp-2 text-[0.8125rem] leading-snug text-muted-color" data-testid="home-highlight-stack-summary">{{ first.summary }}</p>
                         <div class="mt-1 flex items-center gap-2">
@@ -56,7 +56,7 @@
                             <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover flex items-center gap-2 py-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                                 <!-- 제목 · 댓글 수 …… 게시판(게시판 표시색 · 없으면 주 색상) · 추천(오른쪽 끝 고정 폭 칸, 오른쪽 맞춤 — 사용자 2026-11-15) -->
                                 <FeedDebateCounts v-if="h.post.debate" :debate="h.post.debate" class="shrink-0 text-xs" />
-                                <span class="min-w-0 truncate text-[0.9375rem] leading-snug">{{ titleOf(h) }}</span>
+                                <span class="min-w-0 truncate text-[0.9375rem] leading-snug"><PostPurchaseChip :row="h.post" inline />{{ titleOf(h) }}</span>
                                 <span v-if="h.post.commentCount > 0" class="-ml-1 shrink-0 text-xs font-semibold text-primary"><span class="sr-only">{{ t('home.commentCount', { n: h.post.commentCount }) }}</span><span aria-hidden="true">{{ h.post.commentCount }}</span></span>
                                 <span class="ml-auto shrink-0 text-xs font-semibold" :class="UtilBoard.textStyle(h.post.board.color) ? '' : 'text-primary'" :style="UtilBoard.textStyle(h.post.board.color)">{{ localizedName(h.post.board.name, h.post.board.nameEn) }}</span>
                                 <GadgetHighlightMeta tag="span" :post="h.post" order="author" :board="false" :comments="false" :author="false" :date="false" class="w-10 shrink-0 justify-end" />
@@ -73,7 +73,7 @@
                         <GadgetThumb v-if="cfg.thumbs !== 'NONE'" :src="imageOf(first)" :variant="variantOf(first)" ratio="16 / 9" class="w-full">
                             <GadgetDebateBand v-if="first.post.debate" :debate="first.post.debate" size="lg" />
                         </GadgetThumb>
-                        <p class="gadget-hover-title mt-3.5 line-clamp-2 break-words text-lg font-bold leading-snug tracking-tight @min-[40rem]:text-xl">{{ titleOf(first) }}</p>
+                        <p class="gadget-hover-title mt-3.5 line-clamp-2 break-words text-lg font-bold leading-snug tracking-tight @min-[40rem]:text-xl"><PostPurchaseChip :row="first.post" inline />{{ titleOf(first) }}</p>
                         <p v-if="first.summary" class="mt-1.5 line-clamp-1 text-sm text-muted-color" data-testid="home-highlight-summary">{{ first.summary }}</p>
                         <GadgetHighlightMeta :post="first.post" :debate="cfg.thumbs === 'NONE'" :author="cfg.showAuthor" class="mt-2" />
                     </NuxtLink>
@@ -96,7 +96,7 @@
                                 </GadgetThumb>
                                 <div class="min-w-0 flex-1">
                                     <!-- 제목(폭 전체, 두 줄 말줄임) → 아바타·닉네임 → 추천 → 댓글 · 오른쪽 끝 날짜(사용자 2026-11-10 최종 — 등급 뱃지는 뺀다) -->
-                                    <p class="m-0 line-clamp-2 break-words text-sm font-semibold leading-snug">{{ titleOf(h) }}</p>
+                                    <p class="m-0 line-clamp-2 break-words text-sm font-semibold leading-snug"><PostPurchaseChip :row="h.post" inline />{{ titleOf(h) }}</p>
                                     <GadgetHighlightMeta :post="h.post" order="author" :board="cfg.thumbs !== 'ALL'" :debate="cfg.thumbs !== 'ALL'" :author="cfg.showAuthor" class="mt-1.5" />
                                 </div>
                             </NuxtLink>
@@ -118,7 +118,7 @@
                         <GadgetDebateBand v-if="first.post.debate" :debate="first.post.debate" size="lg" />
                     </GadgetThumb>
                     <div class="min-w-0">
-                        <p class="gadget-hover-title line-clamp-3 break-words text-lg font-bold leading-snug tracking-tight @min-[30rem]:text-xl">{{ titleOf(first) }}</p>
+                        <p class="gadget-hover-title line-clamp-3 break-words text-lg font-bold leading-snug tracking-tight @min-[30rem]:text-xl"><PostPurchaseChip :row="first.post" inline />{{ titleOf(first) }}</p>
                         <p v-if="first.summary" class="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-color">{{ first.summary }}</p>
                         <GadgetHighlightMeta :post="first.post" :debate="cfg.thumbs === 'NONE'" :author="cfg.showAuthor" class="mt-2" />
                     </div>
@@ -129,7 +129,7 @@
                     <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                         <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover flex items-start gap-3 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                             <div class="min-w-0 flex-1">
-                                <p class="line-clamp-2 break-words text-[0.9375rem] leading-snug">{{ titleOf(h) }}</p>
+                                <p class="line-clamp-2 break-words text-[0.9375rem] leading-snug"><PostPurchaseChip :row="h.post" inline />{{ titleOf(h) }}</p>
                                 <GadgetHighlightMeta :post="h.post" :debate="!(cfg.thumbs === 'ALL' && imageOf(h))" :author="cfg.showAuthor" class="mt-1" />
                             </div>
                             <GadgetThumb v-if="cfg.thumbs === 'ALL' && imageOf(h)" :src="imageOf(h)" :variant="variantOf(h)" ratio="3 / 2" class="w-24 shrink-0">
@@ -150,7 +150,7 @@
                             <GadgetDebateBand v-if="h.post.debate" :debate="h.post.debate" />
                         </GadgetThumb>
                         <div class="min-w-0 flex-1">
-                            <p class="line-clamp-2 break-words text-base font-bold leading-snug tracking-tight md:text-lg">{{ titleOf(h) }}</p>
+                            <p class="line-clamp-2 break-words text-base font-bold leading-snug tracking-tight md:text-lg"><PostPurchaseChip :row="h.post" inline />{{ titleOf(h) }}</p>
                             <p v-if="h.summary" class="mt-0.5 hidden truncate text-sm text-muted-color @min-[28rem]:block" data-testid="home-highlight-summary">{{ h.summary }}</p>
                             <GadgetHighlightMeta :post="h.post" :debate="!rowThumb(i)" :author="cfg.showAuthor" class="mt-1" />
                         </div>

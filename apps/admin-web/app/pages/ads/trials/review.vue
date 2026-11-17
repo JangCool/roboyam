@@ -15,6 +15,8 @@
             :pending-counts="queue.pendingCounts.value"
             :can-title="can('title.review')"
             :can-trial="can('trial.review')"
+            :can-return="can('trial.manage') || can('ad.manage')"
+            :sponsor-sanction="queue.sponsorSanction.value"
             :can-read-member="can('member.read')"
             :site-origin="origin"
             :actions="queue.actions"

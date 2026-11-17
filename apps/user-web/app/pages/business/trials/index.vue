@@ -16,6 +16,7 @@
         <div v-if="state === 'loading'" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
             <div v-for="n in 3" :key="n" class="h-20 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
+        <EmptyState v-else-if="state === 'blocked'" icon="pi pi-lock" :title="t('trial.bizBlockedTitle')" :description="t('trial.bizBlockedText')" data-testid="business-trials-blocked" />
         <ErrorState v-else-if="state === 'error'" :title="t('trial.loadFailed')" :description="errorMessage" retry @retry="load" />
         <EmptyState v-else-if="items.length === 0" icon="pi pi-box" :title="t('trial.bizEmpty')" :description="t('trial.bizEmptyText')" />
         <ul v-else class="m-0 flex list-none flex-col gap-2 p-0">
@@ -57,7 +58,8 @@ const api = useBusinessTrialApi();
 const time = useDisplayTime();
 
 const items = ref<BizTrialRow[]>([]);
-const state = ref<'loading' | 'ready' | 'error'>('loading');
+/** `blocked` = 광고주 자격 없음(403 `TRIAL_ADVERTISER_BLOCKED`, 점검 D5) */
+const state = ref<'loading' | 'ready' | 'error' | 'blocked'>('loading');
 const errorMessage = ref('');
 
 async function load(): Promise<void> {
@@ -66,6 +68,10 @@ async function load(): Promise<void> {
         items.value = await api.list();
         state.value = 'ready';
     } catch (e) {
+        if (UtilTrial.isAdvertiserBlocked(e)) {
+            state.value = 'blocked';
+            return;
+        }
         errorMessage.value = UtilBoardMessages.of(t, e);
         state.value = 'error';
     }

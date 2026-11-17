@@ -23,10 +23,7 @@
         </span>
         <PostStatusTag v-if="row.processStatus" :status="row.processStatus" :class="chipClass" />
         <!-- 구입 경로(trial-group-contract — 체험단 · 구매 인증 · 직접 구매 · 협찬). 서버가 주는 글만(구입 경로 받는 게시판) -->
-        <span v-if="purchaseChip" :class="[PURCHASE_CHIP, purchaseClass, chipClass]" :data-purchase="purchaseChip" data-testid="post-row-purchase">
-            <i v-if="purchaseChip === 'PROOF'" class="pi pi-verified text-[0.5625rem]" aria-hidden="true" />
-            <span class="relative top-[-0.09em]">{{ t(`trial.chip.${purchaseChip}`) }}</span>
-        </span>
+        <PostPurchaseChip :row="row" :inline="inline" />
         <span v-if="row.adult" class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[0.5625rem] font-bold leading-none text-white" :class="chipClass" :title="t('board.adultMark')">
             <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
             <span class="sr-only">{{ t('board.adultMark') }}</span>
@@ -39,7 +36,6 @@ import type { PostRow } from '~/composables/board/api/usePostApi.types';
 import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilTrial from '~/utils/util-trial';
 
-const PURCHASE_CHIP = 'inline-flex shrink-0 items-center justify-center gap-0.5 whitespace-nowrap rounded px-1.5 py-[3px] text-[0.6875rem] font-medium leading-none';
 
 interface Props {
     row: PostRow;
@@ -69,18 +65,6 @@ const prefixShown = computed(() => Boolean(props.row.prefix) && props.showPrefix
 const noneShown = computed(() => props.general && !props.inline && !prefixShown.value);
 /** 구입 경로 칩 — 체험단 · 구매 인증 · 직접 구매 · 협찬(대여·없음은 칩 없음) */
 const purchaseChip = computed(() => UtilTrial.chipOf(props.row.purchaseSource, props.row.purchaseProofApproved));
-const purchaseClass = computed(() => {
-    switch (purchaseChip.value) {
-        case 'TRIAL':
-            return 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-200';
-        case 'PROOF':
-            return 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200';
-        case 'SPONSORED':
-            return 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200';
-        default:
-            return 'border border-surface text-muted-color';
-    }
-});
 /** 칩 줄에 그릴 것이 있는가 — 없으면 칩 줄 자체를 그리지 않는다 */
 const hasAny = computed(() => Boolean(slots.default) || Boolean(groupTag.value) || prefixShown.value || noneShown.value || Boolean(props.row.processStatus) || props.row.adult || Boolean(purchaseChip.value));
 </script>

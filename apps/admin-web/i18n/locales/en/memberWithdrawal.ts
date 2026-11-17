@@ -74,6 +74,7 @@ export default {
         POINT_CHARGE_REFUND: 'Charge refund',
         POINT_SHOP_REFUND: 'Point shop refund',
         BIZ_APPLICATION: 'Ad / hot deal',
+        TRIAL_RETURN: 'Trial return pending',
     },
     pendingOpen: 'Open in admin',
     pendingNoLink: 'No screen to open',

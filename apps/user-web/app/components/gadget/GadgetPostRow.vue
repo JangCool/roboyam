@@ -1,7 +1,7 @@
 <template>
     <!--
         홈 글 목록 가젯의 글 한 줄(community `GadgetPostRow` + `GadgetRowMeta`·`GadgetRowTags`) — 줄 모양 5종(헤드라인·순위·기사·촘촘·뉴스형 한 줄)·사진 자리(오른쪽/왼쪽/없음)·표시 칸(게시판·말머리·댓글·시간·작성자·추천)·
-        게시판 이름 색(자동 = 게시판 표시색 · 고정 색 · 회색)·순위 번호와 색·제목 줄 수·댓글 수(제목 뒤 숫자 / 기사형 말풍선)·NEW/HOT·구분선. `hero` 면 첫 글을 크게(큰 사진 + 제목),
+        게시판 이름 색(자동 = 게시판 표시색 · 고정 색 · 회색)·순위 번호와 색·제목 줄 수·댓글 수(제목 뒤 숫자 / 기사형 말풍선)·NEW/HOT·구입 경로 칩(보통 줄·뉴스형 한 줄 — 점검 D11)·구분선. `hero` 면 첫 글을 크게(큰 사진 + 제목),
         `leadThumb` 면 첫 글을 작은 사진 줄로(`lead: THUMB` — 왼쪽 작은 사진 + 제목 + 메타, 뉴스형 한 줄 목록이면 큰 사진 + 제목 줄 날짜 + 본문 앞부분 두 줄, home-news-contract).
         추천 표시(`likes`, 줄 정보 「추천 수」를 켰을 때): 글자 「추천 n」 · 엄지 아이콘 + 숫자(`GadgetHighlightMeta` 추천만) · 제목 앞 고정 폭 칸(촘촘·뉴스형 한 줄만, 그 밖은 아이콘).
         줄 간격(`rowSpacing`): 두 줄 줄(헤드라인·기사·순위)의 위아래 여백 보통 10px · 좁게 7px.
@@ -74,6 +74,7 @@
                     <div v-else class="min-w-0 flex-1">
                         <p class="line-clamp-2 break-words font-semibold leading-snug" :class="look === 'card' ? 'text-[0.9375rem]' : 'text-sm'">
                             <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" inline :class="prefixClass" />
+                            <PostPurchaseChip :row="row" inline />
                             <span>{{ row.title }}</span>
                             <span v-if="commentNumber" class="ml-1 text-xs font-semibold text-primary">
                                 <span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ look === 'card' ? row.commentCount : `[${row.commentCount}]` }}</span>
@@ -103,6 +104,7 @@
                     <span v-if="isHot" class="inline-flex shrink-0 items-center justify-center rounded bg-red-600 px-1.5 py-1 text-[0.625rem] font-bold leading-none text-white dark:bg-red-500" data-testid="home-post-hot">
                         <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.hotMark') }}</span><span class="sr-only">{{ t('home.hotLabel') }}</span>
                     </span>
+                    <PostPurchaseChip :row="row" />
                     <span class="min-w-0 truncate leading-snug" :class="look === 'card' ? 'text-[0.9375rem]' : 'text-sm'">{{ row.title }}</span>
                     <span v-if="commentNumber" class="-ml-1 shrink-0 text-xs font-semibold text-primary"><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ look === 'card' ? row.commentCount : `[${row.commentCount}]` }}</span></span>
                     <span v-if="(showLikes && !likesLead) || timeShown" class="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-color">

@@ -199,6 +199,8 @@ export default {
     sourceSponsoredAuto: 'A sponsorship disclosure box is added above the body.',
     sourceLocked: 'Trial review: {name}',
     sourceLockedFallback: 'Selected trial',
+    // Sponsorship lock (audit D2 — an operator confirmed a hidden-sponsorship report)
+    sourceSponsorLocked: 'An operator confirmed this post as sponsored, so how it was obtained can’t be changed.',
     sourceHonestNote: 'Choosing “I bought it” for a product a company gave you breaks disclosure rules. If reported, a sponsorship label is added and you may be sanctioned.',
     sourceRequired: 'Choose how you got it.',
     sourceTrialRequired: 'Choose which trial this review is for.',
@@ -276,6 +278,18 @@ export default {
     bizHint: 'Your trials set up by the site. Recommend candidates and handle shipping and returns for trials you ship.',
     bizEmpty: 'No trials',
     bizEmptyText: 'Contact the site to run a trial.',
+    // No advertiser access (403 TRIAL_ADVERTISER_BLOCKED — audit D5)
+    bizBlockedTitle: 'Trials aren’t available right now',
+    bizBlockedText: 'Your business approval or ad service is suspended, or your advertiser record is archived. The site handles any running trials for you. Check the business center for details.',
+    // Private photos (V243 — audit D3)
+    photoView: {
+        purged: 'Photo deleted after the retention period',
+        purgedShort: 'Deleted',
+        failed: 'Couldn’t load the photo',
+        open: 'View larger',
+        title: 'Photo',
+        private: 'This is a private photo. Don’t use or share it beyond checking the trial.',
+    },
     bizApplicants: '{n} applied / {total} spots',
     bizSelected: '{n} selected',
     bizApplicantsTitle: '{n} applicants',

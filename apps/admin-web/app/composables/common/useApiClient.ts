@@ -291,6 +291,35 @@ export function useApiClient(options: ApiClientOptions = {}) {
         throw toApiError({ status, data: raw, response: { status, headers: { get: (name: string) => (name.toLowerCase() === 'x-request-id' ? headerRequestId : null) } } }, t);
     }
 
+
+    /**
+     * 바이트 응답 GET(비공개 사진 등 — 서버가 `Cache-Control: no-store` 로 준다) → `Blob`. 오류 본문(JSON 래퍼)은 다른 요청과 같이 `ApiError` 로 바꾸고,
+     * 세션 끊김(401) 처리도 같다. 화면은 `URL.createObjectURL` 로 그리고 다 쓰면 `revokeObjectURL` 한다(체험단 사진 `TrialPhotoImage`).
+     */
+    function blob(url: string, request: RequestOptions = {}): Promise<Blob> {
+        const target = withQuery(url, request.query);
+        return run<Blob>(false, async () => {
+            const response = await $fetch.raw<Blob>(target, {
+                method: 'GET',
+                responseType: 'blob',
+                headers: languageHeaders(),
+                signal: request.signal,
+                timeout: TIMEOUT_MS,
+                retry: 0,
+                ignoreResponseError: true,
+            });
+            const data: unknown = response._data;
+            if (response.ok && data instanceof Blob) return data;
+            let body: unknown;
+            try {
+                body = data instanceof Blob ? JSON.parse(await data.text()) : data;
+            } catch {
+                body = undefined;
+            }
+            throw toApiError({ status: response.status, data: body, response: { status: response.status, headers: response.headers } }, t);
+        });
+    }
+
     return {
         get: <T>(url: string, request?: RequestOptions) => send<T>('GET', url, undefined, request),
         post: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('POST', url, body, request),
@@ -298,5 +327,6 @@ export function useApiClient(options: ApiClientOptions = {}) {
         patch: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('PATCH', url, body, request),
         /** 본문이 있는 DELETE(사유 등)는 세 번째 인자로 싣는다 */
         del: <T>(url: string, request?: RequestOptions, body?: unknown) => send<T>('DELETE', url, body, request),
+        blob,
     };
 }

@@ -93,9 +93,8 @@
                         <p class="m-0 flex items-center gap-1.5 font-semibold"><i class="pi pi-exclamation-triangle text-amber-600" aria-hidden="true" />{{ t('trial.damageTitle') }}</p>
                         <p class="m-0 whitespace-pre-line">{{ report.description }}</p>
                         <div v-if="report.photos.length" class="flex flex-wrap gap-2">
-                            <a v-for="photo in report.photos" :key="photo.id" :href="photo.url" target="_blank" rel="noopener" class="block">
-                                <img :src="photo.url" :alt="t('trial.damagePhotoAlt')" class="size-20 rounded object-cover" loading="lazy" />
-                            </a>
+                            <!-- 비공개 사진(V243) — 권한 API 를 받아 그린다 · 파기된 사진은 자리 표시 -->
+                            <TrialPhotoImage v-for="photo in report.photos" :key="photo.id" :url="photo.url" :purged="photo.purged" :alt="t('trial.damagePhotoAlt')" box-class="size-20" zoomable />
                         </div>
                         <template v-if="report.status === 'DECIDED' && report.verdict">
                             <p class="m-0 font-medium">{{ t('trial.verdictLine', { verdict: t(`trial.verdict.${report.verdict}`) }) }}</p>

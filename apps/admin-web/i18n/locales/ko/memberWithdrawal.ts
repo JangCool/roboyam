@@ -82,6 +82,7 @@ export default {
         POINT_CHARGE_REFUND: '충전 환불',
         POINT_SHOP_REFUND: '포인트샵 환불',
         BIZ_APPLICATION: '광고·핫딜 신청',
+        TRIAL_RETURN: '체험단 반납 대기',
     },
     pendingOpen: '관리 화면에서 보기',
     pendingNoLink: '연결할 화면이 없어요',

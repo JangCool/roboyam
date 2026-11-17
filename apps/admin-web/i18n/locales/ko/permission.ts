@@ -370,6 +370,8 @@ export default {
         trialSettingsDesc: '제공형 상한·표시 문구·반납 독촉·기한 넘김 불이익·구매 인증 보너스를 바꿉니다.',
         trialReview: '체험단 확인할 일 처리',
         trialReviewDesc: '구매 인증·반납 확인·파손 신고 판정·협찬 숨김 신고를 처리합니다.',
+        trialAddressReveal: '체험단 배송지 열람',
+        trialAddressRevealDesc: '체험단 뽑힌 회원의 가린 배송지를 사유를 남기고 10분 동안 봅니다(열람 기록이 남습니다).',
         adTakedown: '광고 긴급 내림',
         adTakedownDesc: '게재 중인 광고를 바로 내립니다.',
         adRestore: '내린 광고 되돌리기',

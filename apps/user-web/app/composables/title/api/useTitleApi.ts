@@ -4,6 +4,7 @@ import type {
     HallOfFame,
     MyTitleApplication,
     MyTitles,
+    UnseenTitle,
     RepresentativeTitleRequest,
     TitleCatalogItem,
     TitleReviewRequest,
@@ -18,6 +19,7 @@ import type {
  *  - `GET  /api/me/titles` → `MyTitles` — 로그인 필요
  *  - `PUT  /api/me/titles/representative` `{ key | null, hidden }` → `MyTitles`(바뀐 내 칭호) · 409 `TITLE_NOT_OWNED`
  *  - `POST /api/me/titles/{key}/applications` → 201 `MyTitleApplication` · 409 `TITLE_NOT_APPLICABLE`·`TITLE_APPLICATION_PENDING`·`TITLE_REAPPLY_TOO_SOON`·`TITLE_CONDITIONS_UNMET` 등
+ *  - `GET  /api/me/titles/unseen` → `UnseenTitle[]` — 축하 창에 띄울 받은 칭호만(가벼운 API — 점검 D14, 없으면 빈 목록)
  *  - `POST /api/me/titles/seen` → 204 — 축하 창을 닫으면
  *  - `GET  /api/boards/{slug}/staff/title-applications?status=PENDING|APPROVED|REJECTED|ALL` → `BoardTitleApplicationPage`(`{ items }`, 최신 순 200개, 기본 PENDING) —
  *    그 게시판 매니저만(아니면 403 `TITLE_REVIEW_FORBIDDEN`), 연결된 칭호만
@@ -29,6 +31,7 @@ const PATH = {
     mine: '/api/me/titles',
     representative: '/api/me/titles/representative',
     apply: (key: string) => `/api/me/titles/${encodeURIComponent(key)}/applications`,
+    unseen: '/api/me/titles/unseen',
     seen: '/api/me/titles/seen',
     staffApplications: (slug: string) => `/api/boards/${encodeURIComponent(slug)}/staff/title-applications`,
     staffApprove: (slug: string, id: string) => `/api/boards/${encodeURIComponent(slug)}/staff/title-applications/${encodeURIComponent(id)}/approve`,
@@ -55,6 +58,9 @@ export function useTitleApi() {
 
         /** 신청형 칭호 신청 — 만든 신청 한 줄을 돌려준다(화면은 `mine` 을 다시 받는다) */
         apply: (key: string): Promise<MyTitleApplication> => client.post<MyTitleApplication>(PATH.apply(key)),
+
+        /** 축하 창에 띄울 받은 칭호만(가벼운 API — 접속 때마다 부른다) */
+        unseen: (signal?: AbortSignal): Promise<UnseenTitle[]> => client.get<UnseenTitle[]>(PATH.unseen, { signal }),
 
         /** 축하 창을 봤다 — `unseen` 을 비운다 */
         markSeen: (): Promise<void> => client.post<void>(PATH.seen),

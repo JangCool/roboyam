@@ -55,6 +55,7 @@ export default {
         POINT_SHOP_REFUND: 'Point shop refund request under review',
         BIZ_APPLICATION: 'Ad or hot deal in progress',
         DELIVERED_RETURN_WINDOW: 'Order waiting for its return window',
+        TRIAL_RETURN: 'Trial product waiting to be returned',
     },
     pendingWaitUntil: 'Expected to finish around {date}',
     pendingWaitUnknown: 'When it finishes depends on the outcome',

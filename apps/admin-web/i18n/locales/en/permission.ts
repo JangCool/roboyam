@@ -370,6 +370,8 @@ export default {
         trialSettingsDesc: 'Change the give-away price limit, disclosure text, return reminders, late penalties and proof bonus.',
         trialReview: 'Handle trial review queue',
         trialReviewDesc: 'Handle purchase proofs, return checks, damage reports and hidden-sponsorship reports.',
+        trialAddressReveal: 'View trial shipping addresses',
+        trialAddressRevealDesc: 'Reveal a selected trial member’s masked address for 10 minutes with a reason (each view is logged).',
         adTakedown: 'Emergency ad takedown',
         adTakedownDesc: 'Take a running ad down immediately.',
         adRestore: 'Restore taken-down ads',

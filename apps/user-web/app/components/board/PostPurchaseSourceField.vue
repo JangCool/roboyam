@@ -11,7 +11,12 @@
             <span v-if="required" class="text-xs font-normal text-red-600 dark:text-red-400">{{ t('trial.sourceRequiredMark') }}</span>
         </legend>
 
-        <template v-if="locked">
+        <!-- 협찬 고정(점검 D2 — 운영자가 협찬 숨김 신고를 확인한 글, 서버 `purchase.locked`) -->
+        <template v-if="locked && modelValue.source === 'SPONSORED'">
+            <p class="m-0 flex items-center gap-1.5 text-sm"><i class="pi pi-lock text-xs text-muted-color" aria-hidden="true" />{{ t('trial.sourceSponsorLocked') }}</p>
+            <p class="m-0 text-xs text-muted-color">{{ t('trial.sourceSponsoredAuto') }}</p>
+        </template>
+        <template v-else-if="locked">
             <p class="m-0 flex items-center gap-1.5 text-sm"><i class="pi pi-lock text-xs text-muted-color" aria-hidden="true" />{{ t('trial.sourceLocked', { name: lockedLabel }) }}</p>
             <p class="m-0 text-xs text-muted-color">{{ t('trial.sourceTrialAuto') }}</p>
         </template>
@@ -62,7 +67,7 @@ interface Props {
     required?: boolean;
     /** 이 게시판에 쓸 수 있는 내 뽑힌 체험단(없으면 체험단 고르기를 감춘다) */
     trials?: PurchaseTrialOption[];
-    /** 체험단 연결로 열렸다 — 바꿀 수 없다 */
+    /** 바꿀 수 없다 — 체험단 연결로 열렸다(TRIAL) 또는 운영자가 협찬으로 고정했다(SPONSORED — 점검 D2) */
     locked?: boolean;
     /** 구매 인증 사진(내 돈으로 샀어요) */
     proof?: File | null;

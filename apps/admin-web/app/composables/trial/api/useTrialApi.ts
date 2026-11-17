@@ -7,6 +7,7 @@ import type {
     AdminTrialDetail,
     AdminTrialRequest,
     AdminTrialReturnedRequest,
+    AdminTrialRevealedAddress,
     AdminTrialRow,
     AdminTrialSelectRequest,
     AdminTrialShipmentRequest,
@@ -32,6 +33,7 @@ import type {
  *  - 파손 `POST …/participants/{id}/damage-reports` → 201 신고 · `POST /api/admin/trials/damage-reports/{id}/decide` `{ verdict, note }` → 판정한 신고
  *  - 구매 인증 `GET /api/admin/purchase-proofs/{id}/photo`(JPEG · 열람 기록) · `POST …/{id}/approve`(본문 없음) · `POST …/{id}/reject` `{ reason }` → 204
  *  - `GET/PUT /api/admin/trials/settings`
+ *  - 사진(V243 — 비공개) `GET /api/admin/trials/photos/{id}` 바이트 · 배송지 보기 `POST …/participants/{id}/address/reveal` `{ reason }`(`trial.address.reveal`)
  */
 const ROOT = '/api/admin/trials';
 const PATH = {
@@ -51,6 +53,7 @@ const PATH = {
     decide: (reportId: string) => `${ROOT}/damage-reports/${encodeURIComponent(reportId)}/decide`,
     proof: (id: string, action: 'photo' | 'approve' | 'reject') => `/api/admin/purchase-proofs/${encodeURIComponent(id)}/${action}`,
     settings: `${ROOT}/settings`,
+    reveal: (participantId: string) => `${ROOT}/participants/${encodeURIComponent(participantId)}/address/reveal`,
 };
 
 export function useTrialApi() {
@@ -145,7 +148,20 @@ export function useTrialApi() {
             return client.post<AdminTrialDamageReport>(PATH.decide(reportId), body);
         },
 
-        /** 구매 인증 사진 주소(비공개 — `<img>` 가 로그인 쿠키로 받는다, 열람 기록) */
+        /**
+         * 체험단·구매 인증 사진 바이트(비공개 — 서버가 준 `url` 그대로: 체험단 `/api/admin/trials/photos/{id}` · 구매 인증 `proofPhotoUrl`, `no-store`)
+         * → Blob(화면은 `TrialPhotoImage` 가 objectURL 로 그리고 해제한다). 404 `TRIAL_PHOTO_NOT_FOUND` · 410 `TRIAL_PHOTO_PURGED`
+         */
+        photo: (url: string, signal?: AbortSignal): Promise<Blob> => {
+            return client.blob(url, { signal });
+        },
+
+        /** 운영자 배송지 보기(점검 D4 — `trial.address.reveal`, 사유 5~200자·열람 기록) → 평문 + 다시 가릴 때(`hideAt`, 10분). 410 `TRIAL_ADDRESS_PURGED` · 409 `TRIAL_WRONG_SHIPPER` */
+        revealAddress: (participantId: string, reason: string): Promise<AdminTrialRevealedAddress> => {
+            return client.post<AdminTrialRevealedAddress>(PATH.reveal(participantId), { reason });
+        },
+
+        /** 구매 인증 사진 주소(비공개 — `photo` 로 받는다, 열람 기록) */
         proofPhotoUrl: (id: string): string => {
             return PATH.proof(id, 'photo');
         },

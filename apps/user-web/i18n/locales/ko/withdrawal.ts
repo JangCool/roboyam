@@ -56,6 +56,7 @@ export default {
         POINT_SHOP_REFUND: '심사 중인 포인트샵 환불 신청',
         BIZ_APPLICATION: '진행 중인 광고·핫딜',
         DELIVERED_RETURN_WINDOW: '반품 기한을 기다리는 주문',
+        TRIAL_RETURN: '반납을 기다리는 체험단',
     },
     pendingWaitUntil: '{date}쯤 끝나요',
     pendingWaitUnknown: '끝나는 시점은 처리 결과에 따라 달라요',

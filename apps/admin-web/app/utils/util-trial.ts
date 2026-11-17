@@ -173,6 +173,7 @@ export default class UtilTrial {
         if (!between(s.proofBonusPoints, 0, 10000)) out.push('proofBonusPoints');
         if (!between(s.proofPhotoDays, 1, 365)) out.push('proofPhotoDays');
         if (!between(s.stockKeepDays, 1, 365)) out.push('stockKeepDays');
+        if (!between(s.photoKeepDays, 1, 365)) out.push('photoKeepDays');
         return out;
     }
 

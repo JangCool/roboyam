@@ -87,6 +87,14 @@ export function useTrialApi() {
             return client.get<PurchaseProof[]>(PATH.staffProofs(slug), { query: { status }, signal });
         },
 
+        /**
+         * 체험단 사진 바이트(V243 — 비공개, 서버가 준 `url` 그대로: 회원 `/api/me/trials/photos/{id}` · 광고주 `/api/business/trials/photos/{id}`, `no-store`)
+         * → Blob(`TrialPhotoImage` 가 objectURL 로 그리고 해제한다). 404 `TRIAL_PHOTO_NOT_FOUND` · 410 `TRIAL_PHOTO_PURGED`
+         */
+        photo: (url: string, signal?: AbortSignal): Promise<Blob> => {
+            return client.blob(url, { signal });
+        },
+
         /** 구매 인증 사진 주소(비공개 — `<img>` 가 로그인 쿠키로 받는다, 열람 기록) */
         staffProofPhotoUrl: (slug: string, id: string): string => {
             return PATH.staffProof(slug, id, 'photo');

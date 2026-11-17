@@ -163,7 +163,7 @@ async function openCreate(): Promise<void> {
 /** 대표 그림 올리기 — 서랍이 키·주소를 받는다 */
 async function uploadCover(file: File): Promise<{ key: string; url: string }> {
     const uploaded = await api.uploadCover(file);
-    return { key: uploaded.key, url: uploaded.url };
+    return { key: uploaded.key ?? '', url: uploaded.url };
 }
 
 async function save(body: AdminTrialRequest): Promise<void> {

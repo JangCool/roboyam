@@ -6,8 +6,9 @@
           구매 인증 — 글(→ 공개 글) · [사진](비공개 — 열람 기록) · [승인](보너스 포인트) · [거절](사유 필수)
           반납 확인 — 모집(→ 모집 상세) · [모집에서 반납 받기](→ 모집 상세 입고·발송 탭 — 서버가 반납 사진을 꼭 받으므로 사진을 올리는 그 자리에서 처리)
           파손 신고 — 모집 · 회원 이의(없으면 신고 설명) · [판정](모집 상세에서 신고·사진을 받아 사진 비교 — 보내기 전 ↔ 반납 뒤 ↔ 신고 · 판정표 4종 + 메모)
-          협찬 숨김 — 글 · 신고 수 · [확인](협찬 표시 붙이기 — 제재 대상 · 무시)
-        그새 다른 사람이 처리했으면(409·404·403) 토스트 + 다시 받기. 처리 권한이 없으면 단추를 감춘다(`canTitle`·`canTrial`).
+          협찬 숨김 — 글 · 신고 수 · [확인](협찬으로 고정 + 글쓴이 제재 곁들이기 — 신고 처리와 같은 제재 구획 `ReportSanctionSection` · 무시, 점검 D2)
+        사진은 비공개(V243) — `TrialPhotoImage` 가 받아 그린다(파기된 사진은 자리 표시).
+        그새 다른 사람이 처리했으면(409·404·403) 토스트 + 다시 받기. 처리 권한이 없으면 단추를 감춘다(`canTitle`·`canTrial` · 반납 받기는 `canReturn` — trial.manage·ad.manage, 점검 D12).
     -->
     <div class="flex min-w-0 flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
@@ -58,7 +59,7 @@
                                 <Button type="button" :label="t('trial.queue.approve')" icon="pi pi-check" size="small" :disabled="busy" @click="approve(data)" />
                                 <Button type="button" :label="t('trial.queue.reject')" icon="pi pi-times" size="small" severity="danger" variant="outlined" :disabled="busy" @click="openReject(data)" />
                             </template>
-                            <Button v-else-if="data.type === 'RETURN_CHECK' && data.refs.trialId" as="router-link" :to="{ path: UtilTrial.detailPath(data.refs.trialId), query: { tab: 'shipping' } }" :label="t('trial.queue.openReturn')" icon="pi pi-replay" size="small" />
+                            <Button v-else-if="data.type === 'RETURN_CHECK' && data.refs.trialId && canReturn" as="router-link" :to="{ path: UtilTrial.detailPath(data.refs.trialId), query: { tab: 'shipping' } }" :label="t('trial.queue.openReturn')" icon="pi pi-replay" size="small" />
                             <Button v-else-if="data.type === 'DAMAGE_REPORT'" type="button" :label="t('trial.queue.decide')" icon="pi pi-check-square" size="small" :disabled="busy" :loading="loadingDamage === data.id" @click="openDecide(data)" />
                             <Button v-else-if="data.type === 'SPONSOR_HIDDEN'" type="button" :label="t('trial.queue.sponsorDecide')" icon="pi pi-flag" size="small" :disabled="busy" @click="openSponsor(data)" />
                         </div>
@@ -88,7 +89,7 @@
         <Dialog :visible="photoUrls.length > 0" modal :header="t('trial.queue.photoTitle')" :style="{ width: 'min(48rem, calc(100vw - 2rem))' }" :draggable="false" @update:visible="(v: boolean) => (v ? null : (photoUrls = []))">
             <p class="m-0 mb-2 text-xs text-muted-color">{{ t('trial.queue.photoPrivate') }}</p>
             <div class="grid gap-2 sm:grid-cols-2">
-                <img v-for="url in photoUrls" :key="url" :src="url" alt="" class="max-h-[60vh] w-full rounded object-contain" />
+                <TrialPhotoImage v-for="url in photoUrls" :key="url" :url="url" box-class="h-[60vh] max-h-[60vh] w-full" fit="contain" />
             </div>
         </Dialog>
 
@@ -100,9 +101,7 @@
                     <div v-for="col in photoColumns" :key="col.key" class="flex flex-col gap-1">
                         <span class="text-xs font-medium">{{ col.label }}</span>
                         <div class="flex flex-wrap gap-1.5">
-                            <button v-for="p in col.photos" :key="p.id" type="button" class="block size-16 overflow-hidden rounded border border-(--line)" :aria-label="t('trial.queue.photoOpen')" @click="openPhotos(col.photos.map((x) => x.url))">
-                                <img :src="p.url" alt="" class="size-full object-cover" />
-                            </button>
+                            <TrialPhotoImage v-for="p in col.photos" :key="p.id" :url="p.url" :purged="p.purged" box-class="size-16" zoomable />
                             <span v-if="col.photos.length === 0" class="text-xs text-muted-color">{{ t('trial.queue.noPhoto') }}</span>
                         </div>
                     </div>
@@ -133,20 +132,37 @@
             </form>
         </Dialog>
 
-        <!-- 협찬 숨김 확인 -->
-        <Dialog v-model:visible="sponsorOpen" modal :header="t('trial.queue.sponsorTitle')" :style="{ width: 'min(28rem, calc(100vw - 2rem))' }" :draggable="false" :closable="!busy">
+        <!-- 협찬 숨김 확인(점검 D2 — 협찬으로 고정 + 글쓴이 제재 곁들이기) -->
+        <Dialog v-model:visible="sponsorOpen" modal :header="t('trial.queue.sponsorTitle')" :style="{ width: 'min(36rem, calc(100vw - 2rem))' }" :draggable="false" :closable="!busy">
             <form v-if="sponsorTarget" class="flex flex-col gap-3" novalidate @submit.prevent>
                 <p class="m-0 text-sm">{{ t('trial.queue.sponsorText', { title: sponsorTarget.title ?? '' }) }}</p>
-                <LabeledField :label="t('trial.queue.decisionNote')">
-                    <template #default="{ id, describedBy }">
-                        <Textarea :id="id" v-model="note" rows="2" auto-resize fluid :maxlength="300" :aria-describedby="describedBy" :disabled="busy" />
+                <LabeledField :label="t('trial.queue.sponsorNoteLabel')" :hint="t('report.noteCounter', { n: note.trim().length, max: SPONSOR_NOTE_MAX })" :help="t('trial.queue.sponsorNoteHelp')" :error="sponsorFieldErrors.note ?? ''">
+                    <template #default="{ id, describedBy, invalid }">
+                        <Textarea :id="id" v-model="note" rows="2" auto-resize fluid :maxlength="SPONSOR_NOTE_MAX" :invalid="invalid" :aria-describedby="describedBy" :disabled="busy" />
                     </template>
                 </LabeledField>
+                <ReportSanctionSection
+                    v-if="sponsorSanction"
+                    v-model:with="sponsorAttach.withSanction.value"
+                    v-model:step="sponsorAttach.step.value"
+                    :sanction="sponsorSanction"
+                    :on="sponsorAttach.on.value"
+                    :busy="busy"
+                    :tried="sponsorTried"
+                    :reason-shown="sponsorAttach.reasonShown.value"
+                    :reason-touched="sponsorAttach.reasonTouched.value"
+                    :reason-error="sponsorAttach.reasonError.value"
+                    :step-field-errors="sponsorAttach.stepFieldErrors.value"
+                    :with-help="t('trial.queue.sponsorSanctionHelp')"
+                    :not-eligible="t('trial.queue.sponsorNoAuthor')"
+                    @update:reason="sponsorAttach.onReason"
+                    @retry="actions.retrySponsorAuthor()"
+                />
                 <Message v-if="dialogError" severity="error" variant="simple" size="small">{{ dialogError }}</Message>
                 <div class="flex flex-wrap justify-end gap-2">
                     <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="busy" @click="sponsorOpen = false" />
                     <Button type="button" :label="t('trial.queue.sponsorDismiss')" severity="secondary" variant="outlined" :loading="busy" @click="submitSponsor(false)" />
-                    <Button type="button" :label="t('trial.queue.sponsorConfirm')" severity="danger" :loading="busy" @click="submitSponsor(true)" />
+                    <Button type="button" :label="sponsorConfirmLabel" severity="danger" :loading="busy" :disabled="!sponsorAttach.ready.value" @click="submitSponsor(true)" />
                 </div>
             </form>
         </Dialog>
@@ -154,9 +170,11 @@
 </template>
 
 <script setup lang="ts">
+import type { ReportSanctionContext } from '~/components/report/ReportActionDialog.types';
 import type { ReviewQueueActions, ReviewQueueDamageView } from '~/components/review/ReviewQueueList.types';
 import type { ReviewQueueItem, ReviewQueueStatus, ReviewQueueType } from '~/composables/review/api/useReviewQueueApi.types';
 import type { TrialDamageVerdict, TrialPhoto } from '~/composables/trial/api/useTrialApi.types';
+import UtilSanctionMessages from '~/utils/util-sanction-messages';
 import UtilTrial from '~/utils/util-trial';
 
 const ALL = '__all__';
@@ -164,6 +182,8 @@ const TYPES: readonly ReviewQueueType[] = ['TITLE_APPLICATION', 'PURCHASE_PROOF'
 /** 처리할 것으로 보는 상태(서버 `ReviewQueueService` — 파손 신고는 REPORTED·OBJECTED·AWAITING) */
 const PENDING_STATES = new Set(['PENDING', 'REPORTED', 'OBJECTED', 'AWAITING']);
 /** 상태 글자가 있는 값 — 그 밖(판정 코드)은 판정 이름 */
+/** 협찬 숨김 처리 글 최대(서버 `SponsorReviewService` — 300자) */
+const SPONSOR_NOTE_MAX = 300;
 const STATE_KEYS = new Set(['PENDING', 'APPROVED', 'REJECTED', 'RETURNED', 'UNRETURNED', 'REPORTED', 'OBJECTED', 'AWAITING', 'CONFIRMED', 'DISMISSED']);
 
 interface Props {
@@ -181,6 +201,10 @@ interface Props {
     canTitle?: boolean;
     /** 체험단 확인 처리 권한(`trial.review`) */
     canTrial?: boolean;
+    /** 반납 받기 권한(`trial.manage`·`ad.manage` — 점검 D12, `trial.review` 는 볼 수만 있다) */
+    canReturn?: boolean;
+    /** 협찬 숨김 확인 대화상자의 글쓴이 제재 현황(`useReviewQueue().sponsorSanction` — `sanction.read` 가 없으면 null) */
+    sponsorSanction?: ReportSanctionContext | null;
     /** 회원 이름을 회원 관리로 가는 링크로(`member.read`) */
     canReadMember?: boolean;
     /** 공개 사이트 주소(글 링크) — 비우면 상대 주소 */
@@ -188,7 +212,7 @@ interface Props {
     actions: ReviewQueueActions;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, loadError: '', type: null, pendingCounts: () => ({}), canTitle: false, canTrial: false, canReadMember: false, siteOrigin: '' });
+const props = withDefaults(defineProps<Props>(), { loading: false, loadError: '', type: null, pendingCounts: () => ({}), canTitle: false, canTrial: false, canReturn: false, sponsorSanction: null, canReadMember: false, siteOrigin: '' });
 const emit = defineEmits<{ 'update:status': [status: ReviewQueueStatus]; 'update:type': [type: ReviewQueueType | null] }>();
 
 const { t } = useI18n();
@@ -346,19 +370,77 @@ async function submitDecide(): Promise<void> {
     if (done) decideOpen.value = false;
 }
 
-/* ── 협찬 숨김 ── */
+/* ── 협찬 숨김(점검 D2) — 확인 = 협찬으로 고정 + 글쓴이 제재 곁들이기(신고 처리와 같은 제재 구획) · 무시 ── */
 const sponsorOpen = ref(false);
 const sponsorTarget = ref<ReviewQueueItem | null>(null);
+const sponsorTried = ref(false);
+const sponsorFieldErrors = ref<Record<string, string>>({});
+const sponsorAttach = useReportSanctionAttach({
+    context: () => props.sponsorSanction,
+    allowed: () => props.sponsorSanction !== null,
+    only: () => false,
+    note: () => note.value,
+    fieldErrors: () => sponsorFieldErrors.value,
+    tried: () => sponsorTried.value,
+});
+const sponsorConfirmLabel = computed(() => {
+    const kind = sponsorAttach.step.value.kind;
+    return sponsorAttach.on.value && kind ? t('report.actWithSanction', { act: t('trial.queue.sponsorConfirm'), kind: UtilSanctionMessages.kindName(t, kind) }) : t('trial.queue.sponsorConfirm');
+});
 function openSponsor(row: ReviewQueueItem): void {
     sponsorTarget.value = row;
     note.value = '';
     dialogError.value = '';
+    sponsorTried.value = false;
+    sponsorFieldErrors.value = {};
+    props.actions.openSponsorAuthor(row.member);
+    sponsorAttach.reset();
     sponsorOpen.value = true;
 }
+/** 제재 오류 — 그 사이 작성자 상태가 바뀌었다(대화상자 안에 서버 문구, 쓴 글은 그대로 — 신고 처리와 같은 코드) */
+const SANCTION_STALE = new Set(['SANCTION_STEP_TOO_LOW', 'SANCTION_ALREADY_SUSPENDED', 'SANCTION_ALREADY_BANNED', 'SANCTION_TARGET_NOT_FOUND']);
 async function submitSponsor(confirmIt: boolean): Promise<void> {
     const row = sponsorTarget.value;
-    if (!row) return;
-    const done = await run(() => props.actions.decideSponsor(row.id, confirmIt, note.value.trim()), confirmIt ? t('trial.queue.sponsorConfirmed') : t('trial.queue.sponsorDismissed'), true);
-    if (done) sponsorOpen.value = false;
+    if (!row || busy.value) return;
+    const text = note.value.trim();
+    if (!confirmIt) {
+        const done = await run(() => props.actions.dismissSponsor(row.id, text), t('trial.queue.sponsorDismissed'), true);
+        if (done) sponsorOpen.value = false;
+        return;
+    }
+    sponsorTried.value = true;
+    const built = sponsorAttach.build();
+    if (!built.valid) return;
+    busy.value = true;
+    dialogError.value = '';
+    sponsorFieldErrors.value = {};
+    try {
+        const issued = await props.actions.confirmSponsor(row.id, { note: text, sanction: built.sanction });
+        toast.success(issued ? t('trial.queue.sponsorConfirmedWithSanction', { sanction: UtilSanctionMessages.issued(t, issued) }) : t('trial.queue.sponsorConfirmed'));
+        sponsorOpen.value = false;
+        await props.actions.reload();
+    } catch (e) {
+        const error = errorOf(e);
+        if (error.status === 400 && error.fields && Object.keys(error.fields).length) {
+            // 칸 오류(처리 글·제재)는 그 칸 아래, 그 밖은 대화상자 안 한 줄 — 확인도 롤백됐다
+            sponsorFieldErrors.value = { ...error.fields };
+            dialogError.value = Object.entries(error.fields)
+                .filter(([k]) => k !== 'note' && k !== 'sanction' && !k.startsWith('sanction.'))
+                .map(([, v]) => v)
+                .join(' ');
+        } else if (SANCTION_STALE.has(error.code)) {
+            dialogError.value = error.message;
+            props.actions.retrySponsorAuthor();
+        } else if (error.status === 409 || error.status === 404) {
+            toast.error(error.message, 8000);
+            sponsorOpen.value = false;
+            await props.actions.reload();
+        } else {
+            // 403(제재 권한 없음 — 확인도 롤백) 등은 대화상자 안 한 줄
+            dialogError.value = error.message;
+        }
+    } finally {
+        busy.value = false;
+    }
 }
 </script>

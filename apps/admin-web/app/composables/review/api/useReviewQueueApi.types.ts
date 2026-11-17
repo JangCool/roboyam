@@ -1,6 +1,7 @@
 /**
  * 확인할 일 목록(관리자 — trial-group-contract 「구현 결정」 7) 이 주고받는 모양 — 서버 admin `ReviewQueueService.Item`·`Page` 와 같은 이름. 칭호 신청과 체험단 확인 일을 한 목록으로.
  */
+import type { SanctionWithReport } from '~/composables/sanction/api/useSanctionApi.types';
 import type { TrialMember } from '~/composables/trial/api/useTrialApi.types';
 
 /** 종류 — 칭호 신청(`title.review`·`title.read`) · 구매 인증 · 반납 확인 · 파손 신고 · 협찬 숨김(`trial.review`) */
@@ -32,4 +33,13 @@ export interface ReviewQueueItem {
 export interface ReviewQueueList {
     items: ReviewQueueItem[];
     pending: Partial<Record<ReviewQueueType, number>>;
+}
+
+/**
+ * `POST /api/admin/review-queue/sponsor-hidden/{postId}/confirm` 본문(서버 `SponsorHiddenActionService.Request`) — `note` 처리 글(300자),
+ * `sanction` 글쓴이 제재(신고 처리와 같은 모양 — `reason` null 이면 처리 글, 둘 다 없으면 400 `fields.sanction.reason`). 무시에는 `note` 만.
+ */
+export interface SponsorHiddenRequest {
+    note: string;
+    sanction: SanctionWithReport | null;
 }

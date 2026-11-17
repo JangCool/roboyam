@@ -184,11 +184,11 @@ export interface BizTrialView {
 /** 사진 올리기 종류(광고주) — 발송 전 · 반납 · 파손 */
 export type BizTrialPhotoKind = 'PRE_SHIP' | 'RETURN' | 'DAMAGE';
 
-/** 올린 사진(서버 `TrialViews.Uploaded`) — `id` 를 처리 본문 `photoIds` 에 싣는다 */
+/** 올린 사진(서버 `TrialViews.Uploaded`) — `id` 를 처리 본문 `photoIds` 에 싣는다. V243 — 비공개라 `key` null · `url` = 광고주 권한 API(`/api/business/trials/photos/{id}`, `TrialPhotoImage` 로 그린다) */
 export interface BizTrialUploaded {
     id: string;
     kind: string;
-    key: string;
+    key: string | null;
     url: string;
 }
 

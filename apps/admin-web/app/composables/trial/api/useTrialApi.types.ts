@@ -46,12 +46,16 @@ export interface TrialMember {
     avatarUrl: string | null;
 }
 
-/** 사진 한 장(서버 `TrialViews.Photo`) */
+/**
+ * 사진 한 장(서버 `TrialViews.Photo`, V243 — 비공개). `url` 은 권한 API(`/api/admin/trials/photos/{id}` — 바이트·`no-store`)라 `<img src>` 로 쓰지 않고
+ * `TrialPhotoImage` 가 받아 그린다. 보관 기한이 지나 지운 사진은 `purged` true · `url` null.
+ */
 export interface TrialPhoto {
     id: string;
     kind: TrialPhotoKind;
-    url: string;
+    url: string | null;
     createdAt: string;
+    purged: boolean;
 }
 
 /** 모집 한 줄(서버 `TrialViews.TrialRow`) — `GET /api/admin/trials?status=` 는 이것의 배열 */
@@ -123,6 +127,22 @@ export interface AdminTrialParticipant {
     cancelledAt: string | null;
     /** 취소 사유(회원에게도 보인다) */
     cancelReason: string | null;
+    /**
+     * 운영자 응답은 가린 값(점검 D4 — true: 받는 분 `홍*동` · 연락처 `010-****-5678` · 주소 앞 두 어절, 상세 주소·메모 null).
+     * 평문은 `revealAddress`(`trial.address.reveal`)로만 — 화면은 `hideAt`(10분) 에 다시 가린다
+     */
+    addressMasked: boolean;
+}
+
+/** `POST /api/admin/trials/participants/{id}/address/reveal` 응답(서버 `TrialViews.RevealedAddress`) — `hideAt` 에 화면이 다시 가린다 */
+export interface AdminTrialRevealedAddress {
+    recipient: string | null;
+    phone: string | null;
+    postcode: string | null;
+    address1: string | null;
+    address2: string | null;
+    memo: string | null;
+    hideAt: string;
 }
 
 /** 파손 신고(서버 `TrialViews.DamageReport`) */
@@ -295,11 +315,11 @@ export interface AdminTrialApplicantPage {
     items: AdminTrialApplication[];
 }
 
-/** 올린 사진·대표 그림(서버 `TrialViews.Uploaded`) */
+/** 올린 사진·대표 그림(서버 `TrialViews.Uploaded`) — 대표 그림은 공개 `key`·`url`, 체험단 사진(V243 — 비공개)은 `key` null · `url` = 권한 API */
 export interface TrialUploaded {
     id: string;
     kind: string;
-    key: string;
+    key: string | null;
     url: string;
 }
 
@@ -358,4 +378,6 @@ export interface TrialSettings {
     proofBonusPoints: number;
     proofPhotoDays: number;
     stockKeepDays: number;
+    /** 모집이 끝나거나 취소된 뒤(열린 파손 신고가 있으면 판정 뒤) 체험단 사진 보관 일수(V243 — 1~365, 기본 90). 지나면 하루 배치가 바이트를 지운다 */
+    photoKeepDays: number;
 }

@@ -103,6 +103,8 @@ export default {
     },
     // Report reason shown only on posts in boards that ask how the product was obtained (trial-group-contract)
     sponsorReason: 'Hidden sponsorship',
+    sponsorCaseConfirm: 'Closing this case also closes the hidden-sponsorship item in the trial review queue — acting with this reason locks the post as sponsored (the author can’t change it).',
+    sponsorCaseDismiss: 'Closing this case also closes the hidden-sponsorship item in the trial review queue as dismissed. To lock the post as sponsored, act with the reason “Hidden sponsorship”.',
     // Report reasons shown only on hot deal posts (hotdeal-contract)
     dealReason: {
         DEAL_FALSE_PRICE: 'Price or details are wrong',
@@ -133,6 +135,7 @@ export default {
         DEACTIVATE: 'Club deactivated',
         DEAL_END: 'Hot deal ended',
         SANCTION_ONLY: 'Author sanctioned only',
+        SPONSOR_LABEL: 'Sponsorship label added',
         DISMISS: 'Dismissed',
     },
     dialog: {

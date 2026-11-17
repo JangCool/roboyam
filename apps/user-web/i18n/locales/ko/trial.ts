@@ -203,6 +203,8 @@ export default {
     sourceSponsoredAuto: '본문 위에 「협찬」 표시 상자가 자동으로 붙어요.',
     sourceLocked: '체험단 사용기: {name}',
     sourceLockedFallback: '뽑힌 체험단',
+    // 협찬 고정(점검 D2 — 운영자가 협찬 숨김 신고를 확인한 글)
+    sourceSponsorLocked: '운영자가 협찬으로 확인한 글이라 구입 경로를 바꿀 수 없어요.',
     sourceHonestNote: '업체에서 받고 「내 돈으로 샀어요」를 고르면 표시 의무 위반이에요. 신고되면 협찬 표시가 붙고 제재를 받을 수 있어요.',
     sourceRequired: '어떻게 구했는지 골라 주세요.',
     sourceTrialRequired: '어느 체험단의 사용기인지 골라 주세요.',
@@ -284,6 +286,18 @@ export default {
     bizHint: '운영자가 만든 내 체험단 모집이에요. 신청자를 보고 후보를 추천하고, 직접 보내는 모집은 발송·반납을 처리해요.',
     bizEmpty: '체험단 모집이 없어요',
     bizEmptyText: '체험단을 열고 싶으면 운영자에게 문의해 주세요.',
+    // 광고주 자격 없음(403 TRIAL_ADVERTISER_BLOCKED — 점검 D5)
+    bizBlockedTitle: '지금은 체험단 화면을 쓸 수 없어요',
+    bizBlockedText: '사업자 승인이나 광고 서비스가 정지됐거나 광고주 정보가 보관됐어요. 진행 중인 모집은 운영자가 대신 처리해요. 자세한 내용은 사업자 센터에서 확인해 주세요.',
+    // 비공개 사진(V243 — 점검 D3)
+    photoView: {
+        purged: '보관 기간이 지나 파기한 사진',
+        purgedShort: '파기됨',
+        failed: '사진을 불러오지 못했어요',
+        open: '사진 크게 보기',
+        title: '사진',
+        private: '비공개 사진이에요. 확인 목적 밖으로 쓰거나 옮기지 말아 주세요.',
+    },
     bizApplicants: '신청 {n}명 / {total}명 모집',
     bizSelected: '뽑힘 {n}명',
     bizApplicantsTitle: '신청자 {n}명',

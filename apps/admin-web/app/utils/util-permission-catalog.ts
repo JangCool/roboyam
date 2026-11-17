@@ -286,6 +286,8 @@ export default class UtilPermissionCatalog {
         { code: 'trial.manage', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.trialManage', descKey: 'permission.item.trialManageDesc', featureReady: true },
         { code: 'trial.settings', unit: 'CONFIG', type: 'adPromo', nameKey: 'permission.item.trialSettings', descKey: 'permission.item.trialSettingsDesc', featureReady: true },
         { code: 'trial.review', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.trialReview', descKey: 'permission.item.trialReviewDesc', featureReady: true },
+        // 체험단 운영자 배송지 평문 열람(점검 D4 — 서버 `Permission.TRIAL_ADDRESS_REVEAL`, 사유 5~200자·열람 기록·10분 뒤 다시 가림)
+        { code: 'trial.address.reveal', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.trialAddressReveal', descKey: 'permission.item.trialAddressRevealDesc', featureReady: true },
         { code: 'operator.read', unit: 'READ', type: 'operatorRole', nameKey: 'permission.operatorRead', descKey: 'permission.operatorReadDesc', featureReady: true },
         { code: 'role.read', unit: 'READ', type: 'operatorRole', nameKey: 'permission.roleRead', descKey: 'permission.roleReadDesc', featureReady: true },
         { code: 'operator.manage', unit: 'MANAGE', type: 'operatorRole', nameKey: 'permission.operatorManage', descKey: 'permission.operatorManageDesc', featureReady: true },

@@ -53,12 +53,16 @@ export interface TrialBoardRef {
     name: string;
 }
 
-/** 사진 한 장(서버 `TrialViews.Photo`) — 종류 STOCK · PRE_SHIP · RETURN · DAMAGE */
+/**
+ * 사진 한 장(서버 `TrialViews.Photo`, V243 — 비공개) — 종류 STOCK · PRE_SHIP · RETURN · DAMAGE. `url` 은 보는 쪽 권한 API(회원 `/api/me/trials/photos/{id}` ·
+ * 광고주 `/api/business/trials/photos/{id}` — 바이트·`no-store`)라 `<img src>` 로 쓰지 않고 `TrialPhotoImage` 가 받아 그린다. 보관 기한이 지나 지운 사진은 `purged` true · `url` null.
+ */
 export interface TrialPhoto {
     id: string;
     kind: string;
-    url: string;
+    url: string | null;
     createdAt: string;
+    purged: boolean;
 }
 
 /** 모집 카드(서버 `TrialViews.TrialCard`) — `ad` 늘 true(「광고」 딱지 + 광고주 이름). 금·은 리뷰어 먼저 신청 시작 시각 */

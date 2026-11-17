@@ -1,5 +1,6 @@
 import type { PurchaseSource } from '~/composables/board/api/usePostApi.types';
 import type { MyTrial, TrialListStatus } from '~/composables/trial/api/useTrialApi.types';
+import { ApiError } from '~/composables/common/useApiClient';
 
 /** 내 체험단 한 줄의 지금 단계 */
 export type MyTrialStage = 'APPLIED' | 'NOT_SELECTED' | 'CANCELLED' | 'OPERATOR_CANCELLED' | 'WAIT_SHIP' | 'SHIPPED' | 'WRITE' | 'RETURN' | 'UNRETURNED' | 'DONE';
@@ -89,6 +90,11 @@ export default class UtilTrial {
         if (source === 'SELF') return proofApproved ? 'PROOF' : 'SELF';
         if (source === 'SPONSORED') return 'SPONSORED';
         return null;
+    }
+
+    /** 광고주 화면 API 의 자격 없음(403 `TRIAL_ADVERTISER_BLOCKED` — 사업자 신원 승인·광고 서비스 승인·광고주 보관 아님이 아니다, 점검 D5) — 오류가 아니라 안내로 */
+    static isAdvertiserBlocked(e: unknown): boolean {
+        return e instanceof ApiError && e.code === 'TRIAL_ADVERTISER_BLOCKED';
     }
 
     /** 이미지 파일 검사 — 종류·크기. 문제 없으면 null */

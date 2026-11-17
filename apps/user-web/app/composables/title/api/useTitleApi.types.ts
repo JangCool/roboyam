@@ -118,6 +118,8 @@ export interface MyTitleApplication {
     id: string;
     key: string;
     label: string;
+    /** 칭호 영어 이름(점검 D14 — 없으면 null, 화면은 `useLocalizedName` 으로 `label` 로 되돌린다) */
+    labelEn?: string | null;
     status: TitleApplicationStatus;
     reason: string | null;
     reapplyAt: string | null;

@@ -103,7 +103,7 @@
                     <li v-for="row in mine.applications" :key="row.id" class="border-b border-surface py-2.5 last:border-b-0">
                         <p class="m-0 flex flex-wrap items-center gap-2 text-sm">
                             <span :class="[TAG, statusClass(row.status)]"><span class="relative top-[-0.09em]">{{ UtilMemberTitleMessages.status(t, row.status) }}</span></span>
-                            <b class="font-semibold">{{ row.label }}</b>
+                            <b class="font-semibold">{{ localizedName(row.label, row.labelEn ?? null) }}</b>
                             <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.date(row.createdAt) }}</span>
                         </p>
                         <p v-if="row.reason" class="m-0 mt-1 text-xs leading-snug">{{ t('memberTitle.rejectReasonLine', { reason: row.reason }) }}</p>

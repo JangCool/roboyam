@@ -56,15 +56,16 @@ export type ReportHiddenReason = 'REPORTED' | 'ILLEGAL' | 'RIGHTS' | 'STAFF';
 
 /**
  * 조치 — 숨김 · 삭제 · 자동 숨김 확정 · 소모임 비활성화(소모임 대상만) · 핫딜 종료(핫딜 글 대상만) · 무시.
+ * `SPONSOR_LABEL`(협찬 표시 붙임 — 체험단 「확인할 일」의 협찬 숨김 확인에서 닫은 사건, 점검 D2)은 기록에만 남는 조치다(처리 대화창에서 고르지 않는다).
  * `DEAL_END`(hotdeal-contract 「신고 사건 조치」): 그 글의 딜을 운영진 종료로 바꾸고(작성자 알림에 처리 글이 사유로 간다) 사건을 처리됨으로 닫는다(처리 글 1~200자, 글은 숨기지 않는다 — 핫딜 글이 아니면 `409 REPORT_ACTION_INVALID`).
  */
-export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'SANCTION_ONLY' | 'DISMISS';
+export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'SANCTION_ONLY' | 'SPONSOR_LABEL' | 'DISMISS';
 
 /**
  * 처리 대화창의 조치 — `SANCTION_ONLY`(제재만 — 대상은 그대로 두고 작성자만 제재, member-sanction-contract 결정 4)는 요청에서 `action: 'NONE'` + `sanction` 필수다.
  * 사건의 기록된 조치(`ReportCaseItem.action`)는 `SANCTION_ONLY` 로 남는다(community 와 같다).
  */
-export type ReportResolveAction = Exclude<ReportCaseAction, 'DISMISS'>;
+export type ReportResolveAction = Exclude<ReportCaseAction, 'DISMISS' | 'SPONSOR_LABEL'>;
 
 /** `POST /{id}/resolve` 요청의 `action` — 「제재만」은 `NONE`(직접 `SANCTION_ONLY` 를 보내면 `400 VALIDATION fields.action`) */
 export type ReportResolveRequestAction = Exclude<ReportResolveAction, 'SANCTION_ONLY'> | 'NONE';

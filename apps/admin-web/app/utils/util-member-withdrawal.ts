@@ -36,7 +36,7 @@ export interface ReasonBarSegment {
 export default class UtilMemberWithdrawal {
     static readonly STATUSES: readonly WithdrawalStatus[] = ['SCHEDULED', 'COMPLETED', 'CANCELED'];
     /** 남은 일 종류 표시 차례 */
-    static readonly PENDING_CODES: readonly WithdrawalPendingCode[] = ['GROUP_BUY_ORDER', 'DELIVERED_RETURN_WINDOW', 'RETURN_REQUEST', 'PAYMENT_CANCEL', 'POINT_CHARGE_REFUND', 'POINT_SHOP_REFUND', 'BIZ_APPLICATION'];
+    static readonly PENDING_CODES: readonly WithdrawalPendingCode[] = ['GROUP_BUY_ORDER', 'DELIVERED_RETURN_WINDOW', 'RETURN_REQUEST', 'PAYMENT_CANCEL', 'POINT_CHARGE_REFUND', 'POINT_SHOP_REFUND', 'BIZ_APPLICATION', 'TRIAL_RETURN'];
     /** 사유 6종 + 고르지 않음(null) — 분포 막대 차례 */
     static readonly REASONS: readonly (WithdrawalReason | null)[] = ['NOT_USING', 'PRIVACY', 'INCONVENIENT', 'OTHER_SERVICE', 'REJOIN', 'OTHER', null];
     /** 강제 탈퇴 사유 종류(서버 `MemberWithdrawalAdminRequest.Force.reasonKind`) */
@@ -118,12 +118,14 @@ export default class UtilMemberWithdrawal {
             POINT_CHARGE_REFUND: 'pi pi-wallet',
             POINT_SHOP_REFUND: 'pi pi-gift',
             BIZ_APPLICATION: 'pi pi-megaphone',
+            TRIAL_RETURN: 'pi pi-replay',
         }[code];
     }
 
     /**
      * 남은 일 한 건의 관리자 화면 주소 — 기존 화면의 서랍 쿼리를 연다. 대상 ID 가 없거나 화면이 없는 종류(충전 환불 — 커머스 3단계 전)는 null.
-     * 공구 주문 `/group-buy-orders?order=` · 반품 요청 `/group-buy-requests?request=` · 결제 취소 `/payments/orders?payment=` · 포인트샵 환불 `/point-shop/purchases?refundRequest=` · 광고·핫딜 신청 `/ad-reviews?id=`.
+     * 체험단 반납(`TRIAL_RETURN` — 대상 ID 가 뽑힌 줄이라 모집 상세로 바로 못 간다)은 null.
+ * 공구 주문 `/group-buy-orders?order=` · 반품 요청 `/group-buy-requests?request=` · 결제 취소 `/payments/orders?payment=` · 포인트샵 환불 `/point-shop/purchases?refundRequest=` · 광고·핫딜 신청 `/ad-reviews?id=`.
      */
     static pendingLink(code: WithdrawalPendingCode, refId: string | null): { path: string; query: Record<string, string> } | null {
         if (!refId) return null;

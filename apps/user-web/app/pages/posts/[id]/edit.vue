@@ -24,7 +24,7 @@
         출처(shared V232): 게시판 `sourcesEnabled` 면 태그 위에 출처 칸(`PostSourcesField`), 글의 `sources` 로 채우고 바꿨을 때만 본문 `sources`(빈 목록 = 모두 지움). 소모임 글은 없다.
           게시판 옵션이 꺼졌으면 칸을 감추고 보내지 않는다(이미 단 태그는 그대로).
         구입 경로(trial-group-contract 「구입 경로」·「구현 결정」 9): 게시판 `purchaseSourceMode` 가 끔이 아니면 출처 위에 글쓰기와 같은 「어떻게 구했나요」(`PostPurchaseSourceField`), 글의 `purchase.source` 로 채우고
-          바꿨을 때만 본문 `purchaseSource`(지우기는 빈 글자). 체험단으로 이어진 글(TRIAL)은 바꿀 수 없게 고정해 보인다(게시판이 껐어도). 새 체험단 연결·구매 인증 사진은 여기서 하지 않는다(연결은 글쓰기, 사진은 글 보기). 소모임 글은 없다.
+          바꿨을 때만 본문 `purchaseSource`(지우기는 빈 글자). 체험단으로 이어진 글(TRIAL)·운영자가 협찬으로 고정한 글(서버 `purchase.locked` — 점검 D2)은 바꿀 수 없게 고정해 보인다(게시판이 껐어도). 새 체험단 연결·구매 인증 사진은 여기서 하지 않는다(연결은 글쓰기, 사진은 글 보기). 소모임 글은 없다.
         비밀글(운영 게시판): 「비밀글」 칸은 회원 글·비회원 글이 같은 규칙(`OPTIONAL` 이면 체크). 아직 열지 않은 비밀글(`403 SECRET_POST`)이면 글 보기의 잠금 화면으로 보낸다.
     -->
     <div class="content-card">
@@ -241,6 +241,7 @@ async function load(): Promise<void> {
         sourcesInitial.value = UtilPostSource.toRows(loaded.sources);
         sources.value = UtilPostSource.toRows(loaded.sources);
         purchaseInitial.value = loaded.purchase?.source ?? null;
+        purchaseServerLocked.value = loaded.purchase?.locked === true;
         purchase.value = { ...EMPTY_PURCHASE_SOURCE, source: purchaseInitial.value };
         pageState.value = 'ready';
     } catch (e) {
@@ -440,9 +441,11 @@ watch(sources, () => {
  */
 const purchase = ref<PurchaseSourceValue>({ ...EMPTY_PURCHASE_SOURCE });
 const purchaseInitial = ref<PurchaseSource | null>(null);
+/** 서버 `purchase.locked`(점검 D2 — 체험단 연결 글·협찬 고정 글) */
+const purchaseServerLocked = ref(false);
 const purchaseOn = computed(() => (board.value?.purchaseSourceMode ?? 'OFF') !== 'OFF');
 /** 체험단으로 이어진 글 — 서버가 TRIAL 로 고정한다 */
-const purchaseLocked = computed(() => purchaseInitial.value === 'TRIAL');
+const purchaseLocked = computed(() => purchaseInitial.value === 'TRIAL' || purchaseServerLocked.value);
 const purchaseShown = computed(() => !post.value?.group && (purchaseOn.value || purchaseLocked.value));
 const purchaseRequired = computed(() => board.value?.purchaseSourceMode === 'REQUIRED');
 const purchaseChanged = computed(() => purchaseOn.value && !post.value?.group && !purchaseLocked.value && purchase.value.source !== purchaseInitial.value);

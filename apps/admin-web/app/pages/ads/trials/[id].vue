@@ -172,7 +172,7 @@
                         <p class="m-0 mt-1 text-[13px]">{{ t('trial.stockLine', { n: detail.stock.quantity, at: time.full(detail.stock.receivedAt), until: time.date(detail.stock.keepUntil) }) }}</p>
                         <p v-if="detail.stock.note" class="m-0 text-[12px] text-muted-color">{{ detail.stock.note }}</p>
                         <div class="mt-2 flex flex-wrap gap-1.5">
-                            <a v-for="p in detail.stock.photos" :key="p.id" :href="p.url" target="_blank" rel="noopener"><img :src="p.url" alt="" class="size-14 rounded object-cover" /></a>
+                            <TrialPhotoImage v-for="p in detail.stock.photos" :key="p.id" :url="p.url" :purged="p.purged" zoomable />
                         </div>
                         <p v-if="detail.stock.quantity < (detail.selectedCount ?? detail.recruitCount)" class="m-0 mt-2 text-[12px] text-red-600 dark:text-red-400">{{ t('trial.stockShort') }}</p>
                         <div class="mt-2 border-t border-(--line) pt-2 text-[13px]">
@@ -192,8 +192,24 @@
                         <Column :header="t('trial.col.member')" style="min-width: 8rem">
                             <template #body="{ data }">
                                 <TrialMemberName :member="data.member" :linkable="canReadMember" class="text-[13px]" /><span class="block text-[11px] text-muted-color">{{ t(`trial.quota.${data.quota}`) }}</span>
-                                <span v-if="data.recipient && !data.addressPurged" class="block text-[11px] text-muted-color">{{ data.recipient }} · {{ data.phone }}</span>
-                                <span v-if="data.address1 && !data.addressPurged" class="block text-[11px] text-muted-color">({{ data.postcode }}) {{ data.address1 }} {{ data.address2 }}</span>
+                                <!-- 배송지 — 운영자 응답은 가린 값(점검 D4). 「주소 보기」(사유 5~200자 · trial.address.reveal)로 평문을 10분 보고 다시 가린다 -->
+                                <template v-if="revealed[data.id] && !data.addressPurged">
+                                    <span class="block text-[11px] [overflow-wrap:anywhere]">{{ revealed[data.id]!.recipient }} · <span class="tabular-nums">{{ revealed[data.id]!.phone }}</span></span>
+                                    <span class="block text-[11px] [overflow-wrap:anywhere]">({{ revealed[data.id]!.postcode }}) {{ revealed[data.id]!.address1 }} {{ revealed[data.id]!.address2 }}</span>
+                                    <span v-if="revealed[data.id]!.memo" class="block text-[11px] text-muted-color [overflow-wrap:anywhere]">{{ t('trial.addressView.memo', { text: revealed[data.id]!.memo }) }}</span>
+                                    <span class="mt-0.5 flex flex-wrap items-center gap-1">
+                                        <Tag :value="t('trial.addressView.hideAt', { time: revealLeft(data.id) })" severity="warn" icon="pi pi-eye" class="text-[11px]!" />
+                                        <Button type="button" :label="t('trial.addressView.hideNow')" size="small" severity="secondary" variant="text" @click="hideRevealed(data.id)" />
+                                    </span>
+                                </template>
+                                <template v-else-if="!data.addressPurged">
+                                    <span v-if="data.recipient" class="block text-[11px] text-muted-color">{{ data.recipient }} · <span class="tabular-nums">{{ data.phone }}</span></span>
+                                    <span v-if="data.address1" class="block text-[11px] text-muted-color">({{ data.postcode }}) {{ data.address1 }} {{ data.address2 }}</span>
+                                    <span v-if="data.addressMasked && (data.recipient || data.address1)" class="mt-0.5 flex flex-wrap items-center gap-1">
+                                        <Tag :value="t('trial.addressView.masked')" severity="secondary" icon="pi pi-lock" class="text-[11px]!" />
+                                        <Button v-if="canRevealAddress && detail.shipper === 'OPERATOR' && !data.cancelledAt" type="button" :label="t('trial.addressView.reveal')" icon="pi pi-eye" size="small" severity="secondary" variant="text" :loading="revealBusy && revealTarget?.id === data.id" @click="openReveal(data)" />
+                                    </span>
+                                </template>
                                 <span v-if="data.addressPurged" class="block text-[11px] text-muted-color">{{ t('trial.addressPurged') }}</span>
                                 <!-- 운영자 취소(V242) -->
                                 <template v-if="data.cancelledAt">
@@ -272,7 +288,7 @@
                         </p>
                         <p class="m-0 mt-1 whitespace-pre-line">{{ r.description }}</p>
                         <div class="mt-2 flex flex-wrap gap-1.5">
-                            <a v-for="p in r.photos" :key="p.id" :href="p.url" target="_blank" rel="noopener"><img :src="p.url" alt="" class="size-14 rounded object-cover" /></a>
+                            <TrialPhotoImage v-for="p in r.photos" :key="p.id" :url="p.url" :purged="p.purged" zoomable />
                         </div>
                         <p v-if="r.objection" class="m-0 mt-2 rounded bg-surface-100 px-2 py-1 text-[12px] dark:bg-surface-800">{{ t('trial.objectionLine', { text: r.objection }) }}</p>
                         <p v-if="r.decisionNote" class="m-0 mt-1 text-[12px] text-muted-color">{{ t('trial.decisionLine', { note: r.decisionNote }) }}</p>
@@ -314,6 +330,19 @@
             </form>
         </Dialog>
 
+        <!-- 배송지 보기(점검 D4 — 공동구매 주문 배송지 열람과 같은 사유 대화상자, 5~200자) -->
+        <PaymentReasonDialog
+            v-model:visible="revealOpen"
+            :title="t('trial.addressView.title')"
+            :description="t('trial.addressView.text', { name: revealTarget?.member.nickname ?? '' })"
+            :placeholder="t('trial.addressView.reasonPlaceholder')"
+            :confirm-label="t('trial.addressView.submit')"
+            :busy="revealBusy"
+            :error="revealError"
+            :field-error="revealFieldError"
+            @submit="submitReveal"
+        />
+
         <!-- 입고 · 송장 · 반납 받음 · 파손 신고 · 광고주 반송 -->
         <Dialog v-model:visible="actionOpen" modal :header="t(`trial.action.${actionKind}`)" :style="{ width: 'min(30rem, calc(100vw - 2rem))' }" :draggable="false" :closable="!acting">
             <form class="flex flex-col gap-3" novalidate @submit.prevent="submitAction">
@@ -341,7 +370,7 @@
                 <div v-if="photoKind" class="flex flex-col gap-1.5">
                     <span class="text-sm font-medium">{{ t(`trial.photoLabel.${photoKind}`) }}<span v-if="photoKind !== 'RETURN'" class="ml-1 text-xs text-red-600 dark:text-red-400">{{ t('trial.required') }}</span></span>
                     <div class="flex flex-wrap items-center gap-2">
-                        <img v-for="p in photos" :key="p.id" :src="p.url" alt="" class="size-16 rounded object-cover" />
+                        <TrialPhotoImage v-for="p in photos" :key="p.id" :url="p.url" box-class="size-16" />
                         <input ref="fileInput" type="file" class="sr-only" accept="image/jpeg,image/png,image/webp" :aria-label="t('trial.photoAdd')" @change="onPhoto" />
                         <Button type="button" :label="t('trial.photoAdd')" icon="pi pi-camera" size="small" severity="secondary" variant="outlined" :loading="uploading" :disabled="acting" @click="fileInput?.click()" />
                     </div>
@@ -358,7 +387,8 @@
 </template>
 
 <script setup lang="ts">
-import type { AdminTrialApplication, AdminTrialDetail, AdminTrialParticipant, AdminTrialRequest, TrialAction, TrialPhotoKind, TrialUploaded } from '~/composables/trial/api/useTrialApi.types';
+import type { AdminTrialApplication, AdminTrialDetail, AdminTrialParticipant, AdminTrialRequest, AdminTrialRevealedAddress, TrialAction, TrialPhotoKind, TrialUploaded } from '~/composables/trial/api/useTrialApi.types';
+import UtilTime from '#layers/display-time/utils/util-time';
 import UtilTrial from '~/utils/util-trial';
 import UtilTrialMessages from '~/utils/util-trial-messages';
 
@@ -381,8 +411,10 @@ const canReadMember = computed(() => can('member.read'));
 /** 광고 심사 화면을 열 수 있나(`ad.read` — 메뉴 항목 권한) — 없으면 신청 건 번호만 */
 const canReadAd = computed(() => can('ad.read'));
 const paymentTitleId = useId();
-/** 반납 받음 — 서버 `confirmReturn`: 운영자는 보내는 쪽과 상관없이, 발송한 줄이면(받음을 안 눌렀으면 서버가 받음으로 채운다). 반납 사진이 필수인데 사진 올리기가 trial.manage 라 그 권한만 */
-const canMarkReturned = computed(() => canManage.value);
+/** 반납 받음 — 서버 `confirmReturn`: 운영자는 보내는 쪽과 상관없이, 발송한 줄이면(받음을 안 눌렀으면 서버가 받음으로 채운다). 처리 권한 `trial.manage`·`ad.manage` 만(점검 D12 — trial.review 는 볼 수만) */
+const canMarkReturned = computed(() => can('trial.manage') || can('ad.manage'));
+/** 운영자 배송지 평문 보기(점검 D4 — `trial.address.reveal`) */
+const canRevealAddress = computed(() => can('trial.address.reveal'));
 const id = computed(() => String(route.params.id ?? ''));
 const tab = computed<Tab>(() => (route.query.tab === 'shipping' || route.query.tab === 'damage' ? route.query.tab : 'applicants'));
 function setTab(v: string): void {
@@ -401,7 +433,7 @@ const paymentBorder = computed(() => {
 });
 
 /** 409 중 상세를 다시 읽어야 하는 것 — 결제 전 입고·발송 · 발송 시작돼 취소 불가 · 이미 취소한 줄 · 상태 바뀜 */
-const RELOAD_CODES = ['TRIAL_PAYMENT_PENDING', 'TRIAL_SHIPPING_STARTED', 'TRIAL_PARTICIPANT_CANCELLED', 'TRIAL_STATE_INVALID'];
+const RELOAD_CODES = ['TRIAL_PAYMENT_PENDING', 'TRIAL_SHIPPING_STARTED', 'TRIAL_PARTICIPANT_CANCELLED', 'TRIAL_STATE_INVALID', 'TRIAL_NOT_RETURNED', 'TRIAL_APPLICANTS_LOCKED'];
 function reloadOn409(error: { status: number; code: string }): void {
     if (error.status === 409 && RELOAD_CODES.includes(error.code)) void load();
 }
@@ -523,7 +555,7 @@ async function openEdit(): Promise<void> {
 }
 async function uploadCover(file: File): Promise<{ key: string; url: string }> {
     const uploaded = await api.uploadCover(file);
-    return { key: uploaded.key, url: uploaded.url };
+    return { key: uploaded.key ?? '', url: uploaded.url };
 }
 async function save(body: AdminTrialRequest, trialId: string | null): Promise<void> {
     if (!trialId || saving.value) return;
@@ -680,6 +712,83 @@ async function submitCancel(): Promise<void> {
         reloadOn409(error);
     } finally {
         cancelling.value = false;
+    }
+}
+
+/* ── 운영자 배송지 보기(점검 D4) — 평문은 이 화면 메모리에만, `hideAt`(10분) 에 지운다 ── */
+const revealed = ref<Record<string, AdminTrialRevealedAddress>>({});
+const revealTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const revealOpen = ref(false);
+const revealTarget = ref<AdminTrialParticipant | null>(null);
+const revealBusy = ref(false);
+const revealError = ref('');
+const revealFieldError = ref('');
+/** 남은 시간 글자용 — 보인 줄이 있을 때만 1초마다 */
+const now = ref(Date.now());
+let nowTimer: ReturnType<typeof setInterval> | null = null;
+
+function hideRevealed(participantId: string): void {
+    const timer = revealTimers.get(participantId);
+    if (timer) clearTimeout(timer);
+    revealTimers.delete(participantId);
+    const next = { ...revealed.value };
+    delete next[participantId];
+    revealed.value = next;
+}
+function hideAllRevealed(): void {
+    for (const timer of revealTimers.values()) clearTimeout(timer);
+    revealTimers.clear();
+    revealed.value = {};
+}
+watch(
+    () => Object.keys(revealed.value).length > 0,
+    (any) => {
+        if (nowTimer) clearInterval(nowTimer);
+        nowTimer = any ? setInterval(() => (now.value = Date.now()), 1000) : null;
+        now.value = Date.now();
+    },
+);
+onBeforeUnmount(() => {
+    hideAllRevealed();
+    if (nowTimer) clearInterval(nowTimer);
+});
+// 다른 모집으로 옮기면 앞 모집의 평문을 지운다
+watch(id, hideAllRevealed);
+
+function revealLeft(participantId: string): string {
+    const r = revealed.value[participantId];
+    return r ? UtilTime.mmss(Math.max(0, Math.ceil((Date.parse(r.hideAt) - now.value) / 1000))) : '';
+}
+function openReveal(p: AdminTrialParticipant): void {
+    revealTarget.value = p;
+    revealError.value = '';
+    revealFieldError.value = '';
+    revealOpen.value = true;
+}
+async function submitReveal(reason: string): Promise<void> {
+    const target = revealTarget.value;
+    if (!target || revealBusy.value) return;
+    revealBusy.value = true;
+    revealError.value = '';
+    revealFieldError.value = '';
+    try {
+        const found = await api.revealAddress(target.id, reason);
+        hideRevealed(target.id);
+        revealed.value = { ...revealed.value, [target.id]: found };
+        revealTimers.set(target.id, setTimeout(() => hideRevealed(target.id), Math.max(0, Date.parse(found.hideAt) - Date.now())));
+        revealOpen.value = false;
+    } catch (e) {
+        const error = errorOf(e);
+        revealFieldError.value = error.field('reason') ?? '';
+        revealError.value = revealFieldError.value ? '' : error.message;
+        // 이미 파기됐다(410 TRIAL_ADDRESS_PURGED) · 광고주가 보내는 모집(409 TRIAL_WRONG_SHIPPER) — 상세를 다시 읽는다
+        if (error.code === 'TRIAL_ADDRESS_PURGED' || error.code === 'TRIAL_WRONG_SHIPPER') {
+            revealOpen.value = false;
+            toast.error(error.message, 8000);
+            void load();
+        }
+    } finally {
+        revealBusy.value = false;
     }
 }
 
