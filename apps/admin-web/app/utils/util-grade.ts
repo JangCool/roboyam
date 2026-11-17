@@ -46,7 +46,29 @@ export interface GradeFieldErrors {
     policy: string;
     /** 레벨 곡선 기준값(`xpCurveBase`)의 문구 */
     curve: string;
+    /** 레벨 곡선 지수(`xpCurveExponent`)의 문구 */
+    exponent: string;
     form: string;
+}
+
+/** 등급별 미리보기의 걸리는 날 한 칸 — 올림한 날 수와, 레벨보다 가입 일수 조건이 늦게 채워지는가 */
+export interface GradePaceCell {
+    days: number;
+    byDays: boolean;
+}
+
+/** 등급별 미리보기 한 줄(기본 등급 제외) — 읽을 수 없는 칸은 null(화면은 「—」) */
+export interface GradePaceRow {
+    /** 행 id(`GradeRowForm.id`) */
+    id: string;
+    minLevel: number | null;
+    /** 최소 레벨에 필요한 누적 경험치 */
+    xp: number | null;
+    minDays: number | null;
+    /** 보통 회원(출석 + 글 1개 + 댓글 3개) */
+    typical: GradePaceCell | null;
+    /** 매일 한도를 채우는 회원 — 한도가 0(없음)이면 null */
+    capped: GradePaceCell | null;
 }
 
 /** 저장된 값과의 차이 — `rules`(이름·승급 조건·추가·삭제·순서) 와 `badge`(뱃지 색·아이콘) 칸 수. 구역 내비의 "바뀜" 이 이 구분을 쓴다 */
@@ -108,6 +130,26 @@ const CURVE_MIN = 1;
 const CURVE_MAX = 1000;
 const CURVE_DEFAULT = 10;
 
+/** 레벨 곡선 지수(grade-level-contract 6절, `grade_settings.xp_curve_exponent`) — 다섯 값뿐이고 기본 2. 0.5 단위라 `n^(k/2) = √(n^k)` 로 정수 계산이 된다 */
+const CURVE_EXPONENTS: readonly number[] = [1, 1.5, 2, 2.5, 3];
+const CURVE_EXPONENT_DEFAULT = 2;
+
+/** 서버 bigint 최댓값(Java `Long.MAX_VALUE`) — 필요 경험치가 이를 넘으면 여기서 자른다 */
+const XP_MAX = BigInt('9223372036854775807');
+
+/** 정수 제곱근(내림) — 뉴턴법. 음수는 오지 않는다 */
+function isqrt(n: bigint): bigint {
+    const two = BigInt(2);
+    if (n < two) return n;
+    let x = n;
+    let y = (x + BigInt(1)) / two;
+    while (y < x) {
+        x = y;
+        y = (x + n / x) / two;
+    }
+    return x;
+}
+
 export default class UtilGrade {
     /** 등급 수의 하한·상한 — 최소 2단계 · 최대 11단계(grade-level-contract 2절 — 장인 계급 11단계) */
     static readonly MIN_GRADES = 2;
@@ -120,15 +162,70 @@ export default class UtilGrade {
     /** 곡선 안내 한 줄에 보이는 레벨 */
     static readonly CURVE_SAMPLE_LEVELS: readonly number[] = [10, 50, 100];
 
+    /** 레벨 곡선 지수 — 고를 수 있는 다섯 값(보이는 차례) · 기본 2 */
+    static readonly CURVE_EXPONENTS: readonly number[] = CURVE_EXPONENTS;
+    static readonly CURVE_EXPONENT_DEFAULT = CURVE_EXPONENT_DEFAULT;
+
     /**
-     * 레벨 L 에 필요한 누적 경험치 — L≥2 면 ceil(base × (L−1)^1.5), Lv.1 은 0(서버 Java·SQL 과 같은 식).
+     * 레벨 L 에 필요한 누적 경험치 — L≥2 면 ceil(base × (L−1)^지수), Lv.1 은 0.
+     * 소수 계산을 쓰지 않는다(서버 Java·SQL 과 값이 같아야 한다 — grade-level-contract 6절): `k = 지수 × 2`, `ceil(√(base² × (L−1)^k))` 를 BigInt 정수 제곱근으로 구하고 bigint 최댓값에서 자른다.
+     * 화면이 받는 범위(기준값 ≤ 1000 · 레벨 ≤ 10000 · 지수 ≤ 3)의 값은 10^15 이하라 `number` 로 정확히 담긴다.
      * @param {number} base - 곡선 기준값.
      * @param {number} level - 레벨.
+     * @param {number} exponent - 곡선 지수(1 · 1.5 · 2 · 2.5 · 3).
      * @returns {number} 누적 경험치.
      */
-    static xpForLevel(base: number, level: number): number {
+    static xpForLevel(base: number, level: number, exponent: number): number {
         if (level <= 1) return 0;
-        return Math.ceil(base * Math.pow(level - 1, 1.5));
+        const k = BigInt(Math.round(exponent * 2));
+        const b = BigInt(base);
+        const radicand = b * b * BigInt(level - 1) ** k;
+        const floor = isqrt(radicand);
+        const xp = floor * floor < radicand ? floor + BigInt(1) : floor;
+        return Number(xp > XP_MAX ? XP_MAX : xp);
+    }
+
+    /** 서버 곡선 지수 — 옛 응답에 없거나 다섯 값이 아니면 기본 2 */
+    static exponentOf(value: number | undefined | null): number {
+        return typeof value === 'number' && CURVE_EXPONENTS.includes(value) ? value : CURVE_EXPONENT_DEFAULT;
+    }
+
+    /**
+     * 걸리는 날 한 칸 — max(필요 경험치 ÷ 하루 값, 일수 조건)을 올림. 일수 조건이 더 크면 `byDays`.
+     * @param {number} xp - 필요한 누적 경험치.
+     * @param {number} daily - 하루 적립 값(0 이하면 셀 수 없다).
+     * @param {number} minDays - 가입 후 일수 조건.
+     * @returns {GradePaceCell | null} 칸. 셀 수 없으면 null.
+     */
+    static paceCell(xp: number, daily: number, minDays: number): GradePaceCell | null {
+        if (!Number.isFinite(daily) || daily <= 0) return null;
+        const byLevel = xp / daily;
+        return { days: Math.ceil(Math.max(byLevel, minDays)), byDays: minDays > byLevel };
+    }
+
+    /**
+     * 등급별 미리보기 줄 — 기본 등급(첫 줄)을 뺀 등급 전부를 **지금 편집 중인 값**(최소 레벨·가입 후 일수·지수·기준값)으로 계산한다.
+     * 읽을 수 없거나 범위를 벗어난 칸, 그 칸에 기대는 칸은 null 이다. 하루 값을 모르거나(옛 응답) 한도가 0(없음)이면 걸리는 날 칸이 null 이다.
+     * @param {readonly GradeRowForm[]} rows - 입력 행(낮은 등급부터).
+     * @param {string} curveText - 곡선 기준값 입력 글자.
+     * @param {number} exponent - 곡선 지수.
+     * @param {{ typicalDaily: number; dailyTotalCap: number } | null} pace - 하루 적립 값. 모르면 null.
+     * @returns {GradePaceRow[]} 줄.
+     */
+    static paceRows(rows: readonly GradeRowForm[], curveText: string, exponent: number, pace: { typicalDaily: number; dailyTotalCap: number } | null): GradePaceRow[] {
+        const base = UtilGrade.curveProblem(curveText) ? null : UtilGrade.parse(curveText);
+        const read = (text: string, field: GradeField): number | null => {
+            const n = UtilGrade.parse(text);
+            const [min, max] = LIMITS[field];
+            return n !== null && n >= min && n <= max ? n : null;
+        };
+        return rows.slice(1).map((row) => {
+            const minLevel = read(row.minLevel, 'minLevel');
+            const minDays = read(row.minDays, 'minDays');
+            const xp = base !== null && minLevel !== null ? UtilGrade.xpForLevel(base, minLevel, exponent) : null;
+            const cell = (daily: number | undefined) => (xp !== null && minDays !== null && typeof daily === 'number' ? UtilGrade.paceCell(xp, daily, minDays) : null);
+            return { id: row.id, minLevel, xp, minDays, typical: cell(pace?.typicalDaily), capped: cell(pace?.dailyTotalCap) };
+        });
     }
 
     /**
@@ -444,9 +541,10 @@ export default class UtilGrade {
      * @param {readonly GradeRowForm[]} rows - 입력 행.
      * @param {GradeManualPolicy} manualPolicy - 수동 상향 회원 옵션.
      * @param {string} curveText - 레벨 곡선 기준값 입력 글자.
+     * @param {number} exponent - 레벨 곡선 지수.
      * @returns {GradesSaveRequest | null} 요청. 입력이 맞지 않으면 null.
      */
-    static toRequest(rows: readonly GradeRowForm[], manualPolicy: GradeManualPolicy, curveText: string): GradesSaveRequest | null {
+    static toRequest(rows: readonly GradeRowForm[], manualPolicy: GradeManualPolicy, curveText: string, exponent: number): GradesSaveRequest | null {
         if (UtilGrade.problemCount(UtilGrade.validate(rows)) > 0 || UtilGrade.curveProblem(curveText)) return null;
         const grades: GradeRequest[] = rows.map((row, i) => {
             const base: GradeRequest = { label: row.label.trim(), badgeColor: row.color, badgeIcon: row.icon ? row.icon : null, sprite: row.sprite };
@@ -458,7 +556,7 @@ export default class UtilGrade {
             }
             return base;
         });
-        return { grades, manualPolicy, xpCurveBase: UtilGrade.parse(curveText)! };
+        return { grades, manualPolicy, xpCurveBase: UtilGrade.parse(curveText)!, xpCurveExponent: exponent };
     }
 
     /**
@@ -514,7 +612,7 @@ export default class UtilGrade {
     }
 
     /**
-     * 서버가 거절한 칸별 문구를 읽는다(`400 VALIDATION` 의 `fields`) — `grades[i].칸` · `등급키.칸` 은 그 행·칸 아래에, `manualPolicy` 는 옵션 아래에, `xpCurveBase` 는 곡선 칸 아래에, 그 밖의 문구는 칸에 붙지 않는 문구(`form`)로 모은다.
+     * 서버가 거절한 칸별 문구를 읽는다(`400 VALIDATION` 의 `fields`) — `grades[i].칸` · `등급키.칸` 은 그 행·칸 아래에, `manualPolicy` 는 옵션 아래에, `xpCurveBase`·`xpCurveExponent` 는 곡선 기준값·지수 칸 아래에, 그 밖의 문구는 칸에 붙지 않는 문구(`form`)로 모은다.
      * @param {unknown} e - 잡은 오류.
      * @param {readonly GradeRowForm[]} rows - 요청을 보낼 때의 입력 행(요청 `grades` 의 차례와 같다).
      * @returns {GradeFieldErrors | null} 칸별 문구. 입력 오류가 아니면 null.
@@ -525,6 +623,7 @@ export default class UtilGrade {
         const rest: string[] = [];
         let policy = '';
         let curve = '';
+        let exponent = '';
         for (const [name, message] of Object.entries(e.fields)) {
             if (name === 'manualPolicy') {
                 policy = message;
@@ -534,6 +633,10 @@ export default class UtilGrade {
                 curve = message;
                 continue;
             }
+            if (name === 'xpCurveExponent') {
+                exponent = message;
+                continue;
+            }
             const indexed = INDEXED.exec(name);
             const coded = indexed ? null : CODED.exec(name);
             const row = indexed ? rows[Number(indexed[1])] : coded ? rows.find((r) => r.gradeKey === coded[1]) : undefined;
@@ -541,7 +644,7 @@ export default class UtilGrade {
             if (row && field) cells[row.id] = { ...cells[row.id], [field]: message };
             else rest.push(message);
         }
-        if (Object.keys(cells).length === 0 && rest.length === 0 && !policy && !curve) return null;
-        return { cells, policy, curve, form: rest.join(' ') };
+        if (Object.keys(cells).length === 0 && rest.length === 0 && !policy && !curve && !exponent) return null;
+        return { cells, policy, curve, exponent, form: rest.join(' ') };
     }
 }

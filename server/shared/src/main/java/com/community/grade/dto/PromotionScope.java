@@ -1,5 +1,6 @@
 package com.community.grade.dto;
 
+import com.community.grade.service.XpCurve;
 import java.time.Instant;
 import java.util.Collection;
 
@@ -11,10 +12,10 @@ import java.util.Collection;
  * @param minLevel             이 레벨 이상인 회원(= 최소 레벨 조건을 채운 회원)
  * @param upper                null 이 아니면 바로 위 등급의 조건(일수 AND 레벨)도 채운 회원은 뺀다 — 미리보기에서 목표 등급이 맞는 회원만 세려고
  * @param includeManual        수동으로 올린 회원도 넣는가(등급 옵션 {@code CONTINUE_AUTO})
- * @param curveBase            null 이면 저장된 레벨({@code profiles.level})로 레벨 조건을 본다. 값이 있으면 그 곡선으로 센 경계(경험치 ≥ {@code XpCurve.levelXp(minLevel, base)})로
- *                             본다 — 저장 전 미리보기에서 곡선 값을 바꿨을 때(두 판정은 곡선이 같으면 같은 뜻이다: 레벨 ≥ L ⇔ 경험치 ≥ L 의 시작 경험치)
+ * @param curve                null 이면 저장된 레벨({@code profiles.level})로 레벨 조건을 본다. 값이 있으면 그 곡선(기준값·지수)으로 센 경계(경험치 ≥ {@code curve.levelXp(minLevel)})로
+ *                             본다 — 저장 전 미리보기에서 곡선을 바꿨을 때(두 판정은 곡선이 같으면 같은 뜻이다: 레벨 ≥ L ⇔ 경험치 ≥ L 의 시작 경험치)
  */
-public record PromotionScope(Collection<String> fromKeys, Instant joinedBefore, int minLevel, Upper upper, boolean includeManual, Integer curveBase) {
+public record PromotionScope(Collection<String> fromKeys, Instant joinedBefore, int minLevel, Upper upper, boolean includeManual, XpCurve.Shape curve) {
 
     /** 저장된 레벨로 보는 범위 */
     public PromotionScope(Collection<String> fromKeys, Instant joinedBefore, int minLevel, Upper upper, boolean includeManual) {

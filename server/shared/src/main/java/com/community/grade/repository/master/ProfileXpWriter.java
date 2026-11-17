@@ -1,5 +1,6 @@
 package com.community.grade.repository.master;
 
+import com.community.grade.service.XpCurve;
 import java.util.Optional;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,9 +27,10 @@ public class ProfileXpWriter {
         this.jdbc = new JdbcTemplate(dataSource);
     }
 
-    /** 레벨 곡선 값({@code grade_settings.xp_curve_base}) — 행이 없으면 비어 있다 */
-    public Optional<Integer> curveBase() {
-        return jdbc.queryForList("select xp_curve_base from grade_settings where id = 1", Integer.class).stream().findFirst();
+    /** 레벨 곡선({@code grade_settings.xp_curve_base}·{@code xp_curve_exponent}) — 행이 없거나 범위 밖이면 기본값 */
+    public XpCurve.Shape curve() {
+        return jdbc.query("select xp_curve_base, xp_curve_exponent from grade_settings where id = 1",
+                (rs, i) -> XpCurve.Shape.of(rs.getInt(1), rs.getBigDecimal(2))).stream().findFirst().orElse(XpCurve.Shape.DEFAULT);
     }
 
     /** 경험치를 {@code delta}(부호 포함)만큼 바꾼다 — 0 아래로는 내려가지 않는다. 프로필 행이 없으면 비어 있다 */
@@ -39,20 +41,22 @@ public class ProfileXpWriter {
 
     /**
      * 모든 회원의 경험치를 원장에서 다시 세어 채우고 레벨을 다시 매긴다(V196 의 채우기와 같은 셈 — 데모 팩처럼 원장을 통째로 넣은 뒤). 바뀐 줄 수.
-     * 레벨은 DB 함수 {@code grade_xp_level}(Java {@code XpCurve#levelOf} 와 같은 식)로 센다 — 한 문장이라 회원 수와 상관없이 왕복이 한 번이다.
+     * 레벨은 DB 함수 {@code grade_xp_level}(Java {@code XpCurve#levelOf} 와 같은 식)로 지금 곡선(기준값·지수 — {@link #curve()})에 맞춰 센다 — 한 문장이라 회원 수와
+     * 상관없이 왕복이 한 번이다. 경험치가 같아도 레벨이 지금 곡선과 다르면 고친다(옛 곡선으로 매긴 레벨을 실은 데모 팩).
      *
      * @param reasons 경험치에 드는 원장 사유({@code XpService#GAIN} ∪ {@code LOSS})
      */
     public int recomputeAllFromLedger(java.util.Collection<String> reasons) {
+        XpCurve.Shape curve = curve();
         return jdbc.update("""
                 update profiles p
-                   set xp = s.xp, level = grade_xp_level(s.xp, coalesce((select xp_curve_base from grade_settings where id = 1), 10))
+                   set xp = s.xp, level = grade_xp_level(s.xp, ?, ?)
                   from (select pr.user_id, coalesce(greatest(0, sum(l.delta)), 0)::bigint as xp
                           from profiles pr left join point_ledger l on l.user_id = pr.user_id and l.reason = any(?::text[])
                          group by pr.user_id) s
                  where p.user_id = s.user_id
-                   and (p.xp <> s.xp or p.level <> grade_xp_level(s.xp, coalesce((select xp_curve_base from grade_settings where id = 1), 10)))
-                """, (Object) reasons.toArray(String[]::new));
+                   and (p.xp <> s.xp or p.level <> grade_xp_level(s.xp, ?, ?))
+                """, curve.base(), curve.exponent(), reasons.toArray(String[]::new), curve.base(), curve.exponent());
     }
 
     /** 레벨을 바꾼다 */

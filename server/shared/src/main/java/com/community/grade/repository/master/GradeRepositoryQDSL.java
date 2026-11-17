@@ -108,7 +108,7 @@ public class GradeRepositoryQDSL extends IrobitRepositoryQDSL {
         if (scope.fromKeys().isEmpty()) {
             return 0;
         }
-        if (scope.upper() != null || scope.curveBase() != null) {
+        if (scope.upper() != null || scope.curve() != null) {
             throw new IllegalArgumentException("일괄 승급은 위 등급 제외·곡선 바꿔 보기를 쓰지 않는다(미리보기 전용)");
         }
         Query statement = entityManager.createNativeQuery("""
@@ -138,17 +138,17 @@ public class GradeRepositoryQDSL extends IrobitRepositoryQDSL {
     }
 
     /**
-     * 모든 회원의 레벨을 지금 경험치와 곡선 값으로 다시 매긴다(관리자 등급 설정에서 레벨 곡선을 바꿨을 때). 바뀐 줄 수.
+     * 모든 회원의 레벨을 지금 경험치와 이 곡선(기준값·지수)으로 다시 매긴다(관리자 등급 설정에서 레벨 곡선을 바꿨을 때). 바뀐 줄 수.
      *
-     * <p>Native SQL 인 이유: 레벨 곡선은 DB 함수 {@code grade_xp_level}(V196 — Java {@code XpCurve#levelOf} 와 같은 식)이고 JPQL·QueryDSL 에 그 함수 호출이 없다.
+     * <p>Native SQL 인 이유: 레벨 곡선은 DB 함수 {@code grade_xp_level}(V245 — Java {@code XpCurve#levelOf} 와 같은 식)이고 JPQL·QueryDSL 에 그 함수 호출이 없다.
      * 한 문장이라 수만 명이어도 왕복이 한 번이고, 레벨이 실제로 바뀌는 행만 고친다. 등급은 내리지 않는다(레벨만 다시 매기고 승급은 부르는 쪽이 따로 판정한다).
      */
-    public long recomputeLevels(int base) {
+    public long recomputeLevels(XpCurve.Shape curve) {
         return entityManager.createNativeQuery("""
-                        UPDATE profiles SET level = grade_xp_level(xp, :base)
-                         WHERE level <> grade_xp_level(xp, :base)
+                        UPDATE profiles SET level = grade_xp_level(xp, :base, :exponent)
+                         WHERE level <> grade_xp_level(xp, :base, :exponent)
                         """)
-                .setParameter("base", base)
+                .setParameter("base", curve.base()).setParameter("exponent", curve.exponent())
                 .executeUpdate();
     }
 
@@ -156,9 +156,9 @@ public class GradeRepositoryQDSL extends IrobitRepositoryQDSL {
      * 승급 대상 조건 — ACTIVE·미탈퇴 회원, 가입 시각 기준 일수, 최소 레벨(V196), 수동 상향 회원 포함 여부.
      * <b>같은 규칙이 {@link #promote}(native SQL)와 DB 배치(SQL) {@code R__batch_15_grade_promotion.sql} 에도 있다</b> — 여기를 고치면 그쪽도 같이 고친다(그 반대도).
      */
-    /** 레벨 조건 — 곡선 값이 없으면 저장된 레벨, 있으면 그 곡선의 경계 경험치(같은 뜻 — {@link PromotionScope#curveBase()}) */
-    private static com.querydsl.core.types.dsl.BooleanExpression levelAtLeast(int minLevel, Integer curveBase) {
-        return curveBase == null ? PROFILE.level.goe(minLevel) : PROFILE.xp.goe(XpCurve.levelXp(minLevel, curveBase));
+    /** 레벨 조건 — 곡선이 없으면 저장된 레벨, 있으면 그 곡선의 경계 경험치(같은 뜻 — {@link PromotionScope#curve()}) */
+    private static com.querydsl.core.types.dsl.BooleanExpression levelAtLeast(int minLevel, XpCurve.Shape curve) {
+        return curve == null ? PROFILE.level.goe(minLevel) : PROFILE.xp.goe(curve.levelXp(minLevel));
     }
 
     private static BooleanBuilder promotable(PromotionScope scope) {
@@ -166,14 +166,14 @@ public class GradeRepositoryQDSL extends IrobitRepositoryQDSL {
         eligibleUsers.and(USER.status.eq(UserStatus.ACTIVE)).and(USER.deletedAt.isNull()).and(USER.createdAt.loe(scope.joinedBefore()));
         BooleanBuilder where = new BooleanBuilder();
         where.and(PROFILE.gradeKey.in(scope.fromKeys()));
-        where.and(levelAtLeast(scope.minLevel(), scope.curveBase()));
+        where.and(levelAtLeast(scope.minLevel(), scope.curve()));
         if (!scope.includeManual()) {
             where.and(PROFILE.gradeManual.isFalse());
         }
         where.and(PROFILE.userId.in(JPAExpressions.select(USER.id).from(USER).where(eligibleUsers)));
         if (scope.upper() != null) {
             // 위 등급의 일수 AND 레벨까지 채운 회원은 그 위 등급이 된다 — 빼고 센다
-            where.andNot(levelAtLeast(scope.upper().minLevel(), scope.curveBase())
+            where.andNot(levelAtLeast(scope.upper().minLevel(), scope.curve())
                     .and(PROFILE.userId.in(JPAExpressions.select(USER.id).from(USER).where(USER.createdAt.loe(scope.upper().joinedBefore())))));
         }
         return where;

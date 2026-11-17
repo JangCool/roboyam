@@ -29,7 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>등급은 운영자가 정하는 2~11단계 목록({@code grades}, 서열 순)이고 조건은 최소 레벨(V196) · 가입 후 일수 · 글+댓글 수다(인기글 조건 없음). 이름은 운영자가 입력한 한 언어다.</li>
- *   <li>내 등급은 레벨·경험치(지금 레벨 시작·다음 레벨 경험치)를 함께 싣는다({@link XpProgressReader} — 로그인 정보·공개 프로필과 같은 셈).</li>
+ *   <li>내 등급은 레벨·경험치(지금 레벨 시작·다음 레벨 경험치)를 함께 싣는다({@link XpProgressReader} — 로그인 정보·공개 프로필과 같은 셈). 다음 등급의 레벨 조건에는
+ *       그 최소 레벨까지 남은 경험치({@code xpLeft})도 싣는다.</li>
  *   <li>셈은 관리자 회원 상세({@code MemberGradePointAssembler})·승급 판정과 같은 정의다 — {@link GradeProgress}(자동 승급 상태·일수·다음 등급)와
  *       {@link MemberActivityRepository#countOf}(지금 보이는 회원 글 + 댓글). 다른 점은 기준이 0 인 조건을 싣지 않는 것뿐이다(채울 것이 없다).</li>
  *   <li>내 등급은 정지 중·이메일 인증 전에도 읽는다. 탈퇴했거나 회원 행이 없으면 {@code 401 UNAUTHENTICATED}.</li>
@@ -74,14 +75,17 @@ public class PublicGradeService {
         String key = profile.getGradeKey();
         GradeEntity currentGrade = ordered.stream().filter(g -> g.getGradeKey().equals(key)).findFirst().orElse(null);
         String label = currentGrade == null ? key : currentGrade.getLabel();
-        XpCurve.Progress progress = xpProgress.of(profile);
+        XpCurve.Shape curve = xpProgress.curve();
+        XpCurve.Progress progress = curve.progress(profile.getXp(), profile.getLevel());
         GradeManualPolicy policy = settings.findById(GradeSettingEntity.ROW_ID).map(GradeSettingEntity::getManualPolicy).orElse(GradeManualPolicy.CONTINUE_AUTO);
         String autoPromotion = GradeProgress.autoPromotion(user.getStatus(), profile.isGradeManual(), policy);
 
         NextGradeView next = GradeProgress.next(ordered, key).map(g -> {
             List<GradeRequirementView> requirements = new ArrayList<>(3);
             if (g.getMinLevel() > 1) {
-                requirements.add(new GradeRequirementView(LEVEL, progress.level(), g.getMinLevel(), progress.level() >= g.getMinLevel()));
+                // 남은 경험치 = 그 최소 레벨이 시작하는 경험치 − 내 경험치(저장된 레벨이 아니라 지금 곡선의 경계로 센다)
+                requirements.add(new GradeRequirementView(LEVEL, progress.level(), g.getMinLevel(), progress.level() >= g.getMinLevel(),
+                        Math.max(0L, curve.levelXp(g.getMinLevel()) - progress.xp())));
             }
             if (g.getMinDays() > 0) {
                 long days = GradeProgress.elapsedDays(user.getCreatedAt(), now);

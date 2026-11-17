@@ -37,6 +37,8 @@ export interface GradeRequirement {
     current: number;
     required: number;
     met: boolean;
+    /** `LEVEL` 줄만 — 다음 등급 최소 레벨까지 남은 경험치(0 이상, grade-level-contract 6절). 다른 종류는 null, 옛 응답에는 없다 */
+    xpLeft?: number | null;
 }
 
 export interface NextGrade extends GradeRef {

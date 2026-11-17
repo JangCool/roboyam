@@ -40,7 +40,8 @@ export default class UtilGradeMessages {
     }
 
     /**
-     * 진행 막대 오른쪽 글자 — 「12일째 (18일 남음)」「31개 (19개 남음)」, 채웠으면 남은 수 없이
+     * 진행 막대 오른쪽 글자 — 「12일째 (18일 남음)」「31개 (19개 남음)」, 채웠으면 남은 수 없이.
+     * 레벨 줄은 서버가 남은 경험치(`xpLeft`)를 주면 「Lv.23 (7 남음 · 3,290 XP)」, 없거나 0 이면 「Lv.23 (7 남음)」
      * @param {Translate} t - 번역 함수.
      * @param {GradeRequirement} r - 조건.
      * @returns {string} 글자.
@@ -50,7 +51,11 @@ export default class UtilGradeMessages {
         const left = Math.max(0, Math.floor(r.required) - n);
         const remaining = left > 0 && !r.met;
         if (r.kind === 'DAYS') return remaining ? t('grade.progressDaysLeft', { n, left }) : t('grade.progressDays', { n });
-        if (r.kind === 'LEVEL') return remaining ? t('grade.progressLevelLeft', { n, left }) : t('grade.progressLevel', { n });
+        if (r.kind === 'LEVEL') {
+            if (!remaining) return t('grade.progressLevel', { n });
+            const xpLeft = typeof r.xpLeft === 'number' && Number.isFinite(r.xpLeft) ? Math.floor(r.xpLeft) : 0;
+            return xpLeft > 0 ? t('grade.progressLevelLeftXp', { n, left, xp: xpLeft.toLocaleString() }) : t('grade.progressLevelLeft', { n, left });
+        }
         return remaining ? t('grade.progressCountLeft', { n, left }) : t('grade.progressCount', { n });
     }
 

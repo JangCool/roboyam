@@ -1,6 +1,8 @@
 package com.community.grade.dto;
 
 import com.community.grade.entity.GradeManualPolicy;
+import com.community.grade.service.XpCurve;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -10,7 +12,13 @@ import java.util.Map;
  * @param grades    서열 순서의 최종 등급 목록
  * @param policy    저장할 옵션
  * @param removedTo 지울 등급 키 → 그 회원이 갈 등급 키(저장돼 있는 서열에서 바로 아래 남아 있는 등급). 지금 저장된 서열 순서
- * @param xpCurveBase 저장할 레벨 곡선 값(V196, 1~1000)
+ * @param xpCurveBase 저장할 레벨 곡선 기준값(V196, 1~1000)
+ * @param xpCurveExponent 저장할 레벨 곡선 지수(V245 — {@code XpCurve.EXPONENTS} 중 하나, 소수 한 자리 꼴)
  */
-public record GradePlan(List<PlannedGrade> grades, GradeManualPolicy policy, Map<String, String> removedTo, int xpCurveBase) {
+public record GradePlan(List<PlannedGrade> grades, GradeManualPolicy policy, Map<String, String> removedTo, int xpCurveBase, BigDecimal xpCurveExponent) {
+
+    /** 저장할 레벨 곡선 한 벌 */
+    public XpCurve.Shape curve() {
+        return new XpCurve.Shape(xpCurveBase, xpCurveExponent);
+    }
 }

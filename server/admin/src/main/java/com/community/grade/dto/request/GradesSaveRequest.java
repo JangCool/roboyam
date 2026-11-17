@@ -1,5 +1,6 @@
 package com.community.grade.dto.request;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -7,12 +8,13 @@ import java.util.List;
  *
  * @param grades       서열 순서의 등급(2~11개)
  * @param manualPolicy {@code CONTINUE_AUTO} · {@code STOP_AUTO}
- * @param xpCurveBase  레벨 곡선 값 1~1000(V196 — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^1.5)). null 이면 지금 값 그대로
+ * @param xpCurveBase  레벨 곡선 기준값 1~1000(V196 — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^지수)). null 이면 지금 값 그대로
+ * @param xpCurveExponent 레벨 곡선 지수(V245 — JSON 숫자 1 · 1.5 · 2 · 2.5 · 3 뿐). null 이면 지금 값 그대로
  */
-public record GradesSaveRequest(List<GradeRequest> grades, String manualPolicy, Integer xpCurveBase) {
+public record GradesSaveRequest(List<GradeRequest> grades, String manualPolicy, Integer xpCurveBase, BigDecimal xpCurveExponent) {
 
     /** 곡선 칸 없이(그대로) */
     public GradesSaveRequest(List<GradeRequest> grades, String manualPolicy) {
-        this(grades, manualPolicy, null);
+        this(grades, manualPolicy, null, null);
     }
 }

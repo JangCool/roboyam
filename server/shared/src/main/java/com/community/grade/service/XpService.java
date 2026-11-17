@@ -68,8 +68,7 @@ public class XpService {
         if (changed.isEmpty()) {
             return; // 프로필 행이 없다(있을 수 없지만 원장 쓰기를 깨지 않는다)
         }
-        int base = XpCurve.baseOrDefault(writer.curveBase().orElse(null));
-        int level = XpCurve.levelOf(changed.get().xp(), base);
+        int level = writer.curve().levelOf(changed.get().xp());
         int previous = changed.get().previousLevel();
         if (level == previous) {
             return;

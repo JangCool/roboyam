@@ -115,7 +115,9 @@ public class DemoDataInstaller {
 
         tables.ensurePostPartitions(); // 글은 ID 범위로 월 조각에 들어간다 — 옮긴 ID 의 달 조각이 있어야 한다
         TablePackRestorer.Result result = restorer.restore(data, true, true, (table, row, columns) -> shift.row(table, rekey.row(table, row), columns));
-        xp.recomputeAllFromLedger(); // 경험치·레벨(V196)은 원장에서 다시 센다 — 예전에 만든 팩의 프로필에는 그 칸이 없다
+        // 경험치·레벨(V196)은 원장에서 다시 센다 — 예전에 만든 팩의 프로필에는 그 칸이 없고, 있어도 레벨은 팩을 만든 때의 곡선 값이다
+        // (V245 전 팩 = 지수 1.5). 경험치가 같아도 레벨이 지금 곡선(grade_settings 의 기준값·지수)과 다르면 고친다
+        xp.recomputeAllFromLedger();
 
         List<String> written = new ArrayList<>();
         try {

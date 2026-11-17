@@ -25,6 +25,7 @@ export default {
     progressCountLeft: '{n}개 ({left}개 남음)',
     progressLevel: 'Lv.{n}',
     progressLevelLeft: 'Lv.{n} ({left} 남음)',
+    progressLevelLeftXp: 'Lv.{n} ({left} 남음 · {xp} XP)',
     highestTitle: '가장 높은 등급이에요',
     highestText: '모든 승급 조건을 채웠어요.',
 

@@ -48,13 +48,41 @@ export default {
     problemLabelLength: 'A grade name can be up to {max} characters.',
     problemLabelDuplicate: 'That name is already used.',
 
-    // Level curve section (global — grade-level-contract §1)
+    // Level curve section (global — grade-level-contract §1, §6)
     curveTitle: 'Level curve',
-    curveLead: 'Points earned from activity add up to XP, and XP raises the level. A larger base needs more XP for the same level.',
+    curveLead: 'Points earned from activity add up to XP, and XP raises the level. A larger exponent keeps low levels quick and makes only the high levels longer.',
+    curveExponent: 'Curve exponent',
+    curveExponentHelp: '1.0 straight line · 2.0 default · 3.0 steepest',
     curveField: 'Curve base',
-    curveHelp: '{min} to {max} · default {def}. Total XP for level L = base × (L−1)^1.5 (rounded up)',
+    curveHelp: '{min} to {max} · default {def}',
+    curveFormula: 'Total XP for level L = base × (L−1)^exponent (rounded up)',
     curveSample: 'Total XP needed — {items}',
     curveSampleItem: 'Lv.{level} {xp}',
+    curveChangeWarn: 'Saving recalculates every member\'s level with the new curve. Level numbers can go down, but grades never go down.',
+    curveChangeWarnEasier: 'Where the curve gets gentler, members are promoted, and raising the value again does not undo that. You will see how many members are promoted before saving.',
+
+    // Per-grade preview inside the level curve section (time to reach — grade-level-contract §6)
+    paceTitle: 'Preview by grade',
+    paceTypical: 'Typical = check-in + 1 post + 3 comments ({typical} a day now)',
+    paceTypicalUnknown: 'Typical = check-in + 1 post + 3 comments',
+    paceCap: 'Cap = daily total cap on activity points ({cap} now)',
+    paceCapNone: 'Cap = daily total cap on activity points (no cap now)',
+    paceCapUnknown: 'Cap = daily total cap on activity points',
+    paceLink: 'Change in the point policy',
+    paceCaption: 'XP needed for each grade\'s minimum level and the time it takes to reach the grade',
+    paceColGrade: 'Grade',
+    paceColLevel: 'Minimum level',
+    paceColXp: 'XP needed',
+    paceColDays: 'Days condition',
+    paceColTypical: 'Typical member',
+    paceColCapped: 'Member who hits the cap every day',
+    paceLevel: 'Lv.{level}',
+    paceDays: '{n} d',
+    paceMonths: '{n} mo',
+    paceYears: '{n} yr',
+    paceByDays: 'Days',
+    paceByDaysNote: 'The days since sign-up condition is met later than the level',
+    paceOutsideNote: 'Like bonuses and rewards for featured posts, popular posts and purchase proofs are outside the daily total cap, so members can move up faster than this. The days since sign-up condition then sets the pace.',
 
     // Grade display (pixel character, badge) section
     badgeTitle: 'Grade display',
@@ -150,7 +178,7 @@ export default {
     policyStopAuto: 'Stop automatic promotion',
     policyStopAutoHelp: 'Manually promoted members are not promoted automatically after that.',
 
-    // Impact confirmation before saving (when a condition was lowered, a grade was added, or the option changed)
+    // Impact confirmation before saving (when a condition was lowered, a grade was added, the option changed, or the level curve changed)
     confirmTitle: 'Save these settings?',
     confirmTitleRemove: 'Delete the grade and save?',
     confirmMoveItem: 'If you delete the "{from}" grade, {count} members move to the "{to}" grade. This cannot be undone.',
@@ -164,7 +192,9 @@ export default {
     confirmDaysNote: 'Members promoted by the days condition are promoted in the next batch.',
     confirmAddedNote: 'If members already meet the conditions of a new grade, they become that grade right after you save.',
     confirmManualNote: 'Manually promoted members who already meet the conditions are eligible too.',
+    confirmCurveNoPromotion: 'No member is promoted right now with the new curve.',
     confirmSave: 'Save and promote',
+    confirmSaveCurve: 'Save and recalculate',
     previewFailedMessage: 'Could not check how many members this affects. Save anyway?',
     previewFailedConfirm: 'Save anyway',
 

@@ -5,12 +5,12 @@
 
 ## 1. 경험치·레벨
 - **경험치(XP)** = 활동으로 **적립된** 포인트의 누적. 포인트를 쓰거나 소멸해도 줄지 않는다.
-  - 더함: `POST` · `COMMENT` · `LIKE_BONUS` · `ATTENDANCE` · `ATTENDANCE_STREAK` · `POPULAR` · `POST_RESTORE` · `POST_FEATURED`(우수 글, point-board-tier-contract)
+  - 더함: `POST` · `COMMENT` · `LIKE_BONUS` · `ATTENDANCE` · `ATTENDANCE_STREAK` · `POPULAR` · `POST_RESTORE` · `POST_FEATURED`(우수 글, point-board-tier-contract) · `PURCHASE_PROOF`(구매 인증, trial-group-contract)
   - 뺌: `POST_REVOKE` · `COMMENT_REVOKE` · `LIKE_BONUS_REVOKE` · `POST_FEATURED_REVOKE` (0 아래로는 안 내려간다)
   - 넣지 않음: 운영 조정(`ADMIN_ADJUST`)·충전·충전 보너스·가입·이벤트 보상·작가 보상·사용·환불·상계·소멸 등 그 밖의 사유 전부.
   - 포인트 적립이 꺼진 게시판 활동은 경험치도 없다(적립 조건 — 최소 글자 수·간격·하루 한도 — 이 그대로 어뷰징을 막는다).
 - 저장: `profiles.xp bigint NOT NULL DEFAULT 0`, `profiles.level int NOT NULL DEFAULT 1`. 포인트 원장 줄을 쓰는 같은 트랜잭션에서 증감하고 레벨을 다시 계산한다(세이브포인트 격리 규칙 그대로 — 실패해도 글쓰기를 깨지 않는다).
-- **레벨 곡선**: 레벨 L(L≥2)에 필요한 누적 XP = `ceil(base × (L−1)^1.5)`, `base` 기본 10(`grade_settings.xp_curve_base`, 1~1000, 관리자 등급 설정에서 바꿈). 상한 없음(Lv.100 넘어도 계속). Java·SQL 이 같은 식을 쓴다.
+- **레벨 곡선**: 레벨 L(L≥2)에 필요한 누적 XP = `ceil(base × (L−1)^지수)`, `base` 기본 10(`grade_settings.xp_curve_base`, 1~1000), 지수 기본 2.0(`grade_settings.xp_curve_exponent`, 6절 — V245 전에는 1.5 고정). 둘 다 관리자 등급 설정에서 바꾼다. 상한 없음(Lv.100 넘어도 계속). Java·SQL·관리자 화면이 같은 값을 낸다.
 - 마이그레이션 때 **기존 회원 XP 를 포인트 원장에서 다시 계산해 채우고** 레벨을 매긴다.
 
 ## 2. 등급 11단계 (장인 계급)
@@ -27,6 +27,7 @@
 | 9 | VETERAN | 대가 | 80 | 365 | CROWN |
 | 10 | 새 키 | 전설 | 90 | 540 | LEGEND |
 | 11 | 새 키 | 신화 | 100 | 730 | MYTH |
+- 위 표의 최소 레벨은 V196 값이다. **V245 부터 기본 최소 레벨은 1·5·10·20·30·40·50·60·75·90·100**(6절).
 - 등급 한도 10 → **11**(`ck_grades_level`·앱 검사·관리자 화면).
 - 승급 조건 = **최소 레벨(`grades.min_level`, 새 칸) AND 가입 후 일수**(+ 기존 `min_activity` 는 남기되 새 기본값 0). 올리기만 한다(자동 강등 없음). 즉시 경로(경험치가 바뀔 때)와 일수 배치(`R__batch_15`) 둘 다 레벨 조건을 본다 — Java·SQL 이중 구현 규칙 그대로.
 - 운영자가 수동으로 정한 등급: 지금 규칙 그대로(`manual_policy` — 수동 지정 회원은 옵션에 따라 자동 승급 계속/중지). 레벨은 수동 등급과 상관없이 계속 오른다.
@@ -55,6 +56,23 @@
 - `GET /api/site/info`: `grades: [{key, label, level(서열), sprite}]` — 화면이 작성자 `grade` 키로 도트·이름을 찾는다(작성자 DTO 는 지금처럼 `grade`·`gradeLabel` 만).
 - 공개 프로필·`/api/me`(로그인 정보)·`/api/me/grade` 류: `level`, `xp`, `levelXp`(이 레벨 시작 XP), `nextLevelXp`(다음 레벨 XP) 추가. 비공개 프로필을 남이 볼 때는 레벨 칸 null.
 - 관리자 등급 설정 `GET`·`PUT /api/admin/grades`: 등급마다 `minLevel`(1~10000)·`sprite`, 전역 `xpCurveBase`. 최대 11단계. 미리보기·소급 승급이 레벨 조건을 반영. 회원 상세에 `level`·`xp`.
+
+## 6. 곡선 지수·최소 레벨 재배치 (확정 2026-11-17, shared `V245`)
+의도: 지수 1.5 에서는 Lv.100 이 9,851 XP 라 가입 일수(730일)만 채우면 2년에 최고 등급이 된다. 일수를 늘리는 대신 경험치 쪽을 길게 한다 — 지수를 설정으로 빼고 기본을 2.0 으로 올린다(Lv.100 = 98,010 XP). 가입 일수 조건은 그대로 둔다(하루 총 한도 밖 보상으로 빨리 오르는 회원의 안전장치).
+
+- **지수**: `grade_settings.xp_curve_exponent numeric(2,1) NOT NULL DEFAULT 2.0`, 값은 **1.0 · 1.5 · 2.0 · 2.5 · 3.0** 뿐(CHECK). 0.5 단위만 받는 까닭 — `n^(k/2) = √(n^k)` 라 정수로 셀 수 있어 Java·SQL 이 어긋나지 않는다. 계산: `k = 지수 × 2`, 필요 XP = `ceil(√(base² × (L−1)^k))`. bigint 를 넘으면 bigint 최댓값으로 자른다(Java `Long.MAX_VALUE`).
+- **SQL 함수**: `grade_level_xp(level, base, exponent)` · `grade_xp_level(xp, base, exponent)`. 인자 둘짜리(V196)는 V245 에서 지운다.
+- **V245 전환**: 모든 사이트 지수 2.0 → 전 회원 레벨 다시 계산(레벨 숫자는 내려간다, **등급은 내리지 않는다**).
+  - 최소 레벨 재배치는 **등급이 11개이고 서열별 최소 레벨이 V196 기본값(1·10·20·…·100) 그대로인 사이트만** 한다(서열 기준 — 등급 키는 사이트마다 다르다). 운영자가 고친 사이트는 그대로 둔다(관리자 화면 미리보기 표를 보고 고친다).
+  - 닉네임 이미지 조건: 위 재배치를 한 사이트이고 `nickname_image_settings` 가 기본값(`GRADE`·`VETERAN`) 그대로면 **서열 5(정예) 등급 키**로 낮춘다. 새 설치 기본도 정예.
+  - 낮아진 문턱(견습 270 → 160 XP, 정식 829 → 810 XP)으로 오를 회원은 **마이그레이션에서 올리지 않는다**(사용자 결정 2026-11-17). 매일 도는 정기 승급 배치(`R__batch_15`)가 저장된 레벨로 올린다(올리기만, 이력 kind=AUTO). pg_cron 이 없는 사이트는 그 회원의 다음 레벨업이나 다음 등급 설정 저장 때 오른다.
+- **관리자 API**: `GET /api/admin/grades` 응답에 `xpCurveExponent`(숫자) · `pace: { typicalDaily, dailyTotalCap }`. `PUT`·미리보기 요청에 `xpCurveExponent`(없으면 지금 값 그대로, 다섯 값이 아니면 400 `fields.xpCurveExponent`). 지수나 기준값이 바뀌면 전 회원 레벨을 다시 계산한다.
+  - `typicalDaily` = 출석 + 글 1개 + 댓글 3개를 일반 등급 게시판에서 했을 때 하루 적립(포인트 정책 값으로 계산, 하루 총 한도가 있으면 그보다 크지 않게 — 기본값에서 45). `dailyTotalCap` = 활동 적립 하루 총 한도(0 = 한도 없음, 기본 200).
+- **관리자 화면**(등급 설정 「레벨 곡선」): 곡선 지수 고르기(다섯 값) + 「등급별 미리보기」 표(등급 · 최소 레벨 · 필요 경험치 · 일수 조건 · 보통 회원 · 매일 한도를 채우는 회원). 걸리는 날 = max(ceil(필요 XP ÷ 하루 값), 일수 조건) — 일수 조건이 더 늦으면 「일수」 표시. 한도 0 이면 그 칸은 「—」. 「포인트 정책에서 바꾸기」 = `/points/policy#point-daily-total`(포인트 정책을 볼 권한이 있을 때만). 추천 보너스·우수 글·인기글·구매 인증 보상은 한도 밖이라 표보다 빠를 수 있다는 안내를 붙인다. 곡선(지수·기준값)이 바뀐 저장은 **올리든 내리든 승급 인원 미리보기**를 거친다.
+- **회원 화면**(`/me/grade`): `GET /api/me/grade` 의 `next.requirements[]` 중 `LEVEL` 줄에 `xpLeft`(다음 등급 최소 레벨이 시작하는 XP − 내 XP, 0 이상 — 다른 종류는 null). 화면 「Lv.23 (7 남음 · 3,290 XP)」.
+- 곡선만 바뀌고 승급 대상이 0명인 저장의 확인 창: 「새 곡선으로 지금 승급되는 회원은 없어요.」 + 단추 「저장하고 다시 계산」(승급 인원이 있으면 기존 「저장하고 승급」). 미리보기 표에는 화면 낭독용 설명을 둔다(사용자 결정 2026-11-17).
+- 설치 프리셋·데모 팩은 새 값(지수·최소 레벨·닉네임 이미지 정예)으로 다시 내보낸다 — 프리셋이 등급·닉네임 이미지 행을 덮어쓰기 때문이다.
+- 시험: `XpCurve` 와 SQL 함수가 지수 다섯 값·기준값 경계·레벨 경계·넘침에서 같은 값을 내는지.
 
 ## 미확정 / 가정
 - 레벨 곡선 기본값(base 10)과 등급별 일수는 가정 — 운영하며 관리자 화면에서 고친다.

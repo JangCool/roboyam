@@ -25,6 +25,7 @@ export default {
     progressCountLeft: '{n} ({left} to go)',
     progressLevel: 'Lv.{n}',
     progressLevelLeft: 'Lv.{n} ({left} to go)',
+    progressLevelLeftXp: 'Lv.{n} ({left} to go · {xp} XP)',
     highestTitle: "You're at the highest grade",
     highestText: "You've met every requirement.",
 

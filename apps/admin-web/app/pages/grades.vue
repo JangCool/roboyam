@@ -12,7 +12,9 @@
         미리보기가 실패하면 저장을 막지 않고 "영향 인원을 확인하지 못했어요. 그래도 저장할까요?" 로 묻는다. 기준을 올리기만 한 저장은 확인 없이 저장하고 토스트로 영향이 없음을 알린다. 시점은 구현 가정이다(활동 조건의 소급은 저장 직후, 일수 조건의 소급은 다음 배치).
         등급 삭제: 단추를 누르면 목록에서만 뺀다(되돌리기로 복구). **저장 시점**에 지우는 등급과 이동할 회원 수를 소급 승급 확인과 **하나의 확인 대화상자**로 묻는다("「단골」 등급을 삭제하면 회원 N명이 「일반」 등급으로 이동돼요. 되돌릴 수 없어요." — 확정 정책: 회원은 바로 아래 등급으로 이동).
         등급 수는 최소 2 · 최대 11단계(grade-level-contract 2절 — 장인 계급 11단계) — 11개에서는 「등급 추가」가 비활성이고 안내(툴팁·글자)가 나온다.
-        경험치·레벨(grade-level-contract): 승급 조건에 **최소 레벨**(`minLevel` 1~10000)을 더했고(일수·글·댓글과 함께 모두 채워야 오른다), 레벨 곡선 구획(`grade-curve`)에서 전역 기준값 `xpCurveBase`(1~1000 — 레벨 L 의 누적 경험치 ceil(base × (L−1)^1.5))를 정한다.
+        경험치·레벨(grade-level-contract): 승급 조건에 **최소 레벨**(`minLevel` 1~10000)을 더했고(일수·글·댓글과 함께 모두 채워야 오른다), 레벨 곡선 구획(`grade-curve`)에서 전역 지수 `xpCurveExponent`(1 · 1.5 · 2 · 2.5 · 3, 기본 2)와 기준값 `xpCurveBase`(1~1000)를 정한다 — 레벨 L 의 누적 경험치 ceil(base × (L−1)^지수), 화면도 정수로 계산한다(`UtilGrade.xpForLevel`).
+        같은 구획의 **등급별 미리보기**(grade-level-contract 6절)는 기본 등급을 뺀 등급마다 최소 레벨의 필요 경험치와 걸리는 날(보통 회원 · 매일 한도를 채우는 회원 — 서버 `pace`)을 편집 중인 값으로 바로 계산한다. 「포인트 정책에서 바꾸기」 링크는 `point.read` 가 있을 때만 보인다.
+        곡선(지수·기준값)을 바꾼 저장은 올리든 내리든 미리보기를 거치고, 승급 인원이 없어도 확인을 묻는다(전 회원 레벨 재계산).
         등급 표시 구획에 **도트 캐릭터**(`sprite` 11종, 작은 판 2배 미리보기)를 더했다 — 공개 화면(작성자 줄·프로필)은 뱃지 대신 도트를 쓰고, 뱃지 색·아이콘은 관리자 화면 표시로 남는다.
         권한: 조회 `grade.read`(메뉴), 변경 `grade.manage` — 없으면 저장 줄·추가/삭제/순서 단추가 사라지고(저장 줄 자리에 읽기 전용 안내가 보인다) 입력칸은 `readonly`, 라디오는 `disabled`(서버 값이 그대로 보인다). 감추는 것은 편의이고 막는 것은 서버다.
         저장하지 않은 변경(등급 목록·옵션)이 있는 채 다른 화면으로 가면 확인을 묻는다(`onBeforeRouteLeave`).
@@ -116,30 +118,99 @@
                 </div>
             </AppGadget>
 
-            <!-- 레벨 곡선(전역) — 기준값 하나로 레벨마다 필요한 누적 경험치가 정해진다. 안내 한 줄에 Lv.10·50·100 의 값 -->
-            <AppGadget :title="t('grade.curveTitle')" anchor="grade-curve" :changes="curveChanged ? 1 : 0" :invalid="curveError ? 1 : 0">
+            <!-- 레벨 곡선(전역) — 지수와 기준값으로 레벨마다 필요한 누적 경험치가 정해진다. 식 안내 + Lv.10·50·100 의 값, 그 아래 등급별 미리보기(걸리는 날), 곡선을 바꿨으면 경고 -->
+            <AppGadget :title="t('grade.curveTitle')" anchor="grade-curve" :changes="curveChanges" :invalid="curveErrorCount">
                 <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveLead') }}</p>
-                <LabeledField :label="t('grade.curveField')" :help="t('grade.curveHelp', { min: UtilGrade.CURVE_MIN, max: UtilGrade.format(UtilGrade.CURVE_MAX), def: UtilGrade.CURVE_DEFAULT })" :error="curveError">
-                    <template #default="{ id, describedBy, invalid }">
-                        <InputText
-                            :id="id"
-                            :model-value="curve"
-                            name="xpCurveBase"
-                            inputmode="numeric"
-                            autocomplete="off"
-                            :readonly="!canManage || saving"
-                            :invalid="invalid"
-                            :aria-describedby="describedBy"
-                            :aria-required="true"
-                            class="w-32 text-right tabular-nums"
-                            @update:model-value="onCurveInput"
-                        />
-                    </template>
-                </LabeledField>
-                <p v-if="curveSample" class="mt-3 flex items-start gap-1.5 text-sm tabular-nums" data-testid="grade-curve-sample">
+                <div class="flex flex-wrap items-start gap-x-8 gap-y-4">
+                    <LabeledField :label="t('grade.curveExponent')" :help="t('grade.curveExponentHelp')" :error="serverExponentError">
+                        <template #default="{ describedBy, invalid }">
+                            <SelectButton
+                                :model-value="exponent"
+                                :options="exponentOptions"
+                                option-label="label"
+                                option-value="value"
+                                :allow-empty="false"
+                                size="small"
+                                :disabled="!canManage || saving"
+                                :invalid="invalid"
+                                :aria-label="t('grade.curveExponent')"
+                                :aria-describedby="describedBy"
+                                class="self-start"
+                                data-testid="grade-curve-exponent"
+                                @update:model-value="onExponentInput"
+                            />
+                        </template>
+                    </LabeledField>
+                    <LabeledField :label="t('grade.curveField')" :help="t('grade.curveHelp', { min: UtilGrade.CURVE_MIN, max: UtilGrade.format(UtilGrade.CURVE_MAX), def: UtilGrade.CURVE_DEFAULT })" :error="curveError">
+                        <template #default="{ id, describedBy, invalid }">
+                            <InputText
+                                :id="id"
+                                :model-value="curve"
+                                name="xpCurveBase"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                :readonly="!canManage || saving"
+                                :invalid="invalid"
+                                :aria-describedby="describedBy"
+                                :aria-required="true"
+                                class="w-32 text-right tabular-nums"
+                                @update:model-value="onCurveInput"
+                            />
+                        </template>
+                    </LabeledField>
+                </div>
+                <p class="mt-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveFormula') }}</p>
+                <p v-if="curveSample" class="mt-1 flex items-start gap-1.5 text-sm tabular-nums" data-testid="grade-curve-sample">
                     <i class="pi pi-chart-line mt-1 text-xs text-muted-color" aria-hidden="true" />
                     <span>{{ curveSample }}</span>
                 </p>
+
+                <!-- 등급별 미리보기 — 기본 등급을 뺀 등급 전부를 지금 편집 중인 값으로 바로 다시 계산한다(저장 전에도). 읽을 수 없는 칸은 「—」 -->
+                <section class="mt-4 rounded-lg bg-(--p-content-hover-background) px-3 py-2.5" :aria-labelledby="`${idBase}-pace-title`" data-testid="grade-curve-pace">
+                    <h3 :id="`${idBase}-pace-title`" class="m-0 text-sm font-medium">{{ t('grade.paceTitle') }}</h3>
+                    <p class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">
+                        {{ paceLead }}
+                        <template v-if="canReadPointPolicy"> · <NuxtLink to="/points/policy#point-daily-total" class="whitespace-nowrap text-primary hover:underline">{{ t('grade.paceLink') }}</NuxtLink></template>
+                    </p>
+                    <div class="mt-2 min-w-0 overflow-x-auto">
+                        <table class="w-full min-w-[34rem] border-collapse text-[13px]">
+                            <caption class="sr-only">{{ t('grade.paceCaption') }}</caption>
+                            <thead>
+                                <tr class="border-b border-(--line) text-[11px] text-muted-color">
+                                    <th scope="col" class="py-1.5 pr-2 text-left align-bottom font-normal">{{ t('grade.paceColGrade') }}</th>
+                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColLevel') }}</th>
+                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColXp') }}</th>
+                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColDays') }}</th>
+                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColTypical') }}</th>
+                                    <th scope="col" class="py-1.5 text-right align-bottom font-normal">{{ t('grade.paceColCapped') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-(--line)">
+                                <tr v-for="row in paceRows" :key="row.id">
+                                    <th scope="row" class="py-1.5 pr-2 text-left font-normal whitespace-nowrap">{{ row.name }}</th>
+                                    <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.minLevel === null ? 'text-muted-color' : ''">{{ row.minLevel === null ? DASH : t('grade.paceLevel', { level: UtilGrade.format(row.minLevel) }) }}</td>
+                                    <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.xp === null ? 'text-muted-color' : ''">{{ row.xp === null ? DASH : UtilGrade.format(row.xp) }}</td>
+                                    <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.minDays === null ? 'text-muted-color' : ''">{{ row.minDays === null ? DASH : t('grade.paceDays', { n: UtilGrade.format(row.minDays) }) }}</td>
+                                    <td v-for="(cell, at) in [row.typical, row.capped]" :key="at" class="py-1.5 text-right whitespace-nowrap tabular-nums" :class="[at === 0 ? 'pr-2' : '', cell ? '' : 'text-muted-color']">
+                                        <template v-if="cell">
+                                            {{ UtilGradeMessages.duration(t, cell.days) }}
+                                            <Tag v-if="cell.byDays" :value="t('grade.paceByDays')" severity="warn" class="ml-1 text-[11px]!" />
+                                        </template>
+                                        <template v-else>{{ DASH }}</template>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="m-0 mt-2 flex flex-wrap items-center gap-x-1.5 text-xs leading-relaxed text-muted-color">
+                        <Tag :value="t('grade.paceByDays')" severity="warn" class="text-[11px]!" />
+                        <span>{{ t('grade.paceByDaysNote') }}</span>
+                    </p>
+                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('grade.paceOutsideNote') }}</p>
+                </section>
+
+                <!-- 곡선(지수·기준값)을 바꿨을 때 — 저장하면 전 회원 레벨을 다시 계산한다. 완만해지는 쪽이면 승급 안내를 잇는다 -->
+                <Message v-if="curveWarning" severity="warn" size="small" :closable="false" class="mt-3" data-testid="grade-curve-warning">{{ curveWarning }}</Message>
             </AppGadget>
 
             <AppGadget :title="t('grade.badgeTitle')" anchor="grade-badge" :changes="changes.badge" :invalid="badgeErrorCount">
@@ -237,9 +308,10 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { Grade, GradeManualPolicy, GradePreviewRequest, GradePreviewResponse, GradesResponse } from '~/composables/grade/api/useGradeApi.types';
+import type { Grade, GradeManualPolicy, GradePace, GradePreviewRequest, GradePreviewResponse, GradesResponse } from '~/composables/grade/api/useGradeApi.types';
 import type { GradeCellField, GradeField, GradeFieldErrors, GradeRowForm } from '~/utils/util-grade';
 import UtilGrade from '~/utils/util-grade';
+import type { GradeCurveChange } from '~/utils/util-grade-messages';
 import UtilGradeMessages from '~/utils/util-grade-messages';
 import UtilGradeSprite from '~/utils/util-grade-sprite';
 
@@ -285,6 +357,15 @@ const savedCurve = ref<number>(UtilGrade.CURVE_DEFAULT);
 const curve = ref<string>(String(UtilGrade.CURVE_DEFAULT));
 /** 서버가 거절한 곡선 기준값 문구 — 칸을 고치면 지운다 */
 const serverCurveError = ref('');
+/** 레벨 곡선 지수 — 저장된 값과 고른 값(다섯 값 중 하나) */
+const savedExponent = ref<number>(UtilGrade.CURVE_EXPONENT_DEFAULT);
+const exponent = ref<number>(UtilGrade.CURVE_EXPONENT_DEFAULT);
+/** 서버가 거절한 곡선 지수 문구 — 다시 고르면 지운다 */
+const serverExponentError = ref('');
+/** 등급별 미리보기의 하루 적립 값(서버가 포인트 정책에서 계산해 준다). 옛 응답이면 null — 걸리는 날 칸이 「—」 */
+const pace = ref<GradePace | null>(null);
+/** 읽을 수 없는 칸의 글자 */
+const DASH = '—';
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
 const saving = ref(false);
@@ -300,8 +381,12 @@ let newSeq = 0;
 const problems = computed(() => UtilGrade.validate(form.value));
 const changes = computed(() => (saved.value ? UtilGrade.changes(form.value, saved.value) : { rules: 0, badge: 0 }));
 const policyChanged = computed(() => policy.value !== savedPolicy.value);
-const curveChanged = computed(() => UtilGrade.parse(curve.value) !== savedCurve.value);
+/** 곡선 구획에서 바뀐 칸 수 — 지수 · 기준값 */
+const curveChanges = computed(() => Number(exponent.value !== savedExponent.value) + Number(UtilGrade.parse(curve.value) !== savedCurve.value));
+const curveChanged = computed(() => curveChanges.value > 0);
 const curveProblem = computed(() => UtilGrade.curveProblem(curve.value));
+/** 지수 고르개의 선택지 — 1.0 · 1.5 · 2.0 · 2.5 · 3.0 */
+const exponentOptions = computed(() => UtilGrade.CURVE_EXPONENTS.map((value) => ({ label: value.toFixed(1), value })));
 /** 곡선 칸 아래 오류 — 화면 검사가 먼저, 없으면 서버 문구 */
 const curveError = computed(() => {
     const problem = curveProblem.value;
@@ -309,10 +394,27 @@ const curveError = computed(() => {
     if (problem) return UtilGradeMessages.problem(t, problem, 'minDays', null);
     return serverCurveError.value;
 });
+/** 곡선 구획의 맞지 않는 칸 수 — 기준값(화면 검사·서버) + 지수(서버) */
+const curveErrorCount = computed(() => Number(Boolean(curveError.value)) + Number(Boolean(serverExponentError.value)));
 /** 곡선 안내 한 줄 — Lv.10·50·100 에 필요한 경험치 */
-const curveSample = computed(() => UtilGradeMessages.curveSample(t, curve.value));
-/** 저장하지 않은 변경 칸 수 — 등급 목록(이름·조건·추가·삭제·순서) + 표시(도트·뱃지) + 레벨 곡선 + 옵션 */
-const changeCount = computed(() => changes.value.rules + changes.value.badge + (curveChanged.value ? 1 : 0) + (policyChanged.value ? 1 : 0));
+const curveSample = computed(() => UtilGradeMessages.curveSample(t, curve.value, exponent.value));
+/** 곡선이 저장값과 어떻게 다른가 — 완만해지는 쪽 = 지수나 기준값을 내렸다(같은 경험치로 레벨이 높아져 승급이 일어난다) */
+const curveChange = computed<GradeCurveChange>(() => {
+    const base = UtilGrade.parse(curve.value);
+    return { changed: curveChanged.value, easier: exponent.value < savedExponent.value || (base !== null && base < savedCurve.value) };
+});
+/** 카드 아래 경고 — 곡선이 저장값과 다를 때만(기준값이 맞지 않으면 칸 아래 오류가 대신 선다) */
+const curveWarning = computed(() => (curveProblem.value ? '' : UtilGradeMessages.curveWarning(t, curveChange.value)));
+/** 등급별 미리보기 — 기본 등급을 뺀 등급을 지금 편집 중인 값으로 계산한다 */
+const paceRows = computed(() => {
+    const names = new Map(form.value.map((row) => [row.id, nameOf(row)]));
+    return UtilGrade.paceRows(form.value, curve.value, exponent.value, pace.value).map((row) => ({ ...row, name: names.get(row.id) ?? '' }));
+});
+const paceLead = computed(() => UtilGradeMessages.paceLead(t, pace.value));
+/** 「포인트 정책에서 바꾸기」 — 포인트 정책 화면(`/points/policy`)을 볼 권한(`point.read`, 메뉴와 같은 권한)이 있을 때만 */
+const canReadPointPolicy = computed(() => can('point.read'));
+/** 저장하지 않은 변경 칸 수 — 등급 목록(이름·조건·추가·삭제·순서) + 표시(도트·뱃지) + 레벨 곡선(지수·기준값) + 옵션 */
+const changeCount = computed(() => changes.value.rules + changes.value.badge + curveChanges.value + (policyChanged.value ? 1 : 0));
 const dirty = computed(() => changeCount.value > 0);
 
 /** 서버가 거절한 칸 중 표시 칸(도트·색·아이콘)과 나머지(이름·승급 조건)의 수 */
@@ -323,7 +425,7 @@ const serverRuleErrorCount = computed(() =>
 const ruleErrorCount = computed(() => UtilGrade.problemCount(problems.value) + serverRuleErrorCount.value);
 const badgeErrorCount = computed(() => serverBadgeErrorCount.value);
 /** 맞지 않는 칸 수 — 화면이 미리 검사한 것 + 서버가 거절한 것 */
-const errorCount = computed(() => ruleErrorCount.value + badgeErrorCount.value + (curveError.value ? 1 : 0) + (serverPolicyError.value ? 1 : 0));
+const errorCount = computed(() => ruleErrorCount.value + badgeErrorCount.value + curveErrorCount.value + (serverPolicyError.value ? 1 : 0));
 /** 서버가 거절한 칸은 저장을 막지 않는다 — 고치지 않고 다시 보내 볼 수 있어야 하고, 서버가 다시 판정한다 */
 const canSave = computed(() => canManage.value && dirty.value && UtilGrade.problemCount(problems.value) === 0 && !curveProblem.value);
 
@@ -351,12 +453,16 @@ function applySaved(res: GradesResponse) {
     savedPolicy.value = res.manualPolicy;
     form.value = UtilGrade.formOf(res.grades);
     policy.value = res.manualPolicy;
-    // 곡선 기준값을 아직 주지 않는 서버면 기본 10
+    // 곡선 기준값을 아직 주지 않는 서버면 기본 10, 지수를 주지 않으면 기본 2, 하루 적립 값을 주지 않으면 걸리는 날 칸을 비운다
     savedCurve.value = UtilGrade.curveOf(res.xpCurveBase);
     curve.value = String(savedCurve.value);
+    savedExponent.value = UtilGrade.exponentOf(res.xpCurveExponent);
+    exponent.value = savedExponent.value;
+    pace.value = res.pace && typeof res.pace.typicalDaily === 'number' && typeof res.pace.dailyTotalCap === 'number' ? { typicalDaily: res.pace.typicalDaily, dailyTotalCap: res.pace.dailyTotalCap } : null;
     serverCells.value = {};
     serverPolicyError.value = '';
     serverCurveError.value = '';
+    serverExponentError.value = '';
     appearance.set(res.grades);
 }
 
@@ -365,15 +471,24 @@ function revert() {
     form.value = UtilGrade.formOf(saved.value);
     policy.value = savedPolicy.value;
     curve.value = String(savedCurve.value);
+    exponent.value = savedExponent.value;
     serverCells.value = {};
     serverPolicyError.value = '';
     serverCurveError.value = '';
+    serverExponentError.value = '';
     formError.value = '';
 }
 
 function onCurveInput(value: string | undefined) {
     curve.value = value ?? '';
     serverCurveError.value = '';
+}
+
+/** 지수를 고른다 — 고르개는 빈 값을 주지 않지만(allow-empty 끔) 목록 밖의 값은 받지 않는다 */
+function onExponentInput(value: unknown) {
+    if (typeof value !== 'number' || !UtilGrade.CURVE_EXPONENTS.includes(value)) return;
+    exponent.value = value;
+    serverExponentError.value = '';
 }
 
 /** 행의 표시 이름 — 이름을 비웠으면 "(이름 없는 등급)" */
@@ -436,22 +551,24 @@ async function addRow() {
 
 /**
  * 저장 전 영향을 확인한다 — 미리보기로 지금 승급될 인원과 지우는 등급에서 이동할 회원 수를 받아 **한 번에** 묻고, 둘 다 없으면 묻지 않는다.
+ * 다만 레벨 곡선(지수·기준값)을 바꿨으면 승급 인원이 없어도 묻는다 — 저장하면 전 회원의 레벨을 다시 계산하기 때문이다(레벨 재계산·등급은 안 내려감 안내를 넣는다).
  * 미리보기가 실패하면 저장을 막지 않고 "그래도 저장할까요?" 로 묻는다.
  * @returns 저장해도 되면 true.
  */
-async function confirmImpact(body: GradePreviewRequest, lowered: Record<GradeField, boolean>, manualUnlocked: boolean, added: boolean, removed: boolean): Promise<boolean> {
+async function confirmImpact(body: GradePreviewRequest, lowered: Record<GradeField, boolean>, manualUnlocked: boolean, added: boolean, removed: boolean, curveNow: GradeCurveChange): Promise<boolean> {
     const title = t(removed ? 'grade.confirmTitleRemove' : 'grade.confirmTitle');
     let preview: GradePreviewResponse;
     try {
         preview = await api.preview(body);
     } catch {
-        return confirm({ title, message: t('grade.previewFailedMessage'), confirmLabel: t('grade.previewFailedConfirm'), cancelLabel: t('common.cancel') });
+        const message = [UtilGradeMessages.curveWarning(t, curveNow), t('grade.previewFailedMessage')].filter(Boolean).join('\n');
+        return confirm({ title, message, confirmLabel: t('grade.previewFailedConfirm'), cancelLabel: t('common.cancel') });
     }
-    if (preview.total === 0 && preview.willMove.length === 0) return true;
+    if (preview.total === 0 && preview.willMove.length === 0 && !curveNow.changed) return true;
     return confirm({
         title,
-        message: UtilGradeMessages.impactConfirm(t, preview, lowered, manualUnlocked, added),
-        confirmLabel: t(preview.willMove.length ? 'grade.confirmSaveRemove' : 'grade.confirmSave'),
+        message: UtilGradeMessages.impactConfirm(t, preview, lowered, manualUnlocked, added, curveNow),
+        confirmLabel: t(preview.willMove.length ? 'grade.confirmSaveRemove' : preview.total > 0 ? 'grade.confirmSave' : 'grade.confirmSaveCurve'),
         cancelLabel: t('common.cancel'),
         tone: preview.willMove.length ? 'danger' : 'primary',
     });
@@ -459,25 +576,30 @@ async function confirmImpact(body: GradePreviewRequest, lowered: Record<GradeFie
 
 async function save() {
     if (saving.value || !canSave.value || !saved.value) return;
-    const body = UtilGrade.toRequest(form.value, policy.value, curve.value);
+    const body = UtilGrade.toRequest(form.value, policy.value, curve.value, exponent.value);
     if (!body) return;
     formError.value = '';
     serverCells.value = {};
     serverPolicyError.value = '';
     serverCurveError.value = '';
+    serverExponentError.value = '';
     saving.value = true;
     // 서버가 거절하면 칸 오류를 붙일 행 — 요청 `grades` 의 차례와 같다
     const sent = [...form.value];
     try {
-        // 기준이 낮아졌거나(레벨 곡선 기준값을 낮추면 같은 경험치로 레벨이 높아진다) 등급을 추가·삭제했거나 옵션을 "계속 자동 승급"으로 바꾸면 소급 승급·회원 이동이 일어날 수 있어 먼저 영향을 확인한다
+        // 기준이 낮아졌거나 등급을 추가·삭제했거나 옵션을 "계속 자동 승급"으로 바꾸면 소급 승급·회원 이동이 일어날 수 있어 먼저 영향을 확인한다.
+        // 레벨 곡선(지수·기준값)은 올리든 내리든 바뀌면 늘 확인한다 — 전 회원의 레벨을 다시 계산하고, 완만해지는 레벨에서는 승급이 일어난다(grade-level-contract 6절)
         const lowered = UtilGrade.lowered(form.value, saved.value);
         const added = UtilGrade.hasAdded(form.value);
         const removed = UtilGrade.hasRemoved(form.value, saved.value);
         const manualUnlocked = policy.value === 'CONTINUE_AUTO' && savedPolicy.value !== 'CONTINUE_AUTO';
-        const curveLowered = body.xpCurveBase < savedCurve.value;
-        const affects = lowered.minLevel || lowered.minDays || lowered.minActivity || curveLowered || added || removed || manualUnlocked;
+        const curveNow: GradeCurveChange = {
+            changed: body.xpCurveBase !== savedCurve.value || body.xpCurveExponent !== savedExponent.value,
+            easier: body.xpCurveBase < savedCurve.value || body.xpCurveExponent < savedExponent.value,
+        };
+        const affects = lowered.minLevel || lowered.minDays || lowered.minActivity || curveNow.changed || added || removed || manualUnlocked;
         const raisedOnly = changes.value.rules > 0 && !affects;
-        if (affects && !(await confirmImpact(body, lowered, manualUnlocked, added, removed))) return;
+        if (affects && !(await confirmImpact(body, lowered, manualUnlocked, added, removed, curveNow))) return;
 
         applySaved(await api.save(body));
         toast.success(t(raisedOnly ? 'grade.savedNoImpact' : 'grade.saved'));
@@ -487,7 +609,8 @@ async function save() {
             serverCells.value = rejected.cells;
             serverPolicyError.value = rejected.policy;
             serverCurveError.value = rejected.curve;
-            formError.value = [Object.keys(rejected.cells).length || rejected.policy || rejected.curve ? t('grade.saveFieldsRejected') : '', rejected.form].filter(Boolean).join(' ');
+            serverExponentError.value = rejected.exponent;
+            formError.value = [Object.keys(rejected.cells).length || rejected.policy || rejected.curve || rejected.exponent ? t('grade.saveFieldsRejected') : '', rejected.form].filter(Boolean).join(' ');
         } else {
             formError.value = `${t('grade.saveFailed')} — ${toApiError(e).message}`;
         }

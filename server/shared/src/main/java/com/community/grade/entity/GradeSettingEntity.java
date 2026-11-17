@@ -5,6 +5,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
@@ -26,8 +27,11 @@ public class GradeSettingEntity {
 
     private int nextSerial;
 
-    /** 레벨 곡선 값(V196, 1~1000, 기본 10) — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^1.5) */
+    /** 레벨 곡선 기준값(V196, 1~1000, 기본 10) — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^지수) */
     private int xpCurveBase = 10;
+
+    /** 레벨 곡선 지수(V245, 1.0·1.5·2.0·2.5·3.0 뿐, 기본 2.0) — 셈은 {@code XpCurve} */
+    private BigDecimal xpCurveExponent = new BigDecimal("2.0");
 
     /** 마지막으로 저장한 운영자 */
     private Long updatedBy;
@@ -37,11 +41,12 @@ public class GradeSettingEntity {
     protected GradeSettingEntity() {
     }
 
-    /** 저장한다 — 옵션과 다음 번호, 저장한 운영자·시각 */
-    public void change(GradeManualPolicy manualPolicy, int nextSerial, int xpCurveBase, long updatedBy, Instant now) {
+    /** 저장한다 — 옵션과 다음 번호, 레벨 곡선(기준값·지수), 저장한 운영자·시각 */
+    public void change(GradeManualPolicy manualPolicy, int nextSerial, int xpCurveBase, BigDecimal xpCurveExponent, long updatedBy, Instant now) {
         this.manualPolicy = manualPolicy;
         this.nextSerial = nextSerial;
         this.xpCurveBase = xpCurveBase;
+        this.xpCurveExponent = xpCurveExponent;
         this.updatedBy = updatedBy;
         this.updatedAt = now;
     }
@@ -56,5 +61,9 @@ public class GradeSettingEntity {
 
     public int getXpCurveBase() {
         return xpCurveBase;
+    }
+
+    public BigDecimal getXpCurveExponent() {
+        return xpCurveExponent;
     }
 }

@@ -58,8 +58,20 @@ export type GradeManualPolicy = 'CONTINUE_AUTO' | 'STOP_AUTO';
 export interface GradesResponse {
     grades: Grade[];
     manualPolicy: GradeManualPolicy;
-    /** 레벨 곡선 기준값(grade-level-contract 1절, `grade_settings.xp_curve_base` 1~1000, 기본 10) — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^1.5). 옛 서버 응답에는 없을 수 있다 */
+    /** 레벨 곡선 기준값(grade-level-contract 1절, `grade_settings.xp_curve_base` 1~1000, 기본 10) — 레벨 L 에 필요한 누적 경험치 = ceil(base × (L−1)^지수). 옛 서버 응답에는 없을 수 있다 */
     xpCurveBase?: number;
+    /** 레벨 곡선 지수(grade-level-contract 6절, `grade_settings.xp_curve_exponent`) — 1 · 1.5 · 2 · 2.5 · 3 중 하나, 기본 2. 옛 서버 응답에는 없을 수 있다(화면은 2 로 본다) */
+    xpCurveExponent?: number;
+    /** 등급별 미리보기의 하루 적립 값(포인트 정책에서 계산). 옛 서버 응답에는 없을 수 있다(화면은 걸리는 날 칸을 「—」로 둔다) */
+    pace?: GradePace | null;
+}
+
+/** 등급별 미리보기가 쓰는 하루 적립 값(grade-level-contract 6절) */
+export interface GradePace {
+    /** 출석 + 글 1개 + 댓글 3개의 하루 적립(기본값에서 45) */
+    typicalDaily: number;
+    /** 활동 적립 하루 총 한도. **0 = 한도 없음**(기본 200) */
+    dailyTotalCap: number;
 }
 
 /**
@@ -88,6 +100,8 @@ export interface GradesSaveRequest {
     manualPolicy: GradeManualPolicy;
     /** 레벨 곡선 기준값 1~1000 — 틀리면 400 `fields.xpCurveBase` */
     xpCurveBase: number;
+    /** 레벨 곡선 지수 — 1 · 1.5 · 2 · 2.5 · 3 중 하나. 다섯 값이 아니면 400 `fields.xpCurveExponent` */
+    xpCurveExponent: number;
 }
 
 /** `POST /api/admin/grades/preview` 요청 — 저장 요청과 같은 모양(저장하지 않고 소급 영향만 센다) */

@@ -48,13 +48,41 @@ export default {
     problemLabelLength: '등급 이름은 {max}자까지예요.',
     problemLabelDuplicate: '이미 있는 이름이에요.',
 
-    // 레벨 곡선 구획(전역 — grade-level-contract 1절)
+    // 레벨 곡선 구획(전역 — grade-level-contract 1절·6절)
     curveTitle: '레벨 곡선',
-    curveLead: '활동으로 적립된 포인트가 쌓여 경험치가 되고, 경험치에 따라 레벨이 올라요. 기준값을 키우면 같은 레벨에 더 많은 경험치가 필요해요.',
+    curveLead: '활동으로 적립된 포인트가 쌓여 경험치가 되고, 경험치에 따라 레벨이 올라요. 지수를 키우면 낮은 레벨은 그대로 빠르고 높은 레벨만 길어져요.',
+    curveExponent: '곡선 지수',
+    curveExponentHelp: '1.0 직선 · 2.0 기본 · 3.0 가장 가파름',
     curveField: '곡선 기준값',
-    curveHelp: '{min}~{max} · 기본 {def}. 레벨 L 에 필요한 누적 경험치 = 기준값 × (L−1)^1.5 (올림)',
+    curveHelp: '{min}~{max} · 기본 {def}',
+    curveFormula: '레벨 L 에 필요한 누적 경험치 = 기준값 × (L−1)^지수 (올림)',
     curveSample: '필요한 누적 경험치 — {items}',
     curveSampleItem: 'Lv.{level} {xp}',
+    curveChangeWarn: '저장하면 모든 회원의 레벨을 새 곡선으로 다시 계산해요. 레벨 숫자는 내려갈 수 있지만 등급은 내려가지 않아요.',
+    curveChangeWarnEasier: '곡선이 완만해지는 레벨에서는 승급이 일어나고, 값을 다시 올려도 되돌아가지 않아요. 저장 전에 승급 인원을 보여 드려요.',
+
+    // 레벨 곡선 구획 안 등급별 미리보기(걸리는 날 — grade-level-contract 6절)
+    paceTitle: '등급별 미리보기',
+    paceTypical: '보통 = 출석 + 글 1개 + 댓글 3개(지금 하루 {typical})',
+    paceTypicalUnknown: '보통 = 출석 + 글 1개 + 댓글 3개',
+    paceCap: '한도 = 활동 적립 하루 총 한도(지금 {cap})',
+    paceCapNone: '한도 = 활동 적립 하루 총 한도(지금 한도 없음)',
+    paceCapUnknown: '한도 = 활동 적립 하루 총 한도',
+    paceLink: '포인트 정책에서 바꾸기',
+    paceCaption: '등급마다 최소 레벨에 필요한 경험치와 그 등급까지 걸리는 날',
+    paceColGrade: '등급',
+    paceColLevel: '최소 레벨',
+    paceColXp: '필요 경험치',
+    paceColDays: '일수 조건',
+    paceColTypical: '보통 회원',
+    paceColCapped: '매일 한도를 채우는 회원',
+    paceLevel: 'Lv.{level}',
+    paceDays: '{n}일',
+    paceMonths: '{n}개월',
+    paceYears: '{n}년',
+    paceByDays: '일수',
+    paceByDaysNote: '레벨보다 가입 일수 조건이 늦게 채워지는 칸',
+    paceOutsideNote: '추천 보너스·우수 글·인기글·구매 인증 보상은 하루 총 한도 밖이라 이보다 빨리 오를 수 있어요. 그때는 가입 일수 조건이 속도를 잡아요.',
 
     // 등급 표시(도트·뱃지) 구획
     badgeTitle: '등급 표시',
@@ -150,7 +178,7 @@ export default {
     policyStopAuto: '자동 승급 중지',
     policyStopAutoHelp: '수동으로 올린 회원은 이후 자동으로 올라가지 않아요.',
 
-    // 저장 전 영향 확인(기준을 낮췄거나 등급을 추가했거나 옵션을 바꾼 경우)
+    // 저장 전 영향 확인(기준을 낮췄거나 등급을 추가했거나 옵션을 바꿨거나 레벨 곡선을 바꾼 경우)
     confirmTitle: '이 설정으로 저장할까요?',
     confirmTitleRemove: '등급을 삭제하고 저장할까요?',
     confirmMoveItem: '「{from}」 등급을 삭제하면 회원 {count}명이 「{to}」 등급으로 이동돼요. 되돌릴 수 없어요.',
@@ -164,7 +192,9 @@ export default {
     confirmDaysNote: '일수 조건으로 올라갈 회원은 다음 배치에서 승급돼요.',
     confirmAddedNote: '새로 만든 등급은 조건을 이미 채운 회원이 있으면 저장 직후 그 등급이 돼요.',
     confirmManualNote: '수동으로 올린 회원 중 이미 조건을 채운 회원도 승급 대상에 들어가요.',
+    confirmCurveNoPromotion: '새 곡선으로 지금 승급되는 회원은 없어요.',
     confirmSave: '저장하고 승급',
+    confirmSaveCurve: '저장하고 다시 계산',
     previewFailedMessage: '영향 인원을 확인하지 못했어요. 그래도 저장할까요?',
     previewFailedConfirm: '그래도 저장',
 

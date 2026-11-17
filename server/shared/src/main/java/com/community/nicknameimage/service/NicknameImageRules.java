@@ -33,8 +33,11 @@ public final class NicknameImageRules {
     /** 반려·해제 사유 글자 수 */
     public static final int REASON_MAX = 200;
 
-    /** 신청 조건(관리자 설정 {@code nickname_image_settings})의 기본 등급 — 행이 없을 때도 이 값(GRADE · 베테랑 · 이메일 인증 필요)으로 판정한다 */
-    public static final String DEFAULT_GRADE_KEY = "VETERAN";
+    /**
+     * 신청 조건(관리자 설정 {@code nickname_image_settings})의 기본 등급 = <b>서열 5(정예)</b>(grade-level-contract 6절 — V245 가 기본 행을 베테랑에서 이 서열의 등급으로 낮췄다).
+     * 등급 키는 사이트마다 달라 서열로 찾는다. 행이 없을 때도 이 서열(GRADE · 이메일 인증 필요)로 판정한다
+     */
+    public static final int DEFAULT_GRADE_RANK = 5;
     /** 신청 조건 칸의 범위(0 = 조건 아님) — 가입 후 일수 · 글+댓글 수 · 보유 포인트. DB CHECK 와 같다 */
     public static final int MAX_MIN_DAYS = 3650;
     public static final int MAX_MIN_ACTIVITY = 100_000;

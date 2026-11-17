@@ -106,10 +106,10 @@ public class GradePromotionService {
      * 저장하지 않고 센다. 새 등급(키가 없는)도 센다.
      *
      * @param fromKeys 지금 이 등급(index)보다 낮은 서열에 있는 <b>기존</b> 등급 키들(새 목록의 서열 기준 — 지워질 등급은 넣지 않는다)
-     * @param curveBase 저장할 레벨 곡선 값 — 레벨 조건을 이 곡선의 경계 경험치로 센다(곡선을 바꿔도 저장 뒤 결과와 맞게)
+     * @param curve    저장할 레벨 곡선(기준값·지수) — 레벨 조건을 이 곡선의 경계 경험치로 센다(곡선을 바꿔도 저장 뒤 결과와 맞게)
      */
     @Transactional(readOnly = true)
-    public long countPromotedTo(List<GradeThreshold> ordered, int index, Collection<String> fromKeys, boolean includeManual, int curveBase, Instant now) {
+    public long countPromotedTo(List<GradeThreshold> ordered, int index, Collection<String> fromKeys, boolean includeManual, XpCurve.Shape curve, Instant now) {
         GradeThreshold target = ordered.get(index);
         if (index == 0 || !activityReachable(target.minActivity())) {
             return 0;
@@ -118,7 +118,7 @@ public class GradePromotionService {
         if (index + 1 < ordered.size() && activityReachable(ordered.get(index + 1).minActivity())) {
             upper = new PromotionScope.Upper(cutoff(now, ordered.get(index + 1).minDays()), ordered.get(index + 1).minLevel());
         }
-        return gradeQueries.countPromotable(new PromotionScope(fromKeys, cutoff(now, target.minDays()), target.minLevel(), upper, includeManual, curveBase));
+        return gradeQueries.countPromotable(new PromotionScope(fromKeys, cutoff(now, target.minDays()), target.minLevel(), upper, includeManual, curve));
     }
 
     /**

@@ -13,6 +13,7 @@ import com.community.grade.exception.GradeRulesNotMonotonicException;
 import com.community.grade.service.XpCurve;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -27,9 +28,9 @@ import org.springframework.stereotype.Component;
  * 등급 저장 요청을 검사해 계획({@link GradePlan})으로 바꾼다 — 저장({@code PUT})과 미리보기({@code POST …/preview})가 같은 규칙을 쓴다. admin-web 의 {@code util-grade.ts} 규칙과 같다.
  *
  * <p>검사 순서(어디서 멈추는지가 계약이다): 목록이 있는가(400 {@code grades}) → 등급 수 2~11(409 {@code GRADE_LIMIT}, V196) → 첫 등급이 요청에 남아 있는가(409 {@code GRADE_FIRST_PROTECTED}) →
- * 칸별 입력 검사를 모아(400 {@code VALIDATION}, {@code grades[i].label|gradeKey|minLevel|minDays|minActivity|badgeColor|badgeIcon|sprite}·{@code manualPolicy}·{@code xpCurveBase}) →
+ * 칸별 입력 검사를 모아(400 {@code VALIDATION}, {@code grades[i].label|gradeKey|minLevel|minDays|minActivity|badgeColor|badgeIcon|sprite}·{@code manualPolicy}·{@code xpCurveBase}·{@code xpCurveExponent}) →
  * 이름 중복(409 {@code GRADE_NAME_DUPLICATED}) → 위 등급일수록 같거나 큰가(최소 레벨·일수·활동 수 — 409 {@code GRADE_RULES_NOT_MONOTONIC}, 삭제·이동·추가 뒤 <b>남은 목록</b> 기준).
- * 최소 레벨·도트 칸이 빠진 줄(예전 화면)은 기존 등급이면 지금 값, 새 등급이면 1·서열 기본 도트로 본다. 곡선 값이 빠지면 지금 값.
+ * 최소 레벨·도트 칸이 빠진 줄(예전 화면)은 기존 등급이면 지금 값, 새 등급이면 1·서열 기본 도트로 본다. 곡선 기준값·지수가 빠지면 지금 값(지수는 다섯 값 — {@code XpCurve.EXPONENTS} — 뿐).
  * 하나라도 틀리면 아무것도 저장하지 않는다(저장 서비스가 이 검사를 끝낸 뒤에야 쓰기 시작한다).
  */
 @Component
@@ -46,9 +47,10 @@ public class GradeSavePlanner {
     private static final Pattern LABEL_FORBIDDEN = Pattern.compile("[<>\\u0001-\\u001f\\u007f-\\u009f]");
 
     /**
-     * @param current 지금 저장된 등급(서열 순서)
+     * @param current      지금 저장된 등급(서열 순서)
+     * @param currentCurve 지금 저장된 레벨 곡선 — 요청에 곡선 칸이 빠지면 이 값
      */
-    public GradePlan plan(GradesSaveRequest request, List<GradeEntity> current, int currentCurveBase) {
+    public GradePlan plan(GradesSaveRequest request, List<GradeEntity> current, XpCurve.Shape currentCurve) {
         List<GradeRequest> rows = request == null ? null : request.grades();
         if (rows == null) {
             throw ValidationException.of("grades", new MessageRef("grade.grades.required"));
@@ -146,9 +148,13 @@ public class GradeSavePlanner {
         if (policy == null) {
             fields.put("manualPolicy", new MessageRef("grade.manualPolicy.invalid"));
         }
-        int curveBase = request.xpCurveBase() == null ? currentCurveBase : request.xpCurveBase();
+        int curveBase = request.xpCurveBase() == null ? currentCurve.base() : request.xpCurveBase();
         if (curveBase < XpCurve.BASE_MIN || curveBase > XpCurve.BASE_MAX) {
             fields.put("xpCurveBase", new MessageRef("grade.xpCurveBase.range", String.valueOf(XpCurve.BASE_MIN), String.valueOf(XpCurve.BASE_MAX)));
+        }
+        BigDecimal curveExponent = request.xpCurveExponent() == null ? currentCurve.exponent() : request.xpCurveExponent();
+        if (!XpCurve.isExponent(curveExponent)) {
+            fields.put("xpCurveExponent", new MessageRef("grade.xpCurveExponent.invalid"));
         }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -168,7 +174,7 @@ public class GradeSavePlanner {
             }
         }
 
-        return new GradePlan(List.copyOf(planned), policy, removedTo(current, usedKeys), curveBase);
+        return new GradePlan(List.copyOf(planned), policy, removedTo(current, usedKeys), curveBase, XpCurve.exponentOrDefault(curveExponent));
     }
 
     /**

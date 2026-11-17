@@ -131,10 +131,15 @@ public class NicknameImageService {
         this.readTx.setReadOnly(true);
     }
 
-    /** 지금 적용되는 신청 조건(설정 행의 사본) — 행이 없으면 기본값(GRADE · 베테랑 · 이메일 인증 필요) */
+    /** 지금 적용되는 신청 조건(설정 행의 사본) — 행이 없으면 기본값(GRADE · 서열 5 등급(정예) · 이메일 인증 필요) */
     private record Settings(NicknameImageRequirementMode mode, String gradeKey, int minDays, int minActivity, int minPoints, boolean requireEmailVerified) {
 
-        static final Settings DEFAULTS = new Settings(NicknameImageRequirementMode.GRADE, NicknameImageRules.DEFAULT_GRADE_KEY, 0, 0, 0, true);
+        /** 행이 없을 때 — 기본 서열({@link NicknameImageRules#DEFAULT_GRADE_RANK})의 등급. 등급이 그보다 적으면 가장 높은 등급 */
+        static Settings defaults(BoardCatalogSnapshot s) {
+            String key = s.grades().values().stream().filter(g -> g.level() <= NicknameImageRules.DEFAULT_GRADE_RANK)
+                    .max(java.util.Comparator.comparingInt(BoardCatalogSnapshot.GradeInfo::level)).map(BoardCatalogSnapshot.GradeInfo::key).orElse(s.firstGradeKey());
+            return new Settings(NicknameImageRequirementMode.GRADE, key, 0, 0, 0, true);
+        }
 
         static Settings of(NicknameImageSettingEntity row) {
             return new Settings(row.getMode(), row.getGradeKey(), row.getMinDays(), row.getMinActivity(), row.getMinPoints(), row.isRequireEmailVerified());
@@ -316,7 +321,7 @@ public class NicknameImageService {
         UserEntity user = users.findById(userId).filter(u -> !u.isGone()).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
         BoardCatalogSnapshot s = catalog.snapshot();
         BoardActor actor = actors.resolve(userId, s);
-        Settings rules = settings.findById(NicknameImageSettingEntity.ROW_ID).map(Settings::of).orElse(Settings.DEFAULTS);
+        Settings rules = settings.findById(NicknameImageSettingEntity.ROW_ID).map(Settings::of).orElseGet(() -> Settings.defaults(s));
         return new Gate(user, actor, s, rules);
     }
 
