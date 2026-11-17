@@ -3,6 +3,7 @@
         사업자 센터 › 체험단 `/business/trials`(trial-group-contract 「구현 결정」 8 — 광고주 화면). 운영자가 만든 그 광고주의 모집 목록(광고주 = 사업자 신원으로 이어진 광고주).
         한 줄: 상태 딱지 · 형태 · 보내는 쪽 · 제목 · 신청 수 / 인원 · 뽑힌 인원 · 신청 기간 → 누르면 모집 상세(신청자 보고 후보 추천 · 발송·반납·파손 신고).
         모집을 새로 만드는 것은 운영자(관리자 「광고 › 체험단」)라 여기에는 [만들기]가 없다 — 안내 한 줄.
+        공개 전 선결제 모집(`status` DRAFT — 서버 `TrialPayments.advertiserSeesDraft`)도 줄로 온다: 딱지 「공개 전」 + 결제 딱지(결제할 차례 주황 · 기한 지남·반려 빨강).
     -->
     <div class="content-card flex flex-col gap-4" data-testid="business-trials">
         <header class="flex flex-wrap items-center justify-between gap-2">
@@ -30,10 +31,14 @@
                         <span v-if="item.paymentStatus === 'AWAITING_PAYMENT' || item.paymentStatus === 'AWAITING_DEPOSIT' || item.paymentStatus === 'AWAITING_APPROVAL'" :class="[TAG, 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200']">
                             <span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
                         </span>
+                        <!-- 공개 전 선결제 모집의 닫힌 결제 건(결제 기한 지남 · 반려 — 운영팀에 다시 요청) -->
+                        <span v-else-if="item.status === 'DRAFT' && (item.paymentStatus === 'EXPIRED' || item.paymentStatus === 'REJECTED')" :class="[TAG, 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200']">
+                            <span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
+                        </span>
                     </p>
                     <span class="line-clamp-1 text-sm font-semibold">{{ item.title }}</span>
                     <span class="flex flex-wrap gap-x-3 text-xs tabular-nums text-muted-color">
-                        <span>{{ t('trial.bizApplicants', { n: item.applicantCount, total: item.recruitCount }) }}</span>
+                        <span v-if="item.status !== 'DRAFT'">{{ t('trial.bizApplicants', { n: item.applicantCount, total: item.recruitCount }) }}</span>
                         <span v-if="item.selectedCount !== null">{{ t('trial.bizSelected', { n: item.selectedCount }) }}</span>
                         <span>{{ t('trial.periodLine', { from: time.date(item.applyStartAt), to: time.date(item.applyEndAt) }) }}</span>
                     </span>

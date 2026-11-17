@@ -376,7 +376,7 @@
                         {{ t('business.trialApp.title') }}
                         <PointShopTag tone="neutral">{{ t(`business.trialApp.statusValue.${trialApp.status}`) }}</PointShopTag>
                     </p>
-                    <NuxtLink v-if="trialApp.status !== 'DRAFT'" :to="UtilTrial.bizDetailPath(trialApp.trialId)" class="text-sm font-medium text-primary hover:underline [overflow-wrap:anywhere]">{{ trialApp.title }}</NuxtLink>
+                    <NuxtLink v-if="trialLinkable" :to="UtilTrial.bizDetailPath(trialApp.trialId)" class="text-sm font-medium text-primary hover:underline [overflow-wrap:anywhere]">{{ trialApp.title }}</NuxtLink>
                     <p v-else class="m-0 text-sm font-medium [overflow-wrap:anywhere]">{{ trialApp.title }}</p>
                     <!-- 선결제(V244) — 모집 인원 기준 금액 · 덜 모여도 차액 환불 없음 -->
                     <p v-if="trialPrepaid" class="m-0 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-100" data-testid="business-application-trial-prepaid">
@@ -602,6 +602,16 @@ const trialKind = computed(() => Boolean(app.value && UtilBusiness.isTrial(app.v
 const trialApp = computed(() => (trialKind.value ? (app.value?.trial ?? null) : null));
 /** 선결제 체험단 건(V244) — 모집 인원 기준 금액 · 결제가 끝나야 모집 공개 · 덜 모여도 차액 환불 없음 */
 const trialPrepaid = computed(() => trialApp.value?.paymentTiming === 'PREPAID');
+/**
+ * 모집 상세로 갈 수 있나 — 공개 뒤 모집, 또는 공개 전이어도 선결제 · 금액 > 0 · 이 건이 취소되지 않았을 때(광고주 체험단 화면에 보이는 초안 — 서버 `TrialPayments.advertiserSeesDraft`).
+ * 서버는 「지금 결제 건」의 상태로 가리므로, 다시 요청 뒤 새 건이 취소된 예전 건 화면에서는 링크가 404 일 수 있다(드묾).
+ */
+const trialLinkable = computed(() => {
+    const tr = trialApp.value;
+    if (!tr) return false;
+    if (tr.status !== 'DRAFT') return true;
+    return tr.paymentTiming === 'PREPAID' && (tr.amount ?? 0) > 0 && app.value?.status !== 'CANCELED';
+});
 
 /* ── 신청 취소(결제 전) ── */
 async function cancel(): Promise<void> {

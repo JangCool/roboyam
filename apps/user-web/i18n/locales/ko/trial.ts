@@ -39,7 +39,7 @@ export default {
         OPERATOR: '운영자가 대신 보내요',
     },
     status: {
-        DRAFT: '준비',
+        DRAFT: '공개 전',
         RECRUITING: '모집 중',
         SELECTING: '뽑는 중',
         RUNNING: '진행 중',
@@ -373,6 +373,10 @@ export default {
         pay: '결제하기',
         openApplication: '신청 건 보기',
         shippingBlocked: '광고 결제가 끝나야 송장을 넣을 수 있어요.',
+        // 공개 전 선결제 모집(광고주 화면 — 선결제 · 금액 > 0 · 결제 건이 심사·결제·입금 대기 · 결제 끝 · 만료 · 반려)
+        draftNotice: '아직 공개 전인 모집이에요. 선결제를 마치면 운영팀이 모집을 열어요.',
+        draftPaid: '선결제를 마쳤어요. 운영팀이 모집을 열면 신청을 받아요.',
+        draftRequestAgain: '결제 건이 닫혀 지금은 결제할 수 없어요. 운영팀에 결제 다시 요청을 부탁하세요 — 새 결제 안내가 오면 여기서 결제할 수 있어요.',
     },
     bizReceivedAt: '{at} 받음',
     bizReturnDue: '반납 기한 {date}',

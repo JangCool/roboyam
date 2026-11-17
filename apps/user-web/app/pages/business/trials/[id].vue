@@ -9,6 +9,8 @@
           온라인 결제 대기이고 `payOnline` 이면 [결제하기](신청 건 `/business/applications/{id}?pay=1` — 그 화면이 결제창을 연다), 그 밖 신청 건이 있으면 [신청 건 보기](입금 안내 등).
           `shippingAllowed` false 면 [송장 넣기]를 막고 안내(서버 409 `TRIAL_PAYMENT_PENDING` — 문구를 보이고 다시 읽는다). 운영자가 취소한 줄은 「운영자가 취소했어요」 + 단추 없음.
           결제 방식(V244 `payment.timing`): 제목 옆 딱지(선결제 · 뽑기 뒤 결제) + 선결제면 「모집 인원 기준 금액 · 덜 모여도 차액 환불 없음」, 상태 안내도 결제 방식마다(`notePrepaid`).
+        공개 전 선결제 모집(`status` DRAFT — 계약 「후속 고치기」, 서버 `TrialPayments.advertiserSeesDraft`): 딱지 「공개 전」, 신청자·뽑힌 사람 구획과 신청 수를 숨기고(서버도 빈 배열) 결제 구획만.
+          공개 전 안내(결제를 마치면 운영팀이 연다 · 결제 끝이면 「운영팀이 열면 신청을 받아요」), 결제 기한 만료·반려면 「운영팀에 결제 다시 요청을 부탁하세요」.
         서버 오류는 대화상자 안(칸 오류는 칸 아래)·목록 한 줄 실패는 토스트.
     -->
     <div class="content-card flex flex-col gap-4" data-testid="business-trial-detail">
@@ -32,7 +34,7 @@
                 <h1 class="m-0 text-lg font-bold">{{ trial!.title }}</h1>
                 <p class="m-0 flex flex-wrap gap-x-3 text-xs tabular-nums text-muted-color">
                     <span>{{ trial!.productName }} · {{ UtilTrialMessages.won(t, trial!.productPrice, locale) }}</span>
-                    <span>{{ t('trial.bizApplicants', { n: view.applicants.items.length, total: trial!.recruitCount }) }}</span>
+                    <span v-if="!isDraft">{{ t('trial.bizApplicants', { n: view.applicants.items.length, total: trial!.recruitCount }) }}</span>
                     <span>{{ t('trial.periodLine', { from: time.full(trial!.applyStartAt), to: time.full(trial!.applyEndAt) }) }}</span>
                 </p>
             </header>
@@ -51,9 +53,16 @@
                     <span v-else-if="trial!.payment.deadlineAt" class="text-muted-color">{{ t('trial.bizPayment.deadline', { at: time.full(trial!.payment.deadlineAt) }) }}</span>
                 </p>
                 <p class="m-0 text-xs text-muted-color">{{ trial!.payment.timing === 'PREPAID' ? t(`trial.bizPayment.notePrepaid.${trial!.payment.status}`) : t(`trial.bizPayment.note.${trial!.payment.status}`) }}</p>
+                <!-- 공개 전 선결제 모집 — 결제 건이 닫혔으면(만료·반려) 운영팀에 다시 요청, 아니면 공개 전 안내 -->
+                <template v-if="isDraft">
+                    <Message v-if="draftClosed" severity="warn" size="small" :closable="false" data-testid="business-trial-draft-request-again">{{ t('trial.bizPayment.draftRequestAgain') }}</Message>
+                    <Message v-else severity="info" size="small" :closable="false" data-testid="business-trial-draft-notice">
+                        {{ trial!.payment.status === 'PAID' ? t('trial.bizPayment.draftPaid') : t('trial.bizPayment.draftNotice') }}
+                    </Message>
+                </template>
                 <div v-if="trial!.payment.bizApplicationId && trial!.payment.status !== 'NOT_REQUIRED'" class="flex flex-wrap gap-2">
                     <Button
-                        v-if="trial!.payment.status === 'AWAITING_PAYMENT' && trial!.payment.payOnline"
+                        v-if="trial!.payment.payOnline"
                         as="router-link"
                         :to="{ path: UtilBusiness.applicationPath(trial!.payment.bizApplicationId), query: { pay: '1' } }"
                         :label="t('trial.bizPayment.pay')"
@@ -75,7 +84,7 @@
             </section>
 
             <!-- ① 신청자 -->
-            <section v-if="view.applicants.items.length" class="flex flex-col gap-2" :aria-labelledby="applicantsId">
+            <section v-if="!isDraft && view.applicants.items.length" class="flex flex-col gap-2" :aria-labelledby="applicantsId">
                 <h2 :id="applicantsId" class="m-0 text-base font-bold">{{ t('trial.bizApplicantsTitle', { n: view.applicants.items.length }) }}</h2>
                 <p class="m-0 text-xs text-muted-color">{{ t('trial.bizRecommendHint') }} {{ t('trial.bizSlots', { reviewer: view.applicants.reviewerSlots, general: view.applicants.generalSlots }) }}</p>
                 <div class="overflow-x-auto rounded-xl border border-surface">
@@ -118,8 +127,8 @@
                 </div>
             </section>
 
-            <!-- ② 뽑힌 사람 -->
-            <section class="flex flex-col gap-2" :aria-labelledby="participantsId">
+            <!-- ② 뽑힌 사람(공개 전이면 없음) -->
+            <section v-if="!isDraft" class="flex flex-col gap-2" :aria-labelledby="participantsId">
                 <h2 :id="participantsId" class="m-0 text-base font-bold">{{ t('trial.bizParticipantsTitle', { n: trial!.participants.length }) }}</h2>
                 <p v-if="trial!.shipper === 'OPERATOR'" class="m-0 text-xs text-muted-color">{{ t('trial.bizOperatorShips') }}</p>
                 <Message v-else-if="!trial!.payment.shippingAllowed" severity="warn" size="small" :closable="false" data-testid="business-trial-shipping-blocked">{{ t('trial.bizPayment.shippingBlocked') }}</Message>
@@ -248,6 +257,11 @@ async function load(): Promise<void> {
     }
 }
 watch(id, () => void load(), { immediate: true });
+
+/** 공개 전 선결제 모집(서버 `TrialPayments.advertiserSeesDraft` — 신청자·뽑힌 사람은 빈 배열, 처리 API 는 404) */
+const isDraft = computed(() => trial.value?.status === 'DRAFT');
+/** 공개 전인데 결제 건이 닫혔다(결제 기한 만료 · 반려) — 운영팀의 「결제 다시 요청」을 기다린다 */
+const draftClosed = computed(() => isDraft.value && (trial.value?.payment.status === 'EXPIRED' || trial.value?.payment.status === 'REJECTED'));
 
 /** 결제 상태 딱지 · 테두리 색 — 결제 완료 초록 · 대기 주황 · 취소 빨강 · 그 밖 흐림 */
 const paymentKind = computed<'ok' | 'wait' | 'bad' | 'none'>(() => {

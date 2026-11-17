@@ -1,6 +1,6 @@
-import type { SponsorHiddenRequest } from '~/composables/review/api/useReviewQueueApi.types';
+import type { ReviewQueueItem, SponsorHiddenRequest } from '~/composables/review/api/useReviewQueueApi.types';
 import type { SanctionLine } from '~/composables/sanction/api/useSanctionApi.types';
-import type { TrialDamageVerdict, AdminTrialDamageReport, TrialMember, TrialPhoto } from '~/composables/trial/api/useTrialApi.types';
+import type { TrialDamageVerdict, AdminTrialDamageReport, TrialPhoto } from '~/composables/trial/api/useTrialApi.types';
 
 /** 파손 판정 대화상자가 보이는 비교 거리 — 신고 + 보내기 전(입고·발송 전) 사진 + 반납 뒤 사진 */
 export interface ReviewQueueDamageView {
@@ -26,8 +26,11 @@ export interface ReviewQueueActions {
     /** 협찬 숨김 확인(협찬 고정 + 글쓴이 제재 곁들이기 — 점검 D2) → 곁들인 제재 줄(없으면 null) */
     confirmSponsor: (postId: string, body: SponsorHiddenRequest) => Promise<SanctionLine | null>;
     dismissSponsor: (postId: string, note: string) => Promise<void>;
-    /** 협찬 숨김 확인을 열 때 글쓴이 제재 현황을 받는다(익명·탈퇴는 null) — 결과는 목록의 `sponsorSanction` 속성으로 */
-    openSponsorAuthor: (member: TrialMember | null) => void;
+    /**
+     * 협찬 숨김 확인을 열 때 글쓴이 제재 현황을 받는다 — 회원 글은 `member.id`(`?userId=`), 익명 글은 `refs.anonymousPostId`(봉인 미리보기 `?anonymousPostId=`),
+     * `refs.sanctionable` "false"(비회원·탈퇴·파기)면 받지 않는다. 결과는 목록의 `sponsorSanction` 속성으로
+     */
+    openSponsorAuthor: (row: ReviewQueueItem) => void;
     retrySponsorAuthor: () => void;
     /** 처리 뒤·충돌 뒤 다시 받기 */
     reload: () => Promise<void>;

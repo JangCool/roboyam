@@ -38,7 +38,7 @@ export default {
         OPERATOR: 'Shipped by the site',
     },
     status: {
-        DRAFT: 'Draft',
+        DRAFT: 'Not public yet',
         RECRUITING: 'Recruiting',
         SELECTING: 'Selecting',
         RUNNING: 'In progress',
@@ -365,6 +365,9 @@ export default {
         pay: 'Pay now',
         openApplication: 'View request',
         shippingBlocked: 'Add tracking after the ad payment is done.',
+        draftNotice: 'This campaign is not public yet. The team opens it once the prepayment is done.',
+        draftPaid: 'Prepayment is done. Applications open once the team publishes the campaign.',
+        draftRequestAgain: 'The payment request is closed, so you can’t pay right now. Ask the team to request payment again — you can pay here once the new request arrives.',
     },
     bizReceivedAt: 'Received {at}',
     bizReturnDue: 'Return due {date}',

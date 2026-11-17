@@ -7,6 +7,7 @@
           반납 확인 — 모집(→ 모집 상세) · [모집에서 반납 받기](→ 모집 상세 입고·발송 탭 — 서버가 반납 사진을 꼭 받으므로 사진을 올리는 그 자리에서 처리)
           파손 신고 — 모집 · 회원 이의(없으면 신고 설명) · [판정](모집 상세에서 신고·사진을 받아 사진 비교 — 보내기 전 ↔ 반납 뒤 ↔ 신고 · 판정표 4종 + 메모)
           협찬 숨김 — 글 · 신고 수 · [확인](협찬으로 고정 + 글쓴이 제재 곁들이기 — 신고 처리와 같은 제재 구획 `ReportSanctionSection` · 무시, 점검 D2)
+            익명 글은 봉인 미리보기(`refs.anonymousPostId`)로 단계를 고르고 닉네임 확인 없이 보낸다(서버가 봉인 제재) · `refs.sanctionable` "false"(비회원·탈퇴·파기)면 제재 불가 안내
         사진은 비공개(V243) — `TrialPhotoImage` 가 받아 그린다(파기된 사진은 자리 표시).
         그새 다른 사람이 처리했으면(409·404·403) 토스트 + 다시 받기. 처리 권한이 없으면 단추를 감춘다(`canTitle`·`canTrial` · 반납 받기는 `canReturn` — trial.manage·ad.manage, 점검 D12).
     -->
@@ -153,7 +154,7 @@
                     :reason-touched="sponsorAttach.reasonTouched.value"
                     :reason-error="sponsorAttach.reasonError.value"
                     :step-field-errors="sponsorAttach.stepFieldErrors.value"
-                    :with-help="t('trial.queue.sponsorSanctionHelp')"
+                    :with-help="sponsorTarget.refs.anonymous === 'true' ? t('trial.queue.sponsorSanctionHelpAnonymous') : t('trial.queue.sponsorSanctionHelp')"
                     :not-eligible="t('trial.queue.sponsorNoAuthor')"
                     @update:reason="sponsorAttach.onReason"
                     @retry="actions.retrySponsorAuthor()"
@@ -393,7 +394,7 @@ function openSponsor(row: ReviewQueueItem): void {
     dialogError.value = '';
     sponsorTried.value = false;
     sponsorFieldErrors.value = {};
-    props.actions.openSponsorAuthor(row.member);
+    props.actions.openSponsorAuthor(row);
     sponsorAttach.reset();
     sponsorOpen.value = true;
 }

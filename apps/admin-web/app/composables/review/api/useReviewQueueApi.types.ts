@@ -25,7 +25,11 @@ export interface ReviewQueueItem {
     /** 처리할 것은 들어온 때, 처리된 것은 처리한 때 */
     at: string | null;
     note: string | null;
-    /** 칭호 `titleKey` · 구매 인증 `postId`·`boardSlug` · 반납 확인 `trialId` · 파손 신고 `trialId`·`participantId` · 협찬 숨김 `postId`·`boardSlug`·`reportCount` */
+    /**
+     * 칭호 `titleKey` · 구매 인증 `postId`·`boardSlug` · 반납 확인 `trialId` · 파손 신고 `trialId`·`participantId` ·
+     * 협찬 숨김 `postId`·`boardSlug`·`reportCount`·`anonymous`("true"|"false")·`sanctionable`("true"|"false" — 작성 회원이 있고 파기 안 됨)·
+     * `anonymousPostId`(익명 글이고 제재할 수 있을 때만 = 글 ID — 봉인 미리보기 `GET /api/admin/sanctions/preview?anonymousPostId=`)
+     */
     refs: Record<string, string>;
 }
 

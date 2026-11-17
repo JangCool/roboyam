@@ -18,7 +18,8 @@ import type {
 
 /**
  * 광고 결제 상태(서버 `TrialViews.Payment.status` — V242·V244 「유료 결제 연결」). 선결제만: 견적 전(`AWAITING_QUOTE_REQUEST`) · 결제 기한 만료(`EXPIRED`) · 반려(`REJECTED`)
- * — 초안 모집은 광고주 화면에 없어 거의 보이지 않는다(공개 뒤 광고 쪽이 닫히면 모집이 취소된다)
+ * — 만료·반려는 공개 전 선결제 모집(`status` DRAFT)에서 보인다(공개 뒤 광고 쪽이 닫히면 모집이 취소된다). 광고주 화면의 초안은 선결제 · 금액 > 0 · 결제 건이
+ * 심사 대기·결제 대기·입금 대기·결제 끝·만료·반려일 때만(서버 `TrialPayments.advertiserSeesDraft`) — 견적 전·취소 초안은 오지 않는다
  */
 export type BizTrialPaymentStatus =
     | 'BEFORE_SELECTION'
