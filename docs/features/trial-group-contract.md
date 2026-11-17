@@ -98,3 +98,18 @@
 12. **리뷰어 단계** = 약속 지킨 횟수(기한 안 연결 사용기 + 대여형이면 반납까지) 3·10·30 → 동·은·금. 칭호 `member_titles` 의 리뷰어 단계를 그때 올린다(체험단 서비스가 칭호 서비스를 부른다). 리뷰어 몫·먼저 신청은 이 단계로 판정.
 13. **포인트**: 구매 인증 승인 = 원장 새 사유 `PURCHASE_PROOF`(EARN, 대상 글, 글마다 한 번, 하루 총 한도 밖) — 경험치에 더함. 체험단 사용기는 게시판 등급 포인트 그대로.
 14. **알림**(회원): `TRIAL_SELECTED`·`TRIAL_NOT_SELECTED`·`TRIAL_SHIPPED`·`TRIAL_REVIEW_DUE`·`TRIAL_RETURN_DUE`·`TRIAL_UNRETURNED`·`TRIAL_DAMAGE_REPORTED`·`TRIAL_DAMAGE_DECIDED`·`PURCHASE_PROOF_APPROVED`·`PURCHASE_PROOF_REJECTED`. 감사 기록: 모집 만들기·뽑기·발송·반납·파손 판정·구매 인증 판정·개인정보 제공(광고주) — 개인정보 제공은 개인정보 보관 분류.
+
+## 서버 구현 결과 (2026-11-17, shared `V241__trials.sql` · admin `V12__admin_menu_trials.sql`)
+- 「구현 결정」과 다른 점
+  - 신청 동의는 jsonb 목록 `consents`(PROVIDE_CONTACT·UNRETURNED_CONTACT·PRODUCT_CHARGE·DAMAGE_CHARGE). 필요한 목록은 보내는 쪽·형태로 정해지고 보낸 목록이 정확히 같아야 한다(아니면 400). 광고주 발송 = PROVIDE_CONTACT(+ 대여형이면 PRODUCT_CHARGE·DAMAGE_CHARGE), 운영자 발송 = 대여형만 UNRETURNED_CONTACT·PRODUCT_CHARGE·DAMAGE_CHARGE, 제공형은 없음.
+  - `trial_damage_reports.status` REPORTED·OBJECTED·AWAITING(이의 기한 지남)·DECIDED 칸, 협찬 숨김 확인 상태 표 `trial_sponsor_reviews` 를 더했다.
+  - `posts` 가 파티션 표라 `trial_participant_id` 유일 색인 대신 `trial_participants.review_post_id` 유일 색인 + 줄 잠금으로 「줄 하나에 글 하나」를 막는다.
+  - 모집 상태 바꾸기 = `PUT /api/admin/trials/{id}` 본문 `{ action: PUBLISH|CLOSE_APPLY|CLOSE|CANCEL }`.
+  - 광고 신청 건(kind TRIAL)은 늘 SUBMITTED·운영자 등록, 뽑기 뒤 견적 칸만 굳힌다. 광고 심사 큐에 안 보이고 상세는 404.
+  - `TRIAL_REVIEW_DUE` 알림은 미리 알림이 아니라 기한을 넘겼을 때. 표시 문구 자리표시 `{광고주}`·`{제공/대여}`.
+  - 광고주의 발송·반납 받음·파손 신고는 보내는 쪽이 ADVERTISER 인 모집만(아니면 409 `TRIAL_WRONG_SHIPPER`).
+- 추가 API: `GET /api/me/trials/writable?board=`(사용기로 쓸 뽑힌 체험단) · 매니저 `GET /api/boards/{slug}/staff/purchase-proofs/{id}/photo` · 관리자 `POST /api/admin/trials/images`·`POST /api/admin/trials/{id}/photos?kind=` · `POST /api/admin/review-queue/sponsor-hidden/{postId}/confirm|dismiss`.
+- 권한: 모집·입고·발송 `trial.manage` 또는 `ad.manage` · 파손 판정·구매 인증·협찬 숨김 `trial.review` · 설정 `trial.settings` 또는 `ad.settings` · 확인할 일 목록 `title.review`·`title.read`·`trial.review` 중 하나. V241 이 `trial.manage`·`trial.review` 를 ad.manage 가진 역할에, `trial.settings` 를 ad.settings 가진 역할에 준다. 리뷰어 칭호 조건에 `PURCHASE_PROOFS ≥1` 을 더했다.
+- 가정: 받음 자동 = 송장 + 7일, 파손 이의 기한 7일·과실 금지 90일 고정, 대여형 주소 사본 파기 = 반납 7일 뒤(열린 파손 없을 때), 이름·연락처 넘긴 줄은 30일 뒤. 리뷰어 몫이 차면 남는 리뷰어 신청자는 일반 몫. 체험단 말머리 행은 첫 사용기 때 서버가 만든다.
+- 못 한 것: 유료 체험단 결제 흐름(금액 > 0 이면 견적만) · 협찬 숨김 확인 뒤 자동 제재 없음 · 입고 부족 광고주 알림 없음 · 운영자 주소 열람 감사 없음 · 입고·반납·파손 사진은 공개 저장소(구매 인증 사진만 암호문) · 섞인 목록(최신·인기) 줄엔 구입 경로 칸 없음 · 데모 팩 미갱신.
+- 시험: api `TrialApiTest` 16건 · admin `TrialAdminHttpTest` 5건 통과.
