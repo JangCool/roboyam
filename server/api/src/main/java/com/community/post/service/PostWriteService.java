@@ -45,6 +45,7 @@ import com.community.post.exception.PostProtectedException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.service.PostContentFields.Cleaned;
+import com.community.trial.service.TrialPostLinker;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.exception.ValidationException;
@@ -119,13 +120,16 @@ public class PostWriteService {
     private final PostWriteRules rules;
     private final PostThumbnailChoices thumbnails;
     private final PostTagStore tagStore;
+    /** 구입 경로·체험단 사용기 연결(V241 — trial-group-contract) */
+    private final TrialPostLinker purchases;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
                             DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
-                            PostThumbnailChoices thumbnails, PostTagStore tagStore, PlatformTransactionManager txManager) {
+                            PostThumbnailChoices thumbnails, PostTagStore tagStore, TrialPostLinker purchases, PlatformTransactionManager txManager) {
+        this.purchases = purchases;
         this.rules = rules;
         this.tagStore = tagStore;
         this.thumbnails = thumbnails;
@@ -182,7 +186,10 @@ public class PostWriteService {
         ThumbnailChoice thumb = authorThumbnail(body.thumbnail(), actor.guest(), false, b, c.body().imageIds(), actor.guest() ? null : actor.userId(), null, fields);
         List<String> tags = checkTags(body.tags(), b, fields); // 태그 — 게시판 tagsEnabled 일 때만(아니면 무시), 칸 오류는 fields.tags
         List<PostSource> sources = checkSources(body.sources(), b, fields); // 출처 — 게시판 sourcesEnabled 일 때만(아니면 무시 — 빈 값), 칸 오류는 fields.sources(V232)
-        PostWriteRules.checkRequired(b, c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 fields.prefix · 태그 필수 fields.tags(V226)
+        // 구입 경로·체험단 연결(V241) — 받지 않는 게시판이면 무시, 칸 오류는 fields.purchaseSource · fields.trialParticipantId · fields.prefixId(체험단 말머리는 서버만)
+        TrialPostLinker.Decision purchase = purchases.checkForCreate(b, actor.guest() ? null : actor.userId(), body.purchaseSource(), body.trialParticipantId(), c.prefixId(),
+                fields);
+        PostWriteRules.checkRequired(b, purchase.trial() ? Long.valueOf(0L) : c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 fields.prefix · 태그 필수 fields.tags(V226) — 체험단 글은 서버가 말머리를 단다
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -216,18 +223,21 @@ public class PostWriteService {
         long id = ids.nextId();
         String hash = passwordHash;
         boolean secret = secretOnCreate(b, body.secret());
+        Long prefixId = purchase.trial() ? Long.valueOf(purchases.ensureTrialPrefix(b)) : c.prefixId(); // 체험단 사용기는 말머리 「체험단」을 서버가 단다(V241)
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
             rules.checkRate(s, authorId, ip, title, content.plain(), now, false);
             String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
-            PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
+            PostEntity created = PostEntity.create(id, b.id(), prefixId, authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
                     c.hasImage(), now);
             created.initOps(secret, b.statusEnabled()); // 비밀글 · 처음 처리 상태(상태를 쓰는 게시판이면 RECEIVED) — V166
             created.changeSources(savedSources); // 출처 목록(V232 — 게시판 sourcesEnabled 가 꺼져 있으면 null)
+            purchases.applyOnCreate(created, purchase); // 구입 경로 · 체험단 연결(V241)
             if (b.anonymous() && authorId != null) {
                 created.markAnonymous(); // 익명 게시판 — 쓸 때의 게시판 설정(V184, anonymous-board-contract 정책 2). 비회원은 위 판정이 401 로 막았다
             }
             posts.persist(created);
+            purchases.afterCreate(created, purchase, now); // 체험단 줄에 글을 잇고 받음·약속 판정(V241 — 같은 트랜잭션, 이미 이어졌으면 400)
             if (savedTags != null && !savedTags.isEmpty()) {
                 tagStore.replace(created, savedTags, now);
             }
@@ -481,6 +491,9 @@ public class PostWriteService {
         List<String> tags = checkTags(body.tags(), b, fields);
         // 출처 — 칸이 없으면(null) 그대로, 빈 목록이면 모두 지우기. 게시판 sourcesEnabled 일 때만(아니면 무시 — 그대로). 소모임 글은 받지 않는다(V232)
         List<PostSource> sources = post.isGroupPost() ? null : checkSources(body.sources(), b, fields);
+        // 구입 경로(V241) — 칸이 없으면 그대로, 체험단 연결 글은 TRIAL 고정. 소모임 글은 받지 않는다
+        TrialPostLinker.Decision purchase = post.isGroupPost() ? null : purchases.checkForUpdate(b, post, body.purchaseSource(),
+                post.getTrialParticipantId() != null ? null : c.prefixId(), fields);
         // 말머리 필수 · 태그 필수(V226) — 태그 칸을 보내지 않았으면(그대로) 지금 단 태그 수로 본다
         if (b.prefixRequired() || b.tagRequired()) {
             int tagCount = tags != null ? tags.size() : body.tags() == null && b.tagRequired() ? tagStore.of(post.getId()).size() : 0;
@@ -532,7 +545,9 @@ public class PostWriteService {
             if (thumb != null) {
                 thumbnails.applyAuthor(locked.getId(), locked.getAuthorId(), thumb.mode(), thumb.imageId(), thumb.fileId(), now); // 본문 이미지를 맞춘 뒤 — 409 면 글도 고치지 않는다
             }
-            locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
+            locked.edit(locked.getTrialParticipantId() != null ? locked.getPrefixId() : c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(),
+                    now); // 체험단 사용기는 말머리 「체험단」을 지울 수 없다(V241)
+            purchases.applyOnUpdate(locked, purchase);
             locked.changeSecret(secretOnUpdate(b, locked, body.secret())); // 비밀글 — OPTIONAL 이면 글쓴이가 고르고, ALWAYS 는 비밀, OFF 는 그대로(V166)
             if (savedTags != null) {
                 tagStore.replace(locked, savedTags, now); // 빈 목록이면 모두 지운다

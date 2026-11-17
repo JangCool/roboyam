@@ -168,7 +168,10 @@ public class BoardCatalog implements CacheReloader {
                 adultOnly,
                 // 출처 칸 쓰기(V232) — 게시판 값 ?? 기본값
                 or(p.sourcesEnabled(), d.sourcesEnabled()),
-                or(p.indexable(), d.indexable()), or(p.searchable(), d.searchable()), or(p.inHome(), d.inHome()));
+                or(p.indexable(), d.indexable()), or(p.searchable(), d.searchable()), or(p.inHome(), d.inHome()),
+                // 구입 경로 받기 · 체험단 사용기 받기(V241) — 일반 게시판만(그 밖 늘 끔)
+                BoardFields.KIND_GENERAL.equals(b.getKind()) ? or(p.purchaseSourceMode(), d.purchaseSourceMode()) : BoardFields.PURCHASE_OFF,
+                BoardFields.KIND_GENERAL.equals(b.getKind()) && or(p.trialReviewsEnabled(), d.trialReviewsEnabled()));
     }
 
     private static <T> T or(T value, T fallback) {

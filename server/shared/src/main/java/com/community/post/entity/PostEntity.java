@@ -102,8 +102,31 @@ public class PostEntity {
     /** 출처 목록(V232 — JSON 배열 {@code [{name,url}]} 문자열, 없으면 null). 게시판 정책 「출처 칸 쓰기」가 켜진 게시판의 글만 — 정리·검사는 {@code PostSources} */
     @JdbcTypeCode(SqlTypes.JSON)
     private String sources;
+    /** 구입 경로(V241 — trial-group-contract): TRIAL 체험단 · SELF 직접 구매 · SPONSORED 협찬 · BORROWED 대여, 받지 않는 게시판·고르지 않은 글은 null */
+    private String purchaseSource;
+    /** 연결된 체험단 뽑힌 줄(V241) — 있으면 구입 경로는 TRIAL 고정, 한 줄에 글 하나 */
+    private Long trialParticipantId;
 
     protected PostEntity() {
+    }
+
+    /** 구입 경로를 바꾼다(체험단 연결이 있으면 TRIAL 만) — 협찬 숨김 확인(운영자)이 SPONSORED 로 바꿀 때 연결은 그대로 둔다(연결 글은 바꾸지 않는다) */
+    public void changePurchaseSource(String source) {
+        this.purchaseSource = source;
+    }
+
+    /** 체험단 줄과 잇는다(구입 경로 TRIAL 고정) */
+    public void linkTrial(long participantId) {
+        this.trialParticipantId = participantId;
+        this.purchaseSource = "TRIAL";
+    }
+
+    public String getPurchaseSource() {
+        return purchaseSource;
+    }
+
+    public Long getTrialParticipantId() {
+        return trialParticipantId;
     }
 
     /** 출처 목록을 바꾼다(정리한 JSON 배열 문자열 — {@code PostSources#toJson}, 없으면 null). 새 글은 {@code persist} 전에 부른다 */

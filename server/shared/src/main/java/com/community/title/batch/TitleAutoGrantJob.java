@@ -228,7 +228,7 @@ public class TitleAutoGrantJob implements BatchJob {
                 Optional<Long> board = posts == null ? Optional.empty() : TitleEligibility.board(posts, s);
                 yield board == null ? List.of() : queries.postCandidates(board.orElse(null), afterUser, min, limit);
             }
-            case TRIAL_KEPT -> List.of(); // 체험단 기능 전 — 셀 것이 없다
+            case TRIAL_KEPT -> queries.trialKeptCandidates(afterUser, min, limit); // 체험단 약속 지킴(V241)
         };
     }
 

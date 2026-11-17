@@ -181,7 +181,13 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
      */
     public Page page(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean oldest, boolean excludePinned, boolean adultViewer,
                      long offset, int limit, Instant now) {
-        BooleanExpression where = pageWhere(boardId, prefixId, status, tagKey, q, excludePinned, adultViewer, now);
+        return page(boardId, prefixId, status, tagKey, null, q, oldest, excludePinned, adultViewer, offset, limit, now);
+    }
+
+    /** 글 목록 한 쪽 — 구입 경로 거르기까지({@code purchase} PROOF · NO_TRIAL, null = 전체 — V241 {@link com.community.trial.service.TrialPostLinker#filter}) */
+    public Page page(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String purchase, String q, boolean oldest, boolean excludePinned,
+                     boolean adultViewer, long offset, int limit, Instant now) {
+        BooleanExpression where = pageWhere(boardId, prefixId, status, tagKey, purchase, q, excludePinned, adultViewer, now);
         Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
         if (total == null || total == 0 || offset >= total) {
             return new Page(List.of(), total == null ? 0 : total);
@@ -199,7 +205,13 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
      */
     public OptionalLong before(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean oldest, boolean excludePinned,
                                boolean adultViewer, long postId, Instant now) {
-        BooleanExpression where = pageWhere(boardId, prefixId, status, tagKey, q, excludePinned, adultViewer, now);
+        return before(boardId, prefixId, status, tagKey, null, q, oldest, excludePinned, adultViewer, postId, now);
+    }
+
+    /** {@link #before} — 구입 경로 거르기까지(V241) */
+    public OptionalLong before(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String purchase, String q, boolean oldest, boolean excludePinned,
+                               boolean adultViewer, long postId, Instant now) {
+        BooleanExpression where = pageWhere(boardId, prefixId, status, tagKey, purchase, q, excludePinned, adultViewer, now);
         if (query.selectOne().from(POST).where(where, POST.id.eq(postId)).fetchFirst() == null) {
             return OptionalLong.empty();
         }
@@ -208,7 +220,7 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
     }
 
     /** 글 목록 조건 — {@link #page} · {@link #before} 가 같이 쓴다 */
-    private static BooleanExpression pageWhere(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String q, boolean excludePinned,
+    private static BooleanExpression pageWhere(long boardId, Long prefixId, PostProcessStatus status, String tagKey, String purchase, String q, boolean excludePinned,
                                                boolean adultViewer, Instant now) {
         BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now)).and(adultVisible(POST, adultViewer));
         if (prefixId != null) {
@@ -219,6 +231,10 @@ public class PostRepositoryQDSL extends IrobitRepositoryQDSL {
         }
         if (tagKey != null) {
             where = where.and(PostTagQueries.hasTag(POST, tagKey));
+        }
+        BooleanExpression purchaseFilter = com.community.trial.service.TrialPostLinker.filter(POST, purchase);
+        if (purchaseFilter != null) {
+            where = where.and(purchaseFilter);
         }
         if (excludePinned) {
             where = where.and(POST.pinnedAt.isNull());

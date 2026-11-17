@@ -18,6 +18,8 @@ public enum MenuBuiltin {
     POPULAR("GENERAL", "/popular", true, false, false),
     LATEST("GENERAL", "/latest", true, false, false),
     SEARCH("GENERAL", "/search", true, false, false),
+    /** 체험단 페이지(trial-group-contract 「사용기 쓰는 곳」 — 모집 중·진행 중·끝난 모집, 상세 /trials/{id} 도 이 메뉴로 본다) */
+    TRIALS("GENERAL", "/trials", true, false, false),
     GROUP_BUYS("GROUP_BUY", "/group-buys", true, false, true),
     GROUP_BUY_ORDERS("GROUP_BUY", "/me/orders", true, true, true),
     GROUPS_ALL("GROUPS", "/groups", true, false, false),

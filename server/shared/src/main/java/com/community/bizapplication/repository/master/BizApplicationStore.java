@@ -179,6 +179,33 @@ public class BizApplicationStore extends IrobitRepositoryQDSL {
         return no;
     }
 
+    /** 체험단 모집 건(V241)을 넣고 화면 번호를 돌려준다 — 광고주 이름(필수 칸 ck_ba_source_operator) · 신청 기간(분 단위) · 금액 0 */
+    public String insertTrial(long id, Long businessProfileId, long advertiserId, String advertiserName, String companyName, String bizNoLast4, String title,
+                              Instant startAt, Instant endAt, long createdBy, Instant now) {
+        String no = nextNo(now);
+        JpaStoreWrites.insert(entityManager, BizApplicationEntity.trial(id, no, businessProfileId, advertiserId, advertiserName, companyName, bizNoLast4, title, startAt,
+                endAt, createdBy, now));
+        return no;
+    }
+
+    /** 체험단 모집 건 고치기 — 제목·기간(뽑기 전) */
+    public void retitleTrial(long id, String title, Instant startAt, Instant endAt, Instant now) {
+        query.update(A).set(A.title, title).set(A.startAt, startAt).set(A.endAt, endAt).set(A.updatedAt, now)
+                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL)).execute();
+    }
+
+    /** 체험단 모집 건의 금액 확정(뽑기 뒤 — 견적 칸에 굳힌다. 0원이면 0) */
+    public void quoteTrial(long id, Amount quote, Instant now) {
+        query.update(A).set(A.quoteSupply, quote.supply()).set(A.quoteVat, quote.vat()).set(A.quoteTotal, quote.total()).set(A.updatedAt, now)
+                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL)).execute();
+    }
+
+    /** 체험단 모집 취소 — 건도 취소(심사 대기에서만) */
+    public void cancelTrial(long id, Instant now) {
+        query.update(A).set(A.status, BizApplicationStatus.CANCELED).set(A.closedAt, now).set(A.updatedAt, now)
+                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL), A.status.eq(BizApplicationStatus.SUBMITTED)).execute();
+    }
+
     /**
      * 화면 번호 {@code BA-<한국 날짜 연도>-<일련번호 5자리>}. Native SQL 인 이유: 일련번호가 DB 시퀀스({@code biz_application_no_seq})다 — 서버가 여러 대여도 겹치지 않는다
      * ({@code lpad} 는 5자리를 넘으면 자른다 — 예전과 같은 문장).

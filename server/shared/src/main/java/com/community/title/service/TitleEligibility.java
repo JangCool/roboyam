@@ -82,6 +82,10 @@ public class TitleEligibility {
                 boolean hidden = queries.hasReportHidden(userId);
                 yield new Check(c.type(), null, null, null, hidden ? 1 : 0, !hidden);
             }
+            case PURCHASE_PROOFS -> {
+                long n = queries.purchaseProofs(userId);
+                yield new Check(c.type(), c.value(), null, null, n, n >= value(c));
+            }
         };
     }
 
@@ -111,7 +115,7 @@ public class TitleEligibility {
     }
 
     /**
-     * 단계 칭호가 세는 수(진행 막대·자동 판정) — 인기글 일수 · 출석 일수 · 첫 {@code POSTS} 조건 게시판의 글 수 · 체험단 약속 지킴(체험단 기능 전에는 0).
+     * 단계 칭호가 세는 수(진행 막대·자동 판정) — 인기글 일수 · 출석 일수 · 첫 {@code POSTS} 조건 게시판의 글 수 · 체험단 약속 지킴(V241 — 기한 안 연결 사용기 + 대여형 반납까지).
      * 단계가 없으면 세는 첫 조건의 수, 세는 조건도 없으면 0.
      */
     public long metric(TitleEntity title, long userId) {
@@ -130,7 +134,7 @@ public class TitleEligibility {
                 Optional<Long> board = posts == null ? Optional.empty() : board(posts, catalog.snapshot());
                 yield board == null ? 0 : queries.posts(userId, board.orElse(null));
             }
-            case TRIAL_KEPT -> 0;
+            case TRIAL_KEPT -> queries.trialKept(userId);
         };
     }
 

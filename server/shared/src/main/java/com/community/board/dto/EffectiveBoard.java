@@ -48,6 +48,8 @@ import java.util.Set;
  *                           그 게시판 글은 모두 19금으로 저장한다. 성인이 아니면 게시판·글·메뉴에서 없는 게시판과 같다
  * @param indexable          검색엔진 색인(게시판 값 ?? 기본값, 기본 켬) — 끄면 공개 게시판 응답·글 응답의 {@code indexable} 이 false 이고 화면이 robots noindex 를 단다
  * @param searchable         통합검색 포함(게시판 값 ?? 기본값, 기본 켬) — 끄면 「전체 게시판」 통합검색에서 뺀다(그 게시판만 고른 검색은 그대로)
+ * @param purchaseSourceMode 「구입 경로 받기」 OFF · OPTIONAL · REQUIRED(게시판 값 ?? 기본값, 기본 OFF — V241, trial-group-contract). 일반 게시판만(그 밖 늘 OFF)
+ * @param trialReviewsEnabled 「체험단 사용기 받기」(게시판 값 ?? 기본값, 기본 false — V241). 모집의 사용기 게시판은 이것이 켜진 게시판 중에서 고른다. 일반 게시판만
  * @param inHome             홈·인기·최신 포함(게시판 값 ?? 기본값, 기본 켬) — 끄면 {@link #excludedFrom} 이 모든 가젯에 참(최신글·인기글 모음과 「전체 게시판」 가젯에서 빠진다)
  *                           세 칸은 관리자 화면에만 있고 공개 쪽이 읽지 않았다(관리자 QA 2026-11-17 F-7)
  */
@@ -63,7 +65,8 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              boolean adsHidden, String secretMode, boolean statusEnabled, String chipPosition, String authorMode,
                              String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc,
                              boolean detailFeedTabsMobile, boolean prefixRequired, boolean tagRequired, boolean adultOnly,
-                             boolean sourcesEnabled, boolean indexable, boolean searchable, boolean inHome) {
+                             boolean sourcesEnabled, boolean indexable, boolean searchable, boolean inHome, String purchaseSourceMode,
+                             boolean trialReviewsEnabled) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;
@@ -71,8 +74,19 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
         authorMode = authorMode == null ? BoardFields.AUTHOR_NICKNAME : authorMode;
         prefixStyle = prefixStyle == null ? BoardFields.PREFIX_STYLE_TEXT : prefixStyle;
         detailList = detailList == null ? BoardFields.DETAIL_LIST_LIST : detailList;
+        purchaseSourceMode = purchaseSourceMode == null ? BoardFields.PURCHASE_OFF : purchaseSourceMode;
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
+    }
+
+    /** 글쓰기에서 구입 경로를 받는가(OPTIONAL·REQUIRED) — 협찬 숨김 신고도 이런 게시판 글에만 */
+    public boolean purchaseSourceAccepted() {
+        return !BoardFields.PURCHASE_OFF.equals(purchaseSourceMode);
+    }
+
+    /** 구입 경로를 꼭 골라야 하는가 */
+    public boolean purchaseSourceRequired() {
+        return BoardFields.PURCHASE_REQUIRED.equals(purchaseSourceMode);
     }
 
     /** 이 게시판 글·댓글·추천 보너스에 포인트를 주는가(유효 {@code pointMode} 가 OFF 가 아니다) */

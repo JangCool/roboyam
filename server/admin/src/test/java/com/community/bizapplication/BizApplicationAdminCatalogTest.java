@@ -92,18 +92,20 @@ class BizApplicationAdminCatalogTest {
             assertThat(screen.permission()).as(e.key()).isEqualTo(e.permission());
             assertThat(screen.labelKey()).as(e.key()).isEqualTo("menu." + e.key());
         }
-        // 묶음 차례: 소모임 → 사업자(인증 심사 · 사업자 목록) → 광고(광고 심사 · 광고 일정표) → 핫딜(핫딜 심사), 묶음 아이콘은 04-ia-review 1-2 표
+        // 묶음 차례: 소모임 → (AI 회원 — V8, 2026-11-10 소모임과 사업자 사이에 들어왔다) → 사업자(인증 심사 · 사업자 목록) → 광고(광고 심사 · 광고 일정표) → 핫딜(핫딜 심사),
+        // 묶음 아이콘은 04-ia-review 1-2 표
         List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
         List<String> labels = normal.stream().map(AdminMenuNode::labelKey).toList();
         int group = labels.indexOf("menu.group");
         assertThat(group).isNotNegative();
-        assertThat(labels.subList(group, group + 4)).containsExactly("menu.group", "menu.business", "menu.ad", "menu.hotdeal");
+        assertThat(labels.subList(group, group + 5)).containsExactly("menu.group", "menu.aiMember", "menu.business", "menu.ad", "menu.hotdeal");
+        group++; // 아래 아이콘 판정은 AI 회원 묶음을 건너뛰고 센다
         assertThat(normal.get(group + 1).icon()).isEqualTo("pi pi-briefcase");
         assertThat(normal.get(group + 2).icon()).isEqualTo("pi pi-megaphone");
         assertThat(normal.get(group + 3).icon()).isEqualTo("pi pi-ticket");
         assertThat(normal.get(group + 1).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("businessReviews", "businesses");
         assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers",
-                "adPlacements");
+                "adPlacements", "adTrials", "adTrialSettings"); // 체험단 두 화면(V241 — trial-group-contract)
         assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
                 "hotdealSuspicions", "hotdealSettings");
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.ad")).isTrue();

@@ -20,6 +20,7 @@ class RestrictionTypeTest {
         assertThat(blockedBy(RestrictionType.POINT_FREEZE)).containsExactlyInAnyOrder(RestrictedFeature.POINT_EARN, RestrictedFeature.POINT_USE, RestrictedFeature.CHARGE);
         assertThat(blockedBy(RestrictionType.GROUP_BUY_BAN)).containsExactly(RestrictedFeature.GROUP_BUY_JOIN);
         assertThat(blockedBy(RestrictionType.CHARGE_BAN)).containsExactly(RestrictedFeature.CHARGE);
+        assertThat(blockedBy(RestrictionType.TRIAL_BAN)).containsExactly(RestrictedFeature.TRIAL_APPLY);
     }
 
     @Test
@@ -29,7 +30,7 @@ class RestrictionTypeTest {
 
     @Test
     void 종류_이름은_DB_CHECK_와_같다() {
-        assertThat(Arrays.stream(RestrictionType.values()).map(Enum::name)).containsExactly("POINT_FREEZE", "GROUP_BUY_BAN", "CHARGE_BAN");
+        assertThat(Arrays.stream(RestrictionType.values()).map(Enum::name)).containsExactly("POINT_FREEZE", "GROUP_BUY_BAN", "CHARGE_BAN", "TRIAL_BAN"); // V241 체험단 신청 금지
         assertThat(Arrays.stream(RestrictionSource.values()).map(Enum::name)).containsExactly("AUTO", "OPERATOR");
     }
 }

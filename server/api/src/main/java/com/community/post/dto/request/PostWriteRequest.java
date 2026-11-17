@@ -23,10 +23,20 @@ import java.util.List;
  *                 (오류 아님, 회원·비회원 모두). 틀리면 400 {@code fields.tags}(post-tags-contract)
  * @param sources  출처 목록({@link PostSource} — 정리 규칙은 {@code PostSources}: 최대 5개 · 이름 40자 · 주소 필수 http(s) 500자 · 같은 주소 하나) — 빼면 없음.
  *                 게시판 정책 {@code sourcesEnabled} 가 꺼져 있으면 무시하고 빈 값으로 저장한다(오류 아님). 틀리면 400 {@code fields.sources}(V232)
+ * @param purchaseSource 구입 경로(V241 — trial-group-contract) SELF · SPONSORED · BORROWED — 게시판 「구입 경로 받기」가 꺼져 있으면 무시, 꼭 골라야 하는 게시판에서 빠지면
+ *                 400 {@code fields.purchaseSource}. 체험단(TRIAL)은 {@code trialParticipantId} 로만
+ * @param trialParticipantId 연결할 내 뽑힌 체험단 줄 — 있으면 구입 경로 TRIAL 고정·말머리 「체험단」 자동, 틀리면 400 {@code fields.trialParticipantId}
  */
 public record PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
                                DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret, PostThumbnailInput thumbnail, List<String> tags,
-                               List<PostSource> sources) {
+                               List<PostSource> sources, String purchaseSource, String trialParticipantId) {
+
+    /** 구입 경로·체험단 연결 칸 없이 */
+    public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
+                            DebateOptionsRequest debate, PollInput poll, DealInput deal, Boolean secret, PostThumbnailInput thumbnail, List<String> tags,
+                            List<PostSource> sources) {
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, deal, secret, thumbnail, tags, sources, null, null);
+    }
 
     /** 출처 칸 없이 */
     public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,

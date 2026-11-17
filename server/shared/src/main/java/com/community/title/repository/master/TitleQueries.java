@@ -50,6 +50,8 @@ public class TitleQueries extends IrobitRepositoryQDSL {
     private static final QPointAttendanceEntity AT = QPointAttendanceEntity.pointAttendanceEntity;
     private static final QAiMemberProfileEntity AI = QAiMemberProfileEntity.aiMemberProfileEntity;
     private static final QOperatorMemberAccountEntity OPS = QOperatorMemberAccountEntity.operatorMemberAccountEntity;
+    private static final com.community.trial.entity.QPurchaseProofEntity PP = com.community.trial.entity.QPurchaseProofEntity.purchaseProofEntity;
+    private static final com.community.trial.entity.QTrialParticipantEntity TP = com.community.trial.entity.QTrialParticipantEntity.trialParticipantEntity;
 
     /** 신고로 숨겨진 글의 숨김 사유(V80·V127 — 운영 숨김 STAFF·판매 정지는 신고가 아니다) */
     public static final List<String> REPORT_HIDDEN_REASONS = List.of("REPORTED", "ILLEGAL", "RIGHTS");
@@ -190,6 +192,25 @@ public class TitleQueries extends IrobitRepositoryQDSL {
         }
         Long n = query.select(P.id.count()).from(P).where(where).fetchOne();
         return n == null ? 0 : n;
+    }
+
+    /** 승인된 사용기 구매 인증 수(V241 — 리뷰어 칭호 조건 「구매 인증 1편 이상」) */
+    public long purchaseProofs(long userId) {
+        Long n = query.select(PP.id.count()).from(PP).where(PP.userId.eq(userId), PP.status.eq(com.community.trial.entity.PurchaseProofStatus.APPROVED)).fetchOne();
+        return n == null ? 0 : n;
+    }
+
+    /** 체험단 약속 지킨 횟수(V241 — 리뷰어 단계: 기한 안 연결 사용기 + 대여형이면 반납까지) */
+    public long trialKept(long userId) {
+        Long n = query.select(TP.id.count()).from(TP).where(TP.userId.eq(userId), TP.kept.isTrue()).fetchOne();
+        return n == null ? 0 : n;
+    }
+
+    /** 체험단 약속 지킴이 {@code min} 이상인 회원(자동 칭호가 TRIAL_KEPT 단계를 쓸 때) */
+    public List<Counted> trialKeptCandidates(long afterUserId, long min, int limit) {
+        NumberExpression<Long> n = TP.id.count();
+        return query.select(TP.userId, n).from(TP).where(TP.kept.isTrue(), candidate(TP.userId, afterUserId)).groupBy(TP.userId).having(n.goe(min))
+                .orderBy(TP.userId.asc()).limit(limit).fetch().stream().map(t -> new Counted(t.get(TP.userId), t.get(n))).toList();
     }
 
     /** 하루 인기글 상위에 든 날 수({@code point_popular_rewards} — 인기글 보상과 같은 뽑기) */

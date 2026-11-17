@@ -32,7 +32,8 @@ public class XpService {
 
     /** 경험치를 더하는 사유 */
     public static final Set<PointReason> GAIN = EnumSet.of(PointReason.POST, PointReason.COMMENT, PointReason.LIKE_BONUS, PointReason.ATTENDANCE,
-            PointReason.ATTENDANCE_STREAK, PointReason.POPULAR, PointReason.POST_RESTORE, PointReason.POST_FEATURED);
+            PointReason.ATTENDANCE_STREAK, PointReason.POPULAR, PointReason.POST_RESTORE, PointReason.POST_FEATURED,
+            PointReason.PURCHASE_PROOF); // 구매 인증 보너스(V241 — trial-group-contract 「구현 결정」 13: 경험치에 더함)
     /** 경험치를 빼는 사유(0 아래로는 안 내려간다) */
     public static final Set<PointReason> LOSS = EnumSet.of(PointReason.POST_REVOKE, PointReason.COMMENT_REVOKE, PointReason.LIKE_BONUS_REVOKE,
             PointReason.POST_FEATURED_REVOKE);

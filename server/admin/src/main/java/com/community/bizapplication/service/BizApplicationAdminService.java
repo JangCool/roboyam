@@ -234,12 +234,21 @@ public class BizApplicationAdminService {
 
     /** 건의 도메인 조회 권한(없는 건은 404 가 먼저) */
     private void canRead(AdminActor actor, long id) {
-        require(actor, reader.app(id).kind().domain().readPermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
+        require(actor, flowApp(id).kind().domain().readPermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
     }
 
     /** 건의 도메인 처리 권한(없는 건은 404 가 먼저) */
     private void canManage(AdminActor actor, long id) {
-        require(actor, reader.app(id).kind().domain().managePermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
+        require(actor, flowApp(id).kind().domain().managePermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
+    }
+
+    /** 심사 흐름을 타는 건 — 체험단 모집 건(kind TRIAL)은 체험단 화면이 다루므로 여기서는 없는 건(404)으로 본다(trial-group-contract 「구현 결정」 1) */
+    private AppRow flowApp(long id) {
+        AppRow app = reader.app(id);
+        if (!app.kind().reviewFlow()) {
+            throw BizApplicationException.notFound();
+        }
+        return app;
     }
 
     private void require(AdminActor actor, Permission permission, String targetType, String targetId) {

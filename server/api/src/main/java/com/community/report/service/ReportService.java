@@ -126,12 +126,16 @@ public class ReportService {
     private final GroupBuyUgcReportService groupBuyReports;
     private final DealStateService dealStates;
     private final PointService points;
+    /** 협찬 숨김 신고 확인 줄(V241 — trial-group-contract) */
+    private final com.community.trial.service.SponsorReviewService sponsorReviews;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
                          SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate,
-                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports, DealStateService dealStates, PointService points) {
+                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports, DealStateService dealStates, PointService points,
+                         com.community.trial.service.SponsorReviewService sponsorReviews) {
+        this.sponsorReviews = sponsorReviews;
         this.points = points;
         this.dealStates = dealStates;
         this.groupBuyReports = groupBuyReports;
@@ -204,7 +208,7 @@ public class ReportService {
         }
         String reason = body.reason();
         // 소모임 사유와 글·댓글 사유는 섞지 않는다. 핫딜 사유는 글 신고에서만 받아 두고 대상 게시판을 본 뒤 다시 거른다(핫딜 게시판 글이 아니면 400 — D4)
-        List<String> allowed = ReportEntity.POST.equals(type) ? ReportReasons.forPost(true) : ReportReasons.forTarget(type);
+        List<String> allowed = ReportEntity.POST.equals(type) ? ReportReasons.POST_ANY : ReportReasons.forTarget(type);
         if (reason == null || !allowed.contains(reason)) {
             fields.put("reason", new MessageRef("board.report.reason"));
         }
@@ -234,6 +238,9 @@ public class ReportService {
         if (ReportReasons.DEAL_ONLY.contains(reason) && !dealPost) {
             throw ValidationException.of("reason", new MessageRef("board.report.reason.dealOnly")); // 핫딜 사유는 핫딜 글에서만(일반 글·댓글 400)
         }
+        if (ReportReasons.SPONSOR_ONLY.contains(reason) && (target.comment() != null || !target.board().purchaseSourceAccepted())) {
+            throw ValidationException.of("reason", new MessageRef("board.report.reason.sponsorOnly")); // 협찬 숨김은 구입 경로를 받는 게시판 글에서만(V241)
+        }
         if (userId.equals(target.authorId())) {
             throw new CannotReportOwnException();
         }
@@ -257,6 +264,9 @@ public class ReportService {
         reportCase.reportAdded(target.post().getId(), target.board().id(), now);
         caseLog.reported(reportCase.getId(), reportId, reason, now);
         reports.flush();
+        if (ReportReasons.SPONSOR_HIDDEN.equals(reason)) {
+            sponsorReviews.reported(target.post().getId()); // 협찬 숨김 — 운영자 확인할 일 목록에 대기로(V241), 자동 숨김 셈 제외
+        }
         if (ReportReasons.DEAL_FALSE_PRICE.equals(reason)) {
             dealStates.fromReport(target.post(), target.board(), actor, s); // D4 — 가격 허위 = 종료 요청 PRICE_CHANGED 1건(자격·한도·중복이면 신고만), 자동 숨김 셈 제외
         }

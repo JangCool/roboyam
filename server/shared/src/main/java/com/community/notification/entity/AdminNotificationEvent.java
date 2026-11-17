@@ -199,6 +199,8 @@ public enum AdminNotificationEvent {
      * 같은 글은 하루 한 건(묶음 키 = 글 ID)
      */
     HOTDEAL_BUSINESS_REVIEW(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals?view=ALL&deal={postId}").collapse(86400)),
+    /** 체험단 운영자 입고 뒤 보관 기한(기본 60일)이 됐는데 광고주 반송이 없다(trial-group-contract 「운영자가 대신 보낼 때」 5) — 착불 반송 안내. 수신은 체험단 처리 권한, 하루 배치 trial-daily */
+    TRIAL_STOCK_KEEP_DUE(spec(BIZ_AD, WARNING).holders(Permission.TRIAL_MANAGE).link("/ads/trials?id={id}")),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());
 

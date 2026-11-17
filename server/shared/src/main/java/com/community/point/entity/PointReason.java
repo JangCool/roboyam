@@ -67,7 +67,9 @@ public enum PointReason {
     /** 우수 글 선정 보상(적립 — V238, point-board-tier-contract). 대상 = 그 글({@code POST}) — 원장 유일로 글마다 한 번. 하루 총 한도 밖, 경험치에 든다 */
     POST_FEATURED,
     /** 우수 글 보상 회수(확정 뒤 글 삭제 — 받은 양만, 0P 바닥). 대상 = 그 글. 경험치에서 뺀다 */
-    POST_FEATURED_REVOKE;
+    POST_FEATURED_REVOKE,
+    /** 사용기 구매 인증 승인 보너스(적립 — V241, trial-group-contract 「구현 결정」 13). 대상 = 그 글({@code POST}) — 원장 유일로 글마다 한 번. 하루 총 한도 밖, 경험치에 든다 */
+    PURCHASE_PROOF;
 
     /** 묶음 출처 전용 코드 — 기존 잔액을 전환한 묶음(V85, D4). 원장 줄이 없으므로 원장 사유가 아니다. 이름은 번들 {@code point.reason.MIGRATION} */
     public static final String MIGRATION_LOT_SOURCE = "MIGRATION";

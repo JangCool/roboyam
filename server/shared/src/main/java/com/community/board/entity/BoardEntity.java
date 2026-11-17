@@ -100,6 +100,9 @@ public class BoardEntity {
     private Boolean tagRequired;
     /** 「출처 칸 쓰기」(V232, NULL = 기본값 따름) — 글에 출처 목록 */
     private Boolean sourcesEnabled;
+    /** 「구입 경로 받기」 OFF·OPTIONAL·REQUIRED · 「체험단 사용기 받기」(V241, NULL = 기본값 따름) — trial-group-contract */
+    private String purchaseSourceMode;
+    private Boolean trialReviewsEnabled;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -235,6 +238,8 @@ public class BoardEntity {
         this.prefixRequired = policy.prefixRequired();
         this.tagRequired = policy.tagRequired();
         this.sourcesEnabled = policy.sourcesEnabled();
+        this.purchaseSourceMode = policy.purchaseSourceMode();
+        this.trialReviewsEnabled = policy.trialReviewsEnabled();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -265,7 +270,7 @@ public class BoardEntity {
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
                 commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit, authorThumbnailEnabled, tagsEnabled, detailFeedTabsPc, detailFeedTabsMobile, prefixRequired,
-                tagRequired, sourcesEnabled);
+                tagRequired, sourcesEnabled, purchaseSourceMode, trialReviewsEnabled);
     }
 
     public Long getId() {

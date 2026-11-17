@@ -52,6 +52,7 @@ public class TitleTexts {
             case POPULAR_DAYS -> messages.get(new MessageRef("title.condition.POPULAR_DAYS", String.valueOf(value(c))), locale);
             case ATTENDANCE_DAYS -> messages.get(new MessageRef("title.condition.ATTENDANCE_DAYS", String.valueOf(value(c))), locale);
             case NO_REPORT_HIDDEN -> messages.get(new MessageRef("title.condition.NO_REPORT_HIDDEN"), locale);
+            case PURCHASE_PROOFS -> messages.get(new MessageRef("title.condition.PURCHASE_PROOFS", String.valueOf(value(c))), locale);
         };
     }
 

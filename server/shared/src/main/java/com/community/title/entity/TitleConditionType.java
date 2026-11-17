@@ -11,6 +11,7 @@ import java.util.Optional;
  *   <li>{@link #POPULAR_DAYS} — 하루 인기글 상위 진입 {@code value} 일 이상({@code point_popular_rewards} 의 날짜 수)</li>
  *   <li>{@link #ATTENDANCE_DAYS} — 출석한 날 {@code value} 일 이상</li>
  *   <li>{@link #NO_REPORT_HIDDEN} — 신고(신고 숨김·불법·권리 침해)로 숨겨진 글이 지금 없다</li>
+ *   <li>{@link #PURCHASE_PROOFS} — 승인된 사용기 구매 인증 {@code value} 편 이상(V241 — 리뷰어 칭호, trial-group-contract)</li>
  * </ul>
  */
 public enum TitleConditionType {
@@ -18,11 +19,12 @@ public enum TitleConditionType {
     POSTS,
     POPULAR_DAYS,
     ATTENDANCE_DAYS,
-    NO_REPORT_HIDDEN;
+    NO_REPORT_HIDDEN,
+    PURCHASE_PROOFS;
 
     /** 수를 세는 조건인가(값 1 이상이 필요하다) */
     public boolean counted() {
-        return this == POSTS || this == POPULAR_DAYS || this == ATTENDANCE_DAYS;
+        return this == POSTS || this == POPULAR_DAYS || this == ATTENDANCE_DAYS || this == PURCHASE_PROOFS;
     }
 
     public static Optional<TitleConditionType> parse(String value) {

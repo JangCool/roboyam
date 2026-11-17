@@ -76,7 +76,7 @@ public class AdPriceRuleAdminService {
     static final long ROUND_UNIT = 10;
     /** 화면 차례 — admin-web 목업과 같다(광고 자리 7 · 핫딜 글 · 핫딜 노출 2) */
     static final List<BizProduct> ORDER = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.HALF_BANNER, BizProduct.WING_BANNER,
-            BizProduct.TEXT_LINE, BizProduct.HOTDEAL_POST, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
+            BizProduct.TEXT_LINE, BizProduct.HOTDEAL_POST, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY, BizProduct.TRIAL);
     private static final String LABEL_KEY_PREFIX = "settingHistory.field.";
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
@@ -139,6 +139,8 @@ public class AdPriceRuleAdminService {
         Map<Long, String> names = historyQueries.operatorNames(editors);
         String deleted = messages.get(new MessageRef("ad.placement.history.operatorDeleted"));
         LocalDate today = ServiceTime.today(clock);
+        Map<Long, BizPriceRuleStore.TrialColumns> trialColumns = rules.trialColumns();
+        BizPriceRuleStore.TrialTerms trialNow = rules.trialTerms(now).orElse(null);
         List<AdPriceRuleAdmin.Rule> out = new ArrayList<>();
         Instant updatedAt = null;
         AdPriceRuleAdmin.Operator updatedBy = null;
@@ -150,7 +152,9 @@ public class AdPriceRuleAdminService {
             List<Schedule> timeline = timelines.get(product);
             List<AdPriceRuleAdmin.Schedule> schedules = timeline.stream().filter(s -> s.effectiveAt().isAfter(now))
                     .map(s -> new AdPriceRuleAdmin.Schedule(Long.toString(s.id()), s.effectiveAt(), s.unitPrice(), s.capacity(), s.maxDays(), s.maxLeadDays(),
-                            operator(s.createdBy(), names, deleted), s.createdAt(), s.updatedAt()))
+                            operator(s.createdBy(), names, deleted), s.createdAt(), s.updatedAt(),
+                            trialColumns.containsKey(s.id()) ? trialColumns.get(s.id()).priceUnit() : null,
+                            trialColumns.containsKey(s.id()) ? trialColumns.get(s.id()).shippingFeePerPerson() : null))
                     .toList();
             List<AdPriceRuleAdmin.RecentChange> recent = new ArrayList<>();
             for (Schedule s : timeline) {
@@ -169,7 +173,9 @@ public class AdPriceRuleAdminService {
             historyQueries.recent(product, RECENT_LIMIT).forEach(row -> recent.add(recentChange(product, row, deleted)));
             recent.sort(Comparator.comparing(AdPriceRuleAdmin.RecentChange::changedAt).reversed());
             out.add(new AdPriceRuleAdmin.Rule(product.name(), rule.perPost() ? "POST" : "DAY", rule.unitPrice(), rule.capacity(), rule.maxDays(), rule.maxLeadDays(),
-                    rule.accepting(), occupancy(product, rule, today), schedules, recent.stream().limit(RECENT_LIMIT).toList()));
+                    rule.accepting(), occupancy(product, rule, today), schedules, recent.stream().limit(RECENT_LIMIT).toList(),
+                    product == BizProduct.TRIAL && trialNow != null ? trialNow.priceUnit() : null,
+                    product == BizProduct.TRIAL && trialNow != null ? Long.valueOf(trialNow.shippingFeePerPerson()) : null));
         }
         var latest = historyQueries.latestRuleChange().orElse(null);
         if (latest != null && (updatedAt == null || latest.history().getChangedAt().isAfter(updatedAt))) {
@@ -234,6 +240,7 @@ public class AdPriceRuleAdminService {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Instant at = effectiveAt(body == null ? null : body.effectiveAt(), now, fields);
         Values after = values(row, body, fields);
+        trialColumns(product, body, fields); // 체험단 단위·발송비 검사(다른 상품은 보내면 400)
         if (at != null && all.stream().anyMatch(s -> s.effectiveAt().equals(at))) {
             fields.put("effectiveAt", new MessageRef("ad.price.effectiveAt.duplicate"));
         }
@@ -242,7 +249,9 @@ public class AdPriceRuleAdminService {
         }
         Values before = valuesBefore(row, all, at, null);
         long id = ids.nextId();
-        rules.insertSchedule(id, product, at, after.unitPrice(), after.capacity(), after.maxDays(), after.maxLeadDays(), actor.operatorId(), now);
+        BizPriceRuleStore.TrialColumns trial = trialColumns(product, body, fields);
+        rules.insertSchedule(id, product, at, after.unitPrice(), after.capacity(), after.maxDays(), after.maxLeadDays(), trial == null ? null : trial.priceUnit(),
+                trial == null ? null : trial.shippingFeePerPerson(), actor.operatorId(), now);
         List<AdPlacementHistory.Change> changes = new ArrayList<>();
         scheduleChanges(changes, product, before, after, null, at);
         record(actor, BizPriceRuleHistoryEntity.ACTION_CREATE, null, now, changes);
@@ -264,6 +273,7 @@ public class AdPriceRuleAdminService {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Instant at = effectiveAt(body == null ? null : body.effectiveAt(), now, fields);
         Values after = values(row, body, fields);
+        BizPriceRuleStore.TrialColumns trial = trialColumns(product, body, fields);
         if (at != null && all.stream().anyMatch(s -> s.id() != old.id() && s.effectiveAt().equals(at))) {
             fields.put("effectiveAt", new MessageRef("ad.price.effectiveAt.duplicate"));
         }
@@ -271,6 +281,9 @@ public class AdPriceRuleAdminService {
             throw new ValidationException(fields);
         }
         Values before = Values.of(old);
+        if (trial != null) {
+            rules.updateTrialColumns(old.id(), trial.priceUnit(), trial.shippingFeePerPerson()); // 체험단 단위·발송비(빼면 직전 값 그대로 — null)
+        }
         if (before.equals(after) && old.effectiveAt().equals(at)) {
             return get(); // 바뀐 것이 없다 — 기록 없음
         }
@@ -559,6 +572,27 @@ public class AdPriceRuleAdminService {
     }
 
     /** 예약 값 넷 검사(DB CHECK 와 같은 범위) — 틀린 칸은 {@code fields} 에 더하고 null 이 섞인 값을 돌려준다(그때는 쓰지 않는다) */
+    /**
+     * 체험단 단위·발송비 칸(V241) — 체험단이면 값(빼면 null = 직전 값 그대로), 다른 상품이 보내면 400. 체험단이 아니면 null.
+     */
+    private static BizPriceRuleStore.TrialColumns trialColumns(BizProduct product, AdPriceRuleAdmin.ScheduleRequest body, Map<String, MessageRef> fields) {
+        String unit = body == null || body.priceUnit() == null || body.priceUnit().isBlank() ? null : body.priceUnit().strip().toUpperCase(java.util.Locale.ROOT);
+        Long fee = body == null ? null : exactLong(body.shippingFeePerPerson());
+        if (product != BizProduct.TRIAL) {
+            if (unit != null || (body != null && body.shippingFeePerPerson() != null)) {
+                fields.put("priceUnit", new MessageRef("ad.price.trialOnly"));
+            }
+            return null;
+        }
+        if (unit != null && !BizPriceRuleStore.TrialTerms.PER_RECRUIT.equals(unit) && !BizPriceRuleStore.TrialTerms.PER_PERSON.equals(unit)) {
+            fields.put("priceUnit", new MessageRef("ad.price.priceUnit"));
+        }
+        if (body != null && body.shippingFeePerPerson() != null && (fee == null || fee < 0)) {
+            fields.put("shippingFeePerPerson", new MessageRef("ad.price.shippingFee"));
+        }
+        return new BizPriceRuleStore.TrialColumns(unit, fee);
+    }
+
     private static Values values(PriceRule row, AdPriceRuleAdmin.ScheduleRequest body, Map<String, MessageRef> fields) {
         Long unitPrice = body == null ? null : exactLong(body.unitPrice());
         if (unitPrice == null || unitPrice < 0) {

@@ -18,7 +18,9 @@ public enum BizProduct {
     TEXT_LINE("TEXT_LINE"),
     HOTDEAL_TOP("HOME_TOP"),
     HOTDEAL_CATEGORY("CATEGORY_TOP"),
-    HOTDEAL_POST(null);
+    HOTDEAL_POST(null),
+    /** 체험단 — 모집 하나가 광고 신청 건(kind TRIAL) 한 건(shared V241, trial-group-contract 「구현 결정」 1). 값 매기는 단위(모집 건당·인원당)·1명당 발송비는 요금표·가격 기간표의 따로 칸 */
+    TRIAL(null);
 
     private final String publicName;
 

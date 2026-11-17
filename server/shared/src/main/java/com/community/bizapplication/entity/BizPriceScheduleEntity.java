@@ -32,6 +32,10 @@ public class BizPriceScheduleEntity {
     private Instant createdAt;
     private Long updatedBy;
     private Instant updatedAt;
+    /** 체험단(TRIAL)만 — 값 매기는 단위(V241). null = 직전 값 그대로 */
+    private String priceUnit;
+    /** 체험단(TRIAL)만 — 1명당 발송비(V241). null = 직전 값 그대로 */
+    private Long shippingFeePerPerson;
 
     protected BizPriceScheduleEntity() {
     }
@@ -48,6 +52,15 @@ public class BizPriceScheduleEntity {
         row.maxLeadDays = maxLeadDays;
         row.createdBy = createdBy;
         row.createdAt = createdAt;
+        return row;
+    }
+
+    /** 체험단 단위·발송비까지(체험단 상품만 — 그 밖 상품은 둘 다 null) */
+    public static BizPriceScheduleEntity create(long id, BizProduct product, Instant effectiveAt, long unitPrice, Integer capacity, int maxDays, int maxLeadDays,
+                                                String priceUnit, Long shippingFeePerPerson, long createdBy, Instant createdAt) {
+        BizPriceScheduleEntity row = create(id, product, effectiveAt, unitPrice, capacity, maxDays, maxLeadDays, createdBy, createdAt);
+        row.priceUnit = priceUnit;
+        row.shippingFeePerPerson = shippingFeePerPerson;
         return row;
     }
 }

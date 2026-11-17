@@ -26,6 +26,10 @@ public class BizPriceRuleEntity {
     private Boolean accepting;
     private Instant updatedAt;
     private Long updatedBy;
+    /** 체험단(TRIAL)만 — 값 매기는 단위 PER_RECRUIT·PER_PERSON(V241), 그 밖 null */
+    private String priceUnit;
+    /** 체험단(TRIAL)만 — 운영자 대신 발송 1명당 발송비(V241), 그 밖 null */
+    private Long shippingFeePerPerson;
 
     protected BizPriceRuleEntity() {
     }

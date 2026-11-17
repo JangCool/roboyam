@@ -19,9 +19,16 @@ import tools.jackson.databind.JsonNode;
  *                      가 꺼져 있으면 무시한다(오류 아님). 틀리면 400 {@code fields.tags}(post-tags-contract)
  * @param sources       출처 목록({@link PostSource}) — <b>빼거나 null 이면 그대로</b>, 빈 목록이면 모두 지우기, 값이면 그 목록으로 바꾸기. 게시판 정책 {@code sourcesEnabled}
  *                      가 꺼져 있으면 무시한다(그대로 — 오류 아님). 틀리면 400 {@code fields.sources}(V232)
+ * @param purchaseSource 구입 경로(V241) — <b>빼거나 null 이면 그대로</b>, 값이면 바꾸기(SELF·SPONSORED·BORROWED). 체험단 연결 글은 TRIAL 고정(무시)
  */
 public record PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal,
-                                Boolean secret, PostThumbnailInput thumbnail, List<String> tags, List<PostSource> sources) {
+                                Boolean secret, PostThumbnailInput thumbnail, List<String> tags, List<PostSource> sources, String purchaseSource) {
+
+    /** 구입 경로 칸 없이(그대로) */
+    public PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal,
+                             Boolean secret, PostThumbnailInput thumbnail, List<String> tags, List<PostSource> sources) {
+        this(prefixId, title, contentFormat, content, adult, password, poll, deal, secret, thumbnail, tags, sources, null);
+    }
 
     /** 출처 칸 없이(그대로) */
     public PostUpdateRequest(String prefixId, String title, String contentFormat, String content, Boolean adult, String password, JsonNode poll, JsonNode deal,

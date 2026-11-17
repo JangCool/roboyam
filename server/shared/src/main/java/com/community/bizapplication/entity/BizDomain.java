@@ -30,8 +30,8 @@ public enum BizDomain {
         return manage;
     }
 
-    /** 이 도메인의 종류들(선언 차례) */
+    /** 이 도메인의 종류들(선언 차례) — 심사 큐·장부를 타는 종류만(체험단 TRIAL 은 체험단 화면이 따로 다룬다) */
     public List<BizApplicationKind> kinds() {
-        return Arrays.stream(BizApplicationKind.values()).filter(k -> k.domain() == this).toList();
+        return Arrays.stream(BizApplicationKind.values()).filter(k -> k.domain() == this && k.reviewFlow()).toList();
     }
 }

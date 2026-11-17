@@ -225,6 +225,51 @@ public class TitleGrantService {
         return true;
     }
 
+    /**
+     * 단계 칭호를 가진 회원의 단계를 센 수에 맞게 올린다(낮추지 않는다 — V241 체험단 약속 지킴이 리뷰어 단계를 올린다, trial-group-contract 「구현 결정」 12). 칭호가 없거나 꺼졌거나
+     * 회원이 제외 대상이면 아무것도 하지 않는다. 부르는 쪽 트랜잭션에 참여한다. 올렸으면 그 단계(아니면 null).
+     */
+    @Transactional
+    public TitleTier raiseTierIfHeld(String key, long userId, long count) {
+        TitleEntity title = titles.findByTitleKey(key).filter(TitleEntity::isEnabled).filter(TitleEntity::isTiered).orElse(null);
+        if (title == null || queries.excluded(userId)) {
+            return null;
+        }
+        MemberTitleEntity row = memberTitles.findByUserIdAndTitleIdAndPeriodAndRevokedAtIsNull(userId, title.getId(), "").orElse(null);
+        TitleTier tier = title.tierFor(count);
+        if (row == null || tier == null || (row.getTier() != null && row.getTier().ordinal() >= tier.ordinal())) {
+            return null;
+        }
+        row.raiseTier(tier, now());
+        notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, ""), tier.name());
+        return tier;
+    }
+
+    /**
+     * 시스템 회수(V241 — 체험단 미반납·고의 파손·사용기 기한 넘김 두 번, trial-group-contract) — 그 칭호의 살아 있는 줄을 회수 사유 코드와 함께 회수한다(운영자 없음 = revoked_by NULL).
+     * 없으면 아무것도 하지 않는다. 회수했으면 true.
+     */
+    @Transactional
+    public boolean revokeBySystem(String key, long userId, String reason) {
+        TitleEntity title = titles.findByTitleKey(key).orElse(null);
+        if (title == null) {
+            return false;
+        }
+        MemberTitleEntity row = memberTitles.findByUserIdAndTitleIdAndPeriodAndRevokedAtIsNull(userId, title.getId(), "").orElse(null);
+        if (row == null) {
+            return false;
+        }
+        row.revoke(null, reason, now());
+        return true;
+    }
+
+    /** 그 회원이 가진(살아 있는) 그 칭호 줄 — 단계 판정(리뷰어 먼저 신청·리뷰어 몫) */
+    @Transactional(readOnly = true)
+    public java.util.Optional<MemberTitleEntity> held(String key, long userId) {
+        return titles.findByTitleKey(key).filter(TitleEntity::isEnabled)
+                .flatMap(t -> memberTitles.findByUserIdAndTitleIdAndPeriodAndRevokedAtIsNull(userId, t.getId(), ""));
+    }
+
     /** 회수 — 그 칭호의 살아 있는 줄만(아니면 409 {@code TITLE_GRANT_NOT_ACTIVE}), 줄은 남긴다 */
     @Transactional
     public MemberTitleEntity revoke(String key, long grantId, long operatorId, String reason) {

@@ -266,6 +266,32 @@ public final class AuditActions {
     /** 이달의 작가 후보 넣기·빼기(대상 POST, 덧붙임: 달) */
     public static final String TITLE_CANDIDATE_ADD = "TITLE_CANDIDATE_ADD";
     public static final String TITLE_CANDIDATE_REMOVE = "TITLE_CANDIDATE_REMOVE";
+    /** 체험단(trial-group-contract 「구현 결정」 14) — 모집 만들기·고치기(상태 바꾸기 포함 — 대상 TRIAL, 바뀐 칸 before/after) */
+    public static final String TRIAL_CREATE = "TRIAL_CREATE";
+    public static final String TRIAL_UPDATE = "TRIAL_UPDATE";
+    /** 뽑기 확정(대상 TRIAL, 덧붙임: 뽑힌 신청·리뷰어 몫·일반 몫·확정 금액) — 광고 상품 금액을 굳히는 일 */
+    public static final String TRIAL_SELECT = "TRIAL_SELECT";
+    /** 운영자 입고(수량·사진 수) · 발송(송장 — 운영자·광고주) · 반납 받음 · 광고주 반송(대상 TRIAL) */
+    public static final String TRIAL_STOCK_RECEIVE = "TRIAL_STOCK_RECEIVE";
+    public static final String TRIAL_SHIP = "TRIAL_SHIP";
+    public static final String TRIAL_RETURN_CONFIRM = "TRIAL_RETURN_CONFIRM";
+    public static final String TRIAL_RETURN_SHIPMENT = "TRIAL_RETURN_SHIPMENT";
+    /** 대여형 파손 신고(운영자·광고주)·판정(운영자 — 판정·청구 한도·불이익) */
+    public static final String TRIAL_DAMAGE_REPORT = "TRIAL_DAMAGE_REPORT";
+    public static final String TRIAL_DAMAGE_DECIDE = "TRIAL_DAMAGE_DECIDE";
+    /** 미반납 확정(배치 — 시스템, 대상 MEMBER) */
+    public static final String TRIAL_UNRETURNED = "TRIAL_UNRETURNED";
+    /** 개인정보 제공(광고주에게 회원 이름·연락처·주소 — 동의 범위, 대상 TRIAL, 덧붙임: 제공한 줄·칸·까닭) — 개인정보 보관 분류 */
+    public static final String TRIAL_PII_PROVIDE = "TRIAL_PII_PROVIDE";
+    /** 체험단 설정 저장(대상 TRIAL_SETTINGS) */
+    public static final String TRIAL_SETTINGS_UPDATE = "TRIAL_SETTINGS_UPDATE";
+    /** 구매 인증 승인·거절(대상 POST — 게시판 매니저 확인은 회원이 행위자) · 비공개 사진 열람 */
+    public static final String PURCHASE_PROOF_APPROVE = "PURCHASE_PROOF_APPROVE";
+    public static final String PURCHASE_PROOF_REJECT = "PURCHASE_PROOF_REJECT";
+    public static final String PURCHASE_PROOF_VIEW = "PURCHASE_PROOF_VIEW";
+    /** 협찬 숨김 신고 확인(글을 협찬으로 바꿈)·무시(대상 POST) */
+    public static final String SPONSOR_HIDDEN_CONFIRM = "SPONSOR_HIDDEN_CONFIRM";
+    public static final String SPONSOR_HIDDEN_DISMISS = "SPONSOR_HIDDEN_DISMISS";
     /** 일괄 숨김·해제·삭제 — 대상 POST + {@code bulk}, {@code action}·{@code done}·{@code failed}(글 ID 목록) */
     public static final String POST_BULK = "POST_BULK";
     /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */

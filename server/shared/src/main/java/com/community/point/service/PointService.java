@@ -348,6 +348,21 @@ public class PointService {
         return grant(userId, PointReason.POPULAR, REF_POST, postId, points, null, policy.current(), null);
     }
 
+    /**
+     * 구매 인증 승인 보너스(trial-group-contract 「구현 결정」 13) — 매니저·운영자가 구매 인증을 승인한 트랜잭션에서 부른다. 사유 {@code PURCHASE_PROOF}, 대상 그 글
+     * (원장 유일 — 다시 승인해도 한 번). 하루 총 한도 밖, 정상 회원·동결·미회수 상계는 다른 적립과 같다. AI 회원·운영팀 계정(스위치)은 주지 않는다. 금액 0 이면 없음.
+     * <b>실패해도 승인은 그대로</b>(세이브포인트).
+     *
+     * @return 지급한 포인트(없으면 0)
+     */
+    public long purchaseProofReward(long userId, long postId, int points) {
+        if (points <= 0) {
+            return 0L;
+        }
+        return isolated.run("point:purchase-proof", () -> excluded(userId, policy.tiers()) ? 0L
+                : grant(userId, PointReason.PURCHASE_PROOF, REF_POST, postId, points, null, policy.current(), null), 0L);
+    }
+
     /** 보류 확정 판정 — 확정했거나, 지급하지 않고 취소한 까닭(취소 까닭 코드로 남긴다) */
     public enum HeldRelease {
         RELEASED,

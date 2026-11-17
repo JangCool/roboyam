@@ -47,6 +47,7 @@ import com.community.post.exception.PostNotFoundException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
+import com.community.trial.service.TrialPostLinker;
 import com.community.sanction.service.BoardStaffActionService;
 import com.community.zconfiguration.crypto.Digests;
 import java.time.Duration;
@@ -95,13 +96,16 @@ public class PostQueryService {
     private final PostFeedRows feedRows;
     private final PostThumbnailChoices thumbnailChoices;
     private final PostTagStore tagStore;
+    /** 구입 경로·구매 인증(V241) */
+    private final TrialPostLinker purchases;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
                             PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows,
-                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore) {
+                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore, TrialPostLinker purchases) {
+        this.purchases = purchases;
         this.tagStore = tagStore;
         this.feedRows = feedRows;
         this.thumbnailChoices = thumbnailChoices;
@@ -195,6 +199,16 @@ public class PostQueryService {
     @Transactional(readOnly = true)
     public PostListResponse list(String slug, String prefix, String sort, String q, Integer page, Long viewerId, Boolean hideEnded, String store, String status,
                                  String tag, String around) {
+        return list(slug, prefix, sort, q, page, viewerId, hideEnded, store, status, tag, around, null);
+    }
+
+    /**
+     * 구입 경로 거르기까지({@code ?purchase=} — V241 trial-group-contract): PROOF 구매 인증 승인 글만 · NO_TRIAL 체험단 빼고. 그 밖 값·빈 값은 거르지 않는다. 거르면 고정 공지를 위에 따로
+     * 두지 않는다(말머리 거르기와 같다). 핫딜 게시판은 무시한다.
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse list(String slug, String prefix, String sort, String q, Integer page, Long viewerId, Boolean hideEnded, String store, String status,
+                                 String tag, String around, String purchase) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
         boolean adultViewer = adultGate.adult(viewerId); // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract)
@@ -223,7 +237,8 @@ public class PostQueryService {
             impossible = true; // 모양이 틀린 태그 — 맞는 글이 없다
             tagKey = null;
         }
-        boolean plain = prefixId == null && search == null && statusFilter == null && tagKey == null && !impossible;
+        String purchaseFilter = TrialPostLinker.filter(com.community.post.entity.QPostEntity.postEntity, purchase) == null ? null : purchase.strip().toUpperCase(java.util.Locale.ROOT);
+        boolean plain = prefixId == null && search == null && statusFilter == null && tagKey == null && purchaseFilter == null && !impossible;
         boolean oldest = "OLDEST".equals(sort);
         boolean deal = DealWriter.dealBoard(b);
         boolean hide = !Boolean.FALSE.equals(hideEnded);
@@ -237,7 +252,7 @@ public class PostQueryService {
                     ? dealSort(sort) == PostRepositoryQDSL.DealSort.LATEST
                             ? postQueries.dealLatestBefore(b.id(), prefixId, tagKey, search, hide, storeName, plain, autoExpireDays, aroundId, now)
                             : OptionalLong.empty()
-                    : postQueries.before(b.id(), prefixId, statusFilter, tagKey, search, oldest, plain, adultViewer, aroundId, now);
+                    : postQueries.before(b.id(), prefixId, statusFilter, tagKey, purchaseFilter, search, oldest, plain, adultViewer, aroundId, now);
             if (ahead.isPresent()) {
                 current = (int) Math.min(Integer.MAX_VALUE, ahead.getAsLong() / listSize + 1);
             }
@@ -250,7 +265,8 @@ public class PostQueryService {
             result = postQueries.dealPage(b.id(), prefixId, tagKey, search, dealSort(sort), hide, storeName, plain, autoExpireDays, (long) (current - 1) * listSize,
                     listSize, now);
         } else {
-            result = postQueries.page(b.id(), prefixId, statusFilter, tagKey, search, oldest, plain, adultViewer, (long) (current - 1) * listSize, listSize, now);
+            result = postQueries.page(b.id(), prefixId, statusFilter, tagKey, purchaseFilter, search, oldest, plain, adultViewer, (long) (current - 1) * listSize, listSize,
+                    now);
         }
         // 읽을 수 없는 비밀글은 줄만 남긴다 — 비밀글이 있을 때만 보는 사람 판정을 읽는다(운영진이면 모두 읽는다)
         boolean anySecret = Stream.concat(pinned.stream(), result.items().stream()).anyMatch(PostRowData::secretPost);
@@ -275,11 +291,14 @@ public class PostQueryService {
         // 찬반 토론 글의 찬·반·중 수 — 섞인 목록과 같은 계산(질의 두 번, 사용자 2026-11-12 「게시판 목록에도 찬반중」)
         Map<Long, PostFeedDebateView> debates = feedRows.debates(Stream.concat(pinned.stream(), result.items().stream())
                 .filter(r -> !r.hiddenAt(now) && !sealed.contains(r.id())).map(PostRowData::id).toList());
+        // 구입 경로 칩(V241) — 글 묶음의 구입 경로·구매 인증 승인(질의 두 번)
+        Map<Long, TrialPostLinker.ListInfo> purchaseInfo = purchases.forList(Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now))
+                .map(PostRowData::id).toList());
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
         // 전체 공지(V174) — 고정 공지와 같은 조건(첫 쪽 · 거르기 없음)일 때만 맨 위에
         List<GlobalNoticeView> global = plain && current == 1 ? globalNotices.forBoard(b, now) : List.of();
-        return new PostListResponse(global, pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()))).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()))).toList(), current, totalPages,
+        return new PostListResponse(global, pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()), purchaseInfo)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()), purchaseInfo)).toList(), current, totalPages,
                 result.total(), stores);
     }
 
@@ -300,7 +319,9 @@ public class PostQueryService {
 
     /** @param sealed 보는 사람이 읽을 수 없는 비밀글 — 제목·작성자는 그대로, 내용이 드러나는 칸(썸네일·이미지·투표·딜)을 비운다 */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, Map<Long, PostFeedDebateView> debates, boolean sealed) {
+                            Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, Map<Long, PostFeedDebateView> debates, boolean sealed,
+                            Map<Long, TrialPostLinker.ListInfo> purchaseInfo) {
+        TrialPostLinker.ListInfo purchase = purchaseInfo.get(r.id());
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
         PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), r.anonymousPost(), members, s).withMemo(lens.memoOf(r.authorId()));
@@ -308,7 +329,8 @@ public class PostQueryService {
                 !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !bare && polls.contains(r.id()), bare ? null : deals.get(r.id()), r.secretPost(),
-                hidden ? null : PostProcessStatus.effective(b, r.processStatus()), bare ? null : debates.get(r.id()));
+                hidden ? null : PostProcessStatus.effective(b, r.processStatus()), bare ? null : debates.get(r.id()), purchase == null ? null : purchase.source(),
+                purchase != null && purchase.proofApproved());
     }
 
     /**
@@ -389,7 +411,7 @@ public class PostQueryService {
                 staffAuthor || BoardStaffActionService.noticeOrPinned(b, post), staffAuthor, post.isSecret(),
                 PostProcessStatus.effective(b, post.getProcessStatus()), PostProcessStatus.effectiveAt(b, post.getProcessStatusAt()),
                 statusChanger.lastNote(b, post.getId()), new PostViewerView(canChangeStatus(b, s, post, userId)), thumbnailFor(post, userId),
-                tagStore.of(post.getId()), PostSources.fromJson(post.getSources()));
+                tagStore.of(post.getId()), PostSources.fromJson(post.getSources()), purchases.view(post));
     }
 
     /**

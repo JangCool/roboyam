@@ -185,7 +185,28 @@ public enum MemberNotificationType {
      * 칭호를 받았다(V240 — member-title-contract 「알림·축하 창」, 단계가 오른 것도). 덧붙임 {@code titleKey}·{@code label}(알릴 때 표시 이름 — 이달의 작가는 「11월의 작가」)·{@code tier}.
      * 누르면 내 칭호
      */
-    TITLE_GRANTED("system");
+    TITLE_GRANTED("system"),
+    // ── 체험단 · 구매 인증(V241 — trial-group-contract 「구현 결정」 14). 덧붙임 {@code title}(알릴 때 모집 제목 · 구매 인증은 글 제목)·{@code note}(본문 한 줄)·{@code path}(누르면 갈 곳) ──
+    /** 체험단에 뽑혔다 — 누르면 내 체험단 */
+    TRIAL_SELECTED("system"),
+    /** 체험단에 뽑히지 않았다 */
+    TRIAL_NOT_SELECTED("system"),
+    /** 체험단 제품을 보냈다(송장 — 택배사·송장 번호는 {@code note}) */
+    TRIAL_SHIPPED("system"),
+    /** 체험단 사용기 기한이 지났다(신청 금지 안내는 {@code note}) */
+    TRIAL_REVIEW_DUE("system"),
+    /** 대여형 반납 기한 독촉(기한 당일·7일 뒤) */
+    TRIAL_RETURN_DUE("system"),
+    /** 미반납 확정 */
+    TRIAL_UNRETURNED("system"),
+    /** 대여형 파손 신고가 들어왔다(7일 안 이의 제기) */
+    TRIAL_DAMAGE_REPORTED("system"),
+    /** 파손 신고 판정(판정은 {@code note}) */
+    TRIAL_DAMAGE_DECIDED("system"),
+    /** 구매 인증 승인(보너스는 {@code note}) — 누르면 그 글 */
+    PURCHASE_PROOF_APPROVED("system"),
+    /** 구매 인증 거절(사유는 {@code note}) — 누르면 그 글 */
+    PURCHASE_PROOF_REJECTED("system");
 
     private final String category;
 

@@ -174,7 +174,8 @@ public class PublicBoardService {
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()),
                 v.secretMode(), v.statusEnabled(), v.chipPosition(), v.authorMode(), v.prefixStyle(), b.authorThumbnailEnabled(), b.tagsEnabled(),
-                v.detailList(), v.detailFeedTabsPc(), v.detailFeedTabsMobile(), v.prefixRequired(), v.tagRequired(), v.adultOnly(), b.sourcesEnabled(), b.indexable(), pointTier);
+                v.detailList(), v.detailFeedTabsPc(), v.detailFeedTabsMobile(), v.prefixRequired(), v.tagRequired(), v.adultOnly(), b.sourcesEnabled(), b.indexable(), pointTier, b.purchaseSourceMode(),
+                b.trialReviewsEnabled());
     }
 
     /**

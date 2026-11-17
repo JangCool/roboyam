@@ -123,7 +123,9 @@ class AdPriceRuleAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(get(URL).cookie(settingsOnly)).andExpect(status().isForbidden());
         mvc.perform(get(URL + "/history").cookie(none)).andExpect(status().isForbidden());
         mvc.perform(get(URL).cookie(reader)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.data.rules.length()").value(10))
+                .andExpect(jsonPath("$.data.rules.length()").value(11)) // V241 체험단(TRIAL) 상품 — 맨 끝
+                .andExpect(jsonPath("$.data.rules[10].product").value("TRIAL")).andExpect(jsonPath("$.data.rules[10].unit").value("POST"))
+                .andExpect(jsonPath("$.data.rules[10].priceUnit").value("PER_PERSON")).andExpect(jsonPath("$.data.rules[0].priceUnit").doesNotExist())
                 .andExpect(jsonPath("$.data.rules[0].product").value("WIDE_BANNER"))
                 .andExpect(jsonPath("$.data.rules[7].product").value("HOTDEAL_POST")).andExpect(jsonPath("$.data.rules[7].unit").value("POST"))
                 .andExpect(jsonPath("$.data.rules[4].product").value("HALF_BANNER")).andExpect(jsonPath("$.data.rules[4].unitPrice").value(30000))

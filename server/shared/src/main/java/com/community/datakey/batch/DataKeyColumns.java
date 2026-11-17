@@ -8,6 +8,7 @@ import com.community.emoticon.service.EmoticonPayoutService;
 import com.community.groupbuy.service.BankTransferService;
 import com.community.groupbuy.service.GroupBuyJoinService;
 import com.community.identity.service.IdentityVerificationService;
+import com.community.trial.service.TrialPii;
 import com.community.withdrawal.service.WithdrawnContactStore;
 import com.community.zconfiguration.crypto.DataPurpose;
 import java.util.ArrayList;
@@ -78,10 +79,20 @@ public final class DataKeyColumns {
             advertiser("ad-advertiser-phone", "contact_phone_enc", AdAdvertiserService.CONTACT_PHONE),
             advertiser("ad-advertiser-email", "email_enc", AdAdvertiserService.EMAIL));
 
+    /** 체험단 신청 배송지 사본(V241 — trial-group-contract, 반납 확인 뒤 파기하면 NULL) */
+    public static final List<EncryptedColumn> TRIAL_ADDRESS = List.of(
+            trialAddress("trial-address-recipient", "recipient_enc", TrialPii.RECIPIENT),
+            trialAddress("trial-address-phone", "phone_enc", TrialPii.PHONE),
+            trialAddress("trial-address-line1", "address1_enc", TrialPii.ADDRESS1),
+            trialAddress("trial-address-line2", "address2_enc", TrialPii.ADDRESS2),
+            trialAddress("trial-address-memo", "memo_enc", TrialPii.MEMO));
+
     /** 파일 사본(DB 안의 바이트 암호문 — 한 건 최대 10MB). 파기한 등록증 사본은 NULL */
     public static final List<EncryptedColumn> FILES = List.of(
             EncryptedColumn.ofBytes("business-certificate-file", "business_documents", "id", "content", BusinessPii.CERTIFICATE, "BUSINESS_DOCUMENT"),
-            EncryptedColumn.ofBytes("biz-contract-file", "biz_contract_files", "id", "content", BizApplicationReviewService.CONTRACT, "BIZ_CONTRACT_FILE"));
+            EncryptedColumn.ofBytes("biz-contract-file", "biz_contract_files", "id", "content", BizApplicationReviewService.CONTRACT, "BIZ_CONTRACT_FILE"),
+            // 사용기 구매 인증 사진(V241 — 확인 뒤 보관 일수가 지나 파기하면 NULL)
+            EncryptedColumn.ofBytes("trial-purchase-proof", "purchase_proofs", "id", "content", TrialPii.PROOF, "PURCHASE_PROOF"));
 
     public static final List<EncryptedColumn> ALL = all();
 
@@ -99,6 +110,7 @@ public final class DataKeyColumns {
         all.addAll(FILES);
         all.add(IDENTITY_NAME);
         all.addAll(EMOTICON_PAYOUT);
+        all.addAll(TRIAL_ADDRESS);
         return List.copyOf(all);
     }
 
@@ -116,6 +128,10 @@ public final class DataKeyColumns {
 
     private static EncryptedColumn business(String step, String column, DataPurpose purpose) {
         return new EncryptedColumn(step, "business_profiles", "id", column, purpose, "BUSINESS_PROFILE");
+    }
+
+    private static EncryptedColumn trialAddress(String step, String column, DataPurpose purpose) {
+        return new EncryptedColumn(step, "trial_applications", "id", column, purpose, "TRIAL_APPLICATION");
     }
 
     private static EncryptedColumn advertiser(String step, String column, DataPurpose purpose) {

@@ -64,6 +64,9 @@ public class BoardDefaultsEntity {
     private boolean tagRequired;
     /** 「출처 칸 쓰기」(V232, 기본 끔) */
     private boolean sourcesEnabled;
+    /** 「구입 경로 받기」 사이트 기본(V241, 기본 OFF) · 「체험단 사용기 받기」 사이트 기본(기본 끔) */
+    private String purchaseSourceMode = "OFF";
+    private boolean trialReviewsEnabled;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -97,7 +100,7 @@ public class BoardDefaultsEntity {
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
                 listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes, authorThumbnailEnabled, tagsEnabled,
-                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired, sourcesEnabled);
+                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired, sourcesEnabled, purchaseSourceMode, trialReviewsEnabled);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -153,6 +156,8 @@ public class BoardDefaultsEntity {
         this.prefixRequired = v.prefixRequired();
         this.tagRequired = v.tagRequired();
         this.sourcesEnabled = v.sourcesEnabled();
+        this.purchaseSourceMode = v.purchaseSourceMode();
+        this.trialReviewsEnabled = v.trialReviewsEnabled();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

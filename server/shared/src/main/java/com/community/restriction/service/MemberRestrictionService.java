@@ -193,6 +193,33 @@ public class MemberRestrictionService {
     }
 
     /**
+     * 자동 규칙으로 <b>무기한</b> 기능 제한을 건다(체험단 미반납·고의 파손 — until 없음). 같은 종류가 이미 무기한이면 만들지 않는다(기간 있는 제한이 있어도 무기한을 더한다).
+     * 부르는 업무의 트랜잭션 안에서. 회원이 없거나 탈퇴했으면 만들지 않는다.
+     *
+     * @return 만든 제한(만들지 않았으면 빈 값)
+     */
+    @Transactional
+    public Optional<MemberRestrictionView> grantAutoIndefinite(long userId, RestrictionType type, String autoRule) {
+        if (autoRule == null || autoRule.isBlank()) {
+            throw new IllegalArgumentException("자동 제한의 규칙이 없다");
+        }
+        store.lockMember(userId);
+        Instant now = clock.instant();
+        if (store.memberGone(userId).orElse(true)) {
+            return Optional.empty();
+        }
+        if (store.active(userId, now).stream().anyMatch(row -> row.type() == type && row.until() == null)) {
+            return Optional.empty();
+        }
+        long id = ids.nextId();
+        store.insert(id, userId, type, null, null, now, null, RestrictionSource.AUTO, autoRule, null, now);
+        audit.record(new AuditEvent(AuditActorType.SYSTEM, null, AuditActions.MEMBER_RESTRICTION_GRANT, AuditResult.SUCCESS, "MEMBER", Long.toString(userId), null,
+                Map.of("restrictionId", Long.toString(id), "source", RestrictionSource.AUTO.name(), "type", type.name(), "indefinite", true, "autoRule", autoRule)));
+        notices.featureRestricted(userId, type.name(), null, null, autoRule);
+        return Optional.of(view(store.find(id).orElseThrow(), now));
+    }
+
+    /**
      * 진행 중인 기능 제한을 해제한다.
      *
      * @throws ValidationException           해제 사유 길이({@code fields.reason})

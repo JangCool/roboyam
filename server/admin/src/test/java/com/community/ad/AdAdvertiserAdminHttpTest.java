@@ -477,6 +477,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(screen.icon()).isEqualTo("pi pi-address-book");
         assertThat(screen.permission()).isEqualTo(Permission.AD_READ);
         AdminMenuNode ad = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL).stream().filter(n -> "menu.ad".equals(n.labelKey())).findFirst().orElseThrow();
-        assertThat(ad.children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers", "adPlacements");
+        assertThat(ad.children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers", "adPlacements", "adTrials",
+                "adTrialSettings"); // 체험단 두 화면(V241·admin V12 — trial-group-contract)은 노출 자리 설정 다음
     }
 }

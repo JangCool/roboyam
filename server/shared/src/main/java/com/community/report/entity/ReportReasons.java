@@ -44,17 +44,27 @@ public final class ReportReasons {
     /** 핫딜 글 신고의 사유 — 글·댓글 사유 + 핫딜 사유 */
     public static final List<String> DEAL_POST = java.util.stream.Stream.concat(ALL.stream(), DEAL_ONLY.stream()).toList();
 
+    /**
+     * 협찬 숨김: 업체에서 받고 「내 돈으로 샀어요」라고 썼어요(V241 — trial-group-contract 「협찬 숨김」). 구입 경로를 받는 게시판 글에서만(신고 API 가 대상 게시판을 보고
+     * 거른다 — 아니면 400 {@code fields.reason}). <b>자동 숨김 셈 제외</b> — 운영자가 확인할 일 목록에서 보고 협찬 표시를 강제로 붙인다.
+     */
+    public static final String SPONSOR_HIDDEN = "SPONSOR_HIDDEN";
+    /** 구입 경로를 받는 게시판 글에서만 더 받는 사유 */
+    public static final List<String> SPONSOR_ONLY = List.of(SPONSOR_HIDDEN);
+    /** 글 신고에서 받아 두는 사유 전부 — 대상 게시판을 본 뒤 핫딜·구입 경로 사유를 다시 거른다 */
+    public static final List<String> POST_ANY = java.util.stream.Stream.of(ALL, DEAL_ONLY, SPONSOR_ONLY).flatMap(List::stream).toList();
+
     /** 글 신고의 사유 — 핫딜 게시판 글이면 핫딜 사유까지 */
     public static List<String> forPost(boolean dealBoard) {
         return dealBoard ? DEAL_POST : ALL;
     }
 
     /** 자동 숨김 기준(서로 다른 회원 수)에 들지 않는 사유 — 가격 허위(D4, 종료 요청으로 접수) */
-    public static final List<String> NOT_HIDE_COUNTED = List.of(DEAL_FALSE_PRICE);
+    public static final List<String> NOT_HIDE_COUNTED = List.of(DEAL_FALSE_PRICE, SPONSOR_HIDDEN);
 
     /** 모든 사유 — 보이는 차례(관리자 목록의 사유별 수·사유 거르기) */
     public static final List<String> EVERY = List.of(SPAM_AD, ABUSE, OBSCENE, ILLEGAL_FILMING, RIGHTS, PROMOTION, OFFLINE_RISK, STOCK_RECOMMENDATION, DEAL_FALSE_PRICE,
-            DEAL_HIDDEN_AD, OTHER);
+            DEAL_HIDDEN_AD, SPONSOR_HIDDEN, OTHER);
 
     /** 대상 종류의 사유 — 소모임이면 {@link #GROUP_ALL}, 그 밖(글·댓글)은 {@link #ALL} */
     public static List<String> forTarget(String targetType) {

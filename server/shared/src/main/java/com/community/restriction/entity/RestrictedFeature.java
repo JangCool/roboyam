@@ -13,5 +13,7 @@ public enum RestrictedFeature {
     /** 충전 포인트 환불 신청 — 어느 제한도 막지 않는다(commerce.md 12-3) */
     CHARGE_REFUND_REQUEST,
     /** 새 공구 참여 */
-    GROUP_BUY_JOIN
+    GROUP_BUY_JOIN,
+    /** 새 체험단 신청(V241) */
+    TRIAL_APPLY
 }

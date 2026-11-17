@@ -64,10 +64,14 @@ public final class AuditRetention {
             AuditActions.EMOTICON_SETTLEMENT_CONFIRM, AuditActions.EMOTICON_SETTLEMENT_HOLD, AuditActions.EMOTICON_SETTLEMENT_UNHOLD, AuditActions.EMOTICON_SETTLEMENT_PAID,
             AuditActions.EMOTICON_SETTLEMENT_WAIVE, AuditActions.EMOTICON_SETTLEMENT_MANUAL_PAID,
             // 보상 이벤트 지급·재시도·회수 — 포인트·아이템이 움직이는 일(event-admin-contract 「알림·감사」)
-            AuditActions.REWARD_EVENT_GRANT, AuditActions.REWARD_EVENT_RETRY, AuditActions.REWARD_EVENT_REVOKE);
+            AuditActions.REWARD_EVENT_GRANT, AuditActions.REWARD_EVENT_RETRY, AuditActions.REWARD_EVENT_REVOKE,
+            // 체험단 뽑기 확정 — 광고 상품(TRIAL) 금액을 굳히는 일(trial-group-contract 「구현 결정」 1)
+            AuditActions.TRIAL_SELECT);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
+            // 체험단 개인정보 제공(광고주에게 이름·연락처·주소)·구매 인증 비공개 사진 열람(trial-group-contract 「구현 결정」 14)
+            AuditActions.TRIAL_PII_PROVIDE, AuditActions.PURCHASE_PROOF_VIEW,
             AuditActions.WITHDRAWN_CONTACT_REVEAL,
             // 익명 글·댓글 작성자 열람(anonymous-board-contract 정책 10) — 봉인된 신원을 연 일
             AuditActions.ANONYMOUS_AUTHOR_REVEAL,
@@ -165,6 +169,10 @@ public final class AuditRetention {
             // 회원 칭호(member-title-contract) — 포인트·돈이 오가지 않는 표시 관리라 일반 운영
             AuditActions.TITLE_CREATE, AuditActions.TITLE_UPDATE, AuditActions.TITLE_SETTINGS_UPDATE, AuditActions.TITLE_GRANT, AuditActions.TITLE_REVOKE,
             AuditActions.TITLE_APPLICATION_APPROVE, AuditActions.TITLE_APPLICATION_REJECT, AuditActions.TITLE_CANDIDATE_ADD, AuditActions.TITLE_CANDIDATE_REMOVE,
+            // 체험단(trial-group-contract) — 모집·입고·발송·반납·파손·미반납·설정·구매 인증·협찬 숨김 확인(돈이 오가지 않는 운영 기록)
+            AuditActions.TRIAL_CREATE, AuditActions.TRIAL_UPDATE, AuditActions.TRIAL_STOCK_RECEIVE, AuditActions.TRIAL_SHIP, AuditActions.TRIAL_RETURN_CONFIRM,
+            AuditActions.TRIAL_RETURN_SHIPMENT, AuditActions.TRIAL_DAMAGE_REPORT, AuditActions.TRIAL_DAMAGE_DECIDE, AuditActions.TRIAL_UNRETURNED, AuditActions.TRIAL_SETTINGS_UPDATE,
+            AuditActions.PURCHASE_PROOF_APPROVE, AuditActions.PURCHASE_PROOF_REJECT, AuditActions.SPONSOR_HIDDEN_CONFIRM, AuditActions.SPONSOR_HIDDEN_DISMISS,
             // 공지 관리(notice-admin-contract) — 게시글 관리와 같은 콘텐츠 관리(포인트가 오가지 않는다)
             AuditActions.NOTICE_CREATE, AuditActions.NOTICE_UPDATE, AuditActions.NOTICE_DELETE, AuditActions.NOTICE_PIN, AuditActions.NOTICE_UNPIN,
             AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,

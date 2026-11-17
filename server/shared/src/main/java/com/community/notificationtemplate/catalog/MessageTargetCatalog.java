@@ -263,6 +263,27 @@ public final class MessageTargetCatalog {
                 "/me/points", List.of()));
         out.add(member(MemberEvent.REWARD_EVENT_REVOKED, List.of(MessageVariable.of("eventName", "rewardEventName"), MessageVariable.of("reason", "rewardEventRevokeReason")),
                 new InAppText("member.notification.REWARD_EVENT_REVOKED.title", null, "{{reason}}", List.of("eventName")), "/me/points", List.of()));
+        // 체험단·구매 인증(V241 — trial-group-contract 「구현 결정」 14) — 제목(모집 제목 · 구매 인증은 글 제목) + 본문 한 줄
+        out.add(member(MemberEvent.TRIAL_SELECTED, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_SELECTED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_NOT_SELECTED, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_NOT_SELECTED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_SHIPPED, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_SHIPPED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_REVIEW_DUE, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_REVIEW_DUE.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_RETURN_DUE, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_RETURN_DUE.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_UNRETURNED, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_UNRETURNED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_DAMAGE_REPORTED, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_DAMAGE_REPORTED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_DAMAGE_DECIDED, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_DAMAGE_DECIDED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.PURCHASE_PROOF_APPROVED, List.of(MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.PURCHASE_PROOF_APPROVED.title", null, "{{note}}", List.of("postTitle")), "/boards/review/123", List.of()));
+        out.add(member(MemberEvent.PURCHASE_PROOF_REJECTED, List.of(MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.PURCHASE_PROOF_REJECTED.title", null, "{{note}}", List.of("postTitle")), "/boards/review/123", List.of()));
         // 칭호를 받음(V240 — member-title-contract) — 제목만(표시 이름 · 단계). 누르면 내 칭호
         out.add(member(MemberEvent.TITLE_GRANTED, List.of(MessageVariable.of("titleName", "titleName"), MessageVariable.of("titleTier", "titleTier")),
                 new InAppText("member.notification.TITLE_GRANTED.title", null, null, List.of("titleName", "titleTier")), "/me/titles", List.of()));

@@ -1,5 +1,6 @@
 package com.community.post.dto.response;
 
+import com.community.trial.service.TrialPostLinker;
 import com.community.debate.dto.response.DebateSummaryView;
 import com.community.hotdeal.dto.response.DealWarningView;
 import com.community.hotdeal.dto.response.PostDealModerationView;
@@ -41,6 +42,8 @@ import java.util.List;
  * @param viewer               보는 사람이 할 수 있는 일({@code canChangeStatus} — V168)
  * @param thumbnail            대표 썸네일 — 글쓴이 본인(회원 글, 소모임 글 아님)에게만, 그 밖 null(V206, list-thumbnail-contract 「2단계」)
  * @param tags                 글에 단 태그(단 차례 — 처음 쓴 모양, 없으면 빈 목록). 게시판 태그 쓰기를 나중에 꺼도 이미 단 태그는 싣는다(V215, post-tags-contract)
+ * @param purchase             구입 경로(V241 — trial-group-contract) {@code { source, proof: NONE|PENDING|APPROVED, disclosure }} — 표시 상자 문구는 체험단·협찬이면 채우고 글쓴이가 지울 수 없다.
+ *                             구입 경로도 구매 인증도 없으면 null
  * @param sources              글의 출처 목록({@code [{name,url}]} — 적은 차례, 없으면 빈 목록). 게시판 「출처 칸 쓰기」를 나중에 꺼도 이미 단 출처는 싣는다(V232). 이름은 비어 있을 수 있다(화면이 도메인)
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
@@ -50,5 +53,5 @@ public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefVie
                              PostGroupView group, PostDealView deal, PostDealModerationView dealModeration, List<DealWarningView> warnings,
                              boolean staffProtected, boolean sanctionProtected, boolean secret, String processStatus, Instant processStatusAt,
                              String processStatusNote, PostViewerView viewer, PostThumbnailView thumbnail, List<String> tags,
-                             List<PostSource> sources) {
+                             List<PostSource> sources, TrialPostLinker.PurchaseView purchase) {
 }

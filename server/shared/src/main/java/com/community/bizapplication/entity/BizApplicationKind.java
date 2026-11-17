@@ -7,7 +7,9 @@ public enum BizApplicationKind {
     AD_BANNER(BusinessServiceKind.AD),
     AD_TEXT_LINE(BusinessServiceKind.AD),
     HOTDEAL_POST(BusinessServiceKind.HOTDEAL),
-    HOTDEAL_PLACEMENT(BusinessServiceKind.HOTDEAL);
+    HOTDEAL_PLACEMENT(BusinessServiceKind.HOTDEAL),
+    /** 체험단 모집(shared V241 — trial-group-contract 「구현 결정」 1) — 운영자 등록 건으로 SUBMITTED 에 머물고 광고 심사 큐·장부에는 보이지 않는다({@link BizDomain#kinds()} 가 뺀다). 금액은 뽑기를 마친 뒤 확정 */
+    TRIAL(BusinessServiceKind.AD);
 
     private final BusinessServiceKind service;
 
@@ -18,6 +20,11 @@ public enum BizApplicationKind {
     /** 자격을 따지는 사업자 서비스(광고 → AD, 핫딜 → HOTDEAL) */
     public BusinessServiceKind service() {
         return service;
+    }
+
+    /** 광고 심사 큐·사업자 신청 흐름(승인·결제·예약)을 타는 종류인가 — 체험단은 체험단 화면이 따로 다룬다 */
+    public boolean reviewFlow() {
+        return this != TRIAL;
     }
 
     public boolean ad() {

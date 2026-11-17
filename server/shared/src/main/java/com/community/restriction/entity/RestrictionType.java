@@ -13,7 +13,9 @@ public enum RestrictionType {
     /** 공구 참여 제한 — 새 공구 참여만 막는다(이미 결제한 주문의 배송·취소·반품·조회는 된다) */
     GROUP_BUY_BAN(Set.of(RestrictedFeature.GROUP_BUY_JOIN)),
     /** 충전 제한 — 새 충전만 막는다(기존 포인트 사용·환불은 된다) */
-    CHARGE_BAN(Set.of(RestrictedFeature.CHARGE));
+    CHARGE_BAN(Set.of(RestrictedFeature.CHARGE)),
+    /** 체험단 신청 금지(V241 — trial-group-contract 「구현 결정」 3) — 새 체험단 신청만 막는다. 미반납·고의 파손은 영구(until 없음), 사용기 기한 넘김·과실 파손은 90일 */
+    TRIAL_BAN(Set.of(RestrictedFeature.TRIAL_APPLY));
 
     private final Set<RestrictedFeature> blocked;
 

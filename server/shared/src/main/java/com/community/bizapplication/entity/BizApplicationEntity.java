@@ -126,6 +126,17 @@ public class BizApplicationEntity {
         return a;
     }
 
+    /** 체험단 모집 건(V241 — trial-group-contract 「구현 결정」 1) — 운영자 등록 · 심사 대기 · 수동 · 금액은 뽑기 뒤 확정(처음 0) · 계약 금액 제안 없음 */
+    public static BizApplicationEntity trial(long id, String applicationNo, Long businessProfileId, Long advertiserId, String advertiserName, String companyName,
+                                             String bizNoLast4, String title, Instant startAt, Instant endAt, long createdBy, Instant now) {
+        BizApplicationEntity a = base(id, applicationNo, BizApplicationKind.TRIAL, BizSource.OPERATOR, businessProfileId, advertiserName, companyName, bizNoLast4, title,
+                startAt, endAt, BizPaymentMethod.MANUAL, 0, 0, 0, 0, now);
+        a.advertiserId = advertiserId;
+        a.weight = 5;
+        a.createdBy = createdBy;
+        return a;
+    }
+
     private static BizApplicationEntity base(long id, String applicationNo, BizApplicationKind kind, BizSource source, Long businessProfileId, String advertiserName,
                                              String companyName, String bizNoLast4, String title, Instant startAt, Instant endAt, BizPaymentMethod preferredMethod,
                                              long quoteSupply, long quoteVat, long quoteTotal, int stopFeeRate, Instant now) {

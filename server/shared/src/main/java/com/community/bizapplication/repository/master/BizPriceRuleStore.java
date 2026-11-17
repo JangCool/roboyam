@@ -65,6 +65,27 @@ public class BizPriceRuleStore extends IrobitRepositoryQDSL {
         }
     }
 
+    /**
+     * 체험단(TRIAL) 요금 — 단가는 그 순간 적용되는 값(기간표 포함), 단위·1명당 발송비는 적용 시각 ≤ 그 순간인 가장 늦은 기간표 줄 중 값이 있는 줄, 없으면 요금표 줄 값(V241).
+     *
+     * @param priceUnit PER_RECRUIT(모집 건당) · PER_PERSON(뽑힌 1명당)
+     */
+    public record TrialTerms(String priceUnit, long unitPrice, long shippingFeePerPerson, boolean accepting) {
+
+        public static final String PER_RECRUIT = "PER_RECRUIT";
+        public static final String PER_PERSON = "PER_PERSON";
+
+        /** 확정 금액(공급가) — 인원당이면 뽑힌 인원 × 단가, 건당이면 단가. 운영자가 대신 보내면 인원 × 발송비를 더한다 */
+        public long amount(int selected, boolean operatorShips) {
+            long base = PER_RECRUIT.equals(priceUnit) ? unitPrice : unitPrice * selected;
+            return base + (operatorShips ? shippingFeePerPerson * selected : 0);
+        }
+    }
+
+    /** 단위·발송비 칸 사본(지금 기간표 줄의 체험단 칸 — 화면) */
+    public record TrialColumns(String priceUnit, Long shippingFeePerPerson) {
+    }
+
     private final EntityManager entityManager;
     private final Clock clock;
 
@@ -149,6 +170,38 @@ public class BizPriceRuleStore extends IrobitRepositoryQDSL {
         return out;
     }
 
+    /** 체험단 요금(그 순간) — 요금표 줄이 없으면(마이그레이션 전) 빈 값 */
+    public Optional<TrialTerms> trialTerms(Instant at) {
+        PriceRule rule = effectiveAt(at).get(BizProduct.TRIAL);
+        Tuple row = query.select(R.priceUnit, R.shippingFeePerPerson).from(R).where(R.product.eq(BizProduct.TRIAL)).fetchFirst();
+        if (rule == null || row == null) {
+            return Optional.empty();
+        }
+        String unit = row.get(R.priceUnit);
+        Long fee = row.get(R.shippingFeePerPerson);
+        for (Tuple t : query.select(S.priceUnit, S.shippingFeePerPerson).from(S).where(S.product.eq(BizProduct.TRIAL), S.effectiveAt.loe(at))
+                .orderBy(S.effectiveAt.asc(), S.id.asc()).fetch()) {
+            unit = t.get(S.priceUnit) != null ? t.get(S.priceUnit) : unit;
+            fee = t.get(S.shippingFeePerPerson) != null ? t.get(S.shippingFeePerPerson) : fee;
+        }
+        return Optional.of(new TrialTerms(unit == null ? TrialTerms.PER_PERSON : unit, rule.unitPrice(), fee == null ? 0 : fee, rule.accepting()));
+    }
+
+    /** 체험단 기간표 줄들의 단위·발송비 칸(줄 ID → 칸) — 관리자 가격 화면 */
+    public Map<Long, TrialColumns> trialColumns() {
+        Map<Long, TrialColumns> out = new java.util.HashMap<>();
+        for (Tuple t : query.select(S.id, S.priceUnit, S.shippingFeePerPerson).from(S).where(S.product.eq(BizProduct.TRIAL)).fetch()) {
+            out.put(t.get(S.id), new TrialColumns(t.get(S.priceUnit), t.get(S.shippingFeePerPerson)));
+        }
+        return out;
+    }
+
+    /** 체험단 요금표 줄의 단위·발송비(설치 기본값) */
+    public TrialColumns trialRowColumns() {
+        Tuple row = query.select(R.priceUnit, R.shippingFeePerPerson).from(R).where(R.product.eq(BizProduct.TRIAL)).fetchFirst();
+        return row == null ? new TrialColumns(TrialTerms.PER_PERSON, 0L) : new TrialColumns(row.get(R.priceUnit), row.get(R.shippingFeePerPerson));
+    }
+
     // ── 쓰기(트랜잭션은 부르는 쪽) ─────────────────────────────────────────
 
     /** 요금표 줄을 잠근다(상품 이름 차례 — 여러 요청이 서로 기다리기만 하고 엇갈려 막히지 않게). 트랜잭션 끝까지 */
@@ -161,6 +214,18 @@ public class BizPriceRuleStore extends IrobitRepositoryQDSL {
     public void insertSchedule(long id, BizProduct product, Instant effectiveAt, long unitPrice, Integer capacity, int maxDays, int maxLeadDays, long operatorId,
                                Instant now) {
         JpaStoreWrites.insert(entityManager, BizPriceScheduleEntity.create(id, product, effectiveAt, unitPrice, capacity, maxDays, maxLeadDays, operatorId, now));
+    }
+
+    /** 체험단 단위·발송비까지(체험단만 — null 은 「직전 값 그대로」) */
+    public void insertSchedule(long id, BizProduct product, Instant effectiveAt, long unitPrice, Integer capacity, int maxDays, int maxLeadDays, String priceUnit,
+                               Long shippingFeePerPerson, long operatorId, Instant now) {
+        JpaStoreWrites.insert(entityManager, BizPriceScheduleEntity.create(id, product, effectiveAt, unitPrice, capacity, maxDays, maxLeadDays, priceUnit, shippingFeePerPerson,
+                operatorId, now));
+    }
+
+    /** 체험단 단위·발송비 칸 고치기(체험단 예약만) */
+    public void updateTrialColumns(long id, String priceUnit, Long shippingFeePerPerson) {
+        query.update(S).set(S.priceUnit, priceUnit).set(S.shippingFeePerPerson, shippingFeePerPerson).where(S.id.eq(id)).execute();
     }
 
     public void updateSchedule(long id, Instant effectiveAt, long unitPrice, Integer capacity, int maxDays, int maxLeadDays, long operatorId, Instant now) {

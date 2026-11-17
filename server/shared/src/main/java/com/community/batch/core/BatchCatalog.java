@@ -348,7 +348,13 @@ public enum BatchCatalog implements BatchDefinition {
      * member-title-contract 「구현 결정」 1). 인기글 일수는 인기글 보상과 같은 날짜별 목록({@code point_popular_rewards})을 쓰고, 포인트 보상이 꺼져 있어도 이 배치가 그날 목록을 뽑아 둔다
      * (상위 {@code popularRewardTopN}, 0 이면 10). 기본 매일 00:10 KST(인기글 보상 00:00 뒤). 칭호 저장(조건 바꿈) 때는 그 칭호만 「지금 실행」한다. 분류는 회원(MEMBER).
      */
-    TITLE_AUTO_GRANT("title-auto-grant", BatchCategory.MEMBER, BatchSource.JAVA, "0 10 0 * * *", true);
+    TITLE_AUTO_GRANT("title-auto-grant", BatchCategory.MEMBER, BatchSource.JAVA, "0 10 0 * * *", true),
+
+    /**
+     * 체험단 하루 정리(Java 배치 {@code TrialDailyJob}, trial-group-contract 「구현 결정」 11) — 신청 마감 · 받음 자동(송장 뒤 7일) · 사용기 기한 넘김(신청 금지·리뷰어 정지) · 반납 독촉 · 미반납 확정 ·
+     * 파손 이의 기한 · 구매 인증 사진 파기 · 입고 보관 기한 알림 · 주소 사본 파기 · 붙지 않은 사진 정리 · 다 끝난 모집 끝내기. 기본 매일 00:20 KST(칭호 자동 판정 뒤). 분류는 회원(MEMBER).
+     */
+    TRIAL_DAILY("trial-daily", BatchCategory.MEMBER, BatchSource.JAVA, "0 20 0 * * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

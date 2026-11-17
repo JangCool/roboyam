@@ -21,8 +21,16 @@ public final class AdPriceRuleAdmin {
      *
      * @param effectiveAt 적용 시각(순간 ISO-8601)
      * @param capacity    동시 한도 — 하루 단위 상품은 1 이상, 건당(POST) 상품은 null
+     * @param priceUnit   체험단(TRIAL)만 — 값 매기는 단위 PER_RECRUIT(모집 건당) · PER_PERSON(인원당), 빼면 직전 값 그대로(V241 trial-group-contract). 다른 상품은 보내면 400
+     * @param shippingFeePerPerson 체험단만 — 운영자 대신 발송 1명당 발송비(0 이상, 빼면 직전 값 그대로)
      */
-    public record ScheduleRequest(String effectiveAt, BigDecimal unitPrice, BigDecimal capacity, BigDecimal maxDays, BigDecimal maxLeadDays) {
+    public record ScheduleRequest(String effectiveAt, BigDecimal unitPrice, BigDecimal capacity, BigDecimal maxDays, BigDecimal maxLeadDays, String priceUnit,
+                                  BigDecimal shippingFeePerPerson) {
+
+        /** 체험단 칸 없이(그 밖 상품) */
+        public ScheduleRequest(String effectiveAt, BigDecimal unitPrice, BigDecimal capacity, BigDecimal maxDays, BigDecimal maxLeadDays) {
+            this(effectiveAt, unitPrice, capacity, maxDays, maxLeadDays, null, null);
+        }
     }
 
     /** 단가 일괄 조정 — {@code kind} PERCENT(−90~300) · AMOUNT(원), {@code value} 정수 */
@@ -44,7 +52,7 @@ public final class AdPriceRuleAdmin {
 
     /** 걸린 예약 한 건(아직 적용 전) */
     public record Schedule(String id, Instant effectiveAt, long unitPrice, Integer capacity, int maxDays, int maxLeadDays, Operator createdBy, Instant createdAt,
-                           Instant updatedAt) {
+                           Instant updatedAt, String priceUnit, Long shippingFeePerPerson) {
     }
 
     /** 앞날 겹침 분포 한 칸 — 최대 동시 겹침이 {@code peak} 인 날이 {@code days} 일 */
@@ -59,9 +67,9 @@ public final class AdPriceRuleAdmin {
     public record RecentChange(String id, Instant changedAt, String operatorName, List<RecentChangeField> changes) {
     }
 
-    /** 요금표 한 줄 — 값은 지금 적용되는 값(적용 시각이 지난 예약 포함) */
+    /** 요금표 한 줄 — 값은 지금 적용되는 값(적용 시각이 지난 예약 포함). {@code priceUnit}·{@code shippingFeePerPerson} 은 체험단(TRIAL)만(그 밖 null — V241) */
     public record Rule(String product, String unit, long unitPrice, Integer capacity, int maxDays, int maxLeadDays, boolean accepting, List<Occupancy> occupancy,
-                       List<Schedule> schedules, List<RecentChange> recentChanges) {
+                       List<Schedule> schedules, List<RecentChange> recentChanges, String priceUnit, Long shippingFeePerPerson) {
     }
 
     /** {@code GET /api/admin/ads/price-rules}(쓰기 API 도 이 모양) — 지금 값이 마지막으로 바뀐 때(가장 늦게 적용된 기간표 줄 · 받기 켬/끔), 바뀐 적 없으면 null */

@@ -171,7 +171,11 @@ public final class AdminScreenRegistry {
                     // 광고주 관리(ad-advertiser-contract — 조회 ad.read, 처리는 화면 안에서 ad.manage · 연락처 평문 ad.contact.reveal)
                     leaf(s("adAdvertisers", "/ad-advertisers", "menu.adAdvertisers", "pi pi-address-book", Permission.AD_READ)),
                     // 노출 자리 설정(글 보기 중간 · 날개 · 목록 한 줄) — 조회 ad.read, 저장은 화면 안에서 ad.settings
-                    leaf(s("adPlacements", "/ads/placements", "menu.adPlacements", "pi pi-sliders-h", Permission.AD_READ))),
+                    leaf(s("adPlacements", "/ads/placements", "menu.adPlacements", "pi pi-sliders-h", Permission.AD_READ)),
+                    // 체험단(trial-group-contract 「구현 결정」 10) — 모집 목록·만들기·뽑기·입고·발송·확인할 일(trial.manage), 체험단 설정(trial.settings).
+                    // 저장한 메뉴 구성에는 admin V12 가 넣는다. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
+                    leaf(s("adTrials", "/ads/trials", "menu.adTrials", "pi pi-box", Permission.TRIAL_MANAGE)),
+                    leaf(s("adTrialSettings", "/ads/trials/settings", "menu.adTrialSettings", "pi pi-cog", Permission.TRIAL_SETTINGS))),
             // 핫딜 묶음 — 핫딜 심사(HOTDEAL_* 신청 건, 처리 hotdeal.manage · 환불 deal-order.refund) · 회원 핫딜 1차(hotdeal-contract): 핫딜 글(종료·재개 hotdeal.manage) ·
             // 링크 규칙(처리 hotdeal.domain.manage) · 의심 후보(무시 hotdeal.manage) · 핫딜 설정(조회·저장 hotdeal.manage — 사이트 제휴 몰 표 포함)
             section(NORMAL, "menu.hotdeal", "pi pi-ticket",

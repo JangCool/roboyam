@@ -709,6 +709,35 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 체험단·구매 인증 알림(V241 — trial-group-contract 「구현 결정」 14). 덧붙임 {@code title}(알릴 때 모집 제목 · 구매 인증은 글 제목)·{@code note}(본문 한 줄 — 없으면 빈 칸)·
+     * {@code path}(누르면 갈 곳 — 내 체험단 {@code /me/trials} 또는 그 글). 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
+     */
+    public int trial(long userId, MemberNotificationType type, String title, String note, String path) {
+        return isolated.run("member-notification:trial", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(title, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("title", name);
+                if (note != null && !note.isBlank()) {
+                    payload.put("note", note);
+                }
+                payload.put("path", path);
+                writer.insert(ids.nextId(), userId, type.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.trial(type, name, note), null, null, path);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 칭호를 받았다({@code TITLE_GRANTED} — V240, member-title-contract 「알림·축하 창」 — 단계가 오른 것도). 덧붙임 {@code titleKey}·{@code label}(알릴 때 표시 이름)·{@code tier}.
      * 누르면 내 칭호. 지급 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 지급을 깨지 않는다).
      */

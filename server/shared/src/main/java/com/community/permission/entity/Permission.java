@@ -196,6 +196,13 @@ public enum Permission {
     AD_RESTORE("ad.restore", AD_PROMO, SENSITIVE, true),
     /** 계정 없는 광고주의 담당자·연락처·이메일 평문 열람 — 사유 5~200자 · 열람 기록 · 화면은 10분 뒤 가린다(사업자 평문 열람과 같다) */
     AD_CONTACT_REVEAL("ad.contact.reveal", AD_PROMO, SENSITIVE, true),
+    // 체험단(docs/features/trial-group-contract.md 「권한」·「구현 결정」 10) — 광고 상품 TRIAL. 역할 부여는 V241 이 광고 권한 가진 운영자 역할에 함께 준다
+    /** 체험단 모집 목록·만들기·고치기·뽑기·입고·발송·반납·파손 신고(광고주 대신)·광고주 반송 */
+    TRIAL_MANAGE("trial.manage", AD_PROMO, MANAGE, true),
+    /** 체험단 설정(제공형 상한·표시 문구·반납 독촉·사용기 기한 불이익·구매 인증 보너스·사진 보관) */
+    TRIAL_SETTINGS("trial.settings", AD_PROMO, CONFIG, true),
+    /** 확인할 일 — 구매 인증 승인·거절 · 반납 확인 · 파손 판정 · 협찬 숨김 신고 확인 */
+    TRIAL_REVIEW("trial.review", AD_PROMO, MANAGE, true),
     OPERATOR_READ("operator.read", OPERATOR_ROLE, READ, true),
     ROLE_READ("role.read", OPERATOR_ROLE, READ, true),
     OPERATOR_MANAGE("operator.manage", OPERATOR_ROLE, MANAGE, true),

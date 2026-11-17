@@ -63,6 +63,13 @@ public final class BoardFields {
     public static final String STAFF = "STAFF";
     public static final String OFF = "OFF";
 
+    /** 「구입 경로 받기」(V241 — trial-group-contract): 끔 · 고를 수 있음 · 꼭 골라야 함 */
+    public static final String PURCHASE_OFF = "OFF";
+    public static final String PURCHASE_OPTIONAL = "OPTIONAL";
+    public static final String PURCHASE_REQUIRED = "REQUIRED";
+    /** 체험단 사용기에 서버가 다는 공통 말머리 키(V241 — 「체험단」, 스텝 전용 아님). 게시판 만들기의 공통 말머리 목록에는 넣지 않는다(필요할 때 만든다) */
+    public static final String TRIAL_PREFIX = "TRIAL";
+
     /** 게시판 pointMode 「끔」 — 그 밖의 값은 포인트 등급 NORMAL · INFO · CORE(V238) */
     public static final String POINT_OFF = "OFF";
     public static final String KIND_GENERAL = "GENERAL";
@@ -164,7 +171,7 @@ public final class BoardFields {
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "pointMinLengthApplied", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
-            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "authorThumbnailEnabled", "tagsEnabled", "detailFeedTabsPc", "detailFeedTabsMobile", "prefixRequired", "tagRequired", "sourcesEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
+            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "authorThumbnailEnabled", "tagsEnabled", "detailFeedTabsPc", "detailFeedTabsMobile", "prefixRequired", "tagRequired", "sourcesEnabled", "purchaseSourceMode", "trialReviewsEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
             "staffSanctionDailyLimit");
     /** 댓글 추천·비추천 단추 이름 최대 글자 수(V78 varchar(10)) */
     public static final int REACTION_LABEL_MAX = 10;
@@ -252,6 +259,9 @@ public final class BoardFields {
         bool(d, "tagRequired", true);
         // 출처 칸 쓰기(V232 — 글에 출처 목록, 기본 끔)
         bool(d, "sourcesEnabled", true);
+        // 구입 경로 받기 · 체험단 사용기 받기(V241 — trial-group-contract, 기본 끔)
+        choice(d, "purchaseSourceMode", true, false, PURCHASE_OFF, PURCHASE_OPTIONAL, PURCHASE_REQUIRED);
+        bool(d, "trialReviewsEnabled", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
         // 토론 의견 [고정 요청]의 최소 추천 수(V200 — 0 = 제한 없음) — 사이트 전체 값 하나(게시판별 덮어쓰기 없음)
         number(d, "pinRequestMinLikes", 0, PIN_REQUEST_MIN_LIKES_MAX, false, false);
