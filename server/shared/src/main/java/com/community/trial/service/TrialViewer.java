@@ -6,6 +6,8 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.commerce.image.GroupBuyImageUploader;
+import com.community.operator.entity.OperatorEntity;
+import com.community.operator.repository.master.OperatorRepository;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.entity.PostEntity;
@@ -72,11 +74,12 @@ public class TrialViewer {
     private final PostRepository posts;
     private final GroupBuyImageUploader images;
     private final DataCipher cipher;
+    private final OperatorRepository operators;
 
     public TrialViewer(TrialApplicationRepository applications, TrialParticipantRepository participants, TrialStockReceiptRepository stocks, TrialPhotoRepository photos,
                        TrialDamageReportRepository damages, TrialQueries queries, TrialSettingsService settings, AdAdvertiserStore advertisers,
                        BizApplicationStore bizApplications, BoardCatalog catalog, ProfileRepository profiles, ShopDecorationResolver decorations, PostRepository posts,
-                       GroupBuyImageUploader images, DataCipher cipher) {
+                       GroupBuyImageUploader images, DataCipher cipher, OperatorRepository operators) {
         this.applications = applications;
         this.participants = participants;
         this.stocks = stocks;
@@ -92,6 +95,7 @@ public class TrialViewer {
         this.posts = posts;
         this.images = images;
         this.cipher = cipher;
+        this.operators = operators;
     }
 
     // ── 조각 ────────────────────────────────────────────────────────────
@@ -108,24 +112,51 @@ public class TrialViewer {
         return key == null ? null : images.url(key);
     }
 
-    /** 회원들의 닉네임·아바타(한 번에) */
+    /** 회원들의 닉네임·아바타(한 번에) — 회원번호 없이(공개·광고주·게시판 매니저 응답) */
     public Map<Long, TrialViews.Member> members(Collection<Long> userIds) {
+        return members(userIds, false);
+    }
+
+    /** 회원들의 닉네임·아바타(한 번에) — {@code withMemberNo} 관리자 응답이면 회원번호(회원 상세 링크)도 채운다 */
+    public Map<Long, TrialViews.Member> members(Collection<Long> userIds, boolean withMemberNo) {
         Map<Long, TrialViews.Member> out = new HashMap<>();
         if (userIds.isEmpty()) {
             return out;
         }
-        Map<Long, String> names = new HashMap<>();
-        profiles.findAllById(new HashSet<>(userIds)).forEach(p -> names.put(p.getUserId(), p.getNickname()));
+        Map<Long, String> names = nicknames(userIds);
         Map<Long, AuthorLook> looks = decorations.resolve(new HashSet<>(userIds));
         for (Long id : userIds) {
             AuthorLook look = looks.get(id);
-            out.put(id, new TrialViews.Member(Long.toString(id), names.getOrDefault(id, ""), look == null ? null : look.avatarUrl()));
+            TrialViews.Member m = new TrialViews.Member(Long.toString(id), names.getOrDefault(id, ""), look == null ? null : look.avatarUrl());
+            out.put(id, withMemberNo ? m.withMemberNo() : m);
         }
         return out;
     }
 
     public TrialViews.Member member(long userId) {
-        return members(List.of(userId)).get(userId);
+        return member(userId, false);
+    }
+
+    public TrialViews.Member member(long userId, boolean withMemberNo) {
+        return members(List.of(userId), withMemberNo).get(userId);
+    }
+
+    /** 회원 닉네임(한 번에) — 프로필이 없으면 빠진다 */
+    public Map<Long, String> nicknames(Collection<Long> userIds) {
+        Map<Long, String> names = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            profiles.findAllById(new HashSet<>(userIds)).forEach(p -> names.put(p.getUserId(), p.getNickname()));
+        }
+        return names;
+    }
+
+    /** 운영자 표시 이름(한 번에) — 없는 계정은 빠진다 */
+    public Map<Long, String> operatorNames(Collection<Long> operatorIds) {
+        Map<Long, String> names = new HashMap<>();
+        if (!operatorIds.isEmpty()) {
+            operators.findAllById(new HashSet<>(operatorIds)).forEach((OperatorEntity o) -> names.put(o.getId(), o.getOperatorName()));
+        }
+        return names;
     }
 
     public List<TrialViews.Photo> photos(List<TrialPhotoEntity> rows) {
@@ -189,7 +220,7 @@ public class TrialViewer {
         }
         Set<Long> userIds = new HashSet<>();
         people.forEach(p -> userIds.add(p.getUserId()));
-        Map<Long, TrialViews.Member> who = members(userIds);
+        Map<Long, TrialViews.Member> who = members(userIds, viewer == TrialActorType.OPERATOR);
         Map<Long, String> postTitles = new HashMap<>();
         List<Long> postIds = people.stream().map(TrialParticipantEntity::getReviewPostId).filter(java.util.Objects::nonNull).toList();
         posts.findAllById(postIds).forEach(p -> postTitles.put(p.getId(), p.getTitle()));
@@ -246,12 +277,12 @@ public class TrialViewer {
                 d.getDecidedAt(), photos(own), d.getCreatedAt());
     }
 
-    /** 신청자 목록(관리자 뽑기 · 광고주 추천) */
-    public TrialViews.ApplicantPage applicants(TrialEntity t) {
+    /** 신청자 목록(관리자 뽑기 · 광고주 추천) — 회원번호는 관리자({@code viewer} OPERATOR)에게만 */
+    public TrialViews.ApplicantPage applicants(TrialEntity t, TrialActorType viewer) {
         List<TrialApplicationEntity> apps = applications.findByTrialIdOrderByCreatedAtAscIdAsc(t.getId()).stream().filter(TrialApplicationEntity::live).toList();
         Set<Long> userIds = new HashSet<>();
         apps.forEach(a -> userIds.add(a.getUserId()));
-        Map<Long, TrialViews.Member> who = members(userIds);
+        Map<Long, TrialViews.Member> who = members(userIds, viewer == TrialActorType.OPERATOR);
         Map<Long, TrialQueries.Stats> stats = queries.stats(userIds, t.getReviewBoardId());
         List<TrialViews.Applicant> items = apps.stream().map(a -> {
             TrialQueries.Stats s = stats.get(a.getUserId());

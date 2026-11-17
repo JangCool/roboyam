@@ -10,8 +10,9 @@ package com.community.board.dto.response;
  * @param commentMin 유효 댓글 최소 자격
  * @param groupCategoryId   할당된 소모임 분류(소모임 게시판만) — 분류에 안 들었거나 일반 게시판이면 null
  * @param groupCategoryName 그 분류 이름 — 없으면 null
+ * @param trialReviewsEnabled 「체험단 사용기 받기」 실효값(게시판 값 ?? 기본값, 일반 게시판만 — 그 밖 false). 모집의 사용기 게시판 후보(V241)
  */
 public record BoardListItemView(String id, String slug, String name, String nameEn, String description, String kind, String layout, String color,
                                 boolean active, int sortOrder, long postCount, int managerCount, int staffCount, int diffCount, String writeMin,
-                                String commentMin, String groupCategoryId, String groupCategoryName) {
+                                String commentMin, String groupCategoryId, String groupCategoryName, boolean trialReviewsEnabled) {
 }

@@ -183,7 +183,7 @@ public class TrialService {
 
     @Transactional(readOnly = true)
     public TrialViews.ApplicantPage applicants(String idText, Actor actor) {
-        return viewer.applicants(visible(idText, actor));
+        return viewer.applicants(visible(idText, actor), actor.type());
     }
 
     /** 보는 쪽에게 보이는 모집 — 광고주는 자기 모집(초안 빼고)만, 아니면 404 */
@@ -664,7 +664,7 @@ public class TrialService {
                 messages.get(new MessageRef("trial.notice.damageReported", String.valueOf(OBJECTION_DAYS))), "/me/trials");
         audit.record(actor.event(AuditActions.TRIAL_DAMAGE_REPORT).target("TRIAL", Long.toString(t.getId())).with("participantId", Long.toString(p.getId()))
                 .with("damageReportId", Long.toString(d.getId())).with("photos", attach.size()));
-        return viewer.damage(d, viewer.member(p.getUserId()), attach);
+        return viewer.damage(d, viewer.member(p.getUserId(), actor.operator()), attach);
     }
 
     /** 파손 판정(운영자) — 회원이 이의했거나 이의 기한이 지난 뒤만(아니면 409 {@code TRIAL_DAMAGE_OBJECTION_OPEN}) */
@@ -695,7 +695,7 @@ public class TrialService {
                 .with("chargeLimit", t.getProductPrice()));
         List<TrialPhotoEntity> own = photos.findByTrialIdAndAttachedAtIsNotNullOrderByIdAsc(t.getId()).stream().filter(x -> d.getId().equals(x.getDamageReportId()))
                 .toList();
-        return viewer.damage(d, viewer.member(p.getUserId()), own);
+        return viewer.damage(d, viewer.member(p.getUserId(), true), own);
     }
 
     // ── 안쪽 ─────────────────────────────────────────────────────────────

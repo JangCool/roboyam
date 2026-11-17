@@ -451,6 +451,9 @@ class TrialApiTest extends CommerceApiTestBase {
         String staffList = mvc.perform(as(manager, get("/api/boards/" + slug + "/staff/purchase-proofs"))).andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString();
         assertThat(JsonPath.<List<String>>read(staffList, "$.data[?(@.id == '" + proofId + "')].status")).as(staffList).containsExactly("PENDING");
+        // 확인 전이면 확인한 사람 칸이 없고, 매니저 응답의 회원에는 회원번호가 없다(관리자 응답에만)
+        assertThat(JsonPath.<List<Object>>read(staffList, "$.data[?(@.id == '" + proofId + "')].reviewerName")).isEmpty();
+        assertThat(JsonPath.<List<Object>>read(staffList, "$.data[?(@.id == '" + proofId + "')].author.memberNo")).isEmpty();
         mvc.perform(as(manager, get("/api/boards/" + slug + "/staff/purchase-proofs/" + proofId + "/photo"))).andExpect(status().isOk());
         assertThat(lastAudit("POST", Long.toString(self), "PURCHASE_PROOF_VIEW")).isNotNull();
         long xpBefore = jdbc.queryForObject("SELECT xp FROM profiles WHERE user_id = ?", Long.class, author);
@@ -461,6 +464,10 @@ class TrialApiTest extends CommerceApiTestBase {
         assertThat(jdbc.queryForObject("SELECT coalesce(sum(delta), 0) FROM point_ledger WHERE user_id = ? AND reason = 'PURCHASE_PROOF' AND ref_id = ?", Long.class, author, self))
                 .isEqualTo(100L);
         assertThat(notices(author, "PURCHASE_PROOF_APPROVED")).isEqualTo(1);
+        String doneList = mvc.perform(as(manager, get("/api/boards/" + slug + "/staff/purchase-proofs?status=DONE"))).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+        assertThat(JsonPath.<List<String>>read(doneList, "$.data[?(@.id == '" + proofId + "')].reviewerName"))
+                .containsExactly(jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, manager)); // 매니저 = 닉네임
 
         // 매니저 자기 글의 인증은 확인할 수 없다
         long mine = Long.parseLong(JsonPath.read(write(manager, postBody(slug, "매니저 후기", ",\"purchaseSource\":\"SELF\"")).andExpect(status().isCreated()).andReturn()
@@ -532,7 +539,9 @@ class TrialApiTest extends CommerceApiTestBase {
         mvc.perform(as(advertiserUser, get("/api/business/trials/" + t))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.trial.participants[0].recipient").value("홍길동"))
                 .andExpect(jsonPath("$.data.trial.participants[0].address1").value("서울 강남구 테헤란로 1"))
-                .andExpect(jsonPath("$.data.applicants.items[0].status").value("SELECTED"));
+                .andExpect(jsonPath("$.data.applicants.items[0].status").value("SELECTED"))
+                .andExpect(jsonPath("$.data.trial.participants[0].member.memberNo").doesNotExist()) // 회원번호는 관리자 응답에만
+                .andExpect(jsonPath("$.data.applicants.items[0].member.memberNo").doesNotExist());
         assertThat(lastAudit("TRIAL", Long.toString(t), "TRIAL_PII_PROVIDE").get("detail").toString()).contains("ADVERTISER_VIEW");
 
         mvc.perform(as(advertiserUser, put("/api/business/trials/participants/" + p + "/shipment")).content("{\"carrier\":\"우체국\",\"trackingNo\":\"1234\"}"))

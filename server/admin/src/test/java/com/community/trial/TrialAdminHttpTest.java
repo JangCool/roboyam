@@ -16,6 +16,7 @@ import com.community.commerce.Commerce04AdminTestBase;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.permission.entity.Permission;
 import com.community.trial.dto.TrialViews;
+import com.community.trial.service.PurchaseProofService;
 import com.community.trial.service.SponsorReviewService;
 import com.community.trial.service.TrialMemberService;
 import com.jayway.jsonpath.JsonPath;
@@ -50,6 +51,8 @@ class TrialAdminHttpTest extends Commerce04AdminTestBase {
     private SponsorReviewService sponsors;
     @Autowired
     private PlatformTransactionManager transactions;
+    @Autowired
+    private PurchaseProofService proofService;
 
     private long board;
     private String slug;
@@ -129,13 +132,18 @@ class TrialAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(post("/api/admin/trials/" + id + "/select"), manager).content("{\"applicationIds\":[\"" + a + "\"]}")).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("TRIAL_STATE_INVALID")); // 신청 마감 전
         mvc.perform(withCsrf(put("/api/admin/trials/" + id), manager).content("{\"action\":\"CLOSE_APPLY\"}")).andExpect(status().isOk());
-        mvc.perform(get("/api/admin/trials/" + id + "/applications").cookie(manager)).andExpect(status().isOk()).andExpect(jsonPath("$.data.items.length()").value(3))
-                .andExpect(jsonPath("$.data.generalSlots").value(1));
+        String applicants = mvc.perform(get("/api/admin/trials/" + id + "/applications").cookie(manager)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(3)).andExpect(jsonPath("$.data.generalSlots").value(1)).andReturn().getResponse().getContentAsString();
+        // 관리자 응답의 회원은 회원번호(회원 상세 링크 — 회원 ID 와 같다)를 싣는다
+        assertThat(JsonPath.<List<String>>read(applicants, "$.data.items[*].member.memberNo"))
+                .containsExactlyElementsOf(JsonPath.<List<String>>read(applicants, "$.data.items[*].member.id"));
         mvc.perform(withCsrf(post("/api/admin/trials/" + id + "/select"), manager).content("{\"applicationIds\":[\"" + a + "\",\"" + b + "\"]}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.applicationIds").exists()); // 일반 신청 2명 > 일반 몫 1
         mvc.perform(withCsrf(post("/api/admin/trials/applications/" + c + "/recommend"), manager).content("{\"recommended\":true}")).andExpect(status().isNoContent());
         mvc.perform(withCsrf(post("/api/admin/trials/" + id + "/select"), manager).content("{\"applicationIds\":[\"" + c + "\"]}")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("RUNNING")).andExpect(jsonPath("$.data.selectedCount").value(1));
+                .andExpect(jsonPath("$.data.status").value("RUNNING")).andExpect(jsonPath("$.data.selectedCount").value(1))
+                .andExpect(jsonPath("$.data.participants[0].member.memberNo").value(Long.toString(
+                        jdbc.queryForObject("SELECT user_id FROM trial_applications WHERE id = ?", Long.class, c))));
         mvc.perform(withCsrf(post("/api/admin/trials/" + id + "/stock"), manager).content("{\"quantity\":1,\"photoIds\":[]}")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.photoIds").exists());
         mvc.perform(withCsrf(post("/api/admin/trials/" + id + "/return-shipment"), manager).content("{\"carrier\":\"CJ\",\"trackingNo\":\"1\"}"))
@@ -170,6 +178,7 @@ class TrialAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(JsonPath.<List<String>>read(pending, "$.data.items[?(@.id == '" + postId + "')].status")).containsExactly("PENDING");
         String proofs = mvc.perform(get("/api/admin/review-queue?type=PURCHASE_PROOF").cookie(manager)).andReturn().getResponse().getContentAsString();
         assertThat(JsonPath.<List<String>>read(proofs, "$.data.items[?(@.id == '" + proof + "')].refs.postId")).containsExactly(Long.toString(proofPost));
+        assertThat(JsonPath.<List<String>>read(proofs, "$.data.items[?(@.id == '" + proof + "')].member.memberNo")).containsExactly(Long.toString(author));
 
         mvc.perform(withCsrf(post("/api/admin/review-queue/sponsor-hidden/" + postId + "/confirm"), manager).content("{\"note\":\"업체 제공\"}"))
                 .andExpect(status().isNoContent());
@@ -181,7 +190,22 @@ class TrialAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.error.fields.reason").exists());
         mvc.perform(withCsrf(post("/api/admin/purchase-proofs/" + proof + "/approve"), manager)).andExpect(status().isNoContent());
         assertThat(jdbc.queryForObject("SELECT status FROM purchase_proofs WHERE id = ?", String.class, proof)).isEqualTo("APPROVED");
+        // 구매 인증 응답의 확인한 사람 — 운영자가 확인했으면 관리자 표시 이름
+        String operatorName = jdbc.queryForObject("SELECT o.operator_name FROM operators o JOIN purchase_proofs p ON p.reviewed_by = o.id WHERE p.id = ?", String.class, proof);
+        assertThat(proofService.list("DONE", board).stream().filter(p -> p.id().equals(Long.toString(proof))).map(TrialViews.Proof::reviewerName))
+                .containsExactly(operatorName);
         assertThat(jdbc.queryForObject("SELECT coalesce(sum(delta), 0) FROM point_ledger WHERE user_id = ? AND reason = 'PURCHASE_PROOF'", Long.class, author)).isEqualTo(100L);
+    }
+
+    @Test
+    void 게시판_목록_줄에_체험단_사용기_받기_실효값_켠_게시판_true_비운_게시판은_기본값_false() throws Exception {
+        long other = ids.nextId();
+        String otherSlug = "tb" + Long.toString(other, 36);
+        boardFixture.board(other, otherSlug, "체험없음 " + otherSlug.substring(otherSlug.length() - 6), 971);
+        String body = mvc.perform(get("/api/admin/boards").cookie(login(operatorWith(Permission.BOARD_READ)))).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+        assertThat(JsonPath.<List<Boolean>>read(body, "$.data.boards[?(@.id == '" + board + "')].trialReviewsEnabled")).containsExactly(true);
+        assertThat(JsonPath.<List<Boolean>>read(body, "$.data.boards[?(@.id == '" + other + "')].trialReviewsEnabled")).containsExactly(false);
     }
 
     @Test

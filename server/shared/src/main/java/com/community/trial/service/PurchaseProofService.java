@@ -290,8 +290,13 @@ public class PurchaseProofService {
         Map<Long, TrialViews.Member> who = viewer.members(users);
         Map<Long, String> titles = new HashMap<>();
         posts.findAllById(rows.stream().map(PurchaseProofEntity::getPostId).toList()).forEach(p -> titles.put(p.getId(), p.getTitle()));
+        // 확인한 사람 — 운영자 이름 · 게시판 매니저 닉네임(칭호 신청 reviewedBy 와 같은 규칙)
+        Map<Long, String> operatorNames = viewer.operatorNames(rows.stream().map(PurchaseProofEntity::getReviewedBy).filter(java.util.Objects::nonNull).toList());
+        Map<Long, String> managerNames = viewer.nicknames(rows.stream().map(PurchaseProofEntity::getReviewedByMember).filter(java.util.Objects::nonNull).toList());
         return rows.stream().map(r -> new TrialViews.Proof(Long.toString(r.getId()), Long.toString(r.getPostId()), titles.get(r.getPostId()), viewer.board(r.getBoardId()),
-                who.get(r.getUserId()), r.getStatus().name(), r.getRejectReason(), r.getContent() == null, r.getCreatedAt(), r.getReviewedAt())).toList();
+                who.get(r.getUserId()), r.getStatus().name(), r.getRejectReason(), r.getContent() == null, r.getCreatedAt(), r.getReviewedAt(),
+                r.getReviewedBy() != null ? operatorNames.get(r.getReviewedBy()) : r.getReviewedByMember() != null ? managerNames.get(r.getReviewedByMember()) : null))
+                .toList();
     }
 
     /** 파기(하루 배치) — 확인 뒤 보관 일수가 지난 사진 */

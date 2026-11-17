@@ -135,8 +135,8 @@ public class ReviewQueueService {
     private List<Item> items(String type, boolean pending, Instant now) {
         return switch (type) {
             case "TITLE_APPLICATION" -> titleApplications(pending);
-            case "PURCHASE_PROOF" -> proofs.list(pending ? "PENDING" : "DONE", null).stream().map(p -> new Item(type, p.id(), p.status(), p.postTitle(), p.author(),
-                    pending ? p.createdAt() : p.reviewedAt(), p.rejectReason(), refs("postId", p.postId(), "boardSlug", p.board() == null ? null : p.board().slug()))).toList();
+            case "PURCHASE_PROOF" -> proofs.list(pending ? "PENDING" : "DONE", null).stream().map(p -> new Item(type, p.id(), p.status(), p.postTitle(),
+                    p.author() == null ? null : p.author().withMemberNo(), pending ? p.createdAt() : p.reviewedAt(), p.rejectReason(), refs("postId", p.postId(), "boardSlug", p.board() == null ? null : p.board().slug()))).toList();
             case "RETURN_CHECK" -> returnChecks(pending, now);
             case "DAMAGE_REPORT" -> damages(pending);
             case "SPONSOR_HIDDEN" -> sponsorHidden(pending);
@@ -149,7 +149,7 @@ public class ReviewQueueService {
                 : titleQueries.applications(null, null, LIMIT).stream().filter(a -> !a.isPending()).toList();
         Map<Long, TitleEntity> byId = new HashMap<>();
         titles.findAllById(rows.stream().map(TitleApplicationEntity::getTitleId).distinct().toList()).forEach(t -> byId.put(t.getId(), t));
-        Map<Long, TrialViews.Member> who = viewer.members(rows.stream().map(TitleApplicationEntity::getUserId).toList());
+        Map<Long, TrialViews.Member> who = viewer.members(rows.stream().map(TitleApplicationEntity::getUserId).toList(), true);
         return rows.stream().map(a -> {
             TitleEntity t = byId.get(a.getTitleId());
             return new Item("TITLE_APPLICATION", Long.toString(a.getId()), a.getStatus().name(), t == null ? null : t.getName(), who.get(a.getUserId()),
@@ -160,7 +160,7 @@ public class ReviewQueueService {
     private List<Item> returnChecks(boolean pending, Instant now) {
         List<TrialParticipantEntity> rows = trialQueries.returnChecks(pending, now, LIMIT);
         Map<Long, TrialEntity> byTrial = trialsOf(rows.stream().map(TrialParticipantEntity::getTrialId).toList());
-        Map<Long, TrialViews.Member> who = viewer.members(rows.stream().map(TrialParticipantEntity::getUserId).toList());
+        Map<Long, TrialViews.Member> who = viewer.members(rows.stream().map(TrialParticipantEntity::getUserId).toList(), true);
         return rows.stream().map(p -> new Item("RETURN_CHECK", Long.toString(p.getId()), pending ? "PENDING" : p.returned() ? "RETURNED" : "UNRETURNED",
                 byTrial.containsKey(p.getTrialId()) ? byTrial.get(p.getTrialId()).getTitle() : null, who.get(p.getUserId()),
                 pending ? p.getReturnDueAt() : (p.returned() ? p.getReturnedAt() : p.getUnreturnedAt()), null, refs("trialId", Long.toString(p.getTrialId())))).toList();
@@ -173,7 +173,7 @@ public class ReviewQueueService {
         Map<Long, TrialEntity> byTrial = trialsOf(rows.stream().map(TrialDamageReportEntity::getTrialId).toList());
         Map<Long, Long> owner = new HashMap<>();
         participants.findAllById(rows.stream().map(TrialDamageReportEntity::getParticipantId).distinct().toList()).forEach(p -> owner.put(p.getId(), p.getUserId()));
-        Map<Long, TrialViews.Member> who = viewer.members(new HashSet<>(owner.values()));
+        Map<Long, TrialViews.Member> who = viewer.members(new HashSet<>(owner.values()), true);
         return rows.stream().map(d -> new Item("DAMAGE_REPORT", Long.toString(d.getId()), d.getStatus() == TrialDamageStatus.DECIDED ? d.getVerdict().name() : d.getStatus().name(),
                 byTrial.containsKey(d.getTrialId()) ? byTrial.get(d.getTrialId()).getTitle() : null,
                 owner.containsKey(d.getParticipantId()) ? who.get(owner.get(d.getParticipantId())) : null, pending ? d.getCreatedAt() : d.getDecidedAt(),
@@ -191,7 +191,7 @@ public class ReviewQueueService {
                 authors.add(p.getAuthorId());
             }
         });
-        Map<Long, TrialViews.Member> who = viewer.members(authors);
+        Map<Long, TrialViews.Member> who = viewer.members(authors, true);
         return rows.stream().map(r -> {
             PostEntity p = byPost.get(r.getPostId());
             String slug = p == null ? null : catalog.snapshot().board(p.getBoardId()).map(b -> b.slug()).orElse(null);

@@ -1,5 +1,6 @@
 package com.community.trial.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.List;
 
@@ -20,7 +21,20 @@ public final class TrialViews {
     public record BoardRef(String id, String slug, String name) {
     }
 
-    public record Member(String id, String nickname, String avatarUrl) {
+    /**
+     * 회원 조각. {@code memberNo} 는 회원 관리의 회원번호(회원 ID 와 같다 — 관리자 화면이 회원 상세로 가는 링크, 칭호 관리 {@code MemberView} 와 같은 규칙)로 관리자 응답에서만
+     * 채운다. 공개·내 체험단·광고주·게시판 매니저 응답에서는 null(JSON 에서 빠짐).
+     */
+    public record Member(String id, String nickname, String avatarUrl, @JsonInclude(JsonInclude.Include.NON_NULL) String memberNo) {
+
+        public Member(String id, String nickname, String avatarUrl) {
+            this(id, nickname, avatarUrl, null);
+        }
+
+        /** 관리자 응답용 — 회원번호를 채운 사본 */
+        public Member withMemberNo() {
+            return new Member(id, nickname, avatarUrl, id);
+        }
     }
 
     public record Photo(String id, String kind, String url, Instant createdAt) {
@@ -180,9 +194,12 @@ public final class TrialViews {
 
     // ── 구매 인증 ───────────────────────────────────────────────────────────
 
-    /** 구매 인증 한 줄(확인할 일·스텝 화면) — 사진은 {@code photoUrl}(확인하는 사람만, 열람 기록) */
+    /**
+     * 구매 인증 한 줄(확인할 일·스텝 화면) — 사진은 {@code photoUrl}(확인하는 사람만, 열람 기록). {@code reviewerName} 확인한 사람(운영자 = 관리자 이름 · 게시판 매니저 = 닉네임 —
+     * 칭호 신청 {@code reviewedBy} 와 같은 규칙), 확인 전이거나 그 계정을 찾을 수 없으면 null(JSON 에서 빠짐).
+     */
     public record Proof(String id, String postId, String postTitle, BoardRef board, Member author, String status, String rejectReason, boolean purged,
-                        Instant createdAt, Instant reviewedAt) {
+                        Instant createdAt, Instant reviewedAt, @JsonInclude(JsonInclude.Include.NON_NULL) String reviewerName) {
     }
 
     public record ProofResult(String id, String status) {

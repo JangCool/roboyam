@@ -132,6 +132,12 @@ public class BoardViews {
         return new BoardListItemView(Long.toString(board.getId()), board.getSlug(), board.getName(), board.getNameEn(), board.getDescription(),
                 board.getKind(), board.getLayout(), board.getColor(), board.isActive(), order, postCount, counts[0], counts[1], diffCount(board),
                 board.getWriteMin() != null ? board.getWriteMin() : base.writeMin(), board.getCommentMin() != null ? board.getCommentMin() : base.commentMin(),
-                category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName());
+                category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName(), trialReviewsEnabled(board, base));
+    }
+
+    /** 「체험단 사용기 받기」 실효값 — 게시판 값 ?? 기본값, 일반 게시판만(공개 쪽 {@code EffectiveBoard} 와 같은 규칙) */
+    static boolean trialReviewsEnabled(BoardEntity board, BoardDefaultsValues base) {
+        Boolean own = board.policy().trialReviewsEnabled();
+        return BoardFields.KIND_GENERAL.equals(board.getKind()) && Boolean.TRUE.equals(own != null ? own : base.trialReviewsEnabled());
     }
 }
