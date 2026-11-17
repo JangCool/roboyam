@@ -91,11 +91,13 @@ export default {
         POPULAR_DAYS: 'Popular days',
         ATTENDANCE_DAYS: 'Attendance days',
         NO_REPORT_HIDDEN: 'No posts hidden by reports',
+        PURCHASE_PROOFS: 'Verified-purchase reviews',
     },
     condUnit: {
         POSTS: 'posts',
         POPULAR_DAYS: 'days',
         ATTENDANCE_DAYS: 'days',
+        PURCHASE_PROOFS: 'posts',
     },
     cond: {
         gradeAtLeast: '{grade} or higher',

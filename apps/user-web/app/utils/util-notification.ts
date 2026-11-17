@@ -110,6 +110,16 @@ export default class UtilNotification {
         if (type === 'POST_STATUS_CHANGED') return 'pi pi-sync';
         // 칭호를 받음(member-title-contract) — 명예의 전당·내 칭호 단추와 같은 트로피(문장·이동은 서버가 준다)
         if (type === 'TITLE_GRANTED') return 'pi pi-trophy';
+        // 체험단(trial-group-contract 「구현 결정」 14) — 뽑힘 선물 · 안 뽑힘 상자 · 발송 트럭 · 기한(사용기·반납) 시계 · 미반납·파손 신고 경고 · 판정 저울 대신 확인
+        if (type === 'TRIAL_SELECTED') return 'pi pi-gift';
+        if (type === 'TRIAL_NOT_SELECTED') return 'pi pi-box';
+        if (type === 'TRIAL_SHIPPED') return 'pi pi-truck';
+        if (type === 'TRIAL_REVIEW_DUE' || type === 'TRIAL_RETURN_DUE') return 'pi pi-clock';
+        if (type === 'TRIAL_UNRETURNED' || type === 'TRIAL_DAMAGE_REPORTED') return 'pi pi-exclamation-triangle';
+        if (type === 'TRIAL_DAMAGE_DECIDED') return 'pi pi-check-square';
+        // 구매 인증 — 승인 영수증 · 거절 금지
+        if (type === 'PURCHASE_PROOF_APPROVED') return 'pi pi-receipt';
+        if (type === 'PURCHASE_PROOF_REJECTED') return 'pi pi-ban';
         if (type === 'POST_REMOVED' || type === 'COMMENT_REMOVED') return 'pi pi-trash';
         if (type === 'REPORT_RESULT') return 'pi pi-flag';
         if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';

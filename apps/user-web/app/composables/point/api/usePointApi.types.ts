@@ -162,7 +162,9 @@ export type MyPointReasonCode =
     | 'ROULETTE_WIN'
     // 게시판 등급별 포인트(`point-board-tier-contract.md`) — 우수 글 선정(EARN) · 우수 글 회수(REVOKE, 확정 뒤 본인 삭제). 이름은 서버 `reason`(우수 글 선정 · 우수 글 회수)
     | 'POST_FEATURED'
-    | 'POST_FEATURED_REVOKE';
+    | 'POST_FEATURED_REVOKE'
+    // 구매 인증 승인 보너스(trial-group-contract 「구현 결정」 13) — 이름은 서버 `reason`
+    | 'PURCHASE_PROOF';
 
 /** 보류 중인 지급의 사유 — 추천 문턱 보너스 · 우수 글 선정 */
 export type MyPointPendingReason = 'LIKE_BONUS' | 'POST_FEATURED';

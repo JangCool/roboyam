@@ -6,6 +6,7 @@ import UtilPoint from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilProfile from '~/utils/util-profile';
+import UtilTrial from '~/utils/util-trial';
 
 /** 메뉴 한 줄 */
 export interface MeMenuEntry {
@@ -34,7 +35,7 @@ export type MeMenuMeta = true | 'self';
 
 /**
  * 내 정보 메뉴 — 데스크톱은 셸이 오른쪽 열에 두고(`MeFrame`), 모바일은 `/me` 화면이 목록으로 그린다. 두 곳이 같은 줄을 쓴다.
- * 묶음: 내 정보 · 내 활동(활동 현황 · 등급 안내 · 칭호 · 사업자 센터) · 내 보관함(포인트·출석체크 · 내 아이템 — 사업자 전용 계정 제외 · 내 로보티콘) · 알림·쪽지 · 설정(모바일만).
+ * 묶음: 내 정보 · 내 활동(활동 현황 · 등급 안내 · 칭호 · 내 체험단 · 사업자 센터) · 내 보관함(포인트·출석체크 · 내 아이템 — 사업자 전용 계정 제외 · 내 로보티콘) · 알림·쪽지 · 설정(모바일만).
  * 상점 둘(포인트 상점·로보티콘 상점)과 포인트 게임 둘(룰렛·로또 번호)은 줄이 아니라 메뉴 맨 위 칸(`MeShopGameLinks`)이다.
  * 설정(`settings` 묶음)은 모바일 목록에만 보인다(사용자 결정 2026-11-06 — 모바일 상단 바의 계정 아이콘을 빼면서 설정으로 가는 길을 여기로). 데스크톱 오른쪽 열은
  * 2026-11-05 결정대로 설정을 두지 않는다 — 헤더 계정 메뉴의 「설정」으로 간다(`MeMenu` 가 거른다). 설정 화면들은 설정 메뉴(`pages/settings.vue`)만 보인다.
@@ -69,6 +70,8 @@ export function useMeMenu() {
         activity.push(entry('/me/grade', 'pi pi-star', t('me.entryGrade'), 'me-entry-grade', { hint: user.value?.role === 'USER' ? user.value.gradeLabel : '' }));
         // 칭호(member-title-contract) — 대표 칭호 고르기·진행·신청. 명예의 전당은 그 화면 위 단추로 간다. 사업자 전용 계정은 칭호가 없다
         if (!businessAccount.value) activity.push(entry(UtilMemberTitle.MY_PATH, 'pi pi-verified', t('memberTitle.myEntry'), 'me-entry-titles'));
+        // 내 체험단(trial-group-contract) — 신청·뽑힘·받음·쓰러 가기·반납·파손 이의. 사업자 전용 계정은 신청할 수 없다
+        if (!businessAccount.value) activity.push(entry(UtilTrial.MY_PATH, 'pi pi-box', t('trial.myEntry'), 'me-entry-trials'));
         // 사업자 센터 — 신청했거나 사업자 전용 계정이면만(셸 메뉴와 같은 규칙 `UtilBusiness.entryOf`). 신청 전 「사업자 신청」은 푸터 「고객 지원」 끝에 둔다(사용자 2026-11-10)
         if (UtilBusiness.entryOf(user.value) === 'CENTER') {
             activity.push(entry(UtilBusiness.CENTER_PATH, UtilBusinessMessages.ENTRY_CENTER_ICON, t('business.centerEntry'), 'me-entry-business'));

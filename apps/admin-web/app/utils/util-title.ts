@@ -37,7 +37,8 @@ export default class UtilTitle {
     static readonly REASON_MAX = 500;
 
     /** 조건 종류 차례(편집 서랍의 「조건 더하기」) */
-    static readonly CONDITION_TYPES: readonly TitleConditionType[] = ['GRADE_AT_LEAST', 'POSTS', 'POPULAR_DAYS', 'ATTENDANCE_DAYS', 'NO_REPORT_HIDDEN'];
+    /** 조건 종류 — 구매 인증 편 수(`PURCHASE_PROOFS`)는 체험단 계약이 더했다(shared V241 — 리뷰어 칭호 기본 조건) */
+    static readonly CONDITION_TYPES: readonly TitleConditionType[] = ['GRADE_AT_LEAST', 'POSTS', 'POPULAR_DAYS', 'ATTENDANCE_DAYS', 'NO_REPORT_HIDDEN', 'PURCHASE_PROOFS'];
 
     /** 받는 방법 차례 */
     static readonly METHODS: readonly TitleMethod[] = ['AUTO', 'APPLY', 'AWARD'];
@@ -165,7 +166,7 @@ export default class UtilTitle {
      * @returns {boolean} 세는 조건이면 true.
      */
     static counted(type: TitleConditionType): boolean {
-        return type === 'POSTS' || type === 'POPULAR_DAYS' || type === 'ATTENDANCE_DAYS';
+        return type === 'POSTS' || type === 'POPULAR_DAYS' || type === 'ATTENDANCE_DAYS' || type === 'PURCHASE_PROOFS';
     }
 
     /**

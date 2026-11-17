@@ -12,12 +12,15 @@ export default {
     title_POINT_FREEZE: '포인트가 동결돼 있어요',
     title_GROUP_BUY_BAN: '공동구매 참여가 제한돼 있어요',
     title_CHARGE_BAN: '포인트 충전이 제한돼 있어요',
+    title_TRIAL_BAN: '체험단 신청이 제한돼 있어요',
 
     type_POINT_FREEZE: '포인트 동결',
     type_GROUP_BUY_BAN: '공동구매 참여 제한',
     type_CHARGE_BAN: '충전 제한',
+    type_TRIAL_BAN: '체험단 신청 금지',
 
     allowed_POINT_FREEZE: '충전 포인트 환불 신청은 그대로 할 수 있어요.',
     allowed_GROUP_BUY_BAN: '이미 결제한 주문의 배송 조회·취소·반품은 그대로 할 수 있어요.',
     allowed_CHARGE_BAN: '가진 포인트 사용과 환불 신청은 그대로 할 수 있어요.',
+    allowed_TRIAL_BAN: '진행 중인 체험단 받기·사용기·반납은 그대로 할 수 있어요.',
 };

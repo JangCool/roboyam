@@ -19,6 +19,25 @@ import type { AuthorTitle } from '~/composables/title/api/useTitleApi.types';
 export type ContentFormat = 'TEXT' | 'HTML';
 
 /**
+ * 사용기 구입 경로(trial-group-contract 「구입 경로」·「구현 결정」 5) — 체험단 · 내 돈으로 샀어요 · 업체에서 받았어요(협찬) · 빌려서 써 봤어요.
+ * 게시판 `purchaseSourceMode` 가 끔이 아닐 때만 쓴다. 체험단(`TRIAL`)은 뽑힌 체험단 줄(`trialParticipantId`)과 함께만 — 연결하면 서버가 TRIAL 로 고정한다
+ */
+export type PurchaseSource = 'TRIAL' | 'SELF' | 'SPONSORED' | 'BORROWED';
+
+/** 구매 인증 상태 — 없음 · 확인 대기 · 승인(「구매 인증」 칩). 거절되면 `NONE` 으로 돌아가 다시 올릴 수 있다 */
+export type PurchaseProofState = 'NONE' | 'PENDING' | 'APPROVED';
+
+/** 목록 구입 경로 거르기(`purchase` — 구입 경로 받는 게시판에서만) — 구매 인증만 · 체험단 빼고. 빈 글자 = 전체 */
+export type PurchaseFilter = 'PROOF' | 'NO_TRIAL';
+
+/** 글 보기의 구입 경로(서버 `purchase` — 「구현 결정」 5). `disclosure` = 본문 맨 위 표시 상자 문구(체험단·협찬이면 채움 — 글쓴이가 못 지운다) */
+export interface PostPurchaseView {
+    source: PurchaseSource | null;
+    proof: PurchaseProofState;
+    disclosure: string | null;
+}
+
+/**
  * 작성자 종류 — 회원 · 비회원 · 익명(익명 게시판에 쓴 글·댓글 — anonymous-board-contract).
  * 익명이면 `memberId`·`name`·`grade`·`avatarUrl`·`bio`·`profile`·`ai` 등은 모두 null 이고 `anonymous` 만 온다(작성자는 봉인). 그리기는 `PostAuthorLabel` 한 곳
  */
@@ -241,6 +260,10 @@ export interface PostRow {
     processStatus?: PostProcessStatus | null;
     /** 찬반 토론 요약(찬·반·중 수) — 토론 글만, 그 밖·숨긴 글·옛 응답은 null·없음(아무것도 그리지 않는다). 게시판 목록·섞인 목록 모두(2026-11-12) */
     debate?: PostFeedDebate | null;
+    /** 구입 경로(trial-group-contract — 목록 칩 체험단·직접 구매·협찬). 구입 경로를 받지 않는 게시판·옛 응답은 null·없음 */
+    purchaseSource?: PurchaseSource | null;
+    /** 구매 인증 승인 — 「구매 인증」 칩(직접 구매 칩 대신). 옛 응답은 없음 */
+    purchaseProofApproved?: boolean;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
@@ -259,6 +282,8 @@ export interface PostListQuery {
     status?: PostProcessStatus | '';
     /** 태그 거르기(`tag` — 정확히 같은 태그, 대소문자 무시 — post-tags-contract) — 없거나 빈 글자면 전체(보내지 않는다) */
     tag?: string;
+    /** 구입 경로 거르기(`purchase=PROOF|NO_TRIAL` — trial-group-contract, 구입 경로 받는 게시판에서만) — 없거나 빈 글자면 전체(보내지 않는다) */
+    purchase?: PurchaseFilter | '';
     /**
      * 이 글이 들어 있는 쪽을 서버가 정한다(`around={postId}` — post-detail-board-list-contract, 글 상세 아래 목록). 있으면 `page` 를 보내지 않는다(서버는 `page` 가 없을 때만 쓴다).
      * 응답 `page` 가 계산된 쪽. 주소(`UtilBoardQuery`)에는 쓰지 않는다
@@ -445,6 +470,8 @@ export interface PostDetail {
     tags?: string[];
     /** 글 출처(shared V232 — 적은 차례, 최대 5개). 게시판 「출처 칸 쓰기」를 꺼도 이미 단 출처는 온다. 옛 응답에는 없다(없으면 빈 목록으로 본다) */
     sources?: PostSource[];
+    /** 구입 경로·구매 인증·표시 상자(trial-group-contract 「구현 결정」 5). 구입 경로를 받지 않는 게시판·옛 응답은 null·없음 */
+    purchase?: PostPurchaseView | null;
 }
 
 /**
@@ -536,6 +563,13 @@ export interface PostWriteRequest {
     tags?: string[];
     /** 출처(V232 — 최대 5개) — 게시판 `sourcesEnabled` 일 때만 싣는다(꺼진 게시판은 서버가 무시) */
     sources?: PostSource[];
+    /**
+     * 구입 경로(trial-group-contract) — 게시판 `purchaseSourceMode` 가 끔이 아닐 때만 싣는다(꼭 골라야 함인데 비면 `400 fields.purchaseSource`).
+     * 체험단 연결(`trialParticipantId`)이면 서버가 `TRIAL` 로 고정하고 말머리 [체험단]을 단다
+     */
+    purchaseSource?: PurchaseSource | null;
+    /** 뽑힌 내 체험단 줄 — 이 글을 그 체험단 사용기로 연결한다(내 것만 — 아니면 `400 fields.trialParticipantId`) */
+    trialParticipantId?: string | null;
 }
 
 export interface PostWriteResult {

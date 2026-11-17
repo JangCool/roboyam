@@ -17,7 +17,7 @@
         <ErrorState v-else-if="state === 'error' && !page" :title="t('memberTitle.staffLoadFailed')" :description="errorMessage" retry data-testid="board-titles-error" @retry="load" />
 
         <template v-else-if="page && board">
-            <BoardStaffTabs :slug="slug" :board-name="localizedName(board.name, board.nameEn)" active="titles" />
+            <BoardStaffTabs :slug="slug" :board-name="localizedName(board.name, board.nameEn)" active="titles" :purchase-proofs="(board.purchaseSourceMode ?? 'OFF') !== 'OFF'" />
             <header class="mt-3">
                 <h1 class="m-0 text-lg font-bold">{{ t('memberTitle.staffTitle') }}</h1>
                 <p class="m-0 mt-0.5 text-xs text-muted-color">{{ t('memberTitle.staffHint') }}</p>

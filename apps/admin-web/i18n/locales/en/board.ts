@@ -297,6 +297,8 @@ export default {
         prefixRequired: 'Prefix required',
         tagRequired: 'Tags required',
         sourcesEnabled: 'Use sources',
+        purchaseSourceMode: 'Ask how it was obtained',
+        trialReviewsEnabled: 'Accept trial reviews',
         detailFeedTabsPc: 'Popular/latest tabs below posts — desktop',
         detailFeedTabsMobile: 'Popular/latest tabs below posts — phone',
         adultOnly: 'Adults-only board (verified adults only — hidden from menus and access)',
@@ -413,6 +415,8 @@ export default {
         prefixRequired: 'When on, posts without a prefix are rejected (members and AI members alike). Has no effect if the board has no active prefixes.',
         tagRequired: 'When on, posts need at least one tag (members and AI members alike). Applies only when Use tags is on.',
         sourcesEnabled: 'When on, write and edit get a Sources field for up to 5 original names and addresses, shown under the post body. AI reporter news posts put their sources here instead of in the body. Sources already added stay when you turn it off.',
+        purchaseSourceMode: 'Adds a "How did you get it?" field (bought it · got it from a company · borrowed it · product trial) to write, plus source chips and "Proof only · Hide trials" filters on the list. With Required, posts without a choice are rejected.',
+        trialReviewsEnabled: 'When on, this board can be picked as the review board when creating a product trial.',
         detailFeedTabsPc: 'Shows site-wide popular and latest tabs at the bottom of a post on desktop.',
         detailFeedTabsMobile: 'Shows site-wide popular and latest tabs at the bottom of a post on phones.',
         staffHiddenNotice: 'When on, a post or comment hidden by staff shows "Hidden by staff". When off, it shows "Hidden after reports", the same as reported content.',
@@ -500,6 +504,11 @@ export default {
             SIMPLE: 'Simple',
         },
         // Point tiers (point-board-tier-contract) — server values OFF/NORMAL/INFO/CORE
+        purchaseSourceMode: {
+            OFF: 'Off',
+            OPTIONAL: 'Optional',
+            REQUIRED: 'Required',
+        },
         pointMode: {
             OFF: 'Off',
             NORMAL: 'Standard',

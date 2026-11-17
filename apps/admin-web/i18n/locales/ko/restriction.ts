@@ -14,6 +14,7 @@ export default {
         POINT_FREEZE: '포인트 동결',
         GROUP_BUY_BAN: '공동구매 참여 제한',
         CHARGE_BAN: '충전 제한',
+        TRIAL_BAN: '체험단 신청 금지',
     },
     status: {
         ACTIVE: '진행 중',
@@ -24,6 +25,10 @@ export default {
     sourceOperator: '운영자 · {name}',
     autoRule: {
         GROUP_BUY_HOLD_EXPIRED: '24시간 안 선점 3번 만료',
+        TRIAL_UNRETURNED: '체험단 미반납 확정',
+        TRIAL_REVIEW_LATE: '체험단 사용기 기한 넘김',
+        TRIAL_DAMAGE_FAULT: '체험단 파손 — 회원 과실',
+        TRIAL_DAMAGE_INTENTIONAL: '체험단 파손 — 고의·숨김 반납',
     },
     lift: '해제',
     period: '기간',
@@ -47,11 +52,13 @@ export default {
         POINT_FREEZE: '포인트 적립·사용·충전',
         GROUP_BUY_BAN: '새 공동구매 참여',
         CHARGE_BAN: '새 포인트 충전',
+        TRIAL_BAN: '새 체험단 신청',
     },
     allowsWhat: {
         POINT_FREEZE: '충전 포인트 환불 신청',
         GROUP_BUY_BAN: '이미 결제한 주문의 배송·취소·반품·조회',
         CHARGE_BAN: '가진 포인트 사용·환불',
+        TRIAL_BAN: '진행 중인 체험단 받기·사용기·반납',
     },
     sameActive: '이미 진행 중인 같은 제한이 있어요({until}까지). 걸면 늦게 끝나는 쪽까지 막혀요.',
     sameActiveForever: '이미 진행 중인 같은 제한이 있어요(무기한). 걸어도 해제할 때까지 막혀요.',

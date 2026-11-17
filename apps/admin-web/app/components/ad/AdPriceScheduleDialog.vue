@@ -71,10 +71,43 @@
                         </small>
                     </div>
                 </div>
+                <!-- 체험단 — 값 단위 · 1명당 발송비(trial-group-contract 「돈」) -->
+                <template v-if="isTrial">
+                    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-x-4 gap-y-1 sm:grid-cols-[9rem_7rem_minmax(0,1fr)]">
+                        <label :for="`${formId}-priceUnit`" class="col-span-2 text-sm font-medium sm:col-span-1 sm:pt-2">{{ t('ad.priceField.priceUnit') }}</label>
+                        <span class="pt-2 text-sm text-muted-color">{{ UtilAdMessages.priceRuleValue(t, 'priceUnit', current.priceUnit ?? 'PER_PERSON', locale) }}</span>
+                        <Select v-model="form.priceUnit" :input-id="`${formId}-priceUnit`" :options="trialUnitOptions" option-label="label" option-value="value" :disabled="busy" class="w-full" @change="emit('clear-error', 'priceUnit')" />
+                    </div>
+                    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-x-4 gap-y-1 sm:grid-cols-[9rem_7rem_minmax(0,1fr)]">
+                        <label :for="`${formId}-shippingFeePerPerson`" class="col-span-2 flex flex-col gap-0.5 text-sm font-medium sm:col-span-1 sm:pt-2">
+                            {{ t('ad.priceField.shippingFeePerPerson') }}
+                            <span class="text-xs font-normal text-muted-color">{{ t('ad.priceTrialShippingHelp') }}</span>
+                        </label>
+                        <span class="pt-2 text-sm tabular-nums text-muted-color">{{ won(current.shippingFeePerPerson ?? 0) }}</span>
+                        <div class="flex min-w-0 flex-col gap-1">
+                            <InputGroup>
+                                <InputNumber
+                                    :model-value="form.shippingFeePerPerson ?? 0"
+                                    :input-id="`${formId}-shippingFeePerPerson`"
+                                    :min="0"
+                                    :max-fraction-digits="0"
+                                    :allow-empty="false"
+                                    :readonly="busy"
+                                    :invalid="!!fieldErrors.shippingFeePerPerson"
+                                    fluid
+                                    input-class="min-w-0 text-right tabular-nums"
+                                    @update:model-value="(v: number | null) => onNumber('shippingFeePerPerson', v)"
+                                />
+                                <InputGroupAddon>{{ t('ad.priceWonSuffix') }}</InputGroupAddon>
+                            </InputGroup>
+                            <small v-if="fieldErrors.shippingFeePerPerson" class="text-xs text-red-600 dark:text-red-400">{{ fieldErrors.shippingFeePerPerson }}</small>
+                        </div>
+                    </div>
+                </template>
             </div>
 
-            <!-- 사업자 예상 금액 — 지금 → 새 값 -->
-            <section class="flex flex-col gap-2 rounded-lg bg-surface-100 px-3 py-2.5 dark:bg-surface-950" :aria-labelledby="`${formId}-example`">
+            <!-- 사업자 예상 금액 — 지금 → 새 값(체험단은 노출 기간이 없어 감춘다) -->
+            <section v-if="!isTrial" class="flex flex-col gap-2 rounded-lg bg-surface-100 px-3 py-2.5 dark:bg-surface-950" :aria-labelledby="`${formId}-example`">
                 <h3 :id="`${formId}-example`" class="m-0 text-xs font-medium">{{ t('ad.priceDialogExample') }}</h3>
                 <table class="w-full border-collapse text-[13px] tabular-nums">
                     <thead>
@@ -114,7 +147,7 @@
 <script setup lang="ts">
 import type { AdPriceField, AdPriceRule, AdPriceSchedule, AdPriceScheduleRequest, AdPriceValues } from '~/composables/ad/api/useAdApi.types';
 import UtilAdMessages from '~/utils/util-ad-messages';
-import UtilAdPrice, { type AdPriceScheduledField } from '~/utils/util-ad-price';
+import UtilAdPrice, { type AdPriceNumberField, type AdPriceScheduledField } from '~/utils/util-ad-price';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 
 interface Props {
@@ -136,7 +169,10 @@ const emit = defineEmits<{ 'update:visible': [visible: boolean]; submit: [body: 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
 const formId = useId();
-const fields = UtilAdPrice.SCHEDULED_FIELDS;
+/** 숫자 칸 — 체험단은 단가만(값 단위·1명당 발송비는 아래 따로) */
+const fields = computed(() => (props.rule?.product === 'TRIAL' ? UtilAdPrice.TRIAL_FIELDS : UtilAdPrice.SCHEDULED_FIELDS));
+const isTrial = computed(() => props.rule?.product === 'TRIAL');
+const trialUnitOptions = computed(() => (['PER_PERSON', 'PER_RECRUIT'] as const).map((value) => ({ value, label: t(`ad.priceTrialUnit.${value}`) })));
 
 const form = reactive<AdPriceScheduleRequest>({ effectiveAt: '', unitPrice: 0, capacity: null, maxDays: 1, maxLeadDays: 1 });
 const submitted = ref(false);
@@ -151,7 +187,9 @@ watch(
         if (!open || !rule) return;
         const s = props.schedule;
         const effectiveAt = s?.effectiveAt ?? UtilAdPrice.defaultEffectiveAt();
-        Object.assign(form, { effectiveAt, ...UtilAdPrice.valuesOf(rule.unit, s ?? UtilAdPrice.valuesBefore(rule, effectiveAt)) });
+        // 체험단 두 칸은 그 상품일 때만 — 앞서 연 상품의 값이 남지 않게 먼저 비운다
+        Object.assign(form, { effectiveAt, priceUnit: undefined, shippingFeePerPerson: undefined, ...UtilAdPrice.valuesOf(rule.unit, s ?? UtilAdPrice.valuesBefore(rule, effectiveAt)) });
+        if (rule.product === 'TRIAL') Object.assign(form, { priceUnit: form.priceUnit ?? rule.priceUnit ?? 'PER_PERSON', shippingFeePerPerson: form.shippingFeePerPerson ?? rule.shippingFeePerPerson ?? 0 });
         submitted.value = false;
         minAt.value = new Date().toISOString();
     },
@@ -183,17 +221,19 @@ const valueText = (field: AdPriceField, value: number | null) => UtilAdMessages.
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 
 function labelOf(field: AdPriceScheduledField): string {
+    // 체험단 단가는 값 단위대로 「모집 1건 금액」·「1명당 금액」
+    if (field === 'unitPrice' && isTrial.value) return t(`ad.priceTrialUnitPriceLabel.${form.priceUnit ?? 'PER_PERSON'}`);
     return field === 'unitPrice' && props.rule ? t(`ad.priceUnitPriceLabel.${props.rule.unit}`) : t(`ad.priceField.${field}`);
 }
 
 function suffixOf(field: AdPriceScheduledField): string {
-    if (field === 'unitPrice') return t('ad.priceWonSuffix');
+    if (field === 'unitPrice' || field === 'shippingFeePerPerson') return t('ad.priceWonSuffix');
     if (field === 'capacity') return t('ad.priceCapacitySuffix');
     return t('ad.priceDaysSuffix');
 }
 
 /** `InputNumber` 는 지우는 중에 null 을 줄 수 있다 — 칸 값은 늘 정수로 둔다 */
-function onNumber(field: AdPriceScheduledField, value: number | null): void {
+function onNumber(field: AdPriceNumberField | 'shippingFeePerPerson', value: number | null): void {
     if (value === null) return;
     form[field] = Math.round(value);
     emit('clear-error', field);
@@ -220,7 +260,9 @@ const notices = computed<Notice[]>(() => {
     const rule = props.rule;
     if (!rule) return [];
     const out: Notice[] = [];
-    if (draft.value.unitPrice === 0) out.push({ key: 'free', severity: 'warn', text: t('ad.priceFreeWarn') });
+    if (draft.value.unitPrice === 0 && rule.product !== 'TRIAL') out.push({ key: 'free', severity: 'warn', text: t('ad.priceFreeWarn') });
+    // 체험단 금액은 뽑기를 마친 인원으로 셈한다(인원당) · 대신 발송이면 1명당 발송비를 더한다
+    if (rule.product === 'TRIAL') out.push({ key: 'trial', severity: 'info', text: t('ad.priceTrialNote') });
     const capacity = draft.value.capacity;
     if (capacity !== null && prior.value.capacity !== null && capacity < prior.value.capacity) {
         const n = UtilAdPrice.overbookedDays(rule.occupancy, capacity);

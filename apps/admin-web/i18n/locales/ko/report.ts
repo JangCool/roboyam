@@ -101,6 +101,8 @@ export default {
         OFFLINE_RISK: '오프라인 모임 위험',
         STOCK_RECOMMENDATION: '종목 추천·유료 모집',
     },
+    // 구입 경로 받는 게시판 글에서만 보이는 신고 사유(trial-group-contract)
+    sponsorReason: '협찬을 숨겼어요',
     // 핫딜 글에서만 보이는 신고 사유(hotdeal-contract)
     dealReason: {
         DEAL_FALSE_PRICE: '가격·정보가 사실과 달라요',

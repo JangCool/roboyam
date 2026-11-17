@@ -17,6 +17,9 @@
         대표 이미지(list-thumbnail-contract 「2단계」): 게시판 `authorThumbnailEnabled`(기본 끔)를 켠 게시판의 회원 글쓰기면 본문 바로 아래 「대표 이미지」 줄(`PostThumbnailPicker` — 본문 이미지 고르기 · 자동 · 따로 올리기 · 없음). 자동이 아니면 본문 `thumbnail` 로 보낸다.
         포인트 안내(point-board-tier-contract): 고른 게시판 등급이 정보·핵심 글이고 회원이면 본문 바로 아래 받을 포인트(쓰면·추천 문턱·우수 글) + 지금 글자 수·사진 수와 적립 조건(채웠는지 표시). 일반·끔·비회원은 안내 없음.
           등급·금액·조건은 게시판 응답 `pointTier`(끔·소모임 게시판이면 null — 안내 없음). 사진 수는 서버와 같이 본문에 붙은 올린 이미지만 센다(평문 본문은 0).
+        구입 경로(trial-group-contract 「구입 경로」·「구현 결정」 5): 게시판 `purchaseSourceMode` 가 끔이 아니면 본문 바로 아래 「어떻게 구했나요」(`PostPurchaseSourceField`) — 내 돈으로 샀어요(+ 구매 인증 사진 — 글 저장 뒤
+          `POST /api/posts/{id}/purchase-proof`, 실패해도 글은 그대로 · 글 보기에서 다시) · 업체에서 받았어요 · 빌려서 써 봤어요 · 뽑힌 체험단 사용기로 쓰기(체험단 사용기 받는 게시판에 쓸 내 뽑힌 체험단이 있을 때).
+          `REQUIRED` 면 필수. `/write?board=&trialParticipantId=`(내 체험단 「쓰러 가기」)로 열리면 체험단으로 고정 + 게시판 고르기도 그 게시판만(말머리 [체험단]·표시 상자는 서버가 단다).
         게시판 제재(board-sanction-contract): 고른 게시판에서 쓰기 제한 중이면 폼 대신 「…까지 글·댓글 쓰기가 제한돼요 · 사유 · [자세히]」. 등록 때 `403 BOARD_WRITE_RESTRICTED` 면 폼 위에 같은 안내(쓰던 글은 그대로).
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
@@ -106,6 +109,19 @@
                     <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
                 </template>
                 <template #belowContent="{ imageUpload }">
+                    <!-- 구입 경로(trial-group-contract) — 게시판 「구입 경로 받기」가 끔이 아닐 때만 -->
+                    <PostPurchaseSourceField
+                        v-if="purchaseShown"
+                        v-model="purchase"
+                        v-model:proof="proofFile"
+                        :required="purchaseRequired"
+                        :trials="trialOptions"
+                        :locked="trialLocked"
+                        :proof-allowed="board?.viewer.guest === false"
+                        :disabled="submitting"
+                        :error="fieldErrors.purchaseSource || fieldErrors.trialParticipantId || ''"
+                        :show-problems="purchaseTried"
+                    />
                     <!-- 포인트 안내(point-board-tier-contract) — 정보·핵심 글 게시판의 회원 글쓰기만. 받을 포인트 + 지금 글자 수·사진 수와 적립 조건 -->
                     <div v-if="tierGuide" class="rounded-lg border border-surface px-3 py-2.5 text-sm" role="note" data-testid="write-point-tier">
                         <p class="flex items-center gap-1.5 font-semibold">
@@ -178,6 +194,8 @@ import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
 import UtilPostSource, { type PostSourceRow } from '~/utils/util-post-source';
+import { EMPTY_PURCHASE_SOURCE, type PurchaseSourceValue, type PurchaseTrialOption } from '~/components/board/PostPurchaseSourceField.types';
+import type { TrialWritable } from '~/composables/trial/api/useTrialApi.types';
 
 definePageMeta({ shell: 'inner' });
 
@@ -205,7 +223,10 @@ const requestedSlug = computed(() => (typeof route.query.board === 'string' ? ro
 const writable = ref<BoardView[]>([]);
 const boardsState = ref<'loading' | 'ready' | 'error'>('loading');
 const boardsError = ref('');
-const options = computed<PostBoardOption[]>(() => writable.value.map((b) => ({ slug: b.slug, label: localizedName(b.name, b.nameEn) })));
+/** 체험단 연결로 열렸으면(`?trialParticipantId=`) 그 사용기 게시판만 고른다 */
+const options = computed<PostBoardOption[]>(() =>
+    writable.value.filter((b) => !trialLockedSlug.value || b.slug === trialLockedSlug.value).map((b) => ({ slug: b.slug, label: localizedName(b.name, b.nameEn) })),
+);
 const selectedSlug = ref('');
 
 /** 주소의 게시판에 쓸 수 없을 때의 까닭 — 그 게시판 정보로 판정한다 */
@@ -408,8 +429,67 @@ watch(sources, () => {
     if (fieldErrors.value.sources) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'sources'));
 });
 
+/*
+ * ── 구입 경로(trial-group-contract 「구입 경로」) — 게시판 `purchaseSourceMode` 가 끔이 아닐 때만. 게시판을 바꿔도 값은 들고 가고, 끈 게시판이면 감추고 보내지 않는다.
+ * 뽑힌 내 체험단은 회원이고 「체험단 사용기 받기」 게시판(또는 체험단 연결로 열림)일 때 게시판마다 받는다(서버 `GET /api/me/trials/writable?board=` — 연결 전 줄만) ──
+ */
+const trialApi = useTrialApi();
+const purchase = ref<PurchaseSourceValue>({ ...EMPTY_PURCHASE_SOURCE });
+const proofFile = ref<File | null>(null);
+const purchaseTried = ref(false);
+const purchaseShown = computed(() => (board.value?.purchaseSourceMode ?? 'OFF') !== 'OFF');
+const purchaseRequired = computed(() => board.value?.purchaseSourceMode === 'REQUIRED');
+/** 주소의 체험단 줄(`?trialParticipantId=`) — 있으면 체험단으로 고정 */
+const lockedParticipantId = computed(() => (typeof route.query.trialParticipantId === 'string' ? route.query.trialParticipantId : ''));
+const writableTrials = ref<TrialWritable[]>([]);
+/** 받은 게시판(같은 게시판이면 다시 묻지 않는다) */
+let writableFor = '';
+/** 이 게시판에 쓸 수 있는 내 뽑힌 체험단(서버가 연결 전 줄만 준다) */
+const trialOptions = computed<PurchaseTrialOption[]>(() => writableTrials.value.filter((w) => w.board.slug === selectedSlug.value).map((w) => ({ participantId: w.participantId, label: w.trialTitle })));
+const trialLocked = computed(() => !!lockedParticipantId.value);
+const trialLockedSlug = computed(() => (trialLocked.value && requestedSlug.value ? requestedSlug.value : ''));
+async function loadWritable(slug: string): Promise<void> {
+    if (!user.value || writableFor === slug) return;
+    writableFor = slug;
+    try {
+        writableTrials.value = await trialApi.writable(slug);
+    } catch {
+        writableFor = ''; // 못 받으면 체험단 고르기를 감춘다(다음에 다시)
+        writableTrials.value = [];
+    }
+}
+// 구입 경로를 받는 게시판이 정해지면 — 체험단 고르기 후보(체험단 사용기 받는 게시판·체험단 연결로 열림)
+watch(
+    () => [purchaseShown.value, board.value?.slug] as const,
+    ([shown, slug]) => {
+        if (shown && slug && (board.value?.trialReviewsEnabled || lockedParticipantId.value)) void loadWritable(slug);
+    },
+);
+// 체험단 연결로 열렸다 — 체험단으로 고정
+watch(
+    lockedParticipantId,
+    (id) => {
+        if (id) purchase.value = { source: 'TRIAL', trialParticipantId: id };
+    },
+    { immediate: true },
+);
+/** 보낼 구입 경로 칸 — 끈 게시판이면 뺀다 */
+function purchaseFields(): { purchaseSource?: PurchaseSourceValue['source']; trialParticipantId?: string | null } {
+    if (!purchaseShown.value) return {};
+    const p = purchase.value;
+    // 체험단은 줄 ID 로만 잇는다(서버가 TRIAL 로 고정 — `purchaseSource` 에 TRIAL 을 싣지 않는다)
+    return p.source === 'TRIAL' ? { purchaseSource: null, trialParticipantId: p.trialParticipantId } : { purchaseSource: p.source, trialParticipantId: null };
+}
+/** 구입 경로 화면 검사 — 꼭 골라야 함인데 비었거나 체험단을 골랐는데 줄이 없다 */
+const purchaseProblem = computed(() => purchaseShown.value && !trialLocked.value && ((purchaseRequired.value && !purchase.value.source) || (purchase.value.source === 'TRIAL' && !purchase.value.trialParticipantId)));
+// 구입 경로를 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(purchase, () => {
+    if (fieldErrors.value.purchaseSource || fieldErrors.value.trialParticipantId) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'purchaseSource' && k !== 'trialParticipantId'));
+});
+
 /** [등록]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그·출처)의 검사 문구도 함께 보이게 */
 function onAttempt(): void {
+    purchaseTried.value = true;
     dealTried.value = true;
     tagsTried.value = true;
     sourcesTried.value = true;
@@ -497,7 +577,8 @@ const dirty = computed(
         (pollShown.value && poll.value.enabled) ||
         (thumbnailShown.value && thumbnail.value.mode !== 'AUTO') ||
         (tagsShown.value && tags.value.length > 0) ||
-        (sourcesShown.value && UtilPostSource.toRequest(sources.value).length > 0),
+        (sourcesShown.value && UtilPostSource.toRequest(sources.value).length > 0) ||
+        (purchaseShown.value && !trialLocked.value && purchase.value.source !== null),
 );
 
 async function submit(): Promise<void> {
@@ -514,6 +595,8 @@ async function submit(): Promise<void> {
     if (tagsMissing.value) return;
     sourcesTried.value = true;
     if (sourcesShown.value && UtilPostSource.hasProblem(sources.value)) return;
+    purchaseTried.value = true;
+    if (purchaseProblem.value) return;
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;
@@ -535,8 +618,21 @@ async function submit(): Promise<void> {
             ...thumbnailField(),
             ...(tagsShown.value ? { tags: tags.value.slice() } : {}),
             ...(sourcesShown.value ? { sources: UtilPostSource.toRequest(sources.value) } : {}),
+            ...purchaseFields(),
         });
         saved = true;
+        // 구매 인증 사진 — 글이 저장된 뒤 올린다. 실패해도 글은 그대로(글 보기에서 다시 올릴 수 있다)
+        const proof = purchaseShown.value && purchase.value.source === 'SELF' ? proofFile.value : null;
+        if (proof) {
+            try {
+                await postApi.uploadPurchaseProof(result.id, proof);
+                toast.success(t('trial.proofUploaded'));
+            } catch (e) {
+                toast.error(t('trial.proofUploadFailedAfterSave', { message: UtilBoardMessages.of(t, e) }), 8000);
+            }
+        }
+        purchase.value = { ...EMPTY_PURCHASE_SOURCE };
+        proofFile.value = null;
         form.value = { ...EMPTY_POST_FORM };
         thumbnail.value = { ...AUTO_THUMBNAIL };
         tags.value = [];

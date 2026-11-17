@@ -45,7 +45,9 @@ export type PointReasonCode =
     | 'ROULETTE_WIN'
     // 게시판 등급별 포인트(point-board-tier-contract) — 우수 글 선정(EARN, 대상 글, 글마다 한 번) · 우수 글 회수(REVOKE, 확정 뒤 본인 삭제 — 받은 양만)
     | 'POST_FEATURED'
-    | 'POST_FEATURED_REVOKE';
+    | 'POST_FEATURED_REVOKE'
+    // 구매 인증 승인 보너스(trial-group-contract 「구현 결정」 13 — EARN, 대상 글, 글마다 한 번, 하루 한도 밖)
+    | 'PURCHASE_PROOF';
 
 /** 원장 한 줄 — 최신이 위 */
 export interface PointLedgerItem {

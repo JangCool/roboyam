@@ -1,6 +1,6 @@
 <template>
     <!--
-        글 줄의 칩 묶음(post-chip-position-contract) — (소모임 상세면 공개 라벨) · 말머리 · 처리 상태 · 19. 비밀글 자물쇠·고정 압정은 칩이 아니라 제목 앞 아이콘(`PostRowTitle`)이다.
+        글 줄의 칩 묶음(post-chip-position-contract) — (소모임 상세면 공개 라벨) · 말머리 · 처리 상태 · 구입 경로(체험단·구매 인증·직접 구매·협찬 — trial-group-contract) · 19. 비밀글 자물쇠·고정 압정은 칩이 아니라 제목 앞 아이콘(`PostRowTitle`)이다.
         `inline` 이면 제목 앞 한 줄 안(`BEFORE` — `PostRowTitle` 이 그린다), 아니면 제목 위·닉네임 아래의 칩 줄(`PostRowFrame`). 칩 줄은 칩이 하나도 없으면 아무것도 그리지 않는다.
         기본 슬롯 = 이 부품이 모르는 앞쪽 칩(섞인 목록의 게시판 이름·「어제」 등 — `FeedPostItem`).
         `general` 이면 말머리가 없을 때 흐린 「일반」 자리 칩(「제목 위」 윗줄 — 칩 열이 줄마다 같은 자리에서 시작하게). 말머리 모양이 글자(`TEXT`)면 칩 대신 회색 글자 「일반」(mobile-nav-prefix-style-contract 1절, 2026-11-12)
@@ -22,6 +22,11 @@
             <span class="relative top-[-0.09em]">{{ t('board.prefixNone') }}</span>
         </span>
         <PostStatusTag v-if="row.processStatus" :status="row.processStatus" :class="chipClass" />
+        <!-- 구입 경로(trial-group-contract — 체험단 · 구매 인증 · 직접 구매 · 협찬). 서버가 주는 글만(구입 경로 받는 게시판) -->
+        <span v-if="purchaseChip" :class="[PURCHASE_CHIP, purchaseClass, chipClass]" :data-purchase="purchaseChip" data-testid="post-row-purchase">
+            <i v-if="purchaseChip === 'PROOF'" class="pi pi-verified text-[0.5625rem]" aria-hidden="true" />
+            <span class="relative top-[-0.09em]">{{ t(`trial.chip.${purchaseChip}`) }}</span>
+        </span>
         <span v-if="row.adult" class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[0.5625rem] font-bold leading-none text-white" :class="chipClass" :title="t('board.adultMark')">
             <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
             <span class="sr-only">{{ t('board.adultMark') }}</span>
@@ -32,6 +37,9 @@
 <script setup lang="ts">
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilTrial from '~/utils/util-trial';
+
+const PURCHASE_CHIP = 'inline-flex shrink-0 items-center justify-center gap-0.5 whitespace-nowrap rounded px-1.5 py-[3px] text-[0.6875rem] font-medium leading-none';
 
 interface Props {
     row: PostRow;
@@ -59,6 +67,20 @@ const textClass = computed(() => (props.inline ? 'mr-1' : ''));
 const prefixShown = computed(() => Boolean(props.row.prefix) && props.showPrefix);
 /** 말머리가 없을 때 「일반」 — 모양과 상관없이(글자 모양이면 글자로) 그린다(사용자 결정 2026-11-12) */
 const noneShown = computed(() => props.general && !props.inline && !prefixShown.value);
+/** 구입 경로 칩 — 체험단 · 구매 인증 · 직접 구매 · 협찬(대여·없음은 칩 없음) */
+const purchaseChip = computed(() => UtilTrial.chipOf(props.row.purchaseSource, props.row.purchaseProofApproved));
+const purchaseClass = computed(() => {
+    switch (purchaseChip.value) {
+        case 'TRIAL':
+            return 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-200';
+        case 'PROOF':
+            return 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200';
+        case 'SPONSORED':
+            return 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200';
+        default:
+            return 'border border-surface text-muted-color';
+    }
+});
 /** 칩 줄에 그릴 것이 있는가 — 없으면 칩 줄 자체를 그리지 않는다 */
-const hasAny = computed(() => Boolean(slots.default) || Boolean(groupTag.value) || prefixShown.value || noneShown.value || Boolean(props.row.processStatus) || props.row.adult);
+const hasAny = computed(() => Boolean(slots.default) || Boolean(groupTag.value) || prefixShown.value || noneShown.value || Boolean(props.row.processStatus) || props.row.adult || Boolean(purchaseChip.value));
 </script>

@@ -8,8 +8,9 @@
  * - `POINT_FREEZE` 포인트 동결: 포인트 적립·사용·충전을 막는다 / 그래도 되는 것: 충전 포인트 환불 신청
  * - `GROUP_BUY_BAN` 공동구매 참여 제한: 새 참여를 막는다 / 이미 결제한 주문의 배송·취소·반품·조회
  * - `CHARGE_BAN` 충전 제한: 새 충전을 막는다 / 기존 포인트 사용·환불
+ * - `TRIAL_BAN` 체험단 신청 금지(trial-group-contract 「구현 결정」 3 — 미반납·기한 넘김·파손 판정 자동, 영구는 until null): 새 체험단 신청을 막는다 / 진행 중인 체험단 받기·사용기·반납
  */
-export type MemberRestrictionType = 'POINT_FREEZE' | 'GROUP_BUY_BAN' | 'CHARGE_BAN';
+export type MemberRestrictionType = 'POINT_FREEZE' | 'GROUP_BUY_BAN' | 'CHARGE_BAN' | 'TRIAL_BAN';
 
 /** 상태 — 진행 중 · 기간이 끝남 · 운영자가 해제함(서버가 지금 시각으로 판정해 준다) */
 export type MemberRestrictionStatus = 'ACTIVE' | 'EXPIRED' | 'LIFTED';

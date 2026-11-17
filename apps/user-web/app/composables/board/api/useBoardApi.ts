@@ -56,6 +56,7 @@ export function useBoardApi() {
                     prefix: query.prefix || undefined,
                     status: query.status || undefined,
                     tag: query.tag || undefined,
+                    purchase: query.purchase || undefined,
                     sort: query.sort,
                     q: query.q || undefined,
                     page: query.around ? undefined : query.page,

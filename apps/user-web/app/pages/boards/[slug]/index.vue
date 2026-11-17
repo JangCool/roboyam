@@ -1,6 +1,6 @@
 <template>
     <!--
-        게시판 목록 `/boards/{slug}?prefix=&tag=&sort=&q=&page=` — 주소의 쿼리가 화면 상태다. 태그(`tag` — post-tags-contract)면 그 태그 글만 + 정렬 줄 아래 「#태그 ✕」.
+        게시판 목록 `/boards/{slug}?prefix=&tag=&purchase=&sort=&q=&page=` — 주소의 쿼리가 화면 상태다. 구입 경로 받는 게시판(trial-group-contract)은 말머리 아래 「전체 · 구매 인증만 · 체험단 빼고」(`?purchase=PROOF|NO_TRIAL`). 태그(`tag` — post-tags-contract)면 그 태그 글만 + 정렬 줄 아래 「#태그 ✕」.
         머리(이름·설명·안내문·투자 고지·쓰기 잠금·19금 안내·글쓰기) → 말머리 탭(전체 + 사용 중 말머리) → 정렬·보기 전환·게시판 안 검색 → 목록(LIST·CARD·GALLERY) → 쪽 번호.
         핫딜 게시판(`kind DEAL` — `hotdeal-contract.md`): 정렬이 최신·인기·마감 임박 `SelectButton` + 「종료 숨기기」 `ToggleSwitch`(기본 켬, 주소 `?sort=popular|ending&hideEnded=false`),
           말머리 아래 쇼핑몰 칩(전체 + 서버 `stores` 상위 8몰, 주소 `?store=`). 목록은 가격 줄 목록형(`HotdealPostList`)·카드/갤러리형(`HotdealPostGrid` — 게시판 모양·보기 전환은 그대로), 의심 글은 서버가 아래로 보낸다.
@@ -128,6 +128,21 @@
                         </ul>
                     </AppScrollRow>
                 </nav>
+
+                <!-- 구입 경로 거르기(trial-group-contract 「구입 경로」) — 구입 경로 받는 게시판만. 전체 · 구매 인증만 · 체험단 빼고, 주소 `?purchase=PROOF|NO_TRIAL`(서버 `purchase`) -->
+                <div v-if="purchaseOn" class="mt-1 flex flex-wrap gap-1.5 py-1" role="group" :aria-label="t('trial.filterLabel')" data-testid="board-purchase-filter">
+                    <NuxtLink
+                        v-for="chip in purchaseChips"
+                        :key="chip.value || '-'"
+                        :to="listLink({ purchase: chip.value, page: 1 })"
+                        class="inline-flex h-7 items-center whitespace-nowrap rounded-md border px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-primary"
+                        :class="(query.purchase ?? '') === chip.value ? 'border-primary bg-primary/10 font-semibold text-primary' : 'border-surface text-muted-color hover:text-color'"
+                        :aria-current="(query.purchase ?? '') === chip.value ? 'page' : undefined"
+                        :data-purchase="chip.value || undefined"
+                    >
+                        {{ chip.label }}
+                    </NuxtLink>
+                </div>
 
                 <!-- 핫딜 쇼핑몰 칩 — 말머리 아래, 전체 + 상위 8몰(서버 `stores`, 글 수 차례). 고른 몰이 상위 8에 없으면 끝에 붙인다. 주소 `?store=` -->
                 <nav v-if="isDeal && storeChips.length > 1" class="no-scrollbar -mx-4 mt-1 overflow-x-auto px-4 py-0.5" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
@@ -418,6 +433,13 @@ const activePrefixName = computed(() => view.value?.prefixes.find((p) => p.id ==
 const statusOn = computed(() => detail.value?.slug === slug.value && UtilPostOps.statusOn(detail.value));
 /** 상태 거르기 칩 — 전체 + 7개(고정 차례) */
 const statusChips = computed(() => [{ value: '' as const, label: t('common.all') }, ...UtilPostOps.STATUSES.map((value) => ({ value, label: t(UtilPostOps.labelKey(value)) }))]);
+/** 구입 경로 거르기 — 구입 경로 받는 게시판(`purchaseSourceMode` 끔 아님)의 일반 목록만(핫딜 게시판은 아님) */
+const purchaseOn = computed(() => detail.value?.slug === slug.value && (detail.value.purchaseSourceMode ?? 'OFF') !== 'OFF' && !isDeal.value);
+const purchaseChips = computed(() => [
+    { value: '' as const, label: t('common.all') },
+    { value: 'PROOF' as const, label: t('trial.filterProof') },
+    { value: 'NO_TRIAL' as const, label: t('trial.filterNoTrial') },
+]);
 
 const hotdeal = useHotdealAds(
     computed(() =>
@@ -550,7 +572,7 @@ watch(
     { immediate: true },
 );
 watch(
-    () => [slug.value, query.value.prefix, query.value.status, query.value.tag, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
+    () => [slug.value, query.value.prefix, query.value.status, query.value.tag, query.value.purchase, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
     (now, before) => {
         void loadList();
         if (before && now[0] === before[0]) window.scrollTo({ top: 0 });

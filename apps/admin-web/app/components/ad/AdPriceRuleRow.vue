@@ -36,7 +36,7 @@
                 <div class="m-0 flex flex-col gap-1 p-0" :class="{ 'opacity-70': !rule.accepting }" data-testid="ad-price-row-price-card">
                     <span class="text-xs text-muted-color [overflow-wrap:anywhere]">{{ UtilAdMessages.priceCardWhere(t, rule.product, rule.unit === 'POST' ? null : rule.capacity) }}</span>
                     <span class="flex flex-wrap items-baseline gap-x-2">
-                        <span class="text-lg font-bold tabular-nums" data-testid="ad-price-row-unit-price">{{ UtilAdMessages.priceCardPrice(t, rule.unit, rule.unitPrice, locale) }}</span>
+                        <span class="text-lg font-bold tabular-nums" data-testid="ad-price-row-unit-price">{{ priceText }}</span>
                         <span class="text-xs text-muted-color">{{ t('ad.priceVatExcluded') }}</span>
                     </span>
                 </div>
@@ -84,7 +84,9 @@
 
             <!-- 사업자 화면 미리보기 -->
             <div class="min-w-0 rounded-md bg-surface-100 p-3 dark:bg-surface-950">
-                <AdPriceProductPreview :rule="rule" />
+                <!-- 체험단은 노출 자리가 없어 도식 대신 금액 셈 안내(trial-group-contract 「돈」) -->
+                <p v-if="rule.product === 'TRIAL'" class="m-0 text-xs leading-relaxed text-muted-color" data-testid="ad-price-trial-note">{{ t('ad.priceTrialNote') }}</p>
+                <AdPriceProductPreview v-else :rule="rule" />
             </div>
         </div>
 
@@ -138,9 +140,22 @@ const titleId = useId();
 const idBase = useId();
 const recentOpen = ref(false);
 
-/** 신청 조건 세 칸 — 값 글자와 한 줄 뜻(시작일 선택 범위는 그 상품 숫자로 예를 든다) */
-const conditionRows = computed(() => {
+/** 지금 가격 글자 — 체험단은 값 단위(모집 건당·1명당), 그 밖은 하루/1건 */
+const priceText = computed(() =>
+    props.rule.product === 'TRIAL'
+        ? t(`ad.priceTrialPrice.${props.rule.priceUnit ?? 'PER_PERSON'}`, { amount: valueText('unitPrice', props.rule.unitPrice) })
+        : UtilAdMessages.priceCardPrice(t, props.rule.unit, props.rule.unitPrice, locale.value),
+);
+
+/** 신청 조건 세 칸 — 값 글자와 한 줄 뜻(시작일 선택 범위는 그 상품 숫자로 예를 든다). 체험단은 값 단위 · 1명당 발송비 */
+const conditionRows = computed<{ field: AdPriceField; value: string; help: string }[]>(() => {
     const { unit, capacity, maxDays, maxLeadDays } = props.rule;
+    if (props.rule.product === 'TRIAL') {
+        return [
+            { field: 'priceUnit', value: UtilAdMessages.priceRuleValue(t, 'priceUnit', props.rule.priceUnit ?? 'PER_PERSON', locale.value) ?? '', help: t('ad.priceTrialUnitHelp') },
+            { field: 'shippingFeePerPerson', value: valueText('shippingFeePerPerson', props.rule.shippingFeePerPerson ?? 0), help: t('ad.priceTrialShippingHelp') },
+        ];
+    }
     return [
         { field: 'capacity' as const, value: valueText('capacity', unit === 'POST' ? null : capacity), help: unit === 'POST' ? t('ad.priceFieldHelp.capacityPost') : t('ad.priceFieldHelp.capacity') },
         { field: 'maxDays' as const, value: valueText('maxDays', maxDays), help: t('ad.priceFieldHelp.maxDays') },
@@ -150,7 +165,7 @@ const conditionRows = computed(() => {
 /** 예약 — 적용 시각 차례, 전→후는 바로 앞 값 기준 */
 const chain = computed(() => UtilAdPrice.chain(props.rule));
 
-function valueText(field: AdPriceField, value: number | boolean | null): string {
+function valueText(field: AdPriceField, value: number | string | boolean | null): string {
     return UtilAdMessages.priceRuleValue(t, field, value === null ? null : String(value), locale.value) ?? '';
 }
 

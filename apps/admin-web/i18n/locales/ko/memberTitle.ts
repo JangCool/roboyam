@@ -92,11 +92,13 @@ export default {
         POPULAR_DAYS: '인기글 진입',
         ATTENDANCE_DAYS: '출석 일수',
         NO_REPORT_HIDDEN: '신고로 숨겨진 글 없음',
+        PURCHASE_PROOFS: '구매 인증 사용기',
     },
     condUnit: {
         POSTS: '편',
         POPULAR_DAYS: '일',
         ATTENDANCE_DAYS: '일',
+        PURCHASE_PROOFS: '편',
     },
     cond: {
         gradeAtLeast: '{grade} 이상',

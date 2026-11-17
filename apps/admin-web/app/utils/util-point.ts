@@ -188,6 +188,8 @@ const REASON_CODES: readonly PointReasonCode[] = [
     // 게시판 등급별 포인트 — 우수 글 선정(지급) · 우수 글 회수
     'POST_FEATURED',
     'POST_FEATURED_REVOKE',
+    // 구매 인증 승인 보너스(trial-group-contract)
+    'PURCHASE_PROOF',
 ];
 
 // ── 게시판 등급(point-board-tier-contract) ─

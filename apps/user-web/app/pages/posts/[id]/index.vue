@@ -225,6 +225,24 @@
                         hide-class="flex justify-center pb-2"
                         data-testid="post-folded"
                     >
+                        <!--
+                            구입 경로 표시 상자(trial-group-contract 「광고 표시」·「구현 결정」 5) — 본문 맨 위. 체험단·협찬이면 서버 문구(`purchase.disclosure` — 글쓴이가 못 지운다),
+                            그 밖은 구입 경로 한 줄. 내 돈으로 산 글은 구매 인증 상태 — 승인 「구매 인증된 글」 · 내 글이고 확인 대기 「확인 중」 · 내 글이고 없음 [구매 인증하기](대화상자)
+                        -->
+                        <div v-if="post.purchase && (post.purchase.disclosure || post.purchase.source)" class="mt-4 flex flex-col gap-1.5 rounded-lg border px-3 py-2.5" :class="post.purchase.disclosure ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40' : 'border-surface'" data-testid="post-purchase">
+                            <p v-if="post.purchase.disclosure" class="m-0 flex items-start gap-1.5 text-sm font-medium" data-testid="post-purchase-disclosure">
+                                <i class="pi pi-megaphone mt-0.5 text-xs text-amber-600" aria-hidden="true" />{{ post.purchase.disclosure }}
+                            </p>
+                            <p v-else-if="post.purchase.source" class="m-0 text-sm">{{ t(`trial.sourceShown.${post.purchase.source}`) }}</p>
+                            <template v-if="post.purchase.source === 'SELF'">
+                                <p v-if="post.purchase.proof === 'APPROVED'" class="m-0 flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-400"><i class="pi pi-verified text-[11px]" aria-hidden="true" />{{ t('trial.proofApprovedLine') }}</p>
+                                <p v-else-if="post.mine && post.purchase.proof === 'PENDING'" class="m-0 text-xs text-muted-color">{{ t('trial.proofPendingLine') }}</p>
+                                <div v-else-if="post.mine" class="flex flex-wrap items-center gap-2">
+                                    <span class="text-xs text-muted-color">{{ t('trial.proofNoneLine') }}</span>
+                                    <Button type="button" :label="t('trial.proofOpen')" icon="pi pi-receipt" size="small" severity="secondary" variant="outlined" data-testid="post-purchase-proof-open" @click="openProof" />
+                                </div>
+                            </template>
+                        </div>
                         <!-- 핫딜 딜 카드 — 본문 위 -->
                         <HotdealDealCard
                             v-if="post.deal"
@@ -550,7 +568,18 @@
             @update:visible="(open) => !open && staffActionForm.close()"
             @submit="staffActionForm.submit"
         />
-        <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :deal="Boolean(post?.deal) && reportTarget?.type === 'POST'" :deal-request-sent="Boolean(post?.deal?.endRequests.mine)" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
+        <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :deal="Boolean(post?.deal) && reportTarget?.type === 'POST'" :sponsor="reportTarget?.type === 'POST' && (board?.purchaseSourceMode ?? 'OFF') !== 'OFF'" :deal-request-sent="Boolean(post?.deal?.endRequests.mine)" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
+        <!-- 구매 인증 올리기 -->
+        <Dialog v-model:visible="proofOpen" modal :header="t('trial.proofDialogTitle')" :style="{ width: 'min(28rem, calc(100vw - 2rem))' }" :draggable="false" :closable="!proofUploading">
+            <form class="flex flex-col gap-3" novalidate @submit.prevent="submitProof">
+                <PurchaseProofPicker v-model="proofFile" :disabled="proofUploading" />
+                <Message v-if="proofError" severity="error" variant="simple" size="small">{{ proofError }}</Message>
+                <div class="flex justify-end gap-2">
+                    <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="proofUploading" @click="proofOpen = false" />
+                    <Button type="submit" :label="t('trial.proofSubmit')" :loading="proofUploading" :disabled="!proofFile" data-testid="post-purchase-proof-submit" />
+                </div>
+            </form>
+        </Dialog>
     </div>
 </template>
 
@@ -1461,6 +1490,33 @@ function openCommentDelete(c: CommentView, section: 'general' | 'debate'): void 
     if (!p) return;
     staffCommentSection = section;
     staffActionForm.open({ kind: 'COMMENT_DELETE', postId: p.id, commentId: c.id, text: UtilBoardStaffAction.commentExcerpt(c.content, c.contentFormat) });
+}
+
+/* ── 구매 인증 올리기(trial-group-contract 「구매 인증」) — 내 글 · 내 돈으로 샀어요 · 아직 인증 없음(거절됐으면 다시) ── */
+const proofOpen = ref(false);
+const proofFile = ref<File | null>(null);
+const proofUploading = ref(false);
+const proofError = ref('');
+function openProof(): void {
+    proofFile.value = null;
+    proofError.value = '';
+    proofOpen.value = true;
+}
+async function submitProof(): Promise<void> {
+    const p = post.value;
+    if (!p || !proofFile.value || proofUploading.value) return;
+    proofUploading.value = true;
+    proofError.value = '';
+    try {
+        await postApi.uploadPurchaseProof(p.id, proofFile.value);
+        if (p.purchase) post.value = { ...p, purchase: { ...p.purchase, proof: 'PENDING' } };
+        proofOpen.value = false;
+        toast.success(t('trial.proofUploaded'));
+    } catch (e) {
+        proofError.value = UtilBoardMessages.of(t, e);
+    } finally {
+        proofUploading.value = false;
+    }
 }
 
 useSeoMeta({

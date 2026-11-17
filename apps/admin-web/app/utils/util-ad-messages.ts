@@ -119,7 +119,7 @@ export default class UtilAdMessages {
 
     /** 요금표 이력의 바뀐 칸 하나 — 모르는 칸 코드면 그대로 */
     static priceRuleHistoryChange(t: Translate, change: SettingHistoryChange, locale: string, timeText: (iso: string) => string): SettingHistoryChange {
-        const match = /^(schedules|rules)\.([A-Z_]+)\.(effectiveAt|unitPrice|capacity|maxDays|maxLeadDays|accepting)$/.exec(change.field);
+        const match = /^(schedules|rules)\.([A-Z_]+)\.(effectiveAt|unitPrice|capacity|maxDays|maxLeadDays|accepting|priceUnit|shippingFeePerPerson)$/.exec(change.field);
         if (!match || !(UtilAdPrice.PRODUCTS as readonly string[]).includes(match[2]!)) return change;
         const scheduled = match[1] === 'schedules';
         const product = match[2] as AdPriceProduct;
@@ -161,9 +161,11 @@ export default class UtilAdMessages {
             if (value === 'false') return t('ad.priceAcceptingOff');
             return value;
         }
+        // 체험단 값 단위(trial-group-contract) — 모집 건당 · 1명당
+        if (field === 'priceUnit') return value === 'PER_RECRUIT' || value === 'PER_PERSON' ? t(`ad.priceTrialUnit.${value}`) : value;
         if (!/^\d+$/.test(value)) return value;
         const n = Number(value);
-        if (field === 'unitPrice') return UtilBizApplicationMessages.won(t, n, locale);
+        if (field === 'unitPrice' || field === 'shippingFeePerPerson') return UtilBizApplicationMessages.won(t, n, locale);
         if (field === 'capacity') return t('ad.priceCapacityValue', { n });
         return t('ad.priceDaysValue', { n });
     }

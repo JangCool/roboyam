@@ -27,7 +27,20 @@ export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP';
  * 핫딜 글에서만 보이는 두 사유 `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요)가 더 있다(hotdeal-contract — 서버 `ReportReasons`, 일반 글·댓글이면 400 `fields.reason`).
  * 조치 사유 코드도 사건 대상의 체계를 따른다.
  */
-export type ReportReasonCode = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'DEAL_FALSE_PRICE' | 'DEAL_HIDDEN_AD' | 'OTHER';
+export type ReportReasonCode =
+    | 'SPAM_AD'
+    | 'ABUSE'
+    | 'OBSCENE'
+    | 'ILLEGAL_FILMING'
+    | 'RIGHTS'
+    | 'PROMOTION'
+    | 'OFFLINE_RISK'
+    | 'STOCK_RECOMMENDATION'
+    | 'DEAL_FALSE_PRICE'
+    | 'DEAL_HIDDEN_AD'
+    // 협찬 숨김(trial-group-contract 「구현 결정」 6, shared V241) — 구입 경로를 받는 게시판 글에만. 운영자가 확인하면 글을 협찬으로 바꾸고 표시를 붙인다(확인할 일 「협찬 숨김」)
+    | 'SPONSOR_HIDDEN'
+    | 'OTHER';
 
 /** 검색 대상 — 대상 글 제목(기본) · 대상 작성자 · 사건 번호 */
 export type ReportSearchField = 'TITLE' | 'AUTHOR' | 'CASE_NO';

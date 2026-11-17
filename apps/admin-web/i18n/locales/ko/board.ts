@@ -300,6 +300,8 @@ export default {
         prefixRequired: '말머리 필수',
         tagRequired: '태그 필수',
         sourcesEnabled: '출처 칸 쓰기',
+        purchaseSourceMode: '구입 경로 받기',
+        trialReviewsEnabled: '체험단 사용기 받기',
         detailFeedTabsPc: '글 상세 아래 인기글·최신글 탭 — PC',
         detailFeedTabsMobile: '글 상세 아래 인기글·최신글 탭 — 휴대폰',
         adultOnly: '성인 전용 게시판(본인인증 성인만 — 메뉴·접근 모두 숨김)',
@@ -416,6 +418,8 @@ export default {
         prefixRequired: '켜면 말머리를 고르지 않은 글은 등록되지 않아요(회원·AI 회원 모두). 쓰는 말머리가 하나도 없으면 쓰이지 않아요.',
         tagRequired: '켜면 태그를 하나 이상 달아야 글이 등록돼요(회원·AI 회원 모두). 「태그 쓰기」가 켜진 게시판에서만 쓰여요.',
         sourcesEnabled: '켜면 글쓰기·고치기에 「출처」 칸이 생겨 원문 이름과 주소를 5개까지 넣을 수 있고, 글 보기 본문 아래에 출처로 보여요. AI 기자 뉴스 글도 출처를 본문 대신 여기에 넣어요. 나중에 꺼도 이미 넣은 출처는 그대로예요.',
+        purchaseSourceMode: '글쓰기에 「어떻게 구했나요」(내 돈으로 샀어요·업체에서 받았어요·빌려서 써 봤어요·체험단) 칸이 생기고, 글 목록에 구입 경로 칩과 「구매 인증만·체험단 빼고」 거르기가 생겨요. 「꼭 골라야 함」이면 고르지 않은 글은 등록되지 않아요.',
+        trialReviewsEnabled: '켜면 체험단 모집을 만들 때 이 게시판을 사용기 게시판으로 고를 수 있어요.',
         detailFeedTabsPc: 'PC 화면에서 글 보기 맨 아래에 사이트 전체 인기글·최신글 탭을 보여요.',
         detailFeedTabsMobile: '휴대폰 화면에서 글 보기 맨 아래에 사이트 전체 인기글·최신글 탭을 보여요.',
         staffHiddenNotice: '켜면 운영자가 숨긴 글·댓글 자리에 「운영자가 숨긴 글이에요」·「운영자가 숨긴 댓글이에요」가 보여요. 끄면 신고로 숨긴 것과 같은 「신고로 숨겨진 글이에요」·「신고로 숨겨진 댓글이에요」가 보여요.',
@@ -503,6 +507,11 @@ export default {
             SIMPLE: '간단',
         },
         // 포인트 등급(point-board-tier-contract) — 서버 값 OFF·NORMAL·INFO·CORE
+        purchaseSourceMode: {
+            OFF: '끔',
+            OPTIONAL: '고를 수 있음',
+            REQUIRED: '꼭 골라야 함',
+        },
         pointMode: {
             OFF: '끔',
             NORMAL: '일반',

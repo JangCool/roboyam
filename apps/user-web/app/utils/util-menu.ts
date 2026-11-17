@@ -380,6 +380,7 @@ const BUILTIN_ICONS: Readonly<Record<string, string>> = {
     POPULAR: 'tabler:flame',
     LATEST: 'pi pi-clock',
     SEARCH: 'pi pi-search',
+    TRIALS: 'pi pi-box',
     GROUP_BUYS: 'pi pi-shopping-bag',
     GROUP_BUY_ORDERS: 'pi pi-receipt',
     MY_GRADE: 'pi pi-star',

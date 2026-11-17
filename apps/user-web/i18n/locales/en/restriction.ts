@@ -11,12 +11,15 @@ export default {
     title_POINT_FREEZE: 'Your points are frozen',
     title_GROUP_BUY_BAN: 'Joining group buys is restricted',
     title_CHARGE_BAN: 'Charging points is restricted',
+    title_TRIAL_BAN: 'Trial applications are restricted',
 
     type_POINT_FREEZE: 'Point freeze',
     type_GROUP_BUY_BAN: 'Group-buy ban',
     type_CHARGE_BAN: 'Charge ban',
+    type_TRIAL_BAN: 'Trial ban',
 
     allowed_POINT_FREEZE: 'You can still request refunds of charged points.',
     allowed_GROUP_BUY_BAN: 'You can still track, cancel or return orders you’ve already paid for.',
     allowed_CHARGE_BAN: 'You can still use your points and request refunds.',
+    allowed_TRIAL_BAN: 'You can still receive, review and return trials already in progress.',
 };

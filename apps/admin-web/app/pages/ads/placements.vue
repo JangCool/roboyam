@@ -854,7 +854,7 @@ function ruleOf(product: AdPriceProduct): AdPriceRule | null {
 }
 
 /** 다가오는 예약 카드의 값 글자 — 「50,000원」·「2건」·「한도 없음」·「14일」 */
-function diffValue(field: AdPriceScheduledField, n: number | null): string {
+function diffValue(field: AdPriceScheduledField, n: number | string | null): string {
     return UtilAdMessages.priceRuleValue(t, field, n === null ? null : String(n), locale.value) ?? '';
 }
 

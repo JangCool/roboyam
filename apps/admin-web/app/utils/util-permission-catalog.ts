@@ -282,6 +282,10 @@ export default class UtilPermissionCatalog {
         { code: 'ad.takedown', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adTakedown', descKey: 'permission.item.adTakedownDesc', featureReady: true },
         { code: 'ad.restore', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adRestore', descKey: 'permission.item.adRestoreDesc', featureReady: true },
         { code: 'ad.contact.reveal', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adContactReveal', descKey: 'permission.item.adContactRevealDesc', featureReady: true },
+        // 체험단(trial-group-contract 「권한」·shared V241) — 모집·뽑기·입고·발송 / 설정 / 확인할 일(구매 인증·반납 확인·파손 신고·협찬 숨김)
+        { code: 'trial.manage', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.trialManage', descKey: 'permission.item.trialManageDesc', featureReady: true },
+        { code: 'trial.settings', unit: 'CONFIG', type: 'adPromo', nameKey: 'permission.item.trialSettings', descKey: 'permission.item.trialSettingsDesc', featureReady: true },
+        { code: 'trial.review', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.trialReview', descKey: 'permission.item.trialReviewDesc', featureReady: true },
         { code: 'operator.read', unit: 'READ', type: 'operatorRole', nameKey: 'permission.operatorRead', descKey: 'permission.operatorReadDesc', featureReady: true },
         { code: 'role.read', unit: 'READ', type: 'operatorRole', nameKey: 'permission.roleRead', descKey: 'permission.roleReadDesc', featureReady: true },
         { code: 'operator.manage', unit: 'MANAGE', type: 'operatorRole', nameKey: 'permission.operatorManage', descKey: 'permission.operatorManageDesc', featureReady: true },

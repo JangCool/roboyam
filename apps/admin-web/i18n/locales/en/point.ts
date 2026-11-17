@@ -253,6 +253,7 @@ export default {
         ROULETTE_WIN: 'Roulette prize',
         POST_FEATURED: 'Featured post',
         POST_FEATURED_REVOKE: 'Featured post taken back',
+        PURCHASE_PROOF: 'Purchase proof bonus',
     },
     col: {
         createdAt: 'Date',

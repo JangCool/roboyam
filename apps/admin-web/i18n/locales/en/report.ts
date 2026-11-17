@@ -101,6 +101,8 @@ export default {
         OFFLINE_RISK: 'Risky offline meetup',
         STOCK_RECOMMENDATION: 'Stock tips or paid recruiting',
     },
+    // Report reason shown only on posts in boards that ask how the product was obtained (trial-group-contract)
+    sponsorReason: 'Hidden sponsorship',
     // Report reasons shown only on hot deal posts (hotdeal-contract)
     dealReason: {
         DEAL_FALSE_PRICE: 'Price or details are wrong',

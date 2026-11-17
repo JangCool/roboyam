@@ -18,6 +18,8 @@ export type ReportReason =
     // 핫딜 글에서만(서버 V122 CHECK·2단계 접수 — 그 밖 글·댓글이면 `400 fields.reason`) — 가격·정보가 사실과 달라요 · 광고·홍보를 숨겼어요
     | 'DEAL_FALSE_PRICE'
     | 'DEAL_HIDDEN_AD'
+    // 구입 경로를 받는 게시판 글에서만(trial-group-contract 「구현 결정」 6, shared V241) — 협찬을 숨겼어요(업체에서 받고 「내 돈으로 샀어요」)
+    | 'SPONSOR_HIDDEN'
     | 'OTHER';
 
 /** 글·댓글 사유 — 화면에 보일 차례 */

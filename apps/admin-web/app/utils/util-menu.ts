@@ -364,6 +364,8 @@ export default class UtilMenu {
         { key: 'POPULAR', category: 'GENERAL', labelKey: 'menuConfig.builtin.POPULAR', path: '/popular', matchPrefix: true, loginRequired: false, salesGated: false },
         { key: 'LATEST', category: 'GENERAL', labelKey: 'menuConfig.builtin.LATEST', path: '/latest', matchPrefix: true, loginRequired: false, salesGated: false },
         { key: 'SEARCH', category: 'GENERAL', labelKey: 'menuConfig.builtin.SEARCH', path: '/search', matchPrefix: true, loginRequired: false, salesGated: false },
+        // 체험단(trial-group-contract — 모집 상세 /trials/{id} 도 이 메뉴로 본다). 서버 `MenuBuiltin.TRIALS` 와 같은 줄
+        { key: 'TRIALS', category: 'GENERAL', labelKey: 'menuConfig.builtin.TRIALS', path: '/trials', matchPrefix: true, loginRequired: false, salesGated: false },
         { key: 'GROUP_BUYS', category: 'GROUP_BUY', labelKey: 'menuConfig.builtin.GROUP_BUYS', path: '/group-buys', matchPrefix: true, loginRequired: false, salesGated: true },
         { key: 'GROUP_BUY_ORDERS', category: 'GROUP_BUY', labelKey: 'menuConfig.builtin.GROUP_BUY_ORDERS', path: '/me/orders', matchPrefix: true, loginRequired: true, salesGated: true },
         { key: 'GROUPS_ALL', category: 'GROUPS', labelKey: 'menuConfig.builtin.GROUPS_ALL', path: '/groups', matchPrefix: true, loginRequired: false, salesGated: false },

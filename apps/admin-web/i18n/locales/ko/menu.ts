@@ -143,6 +143,8 @@ export default {
     adPerformance: '광고 성과',
     adAdvertisers: '광고주 관리',
     adPlacements: '광고 기본 설정',
+    adTrials: '체험단',
+    adTrialSettings: '체험단 설정',
     // 핫딜 묶음 — 핫딜 심사 · 핫딜 글 · 링크 규칙 · 의심 후보 · 핫딜 설정
     hotdeal: '핫딜',
     hotdealReviews: '핫딜 심사',

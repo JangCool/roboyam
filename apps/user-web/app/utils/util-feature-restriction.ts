@@ -5,8 +5,9 @@ import { ApiError } from '~/composables/common/useApiClient';
  * - `POINT_FREEZE` 포인트 동결: 적립·사용·충전을 막는다(충전 포인트 환불 신청은 된다)
  * - `GROUP_BUY_BAN` 공동구매 참여 제한: 새 참여를 막는다(이미 결제한 주문의 배송·취소·반품·조회는 된다)
  * - `CHARGE_BAN` 충전 제한: 새 충전을 막는다(기존 포인트 사용·환불은 된다)
+ * - `TRIAL_BAN` 체험단 신청 금지(trial-group-contract): 새 체험단 신청을 막는다(진행 중인 체험단 받기·사용기·반납은 된다)
  */
-export type FeatureRestrictionType = 'POINT_FREEZE' | 'GROUP_BUY_BAN' | 'CHARGE_BAN';
+export type FeatureRestrictionType = 'POINT_FREEZE' | 'GROUP_BUY_BAN' | 'CHARGE_BAN' | 'TRIAL_BAN';
 
 /** 막힌 기능을 쓰려 할 때 서버가 주는 제한 한 건 — 403 `MEMBER_RESTRICTED` 의 오류 본문 최상위 `restriction`(`ApiError.extras.restriction`, 서버 `MemberRestrictedException`). 운영 메모는 오지 않는다 */
 export interface FeatureRestriction {
@@ -17,7 +18,7 @@ export interface FeatureRestriction {
     reason: string;
 }
 
-const TYPES: readonly FeatureRestrictionType[] = ['POINT_FREEZE', 'GROUP_BUY_BAN', 'CHARGE_BAN'];
+const TYPES: readonly FeatureRestrictionType[] = ['POINT_FREEZE', 'GROUP_BUY_BAN', 'CHARGE_BAN', 'TRIAL_BAN'];
 
 /** 기능 제한 안내(`FeatureRestrictionNotice`)가 쓰는 규칙 — 서버 오류에서 제한을 꺼내고 종류별 아이콘을 고른다 */
 export default class UtilFeatureRestriction {
@@ -59,6 +60,7 @@ export default class UtilFeatureRestriction {
     static icon(type: FeatureRestrictionType): string {
         if (type === 'POINT_FREEZE') return 'pi pi-lock';
         if (type === 'GROUP_BUY_BAN') return 'pi pi-shopping-bag';
+        if (type === 'TRIAL_BAN') return 'pi pi-box';
         return 'pi pi-wallet';
     }
 }

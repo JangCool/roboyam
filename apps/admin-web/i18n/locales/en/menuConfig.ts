@@ -204,6 +204,7 @@ export default {
         POPULAR: 'Popular',
         LATEST: 'Latest',
         SEARCH: 'Search',
+        TRIALS: 'Product trials',
         GROUP_BUYS: 'Group buys',
         GROUP_BUY_ORDERS: 'Group buy orders',
         GROUPS_ALL: 'All clubs',

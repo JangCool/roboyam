@@ -189,6 +189,13 @@ export interface BoardDefaults {
      */
     sourcesEnabled: boolean;
     /**
+     * 구입 경로 받기(trial-group-contract 「구입 경로」·shared V241) — 끔 · 고를 수 있음 · 꼭 골라야 함. 글쓰기에 「어떻게 구했나요」 칸이 생기고, 글 목록에 구입 경로 칩·거르기가 생긴다.
+     * 사용기 게시판(`review`)은 꼭 골라야 함, 전체 기본값 `OFF`. 옛 서버 응답에는 칸이 없을 수 있다(화면은 끔으로 본다)
+     */
+    purchaseSourceMode: BoardPurchaseSourceMode;
+    /** 체험단 사용기 받기 — 켠 게시판만 체험단 모집의 「사용기 게시판」으로 고를 수 있다. 전체 기본값 `false`. 옛 서버 응답에는 칸이 없을 수 있다 */
+    trialReviewsEnabled: boolean;
+    /**
      * 글 상세 맨 아래 [인기글]·[최신글] 탭을 PC(md 이상)에서 보인다(post-detail-board-list-contract 「2차」). 전체 기본값 `false`.
      * 옛 서버 응답에는 칸이 없을 수 있다(화면은 끔으로 본다)
      */
@@ -215,6 +222,9 @@ export interface BoardDefaults {
 }
 
 export type BoardDefaultsField = keyof BoardDefaults;
+
+/** 구입 경로 받기(trial-group-contract) — 끔 · 고를 수 있음 · 꼭 골라야 함 */
+export type BoardPurchaseSourceMode = 'OFF' | 'OPTIONAL' | 'REQUIRED';
 
 /** 게시판마다 덮어쓸 수 있는 정책 칸 — 나머지(날짜 표시·작성 속도·첨부 정리·베스트 댓글·스텝 수)는 기본 설정에만 있다 */
 export const BOARD_POLICY_FIELDS = [
@@ -247,6 +257,8 @@ export const BOARD_POLICY_FIELDS = [
     'prefixRequired',
     'tagRequired',
     'sourcesEnabled',
+    'purchaseSourceMode',
+    'trialReviewsEnabled',
     'detailFeedTabsPc',
     'detailFeedTabsMobile',
     'managerMax',

@@ -136,7 +136,7 @@ const isDismiss = computed(() => props.kind === 'DISMISS');
 const isSanctionOnly = computed(() => props.kind === 'SANCTION_ONLY');
 // ⚠ `computed` 다 — 그냥 배열이면 처음 읽은 순간의 언어로 굳는다
 const isDeal = computed(() => (props.item ? UtilReport.isDealCase(props.item) : false));
-const reasonOptions = computed(() => UtilReport.reasonsFor(props.item?.targetType ?? 'POST', isDeal.value).map((value) => ({ value, label: UtilReportMessages.reasonName(t, value) })));
+const reasonOptions = computed(() => UtilReport.reasonsFor(props.item?.targetType ?? 'POST', isDeal.value, props.item ? UtilReport.isSponsorCase(props.item) : false).map((value) => ({ value, label: UtilReportMessages.reasonName(t, value) })));
 /** 글 최대 — 소모임 비활성화는 200자(모임장에게 사유로 간다) */
 const noteMax = computed(() => UtilReport.noteMax(props.kind));
 const noteHint = computed(() => t('report.noteCounter', { n: UtilReport.noteLength(note.value), max: noteMax.value }));

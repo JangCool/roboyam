@@ -29,7 +29,7 @@ export type TitleSource = 'AUTO' | 'AWARD' | 'APPLICATION';
 export type TitleActorKind = 'OPERATOR' | 'BOARD_MANAGER';
 
 /** 조건 종류(서버 `TitleConditionType`) — 모두 채우면 받는다. 등급 이상 · 글 수(게시판) · 인기글 진입 일수 · 출석 일수 · 신고로 숨겨진 글 없음 */
-export type TitleConditionType = 'GRADE_AT_LEAST' | 'POSTS' | 'POPULAR_DAYS' | 'ATTENDANCE_DAYS' | 'NO_REPORT_HIDDEN';
+export type TitleConditionType = 'GRADE_AT_LEAST' | 'POSTS' | 'POPULAR_DAYS' | 'ATTENDANCE_DAYS' | 'NO_REPORT_HIDDEN' | 'PURCHASE_PROOFS';
 
 /** 단계 칭호가 세는 것(서버 `TitleMetric`) — 인기글 진입 일수 · 출석 일수 · 글 수 · 체험단 약속 지킴 */
 export type TitleMetric = 'POPULAR_DAYS' | 'ATTENDANCE_DAYS' | 'POSTS' | 'TRIAL_KEPT';

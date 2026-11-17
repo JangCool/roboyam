@@ -14,6 +14,7 @@ export default class UtilReportMessages {
         if (!code) return '';
         if (UtilReport.isGroupReason(code)) return t(`report.groupReason.${code}`);
         if (UtilReport.isDealReason(code)) return t(`report.dealReason.${code}`);
+        if (code === 'SPONSOR_HIDDEN') return t('report.sponsorReason');
         return (UtilReport.REASONS as readonly string[]).includes(code) ? t(`board.reason.${code}`) : code;
     }
 

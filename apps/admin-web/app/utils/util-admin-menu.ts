@@ -360,6 +360,9 @@ export default class UtilAdminMenu {
                 // 광고주 관리(`/ad-advertisers` — 서버 `AdminScreenRegistry` 「광고」 넷째와 같은 키·주소·권한·차례)
                 { key: 'adAdvertisers', to: '/ad-advertisers', icon: 'pi pi-address-book', labelKey: 'menu.adAdvertisers', permission: 'ad.read' },
                 { key: 'adPlacements', to: '/ads/placements', icon: 'pi pi-sliders-h', labelKey: 'menu.adPlacements', permission: 'ad.read' },
+                // 체험단(trial-group-contract 「구현 결정」 10) — 서버 `AdminScreenRegistry` 「광고」 adTrials·adTrialSettings 와 같은 키·주소·권한·아이콘·차례(admin V12)
+                { key: 'adTrials', to: '/ads/trials', icon: 'pi pi-box', labelKey: 'menu.adTrials', permission: 'trial.manage' },
+                { key: 'adTrialSettings', to: '/ads/trials/settings', icon: 'pi pi-cog', labelKey: 'menu.adTrialSettings', permission: 'trial.settings' },
             ],
         },
         // 핫딜 묶음 — 핫딜 심사(`/hotdeal-reviews`, 신청 건 HOTDEAL_* — 조회 `hotdeal.read`, 처리 `hotdeal.manage`, 환불 `deal-order.refund`).

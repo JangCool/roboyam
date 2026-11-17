@@ -143,6 +143,8 @@ export default {
     adPerformance: 'Ad performance',
     adAdvertisers: 'Advertisers',
     adPlacements: 'Ad settings',
+    adTrials: 'Product trials',
+    adTrialSettings: 'Trial settings',
     // Hot deal section — hot deal review · posts · link rules · suspicious members · settings
     hotdeal: 'Hot deals',
     hotdealReviews: 'Hot deal review',

@@ -253,6 +253,7 @@ export default {
         ROULETTE_WIN: '룰렛 당첨',
         POST_FEATURED: '우수 글 선정',
         POST_FEATURED_REVOKE: '우수 글 회수',
+        PURCHASE_PROOF: '구매 인증 보너스',
     },
     col: {
         createdAt: '일시',

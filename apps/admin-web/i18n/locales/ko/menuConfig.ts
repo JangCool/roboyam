@@ -204,6 +204,7 @@ export default {
         POPULAR: '인기글',
         LATEST: '최신글',
         SEARCH: '검색',
+        TRIALS: '체험단',
         GROUP_BUYS: '공동구매',
         GROUP_BUY_ORDERS: '공동구매 주문 내역',
         GROUPS_ALL: '전체 소모임',

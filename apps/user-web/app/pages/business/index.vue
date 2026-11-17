@@ -12,6 +12,19 @@
     <div class="content-card flex flex-col gap-4" data-testid="business-home">
         <header class="flex flex-wrap items-center justify-between gap-2">
             <h1 class="m-0 text-lg font-bold">{{ t('business.home.title') }}</h1>
+            <!-- 체험단(trial-group-contract 「구현 결정」 8) — 운영자가 만든 내 모집 · 신청자 후보 추천 · 발송·반납·파손 신고 -->
+            <Button
+                v-if="profile?.status === 'APPROVED'"
+                as="router-link"
+                :to="UtilTrial.BIZ_PATH"
+                :label="t('trial.bizTitle')"
+                icon="pi pi-box"
+                size="small"
+                severity="secondary"
+                variant="outlined"
+                class="ml-auto"
+                data-testid="business-home-trials"
+            />
             <Button
                 v-if="profile?.status === 'APPROVED'"
                 as="router-link"
@@ -247,6 +260,7 @@
 import type { BizAdStatsSummary, BizAdStatsSummaryItem, BizApplicationSummary, BusinessDocSendTo, BusinessProfile, BusinessServiceKind } from '~/composables/business/api/useBusinessApi.types';
 import UtilAdStats from '~/utils/util-ad-stats';
 import UtilBusiness from '~/utils/util-business';
+import UtilTrial from '~/utils/util-trial';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 
 /**

@@ -103,7 +103,22 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      * 칭호를 받음(member-title-contract 「구현 결정」 4 — 자동·신청 승인·운영자 수여). 문구는 서버 `title`·`body`, 이동은 서버 `link`(내 칭호 `/me/titles` 후보).
      * 다음 접속 때 축하 창은 알림과 따로 `GET /api/me/titles` 의 `unseen` 으로 뜬다
      */
-    | 'TITLE_GRANTED';
+    | 'TITLE_GRANTED'
+    /**
+     * 체험단(trial-group-contract 「구현 결정」 14) — 뽑힘 · 안 뽑힘 · 발송(송장) · 사용기 기한 · 반납 기한 · 미반납 확정 · 파손 신고 받음(사진 — 7일 안 이의) · 파손 판정.
+     * 문장·이동(`/me/trials`·모집 상세)은 서버가 준다
+     */
+    | 'TRIAL_SELECTED'
+    | 'TRIAL_NOT_SELECTED'
+    | 'TRIAL_SHIPPED'
+    | 'TRIAL_REVIEW_DUE'
+    | 'TRIAL_RETURN_DUE'
+    | 'TRIAL_UNRETURNED'
+    | 'TRIAL_DAMAGE_REPORTED'
+    | 'TRIAL_DAMAGE_DECIDED'
+    /** 구매 인증 승인(보너스 포인트) · 거절(사유 — 다시 올릴 수 있다). 이동은 그 글 */
+    | 'PURCHASE_PROOF_APPROVED'
+    | 'PURCHASE_PROOF_REJECTED';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

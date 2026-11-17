@@ -361,14 +361,17 @@ export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;
  * 어느 가격이 적용되나 = 사업자가 신청을 낸 시각 기준(신청 건에 견적 고정 — 승인·결제가 적용 시각 뒤여도 낼 때의 견적).
  */
 
-/** 요금표 상품 — 자리 상품(`BizAdType`) 9개 + 핫딜 글 게시(`HOTDEAL_POST`). 서버 `BizProduct` */
-export type AdPriceProduct = BizAdType | 'HOTDEAL_POST';
+/** 요금표 상품 — 자리 상품(`BizAdType`) 9개 + 핫딜 글 게시(`HOTDEAL_POST`) + 체험단(`TRIAL` — shared V241). 서버 `BizProduct` */
+export type AdPriceProduct = BizAdType | 'HOTDEAL_POST' | 'TRIAL';
+
+/** 체험단(`TRIAL` — trial-group-contract 「돈」) 값 매기는 단위 — 모집 건당 · 뽑힌 1명당(기본). 다른 상품은 null */
+export type AdTrialPriceUnit = 'PER_RECRUIT' | 'PER_PERSON';
 
 /** 값 단위 — 하루 단가(`DAY`) · 건당(`POST`, 핫딜 글 게시만). 바꿀 수 없다(`biz_price_rules.unit`) */
 export type AdPriceUnit = 'DAY' | 'POST';
 
 /** 칸 이름(서버 `BizPriceRuleStore.PriceRule` 과 같은 이름) — 예약 칸 넷 + 받기 */
-export type AdPriceField = 'unitPrice' | 'capacity' | 'maxDays' | 'maxLeadDays' | 'accepting';
+export type AdPriceField = 'unitPrice' | 'capacity' | 'maxDays' | 'maxLeadDays' | 'accepting' | 'priceUnit' | 'shippingFeePerPerson';
 
 /** 예약으로 바꾸는 값 넷 */
 export interface AdPriceValues {
@@ -380,6 +383,10 @@ export interface AdPriceValues {
     maxDays: number;
     /** 며칠 뒤 시작까지 미리 신청할 수 있나(1 이상) */
     maxLeadDays: number;
+    /** 체험단만 — 값 매기는 단위(모집 건당·1명당). 다른 상품·옛 응답은 null·없음. 예약 줄이 null 이면 「직전 값 그대로」(shared V241) */
+    priceUnit?: AdTrialPriceUnit | null;
+    /** 체험단만 — 운영자가 대신 보낼 때 1명당 발송비(원, 기본 0). 다른 상품·옛 응답은 null·없음 */
+    shippingFeePerPerson?: number | null;
 }
 
 /**

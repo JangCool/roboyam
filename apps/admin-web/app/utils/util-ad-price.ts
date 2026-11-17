@@ -5,14 +5,17 @@ import UtilBizApplication from '~/utils/util-biz-application';
 /** 예약으로 바꾸는 칸(받기는 빼고) */
 export type AdPriceScheduledField = Exclude<AdPriceField, 'accepting'>;
 
+/** 숫자로 고치는 네 칸(모든 상품) */
+export type AdPriceNumberField = 'unitPrice' | 'capacity' | 'maxDays' | 'maxLeadDays';
+
 /** 화면 묶음 — 광고(배너 넷·날개·한 줄) · 핫딜(글 게시·게시판 상단·말머리 상단) */
-export type AdPriceGroup = 'AD' | 'HOTDEAL';
+export type AdPriceGroup = 'AD' | 'HOTDEAL' | 'TRIAL';
 
 /** 바뀌는 칸 한 줄(직전 값 → 새 값) */
 export interface AdPriceDiff {
     field: AdPriceScheduledField;
-    before: number | null;
-    after: number | null;
+    before: number | string | null;
+    after: number | string | null;
 }
 
 /** 예약 한 건을 「바로 앞 값」(앞 예약이 적용된 뒤 값)과 함께 */
@@ -26,6 +29,8 @@ export interface AdPriceChainItem {
 const GROUPS: readonly { key: AdPriceGroup; products: readonly AdPriceProduct[] }[] = [
     { key: 'AD', products: ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'HALF_BANNER', 'WING_BANNER', 'TEXT_LINE'] },
     { key: 'HOTDEAL', products: ['HOTDEAL_POST', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'] },
+    // 체험단(trial-group-contract 「돈」 — 처음 0원, 값 단위 모집 건당/인원당 · 1명당 발송비)
+    { key: 'TRIAL', products: ['TRIAL'] },
 ];
 
 /**
@@ -38,7 +43,9 @@ export default class UtilAdPrice {
     /** 화면 차례 */
     static readonly PRODUCTS: readonly AdPriceProduct[] = GROUPS.flatMap((group) => group.products);
     /** 예약으로 바꾸는 칸 — 이 차례로 보인다 */
-    static readonly SCHEDULED_FIELDS: readonly AdPriceScheduledField[] = ['unitPrice', 'capacity', 'maxDays', 'maxLeadDays'];
+    static readonly SCHEDULED_FIELDS: readonly AdPriceNumberField[] = ['unitPrice', 'capacity', 'maxDays', 'maxLeadDays'];
+    /** 체험단의 숫자 칸 — 단가만(한도·일수는 쓰지 않는다 — 서버가 1·365 로 둔다). 값 단위·1명당 발송비는 따로 */
+    static readonly TRIAL_FIELDS: readonly AdPriceNumberField[] = ['unitPrice'];
     /** 칸의 아래 한계(DB CHECK — 단가 0 이상 · 한도 1 이상(하루 단가 상품만) · 최대 일수·미리 신청 일수 1 이상) */
     static readonly MIN = { unitPrice: 0, capacity: 1, maxDays: 1, maxLeadDays: 1 } as const;
     /** 미리보기 예시 — 하루 단가 상품은 7일 신청(최대 일수가 더 짧으면 최대 일수), 건당 상품은 1건 */
@@ -50,17 +57,26 @@ export default class UtilAdPrice {
 
     /** 상품 이름 i18n 키 — 신청 건 화면과 같은 이름(`bizApplication.adType.*`, 핫딜 글 게시는 `bizApplication.product.HOTDEAL_POST`) */
     static nameKey(product: AdPriceProduct): string {
+        if (product === 'TRIAL') return 'trial.product';
         return product === 'HOTDEAL_POST' ? 'bizApplication.product.HOTDEAL_POST' : `bizApplication.adType.${product}`;
     }
 
     /** 값 넷만 새 객체로(건당 상품의 한도는 늘 null) */
     static valuesOf(unit: AdPriceUnit, source: AdPriceValues): AdPriceValues {
-        return { unitPrice: source.unitPrice, capacity: unit === 'POST' ? null : source.capacity, maxDays: source.maxDays, maxLeadDays: source.maxLeadDays };
+        const out: AdPriceValues = { unitPrice: source.unitPrice, capacity: unit === 'POST' ? null : source.capacity, maxDays: source.maxDays, maxLeadDays: source.maxLeadDays };
+        // 체험단 두 칸 — 있을 때만 싣는다(다른 상품은 칸 없음)
+        if (source.priceUnit != null) out.priceUnit = source.priceUnit;
+        if (source.shippingFeePerPerson != null) out.shippingFeePerPerson = source.shippingFeePerPerson;
+        return out;
     }
 
     /** 두 값의 다른 칸 */
     static diff(before: AdPriceValues, after: AdPriceValues): AdPriceDiff[] {
-        return UtilAdPrice.SCHEDULED_FIELDS.filter((field) => before[field] !== after[field]).map((field) => ({ field, before: before[field], after: after[field] }));
+        const out: AdPriceDiff[] = UtilAdPrice.SCHEDULED_FIELDS.filter((field) => before[field] !== after[field]).map((field) => ({ field, before: before[field], after: after[field] }));
+        // 체험단 두 칸 — 예약 줄이 비우면(null) 직전 값 그대로라 바뀐 것으로 보지 않는다
+        if (after.priceUnit != null && before.priceUnit !== after.priceUnit) out.push({ field: 'priceUnit', before: before.priceUnit ?? null, after: after.priceUnit });
+        if (after.shippingFeePerPerson != null && before.shippingFeePerPerson !== after.shippingFeePerPerson) out.push({ field: 'shippingFeePerPerson', before: before.shippingFeePerPerson ?? null, after: after.shippingFeePerPerson });
+        return out;
     }
 
     /** 적용 시각 차례의 예약(같은 시각은 없다 — 서버가 막는다) */

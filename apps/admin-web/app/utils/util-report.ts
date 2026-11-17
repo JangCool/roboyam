@@ -96,7 +96,7 @@ const GROUP_REASONS: readonly ReportReasonCode[] = ['PROMOTION', 'OFFLINE_RISK',
 const DEAL_REASONS: readonly ReportReasonCode[] = ['DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD'];
 /** 핫딜 글 사건의 조치 사유 차례 — 글 사유(기타 앞까지) + 핫딜 사유 2개 + 기타 */
 const DEAL_POST_REASONS: readonly ReportReasonCode[] = [...POST_REASONS.filter((r) => r !== 'OTHER'), ...DEAL_REASONS, 'OTHER'];
-const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD', 'OTHER'];
+const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD', 'SPONSOR_HIDDEN', 'OTHER'];
 const SORTS: readonly ReportSort[] = ['newest', 'oldest', 'most'];
 /** 자동 숨김(신고 누적·불법 즉시·권리침해 임시조치) — 무시하면 서버가 복구하고, 「자동 숨김 확정」을 할 수 있다. 운영자 숨김(STAFF)은 아니다 */
 const AUTO_HIDDEN = new Set(['REPORTED', 'ILLEGAL', 'RIGHTS']);
@@ -331,9 +331,16 @@ export default class UtilReport {
      * 사건 대상의 사유 체계 — 소모임은 소모임 사유 4종, 글·댓글은 6종, **핫딜 글은 6종 + 핫딜 사유 2개**(조치 사유 코드도 이 안에서만 — 서버 `fields.reasonCode`).
      * 핫딜 사유는 핫딜 글에서만 보인다(댓글·일반 글에는 없다 — hotdeal-contract).
      */
-    static reasonsFor(type: ReportTargetType, deal = false): readonly ReportReasonCode[] {
+    static reasonsFor(type: ReportTargetType, deal = false, sponsor = false): readonly ReportReasonCode[] {
         if (type === 'GROUP') return GROUP_REASONS;
-        return type === 'POST' && deal ? DEAL_POST_REASONS : POST_REASONS;
+        const base = type === 'POST' && deal ? DEAL_POST_REASONS : POST_REASONS;
+        // 협찬 숨김(trial-group-contract) — 구입 경로 받는 게시판 글(그 사유 신고가 들어온 사건)이면 「기타」 앞에
+        return type === 'POST' && sponsor ? [...base.filter((r) => r !== 'OTHER'), 'SPONSOR_HIDDEN', 'OTHER'] : base;
+    }
+
+    /** 협찬 숨김 신고가 들어온 글 사건인가(사유 문구 `report.sponsorReason`) */
+    static isSponsorCase(item: Pick<ReportCaseItem, 'targetType' | 'reasons'>): boolean {
+        return item.targetType === 'POST' && item.reasons.some((r) => r.code === 'SPONSOR_HIDDEN');
     }
 
     /**

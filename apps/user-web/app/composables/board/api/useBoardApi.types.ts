@@ -378,6 +378,13 @@ export interface BoardDetail extends BoardView {
     /** 검색엔진 색인(유효 정책 `indexable`, 기본 true) — false 면 게시판 목록·글 보기에 robots noindex(관리자 QA 2026-11-17 F-7) */
     indexable?: boolean;
     /**
+     * 구입 경로 받기(유효 정책 `purchaseSourceMode` — trial-group-contract, 기본 끔) — 끔이 아니면 글쓰기 「어떻게 구했나요」 칸·목록 구입 경로 칩·거르기·신고 사유 「협찬 숨김」.
+     * `REQUIRED` 면 꼭 골라야 한다. 옛 응답이면 끔
+     */
+    purchaseSourceMode?: 'OFF' | 'OPTIONAL' | 'REQUIRED';
+    /** 체험단 사용기 받기(유효 정책 `trialReviewsEnabled`) — 켠 게시판에서만 「뽑힌 체험단 사용기로 쓰기」. 옛 응답이면 끔 */
+    trialReviewsEnabled?: boolean;
+    /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
      */

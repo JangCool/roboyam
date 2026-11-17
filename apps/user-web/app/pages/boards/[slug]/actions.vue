@@ -19,7 +19,7 @@
         <ErrorState v-else-if="state === 'error' && !page" :title="t('boardStaffAction.listFailed')" :description="errorMessage" retry data-testid="board-actions-error" @retry="load" />
 
         <template v-else-if="page && board">
-            <BoardStaffTabs :slug="slug" :board-name="localizedName(board.name, board.nameEn)" active="actions" />
+            <BoardStaffTabs :slug="slug" :board-name="localizedName(board.name, board.nameEn)" active="actions" :purchase-proofs="(board.purchaseSourceMode ?? 'OFF') !== 'OFF'" />
             <header class="mt-3 flex flex-wrap items-start gap-x-3 gap-y-1">
                 <div class="min-w-0 flex-1">
                     <h1 class="m-0 text-lg font-bold">{{ t('boardStaffAction.listTitle') }}</h1>

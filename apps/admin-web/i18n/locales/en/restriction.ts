@@ -13,6 +13,7 @@ export default {
         POINT_FREEZE: 'Point freeze',
         GROUP_BUY_BAN: 'Group-buy ban',
         CHARGE_BAN: 'Charge ban',
+        TRIAL_BAN: 'Trial ban',
     },
     status: {
         ACTIVE: 'Active',
@@ -23,6 +24,10 @@ export default {
     sourceOperator: 'Operator · {name}',
     autoRule: {
         GROUP_BUY_HOLD_EXPIRED: '3 expired holds in 24 hours',
+        TRIAL_UNRETURNED: 'Trial not returned',
+        TRIAL_REVIEW_LATE: 'Late trial review',
+        TRIAL_DAMAGE_FAULT: 'Trial damage — member negligence',
+        TRIAL_DAMAGE_INTENTIONAL: 'Trial damage — intentional or hidden',
     },
     lift: 'Lift',
     period: 'Period',
@@ -46,11 +51,13 @@ export default {
         POINT_FREEZE: 'earning, using and charging points',
         GROUP_BUY_BAN: 'joining new group buys',
         CHARGE_BAN: 'new point charges',
+        TRIAL_BAN: 'new trial applications',
     },
     allowsWhat: {
         POINT_FREEZE: 'refund requests for charged points',
         GROUP_BUY_BAN: 'shipping, cancelling, returning and viewing paid orders',
         CHARGE_BAN: 'using and refunding existing points',
+        TRIAL_BAN: 'receiving, reviewing and returning trials already in progress',
     },
     sameActive: 'The same restriction is already active (until {until}). The later end time will apply.',
     sameActiveForever: 'The same restriction is already active (indefinite). It stays until lifted.',

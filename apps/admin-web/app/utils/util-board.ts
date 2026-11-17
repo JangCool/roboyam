@@ -213,6 +213,9 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     // 글쓴이 태그 쓰기(post-tags-contract — shared V215)
     tagsEnabled: { field: 'tagsEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     sourcesEnabled: { field: 'sourcesEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
+    // 구입 경로 받기 · 체험단 사용기 받기(trial-group-contract — shared V241)
+    purchaseSourceMode: { field: 'purchaseSourceMode', kind: 'choice', choices: ['OFF', 'OPTIONAL', 'REQUIRED'], overridable: true, permission: 'board.settings' },
+    trialReviewsEnabled: { field: 'trialReviewsEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     // 말머리 필수·태그 필수(ai-news-reporter-contract 「뉴스 게시판 글 규칙」 — 회원·AI 공통, 사이트 기본 끔)
     prefixRequired: { field: 'prefixRequired', kind: 'bool', overridable: true, permission: 'board.settings' },
     tagRequired: { field: 'tagRequired', kind: 'bool', overridable: true, permission: 'board.settings' },
@@ -296,7 +299,7 @@ export type BoardTabForm<T> = { [K in keyof T]: T[K] extends number ? string : T
 /** 기본 설정 화면의 구획 — 구획 주소(`anchor`) → 칸들. 「고정 규칙」 구획은 칸이 없어 여기 없다 */
 const DEFAULT_SECTIONS = {
     'defaults-display': ['dateDisplay', 'listChipPosition', 'listPrefixStyle', 'listLikeHighlight', 'listViewHighlight', 'listHighlightColor'],
-    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired', 'sourcesEnabled'],
+    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
     // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
     'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable', 'detailFeedTabsPc', 'detailFeedTabsMobile'],
@@ -649,15 +652,20 @@ export default class UtilBoard {
     /**
      * 글 규칙(말머리·태그 필수 · 출처 칸)·상세 탭(PC·휴대폰) 기본값 — 옛 서버가 칸을 주지 않으면 전체 기본값(끔 · 끔 · 끔 · PC 끔 · 휴대폰 켬)
      * @param {Partial<BoardDefaults>} defaults - 서버 기본 설정.
-     * @returns {Pick<BoardDefaults, 'prefixRequired' | 'tagRequired' | 'sourcesEnabled' | 'detailFeedTabsPc' | 'detailFeedTabsMobile'>} 채운 다섯 칸.
+     * 구입 경로 받기 끔·체험단 사용기 받기 끔(trial-group-contract)도 같다.
+     * @returns {Pick<BoardDefaults, 'prefixRequired' | 'tagRequired' | 'sourcesEnabled' | 'detailFeedTabsPc' | 'detailFeedTabsMobile' | 'purchaseSourceMode' | 'trialReviewsEnabled'>} 채운 칸.
      */
-    static newDefaultsOf(defaults: Partial<BoardDefaults>): Pick<BoardDefaults, 'prefixRequired' | 'tagRequired' | 'sourcesEnabled' | 'detailFeedTabsPc' | 'detailFeedTabsMobile'> {
+    static newDefaultsOf(
+        defaults: Partial<BoardDefaults>,
+    ): Pick<BoardDefaults, 'prefixRequired' | 'tagRequired' | 'sourcesEnabled' | 'detailFeedTabsPc' | 'detailFeedTabsMobile' | 'purchaseSourceMode' | 'trialReviewsEnabled'> {
         return {
             prefixRequired: defaults.prefixRequired ?? false,
             tagRequired: defaults.tagRequired ?? false,
             sourcesEnabled: defaults.sourcesEnabled ?? false,
             detailFeedTabsPc: defaults.detailFeedTabsPc ?? false,
             detailFeedTabsMobile: defaults.detailFeedTabsMobile ?? true,
+            purchaseSourceMode: defaults.purchaseSourceMode ?? 'OFF',
+            trialReviewsEnabled: defaults.trialReviewsEnabled ?? false,
         };
     }
 
@@ -858,7 +866,7 @@ export default class UtilBoard {
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,
-            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired', 'sourcesEnabled']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
+            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText) + diff(form.writeTemplate, base.writeTemplate),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸

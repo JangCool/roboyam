@@ -16,7 +16,7 @@ const DAYS: Partial<Record<RestrictionDuration, number>> = { D1: 1, D3: 3, D7: 7
  * 서버 규칙(최종 판정은 서버): `MemberRestrictionService`(공개 사유·해제 사유 5~200자, 운영 메모 ~1000자, 끝 시각은 지금보다 뒤).
  */
 export default class UtilMemberRestriction {
-    static readonly TYPES: readonly MemberRestrictionType[] = ['POINT_FREEZE', 'GROUP_BUY_BAN', 'CHARGE_BAN'];
+    static readonly TYPES: readonly MemberRestrictionType[] = ['POINT_FREEZE', 'GROUP_BUY_BAN', 'CHARGE_BAN', 'TRIAL_BAN'];
     static readonly DURATIONS: readonly RestrictionDuration[] = ['D1', 'D3', 'D7', 'D30', 'CUSTOM', 'FOREVER'];
     static readonly REASON_MIN = RESTRICTION_REASON_MIN;
     static readonly REASON_MAX = RESTRICTION_REASON_MAX;
@@ -26,6 +26,7 @@ export default class UtilMemberRestriction {
     static typeIcon(type: MemberRestrictionType): string {
         if (type === 'POINT_FREEZE') return 'pi pi-lock';
         if (type === 'GROUP_BUY_BAN') return 'pi pi-shopping-bag';
+        if (type === 'TRIAL_BAN') return 'pi pi-box';
         return 'pi pi-wallet';
     }
 
