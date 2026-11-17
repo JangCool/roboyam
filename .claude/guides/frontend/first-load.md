@@ -45,6 +45,15 @@
 - **서버가 이 그림 주소를 내리면** `StaticAssetUrls.of(path)`(shared) — 같은 규칙(SHA-256 앞 10자리)이라 화면과 같은 주소가 된다. 로보티콘(`EmoticonContent.url`)·아바타(`AvatarCatalog`)·`index.html` 의 스플래시 로고 메타·미리 받기가 쓴다.
 - 업로드 그림(`/media/`)은 이미 새 이름이라 이 규칙과 상관없다.
 
+## 조각 묶기 (`scripts/nuxt/chunk-groups.mjs`)
+
+user-web 운영 빌드는 화면 조각을 네 묶음으로 모은다 — `vendor`(Vue·라우터·i18n·PrimeVue 코어) · `editor`(tiptap) · `chart`(ECharts) · `shell`(레이아웃·`components/shell`·`components/themes`). 같은 모듈에서 PrimeVue 부품의 전역 등록도 끈다. 2026-11-17 측정(JS·CSS gzip): 홈 466 → 422KB(파일 208 → 37개), 글 상세 765 → 723KB, 게시판 목록 470 → 429KB, 배포 뒤 홈에서 다시 받는 양 135 → 49KB. 이유·함정은 그 파일 머리 주석에 있다.
+
+- **새 무거운 바깥 라이브러리(수십 KB 이상)를 들이면** 그 파일에 묶음을 하나 더한다(`editor`·`chart` 처럼). 안 가두면 번들러 도우미 함수가 그 조각에 놓여 모든 화면이 통째로 받는 수가 있다.
+- **PrimeVue 부품을 이름 글자로 찾지 않는다** — `resolveComponent('Button')` · `<component :is="'Button'">` 는 전역 등록이 없어 안 풀린다. 부품을 import 해서 넘긴다. 템플릿의 `<Button>` · `<LazyMenu>` 는 그대로 된다.
+- **묶음을 고치거나 더하면 홈·글 상세·게시판 목록이 받는 크기를 다시 잰다.** 파일이 250개를 넘는 화면은 브라우저 자원 기록이 잘리므로 재기 전에 `performance.setResourceTimingBufferSize(5000)` 을 건다.
+- admin-web 에는 걸지 않았다(재지 않음).
+
 ## 셸에 늘 놓는 대화상자·시트는 열 때 받는다
 
 `layouts/default.vue` 에 한 번 놓고 composable 상태로 여는 대화상자·시트(로그인 안내·이용자 메모·본인인증 확인·가짜 본인인증)는 `Lazy` 컴포넌트 + `v-if="opened.…"` 로 놓는다 — 상태(`useState` 키)가 처음 열릴 때 코드를 받고, 그 뒤로는 닫는 애니메이션을 위해 그대로 둔다(관리자 QA 2026-11-17 — 홈 첫 방문 JS·CSS gzip 557KB → 480KB, 문구 맨 위 키 단위 싣기와 함께).
