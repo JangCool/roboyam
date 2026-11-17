@@ -1,20 +1,21 @@
 {
   "format": 1,
   "preset": "IROBIT",
-  "builtAt": "2026-11-17T05:40:17.045Z",
+  "builtAt": "2026-11-17T06:32:17.045Z",
   "source": {
-    "sharedVersion": "243",
+    "sharedVersion": "244",
     "database": "irobit_demo_build"
   },
   "operatorIds": [
-    "116050125238734848"
+    "116063164298072064"
   ],
   "dataKey": "1:Nkfi1vUhkXnb6dM1b8wzSxEbPhDjKWCqih4IwYR9o34=",
   "data": "data.json.gz",
-  "dataSha256": "66cbca427ef20b73c776a3a891cc74ee7059965b0db9116d5667ef44b3d147eb",
+  "dataSha256": "0801aa486e93162bf6fa7a2009f85f7e659f1456698ff8a44b8592694519007f",
   "patches": [
     "0001-member-titles-featured-posts.sql",
-    "0002-trials-purchase-sources.mjs"
+    "0002-trials-purchase-sources.mjs",
+    "0003-trial-review-prefix.sql"
   ],
   "counts": {
     "users": 52,
@@ -101,6 +102,7 @@
     "title_applications": 3,
     "trials": 3,
     "trial_applications": 19,
+    "trial_biz_applications": 3,
     "trial_participants": 6
   },
   "files": [
