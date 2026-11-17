@@ -59,11 +59,11 @@
 
 ## 미확정
 - ~~저장 방식 (a)·(b).~~ → (a) 로 정함(아래 「서버 구현」).
-- `nameInLogo` 기본값 — 서버는 기존 사이트·새 설치 모두 false 로 시작한다. 데모·아이로빗 설치에서 true 로 둘지는 기본 로고 4장을 어디에 넣을지와 함께 정한다.
+- ~~`nameInLogo` 기본값.~~ → 아래 「기본 로고 넣기 2026-11-17」: 기본 로고를 넣을 때 함께 켠다.
 - 관리자 앱 상단 `SiteBrand` 는 20×20 정사각이라, 가로로 긴 로고가 아주 작게 보인다. 관리자 상단도 4칸 중 하나를 쓸지, 아이콘을 쓸지 정해야 한다(이번에는 그대로 둠).
 - `util-site-logo.ts` 가 두 앱에 복사되어 있다. 공용 레이어(`apps-packages`)로 옮길지 정해야 한다.
 - 쓰지 않는 옛 i18n 키(`site.logoHint`·`logoAdd`·`logoChange`·`logoRemoveMessage`)를 정리할지.
-- 기본 로고 4장을 설치 때 기본값으로 넣을지(`boardPreset IROBIT` 처럼), 데모 데이터에만 넣을지.
+- ~~기본 로고 4장을 설치 때 넣을지, 데모에만 넣을지.~~ → 설치 때 넣는다(아래 「기본 로고 넣기 2026-11-17」).
 
 ## 서버 구현 2026-11-16
 - **저장 (a)**: shared **V237** `site_settings` 에 `logo_ko_dark_*`·`logo_en_light_*`·`logo_en_dark_*`(각 `_file_id` → files · `_svg` text, 칸마다 둘 중 하나만·SVG 100,100자 CHECK)와 `logo_name_included boolean NOT NULL DEFAULT false`. ① 은 V12 의 `logo_file_id`·`logo_svg` 를 그대로 쓴다 — 값 옮김 없이 기존 로고가 곧 ① 이다.
@@ -92,3 +92,9 @@
 - 공개 `GET /api/site/info` 의 `logos`·`logoUrl` 에서 **SVG 칸은 data URI 대신 `/api/site/logos/{칸}.svg?v=<SHA-256 앞 16자>`** 를 준다(api 서버 `PublicSiteController#logoSvg`, 로그인 없이). 사이트 정보는 첫 화면 HTML 에 실리므로 SVG 본문(4칸이면 약 130KB)을 싣지 않고 브라우저가 따로 받아 캐시한다.
 - 응답: `image/svg+xml`, 지문이 맞으면 `Cache-Control: public, max-age=1년, immutable`, 아니면 `no-cache` + ETag. 직접 열어도 스크립트가 돌지 않게 `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:` · `nosniff`. 모르는 칸·SVG 아닌 칸은 404.
 - 관리자 API 응답은 data URI 그대로다(관리자 앱은 다른 서버라 이 주소를 못 받는다). 스플래시는 이제 SVG 로고도 주소로 받는다.
+
+## 기본 로고 넣기 2026-11-17 (사용자 「데모시드에 왜 로고가 빠졌지?」 → 「둘 다 고쳐」)
+- 원인: 화면 연결(22f7bd52)에서 목업을 지우며 목업이 주던 기본 로고(`/brand/irobit-logo-*.svg`)가 빠졌고, 설치도 로고 칸을 채우지 않아 새 설치는 이름 글자만 보였다.
+- 새 설치: `SiteBrandInstaller`(아이로빗 구성 `siteBrand: true`, 데모 포함 여부와 무관)가 4칸이 **모두** 비었을 때 `install-presets/brand/logo-{ko,en}-{light,dark}.svg`(앱 `public/brand/irobit-logo-*.svg` 와 같은 그림)를 4칸 SVG 소스로 넣고 `logo_name_included` 를 켠다.
+- 이미 설치된 사이트: shared **V246** 이 같은 조건(4칸 모두 빈 칸 + 아이로빗 테마 홈 배치가 있음)에서 같은 SVG 를 넣고 켠다. 운영자가 한 칸이라도 넣었으면 손대지 않는다.
+- 화면 규칙(4칸이 모두 비면 이름 글자만)은 그대로다. 그림을 바꾸면 `public/brand/` 와 `install-presets/brand/` 를 함께 바꾼다.

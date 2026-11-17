@@ -180,7 +180,7 @@ public class InstallationService {
         }
 
         long rootOperatorId = installer.install(command); // 한 트랜잭션. 던지면 아무것도 남지 않는다
-        // 구성의 브랜드 그림(아이로빗 — 사이트 아이콘·링크 미리보기) — 설치는 커밋됐다. 데모 포함 여부와 무관하고, 실패해도 설치는 그대로(경고만)
+        // 구성의 브랜드 그림(아이로빗 — 사이트 아이콘·링크 미리보기·로고 4칸) —설치는 커밋됐다. 데모 포함 여부와 무관하고, 실패해도 설치는 그대로(경고만)
         if (boardPresets.find(command.boardPresetId()).map(BoardPreset::brandOn).orElse(false)) {
             try {
                 brand.applyIfDefault(rootOperatorId, Instant.now());
