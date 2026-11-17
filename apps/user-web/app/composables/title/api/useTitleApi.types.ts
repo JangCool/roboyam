@@ -62,7 +62,7 @@ export interface TitleCatalogItem {
     tiers: TitleCatalogTier[];
 }
 
-/** 명예의 전당의 회원 한 명 — 계약은 「id·닉네임·아바타」. 칸 이름(`nickname`·`avatarUrl`)은 다른 공개 응답과 같게 **가정**했다 */
+/** 명예의 전당의 회원 한 명(서버 `HallOfFameView.MemberView` — 게시판 매니저 신청자 `Applicant` 도 같은 칸) — 아바타는 고르지 않았으면 기본 그림 */
 export interface HallOfFameMember {
     id: string;
     nickname: string;
@@ -131,7 +131,7 @@ export interface UnseenTitle extends AuthorTitle {
 
 /** `GET /api/me/titles`(서버 `MyTitlesView`) — `PUT /api/me/titles/representative` 도 이 모양을 돌려준다 */
 export interface MyTitles {
-    /** 대표 칭호(고른 것, 고르지 않았으면 기본으로 잡힌 작가 칭호) — 「안 보이기」·없음이면 null */
+    /** 고른 대표 칭호(지금도 가진 것)만 — 고르지 않았으면(기본 = 가진 작가 칭호 중 가장 높은 것)·「안 보이기」면 null */
     representative: { key: string } | null;
     /** 「안 보이기」를 골랐나 */
     hidden: boolean;
@@ -153,21 +153,28 @@ export interface TitleReviewRequest {
     reason: string;
 }
 
+/** 게시판 매니저 신청 목록의 상태 거르기 — 서버 기본은 PENDING, `ALL` = 전부 */
+export type BoardTitleApplicationStatusFilter = TitleApplicationStatus | 'ALL';
+
 /**
- * 게시판 매니저의 칭호 신청 한 줄(서버 `BoardTitleApplicationView`) — `GET /api/boards/{slug}/staff/title-applications?status=` 는 이 줄의 배열.
- * 그 게시판에 연결된 칭호의 신청만, `mine` = 내 신청(심사할 수 없다), `conditions` = 신청자의 조건별 채움(지금 기준).
+ * 게시판 매니저의 칭호 신청 한 줄(서버 `BoardTitleApplicationView`).
+ * 그 게시판에 연결된 칭호의 신청만. `conditions` = 신청자의 조건별 채움(대기 중인 신청만 지금 기준, 처리된 신청은 빈 배열).
+ * `canReview` = 대기 중이고 내 신청이 아닐 때만 true. `reason` = 거절 사유·승인 메모(대기면 null).
  */
 export interface BoardTitleApplication {
     id: string;
-    key: string;
-    label: string;
-    icon: string;
-    chip: TitleChipColor;
+    title: AuthorTitle;
     member: HallOfFameMember;
     status: TitleApplicationStatus;
+    conditions: TitleConditionCheck[];
     reason: string | null;
     reapplyAt: string | null;
     createdAt: string;
-    mine: boolean;
-    conditions: TitleConditionCheck[];
+    reviewedAt: string | null;
+    canReview: boolean;
+}
+
+/** `GET /api/boards/{slug}/staff/title-applications`(서버 `BoardTitleApplicationPageView`) — 최신 순 200개까지 */
+export interface BoardTitleApplicationPage {
+    items: BoardTitleApplication[];
 }

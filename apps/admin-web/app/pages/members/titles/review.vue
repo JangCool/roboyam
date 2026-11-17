@@ -21,11 +21,11 @@
                     <EmptyState v-else icon="pi pi-check-square" :title="status === 'PENDING' ? t('memberTitle.review.emptyPending') : t('memberTitle.review.empty')" />
                 </template>
                 <Column :header="t('memberTitle.col.title')" style="min-width: 9rem">
-                    <template #body="{ data }"><TitleChip :title="{ ...data, tier: null }" /></template>
+                    <template #body="{ data }"><TitleChip :title="data.title" /></template>
                 </Column>
                 <Column :header="t('memberTitle.col.member')" style="min-width: 9rem">
                     <template #body="{ data }">
-                        <NuxtLink v-if="canReadMember" :to="{ path: '/members', query: { memberNo: data.member.id } }" class="text-[13px] font-medium text-(--p-primary-color) hover:underline">{{ data.member.nickname ?? t('memberTitle.withdrawn') }}</NuxtLink>
+                        <NuxtLink v-if="canReadMember" :to="{ path: '/members', query: { memberNo: data.member.memberNo } }" class="text-[13px] font-medium text-(--p-primary-color) hover:underline">{{ data.member.nickname ?? t('memberTitle.withdrawn') }}</NuxtLink>
                         <span v-else class="text-[13px]">{{ data.member.nickname ?? t('memberTitle.withdrawn') }}</span>
                     </template>
                 </Column>
@@ -68,13 +68,13 @@
             :field-error="rejectFieldError"
             @submit="submitReject"
         >
-            <p v-if="rejectTarget" class="m-0 text-sm">{{ t('memberTitle.review.rejectText', { name: rejectTarget.member.nickname ?? '', title: rejectTarget.label }) }}</p>
+            <p v-if="rejectTarget" class="m-0 text-sm">{{ t('memberTitle.review.rejectText', { name: rejectTarget.member.nickname ?? '', title: rejectTarget.title.label }) }}</p>
         </MemberReasonDialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import type { AdminTitle, AdminTitleApplication, TitleApplicationStatus } from '~/composables/title/api/useTitleApi.types';
+import type { AdminTitle, AdminTitleApplication } from '~/composables/title/api/useTitleApi.types';
 import UtilTitle from '~/utils/util-title';
 
 type StatusFilter = 'PENDING' | 'ALL';
@@ -116,10 +116,10 @@ async function load(): Promise<void> {
     loading.value = true;
     loadError.value = '';
     try {
-        const res = await api.applications(status.value === 'ALL' ? null : ('PENDING' satisfies TitleApplicationStatus), keyFilter.value === ALL ? null : keyFilter.value);
+        // 서버가 상태·칭호로 거른다(상태를 비우면 서버 기본이 PENDING 이라 「전체」는 `ALL` 로 보낸다)
+        const res = await api.applications(status.value, keyFilter.value === ALL ? null : keyFilter.value);
         if (mine !== seq) return;
-        // 목업은 거르지 않고 다 주므로 화면도 한 번 거른다(서버가 거르면 그대로다)
-        rows.value = res.filter((r) => (status.value === 'ALL' || r.status === 'PENDING') && (keyFilter.value === ALL || r.key === keyFilter.value));
+        rows.value = res.items;
     } catch (e) {
         if (mine !== seq) return;
         loadError.value = errorOf(e).message;
@@ -153,7 +153,7 @@ void api
 
 /** 심사한 사람 — 운영자 이름, 게시판 매니저면 닉네임 */
 function reviewerOf(row: AdminTitleApplication): string {
-    return row.reviewedByName ?? row.reviewedByMember?.nickname ?? '';
+    return row.reviewedBy ?? '';
 }
 
 /** 그새 다른 사람이 심사했거나 권한이 바뀌었다 — 알리고 다시 받는다 */
@@ -169,7 +169,7 @@ function onStale(e: unknown): boolean {
 
 async function approve(row: AdminTitleApplication): Promise<void> {
     if (busy.value) return;
-    const title = row.label;
+    const title = row.title.label;
     const ok = await confirm({ title: t('memberTitle.review.approveTitle'), message: t('memberTitle.review.approveText', { name: row.member.nickname ?? '', title }), confirmLabel: t('memberTitle.review.approve') });
     if (!ok) return;
     busy.value = true;

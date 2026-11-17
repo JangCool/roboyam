@@ -74,7 +74,7 @@ export interface PublicProfile {
     nextLevelXp?: number | null;
     /**
      * 칭호 모음(member-title-contract 「구현 결정」 7) — `[{ key, label, icon, tier, chip, count, periods[] }]`. 같은 칭호 여러 번은 `count`·받은 기간 `periods`.
-     * 비공개 프로필을 남이 보면 서버가 대표 칭호 하나만 준다. ⚠ MOCK — 서버가 칸을 주기 전까지 `useUserProfileApi.profile` 이 목업으로 채운다
+     * 비공개 프로필을 남이 보면 서버가 대표 칭호 하나만, 제재 기간이면 남에게는 빈 배열(본인은 늘 전부) — 서버 `PublicProfileView.titles`(`OwnedTitleView`)
      */
     titles?: ProfileTitle[];
 }

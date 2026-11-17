@@ -287,7 +287,7 @@
             :field-error="titleFieldErrors.reason ?? ''"
             @submit="submitTitleRevoke"
         >
-            <p v-if="titleRevokeTarget" class="m-0 text-sm">{{ t('memberTitle.revokeText', { name: detail?.nickname ?? '', title: titleRevokeTarget.label }) }}</p>
+            <p v-if="titleRevokeTarget" class="m-0 text-sm">{{ t('memberTitle.revokeText', { name: detail?.nickname ?? '', title: titleRevokeTarget.title.label }) }}</p>
         </MemberReasonDialog>
         <MemberReasonDialog
             v-model:visible="revealOpen"
@@ -688,7 +688,7 @@ async function submitTitleRevoke(reason: string): Promise<void> {
     titleBusy.value = true;
     resetTitleState();
     try {
-        await titleApi.revoke(row.key, row.id, { reason });
+        await titleApi.revoke(row.title.key, row.grantId, { reason });
         titleRevokeOpen.value = false;
         toast.success(t('memberTitle.revoked', { name: detail.value?.nickname ?? '' }));
         void loadMemberTitles();

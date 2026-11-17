@@ -127,7 +127,7 @@
                 <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-benefit`">
                     <h3 :id="`${titleId}-benefit`" class="text-sm font-semibold">{{ t('memberTitle.drawer.benefits') }}</h3>
                     <label v-for="b in BENEFITS" :key="b" class="flex items-center gap-2 text-sm">
-                        <Checkbox v-model="form.benefits[b]" binary :disabled="readonly" />{{ t(`memberTitle.benefit.${b}`) }}
+                        <Checkbox v-model="form[b]" binary :disabled="readonly" />{{ t(`memberTitle.benefit.${b}`) }}
                     </label>
                 </section>
                 <section class="flex flex-col gap-2">
@@ -199,7 +199,7 @@ const props = withDefaults(defineProps<Props>(), { grades: () => [], boards: () 
 const emit = defineEmits<{ save: [body: AdminTitleRequest, key: string | null] }>();
 
 const REVIEWERS: readonly TitleReviewer[] = ['OPERATOR', 'OPERATOR_AND_BOARD_MANAGER'];
-const BENEFITS = ['trialPriority', 'magazineCandidate', 'avatarFrame'] as const;
+const BENEFITS = ['benefitTrialPriority', 'benefitMagazine', 'benefitAvatarFrame'] as const;
 const TIER_FIELDS = [
     { field: 'tierBronze', tier: 'BRONZE' },
     { field: 'tierSilver', tier: 'SILVER' },
@@ -231,11 +231,12 @@ watch(
     { immediate: true },
 );
 
-const nameLength = computed(() => Array.from(form.value.name.trim()).length);
+const nameLength = computed(() => UtilTitle.nameLength(form.value.name));
 const problems = computed(() => UtilTitle.problems(form.value));
 /** 칸 아래 문구 — 서버가 거절한 것이 먼저, 그다음 화면 검사(빈 칸은 [저장]을 누른 뒤에만) */
 function errorOf(field: string): string {
-    const server = props.fieldErrors[field];
+    // 단계 문턱 셋은 한 줄로 보인다 — 서버는 `tierBronze`(문턱)·`tierMetric`(세는 것) 칸으로 거절한다
+    const server = field === 'tiers' ? (props.fieldErrors.tierBronze ?? props.fieldErrors.tierSilver ?? props.fieldErrors.tierGold ?? props.fieldErrors.tierMetric) : props.fieldErrors[field];
     if (server) return server;
     const problem = problems.value[field];
     if (!problem) return '';

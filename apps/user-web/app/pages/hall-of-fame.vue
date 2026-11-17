@@ -99,7 +99,7 @@ import UtilProfile from '~/utils/util-profile';
 /**
  * 명예의 전당 · 칭호 도감 — `/hall-of-fame`(member-title-contract 「화면」, **누구나**). 들어가는 곳 = 푸터 · 내 정보 › 칭호.
  * 명예의 전당(`GET /api/hall-of-fame`)과 도감(`GET /api/titles`)은 따로 받는다 — 한쪽이 실패해도 다른 쪽은 그대로, 그쪽만 다시 시도한다.
- * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useTitleApi`(⚠ 지금은 목업).
+ * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useTitleApi`.
  */
 const TAG = 'inline-flex items-center justify-center rounded px-1.5 py-1 text-[0.6875rem] font-semibold leading-none';
 

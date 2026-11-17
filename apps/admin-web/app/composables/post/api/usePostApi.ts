@@ -1,5 +1,3 @@
-// MOCK: 이달의 작가 후보 여부(member-title-contract) — 서버가 줄의 `monthlyCandidate` 를 주면 이 import 와 `list`·`get` 의 `// MOCK:` 줄을 지운다
-import TitleAdminMock, { TITLE_ADMIN_MOCK } from '~/composables/title/api/mock/title-admin-mock';
 import type {
     AdminPostBoardOptionsView,
     AdminPostDetail,
@@ -63,8 +61,8 @@ export function usePostApi() {
     const files = useFileApi();
 
     return {
-        list: async (query: AdminPostQuery, signal?: AbortSignal): Promise<AdminPostListView> => {
-            const view = await client.get<AdminPostListView>(PATH.list, {
+        list: (query: AdminPostQuery, signal?: AbortSignal): Promise<AdminPostListView> =>
+            client.get<AdminPostListView>(PATH.list, {
                 query: {
                     q: query.q || undefined,
                     searchField: query.q ? query.searchField : undefined,
@@ -79,20 +77,13 @@ export function usePostApi() {
                     size: query.size,
                 },
                 signal,
-            });
-            if (TITLE_ADMIN_MOCK) return TitleAdminMock.markList(view); // MOCK: 줄의 `monthlyCandidate` 채우기
-            return view;
-        },
+            }),
 
         /** 켜진 게시판·말머리(필터·이동 대화창) */
         boardOptions: (): Promise<AdminPostBoardOptionsView> => client.get<AdminPostBoardOptionsView>(PATH.boardOptions),
 
         /** 글 하나 — 본문(지운 글도 파기 전까지)·조치 기록 · 대표 썸네일 */
-        get: async (id: string): Promise<AdminPostDetail> => {
-            const detail = await client.get<AdminPostDetail>(PATH.one(id));
-            if (TITLE_ADMIN_MOCK) return TitleAdminMock.markDetail(detail); // MOCK: 줄의 `monthlyCandidate` 채우기
-            return detail;
-        },
+        get: (id: string): Promise<AdminPostDetail> => client.get<AdminPostDetail>(PATH.one(id)),
 
         /** 대표 썸네일 정하기(`post.manage`) → 204 — 운영자가 정하면 글쓴이 것보다 우선한다. `AUTO` 는 설정을 지워 자동으로 되돌린다 */
         setThumbnail: (id: string, body: AdminPostThumbnailRequest): Promise<void> => client.put<void>(PATH.thumbnail(id), body),

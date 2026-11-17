@@ -1,6 +1,6 @@
 <template>
     <!--
-        회원 › 회원 칭호 › 칭호(`/members/titles`, member-title-contract 「화면」·「작가 칭호 설정」). 서버 호출은 `useTitleApi`(⚠ 지금은 목업).
+        회원 › 회원 칭호 › 칭호(`/members/titles`, member-title-contract 「화면」·「작가 칭호 설정」). 서버 호출은 `useTitleApi`.
         · 맨 위 「작가 칭호 설정」 두 칸(이달의 작가 한 달 최대 인원 1~20 · 명예 작가가 되는 이달의 작가 횟수 1~24) — 구획 안 저장 줄(`SaveBar`, 이 구획만 저장).
           기준을 올려도 이미 받은 명예 작가는 그대로, 내리면 새 기준을 채운 회원에게 바로 소급(안내 한 줄).
         · 칭호 표: 그림·이름 칩 · 받는 방법 · 심사하는 사람 · 단계 · 가진 회원 수 · 켜짐 · 기본 칭호. 줄을 누르거나 [칭호 만들기]면 편집 서랍(`TitleEditDrawer`).
@@ -233,12 +233,14 @@ function gradeName(key: string): string {
 function boardName(id: string): string {
     return boards.value.find((b) => b.id === id)?.name ?? id;
 }
+/** 연결 게시판 이름 — 서버 `boardName` 이 먼저, 없으면 게시판 목록에서 */
 function boardNameOf(title: AdminTitle): string {
-    return title.boardId ? boardName(title.boardId) : '—';
+    return title.boardName ?? (title.boardId ? boardName(title.boardId) : '—');
 }
 /** 단계 문턱 한 칸 */
 function thresholdOf(title: AdminTitle, tier: 'BRONZE' | 'SILVER' | 'GOLD'): number | string {
-    return title.tiers.find((x) => x.tier === tier)?.threshold ?? '—';
+    const value = tier === 'BRONZE' ? title.tierBronze : tier === 'SILVER' ? title.tierSilver : title.tierGold;
+    return value ?? '—';
 }
 
 /* ── 편집 서랍 ── */

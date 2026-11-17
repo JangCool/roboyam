@@ -13,11 +13,11 @@
         <template v-else>
             <p v-if="view.items.length === 0" class="m-0 text-[13px] text-muted-color">{{ t('memberTitle.member.empty') }}</p>
             <ul v-else class="m-0 flex list-none flex-col p-0">
-                <li v-for="row in view.items" :key="row.id" class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-(--line) py-2 last:border-b-0">
-                    <TitleChip :title="row" :muted="!row.active" />
+                <li v-for="row in view.items" :key="row.grantId" class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-(--line) py-2 last:border-b-0">
+                    <TitleChip :title="row.title" :muted="!row.active" />
                     <span v-if="row.period" class="text-[12px] tabular-nums text-muted-color">{{ UtilTitleMessages.period(t, row.period) }}</span>
                     <span class="text-[12px] text-muted-color">{{ t(`memberTitle.source.${row.source}`) }} · <span class="tabular-nums">{{ time.date(row.grantedAt) }}</span></span>
-                    <span v-if="!row.active" class="basis-full text-[12px] text-red-700 dark:text-red-400">{{ t('memberTitle.member.revokedLine', { at: row.revokedAt ? time.date(row.revokedAt) : '—', reason: row.revokedReason ?? '' }) }}</span>
+                    <span v-if="!row.active" class="basis-full text-[12px] text-red-700 dark:text-red-400">{{ t('memberTitle.member.revokedLine', { at: row.revokedAt ? time.date(row.revokedAt) : '—', reason: row.revokeReason ?? '' }) }}</span>
                     <Button v-else-if="canManage" type="button" :label="t('memberTitle.revoke')" icon="pi pi-times" severity="danger" variant="text" size="small" class="ml-auto" @click="emit('revoke-title', row)" />
                 </li>
             </ul>

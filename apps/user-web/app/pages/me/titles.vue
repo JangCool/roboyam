@@ -124,7 +124,7 @@ import UtilMemberTitleMessages from '~/utils/util-member-title-messages';
 /**
  * 내 정보 › 칭호 — `/me/titles`(member-title-contract 「화면」). 대표 칭호 고르기(「기본」·「안 보이기」 포함) · 가진 칭호 · 다음 칭호 진행 막대 · 신청형 칭호 신청 · 신청 상태.
  * `GET /api/me/titles` 한 번으로 그린다(진행·신청 줄에 이름·그림이 같이 온다). 대표 칭호를 고르면 `PUT` 이 바뀐 내 칭호를 돌려준다.
- * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useTitleApi`(⚠ 지금은 목업).
+ * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useTitleApi`.
  */
 definePageMeta({ middleware: 'auth', meMenu: true });
 

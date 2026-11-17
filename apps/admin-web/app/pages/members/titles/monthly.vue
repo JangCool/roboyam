@@ -26,7 +26,7 @@
             <AppGadget :title="t('memberTitle.monthly.awardedTitle', { month: UtilTitleMessages.period(t, data.month) })">
                 <EmptyState v-if="data.awarded.length === 0" icon="pi pi-star" :title="t('memberTitle.monthly.awardedEmpty')" />
                 <ul v-else class="m-0 flex list-none flex-wrap gap-2 p-0">
-                    <li v-for="row in data.awarded" :key="row.id" class="flex items-center gap-2 rounded-lg border border-(--line) py-1.5 pr-1.5 pl-2.5">
+                    <li v-for="row in data.awarded" :key="row.grantId" class="flex items-center gap-2 rounded-lg border border-(--line) py-1.5 pr-1.5 pl-2.5">
                         <TitleIcon icon="pen" :scale="2" />
                         <span class="text-[13px] font-medium">{{ row.member.nickname ?? t('memberTitle.withdrawn') }}</span>
                         <Button v-if="canManage" type="button" icon="pi pi-times" severity="secondary" variant="text" size="small" rounded :aria-label="t('memberTitle.revokeOf', { name: row.member.nickname ?? '' })" @click="openRevoke(row)" />
@@ -190,7 +190,7 @@ async function submitRevoke(reason: string): Promise<void> {
     if (!row || busy.value) return;
     busy.value = true;
     try {
-        await api.revoke(row.key, row.id, { reason });
+        await api.revoke(row.title.key, row.grantId, { reason });
         revokeOpen.value = false;
         toast.success(t('memberTitle.revoked', { name: row.member.nickname ?? '' }));
         await load();

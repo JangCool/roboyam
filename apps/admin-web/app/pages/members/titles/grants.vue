@@ -22,7 +22,7 @@
         <div class="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--p-content-background)">
             <DataTable
                 :value="page?.items ?? []"
-                data-key="id"
+                data-key="grantId"
                 lazy
                 paginator
                 :first="(page?.page ?? 0) * size"
@@ -43,14 +43,14 @@
                 <Column :header="t('memberTitle.col.title')" style="min-width: 9rem">
                     <template #body="{ data }">
                         <div class="flex flex-col items-start gap-1">
-                            <TitleChip :title="data" :muted="!data.active" />
+                            <TitleChip :title="data.title" :muted="!data.active" />
                             <span v-if="data.period" class="text-[11px] tabular-nums text-muted-color">{{ UtilTitleMessages.period(t, data.period) }}</span>
                         </div>
                     </template>
                 </Column>
                 <Column :header="t('memberTitle.col.member')" style="min-width: 9rem">
                     <template #body="{ data }">
-                        <NuxtLink v-if="canReadMember" :to="{ path: '/members', query: { memberNo: data.member.id } }" class="text-[13px] font-medium text-(--p-primary-color) hover:underline">{{ data.member.nickname ?? t('memberTitle.withdrawn') }}</NuxtLink>
+                        <NuxtLink v-if="canReadMember" :to="{ path: '/members', query: { memberNo: data.member.memberNo } }" class="text-[13px] font-medium text-(--p-primary-color) hover:underline">{{ data.member.nickname ?? t('memberTitle.withdrawn') }}</NuxtLink>
                         <span v-else class="text-[13px]">{{ data.member.nickname ?? t('memberTitle.withdrawn') }}</span>
                     </template>
                 </Column>
@@ -58,7 +58,7 @@
                     <template #body="{ data }">
                         <div class="flex flex-col gap-0.5 text-[12px]">
                             <span><Tag :value="t(`memberTitle.source.${data.source}`)" severity="secondary" class="mr-1 text-[10px]!" /><span class="tabular-nums">{{ time.full(data.grantedAt) }}</span></span>
-                            <span class="text-muted-color">{{ data.grantedByName ?? data.grantedByMember?.nickname ?? t('memberTitle.grants.auto') }}<template v-if="data.reason"> · {{ data.reason }}</template></span>
+                            <span class="text-muted-color">{{ data.grantedBy ?? t('memberTitle.grants.auto') }}<template v-if="data.reason"> · {{ data.reason }}</template></span>
                         </div>
                     </template>
                 </Column>
@@ -66,7 +66,7 @@
                     <template #body="{ data }">
                         <div v-if="!data.active" class="flex flex-col gap-0.5 text-[12px]">
                             <span class="tabular-nums text-red-700 dark:text-red-400">{{ data.revokedAt ? time.full(data.revokedAt) : '—' }}</span>
-                            <span class="text-muted-color">{{ data.revokedByName ?? '—' }}<template v-if="data.revokedReason"> · {{ data.revokedReason }}</template></span>
+                            <span class="text-muted-color">{{ data.revokedBy ?? '—' }}<template v-if="data.revokeReason"> · {{ data.revokeReason }}</template></span>
                         </div>
                         <Button v-else-if="canManage" type="button" :label="t('memberTitle.revoke')" icon="pi pi-times" severity="danger" variant="outlined" size="small" :disabled="busy" @click="openRevoke(data)" />
                         <span v-else class="text-[12px] text-muted-color">—</span>
@@ -90,7 +90,7 @@
             :field-error="revokeFieldError"
             @submit="submitRevoke"
         >
-            <p v-if="revokeTarget" class="m-0 text-sm">{{ t('memberTitle.revokeText', { name: revokeTarget.member.nickname ?? '', title: revokeTarget.label }) }}</p>
+            <p v-if="revokeTarget" class="m-0 text-sm">{{ t('memberTitle.revokeText', { name: revokeTarget.member.nickname ?? '', title: revokeTarget.title.label }) }}</p>
         </MemberReasonDialog>
     </div>
 </template>
@@ -200,7 +200,7 @@ async function submitRevoke(reason: string): Promise<void> {
     if (!row || busy.value) return;
     busy.value = true;
     try {
-        await api.revoke(row.key, row.id, { reason });
+        await api.revoke(row.title.key, row.grantId, { reason });
         revokeOpen.value = false;
         toast.success(t('memberTitle.revoked', { name: row.member.nickname ?? '' }));
         await load();

@@ -2,13 +2,9 @@ import type { TitleTier } from '#layers/member-title/utils/util-title-icon';
 import type { AdminTitle, AdminTitleRequest, TitleChipColor, TitleCondition, TitleConditionType, TitleLook, TitleMethod, TitleMetric } from '~/composables/title/api/useTitleApi.types';
 
 /**
- * 칭호 편집 서랍의 입력 값 — 요청(`AdminTitleRequest`)과 같은 칸에, 단계 문턱 셋을 따로 둔다(요청은 `tiers` 배열). 키는 서버가 정하므로 입력하지 않는다.
+ * 칭호 편집 서랍의 입력 값 — 요청(`AdminTitleRequest`)과 같은 칸(서버 `TitleSpec` 이름 그대로). 키는 입력하지 않는다(만들 때 비워 보내면 서버가 발급).
  */
-export interface TitleForm extends Omit<AdminTitleRequest, 'tiers'> {
-    tierBronze: number | null;
-    tierSilver: number | null;
-    tierGold: number | null;
-}
+export type TitleForm = Omit<AdminTitleRequest, 'key'>;
 
 /** 칭호 편집 서랍의 입력 문제 — 화면이 미리 알려 주는 용도(판정은 서버 — 이름 6자·등급 이름 겹침) */
 export type TitleFormProblem = 'NAME_REQUIRED' | 'NAME_TOO_LONG' | 'TIERS_REQUIRED' | 'TIERS_ORDER' | 'CONDITION_VALUE';
@@ -37,8 +33,8 @@ export default class UtilTitle {
     static readonly MONTHLY_MAX_RANGE = { min: 1, max: 20 } as const;
     /** 명예 작가가 되는 이달의 작가 횟수 범위 */
     static readonly HONORARY_RANGE = { min: 1, max: 24 } as const;
-    /** 사유 최대 글자(다른 심사·회수 사유와 같은 200자로 가정) */
-    static readonly REASON_MAX = 200;
+    /** 사유 최대 글자(서버 `AdminTitleAwardService.reason` — 500자) */
+    static readonly REASON_MAX = 500;
 
     /** 조건 종류 차례(편집 서랍의 「조건 더하기」) */
     static readonly CONDITION_TYPES: readonly TitleConditionType[] = ['GRADE_AT_LEAST', 'POSTS', 'POPULAR_DAYS', 'ATTENDANCE_DAYS', 'NO_REPORT_HIDDEN'];
@@ -115,7 +111,9 @@ export default class UtilTitle {
             tierBronze: null,
             tierSilver: null,
             tierGold: null,
-            benefits: { trialPriority: false, magazineCandidate: false, avatarFrame: false },
+            benefitTrialPriority: false,
+            benefitMagazine: false,
+            benefitAvatarFrame: false,
             dormantHide: false,
             enabled: true,
             sortOrder,
@@ -129,7 +127,6 @@ export default class UtilTitle {
      * @returns {TitleForm} 입력 값.
      */
     static formOf(title: AdminTitle): TitleForm {
-        const threshold = (tier: TitleTier) => title.tiers.find((x) => x.tier === tier)?.threshold ?? null;
         return {
             name: title.name,
             nameEn: title.nameEn,
@@ -140,10 +137,12 @@ export default class UtilTitle {
             boardId: title.boardId,
             conditions: title.conditions.map((c) => ({ type: c.type, value: c.value, boardId: c.boardId, boardSlug: c.boardSlug, gradeKey: c.gradeKey })),
             tierMetric: title.tierMetric,
-            tierBronze: threshold('BRONZE'),
-            tierSilver: threshold('SILVER'),
-            tierGold: threshold('GOLD'),
-            benefits: { ...title.benefits },
+            tierBronze: title.tierBronze,
+            tierSilver: title.tierSilver,
+            tierGold: title.tierGold,
+            benefitTrialPriority: title.benefitTrialPriority,
+            benefitMagazine: title.benefitMagazine,
+            benefitAvatarFrame: title.benefitAvatarFrame,
             dormantHide: title.dormantHide,
             enabled: title.enabled,
             sortOrder: title.sortOrder,
@@ -170,13 +169,22 @@ export default class UtilTitle {
     }
 
     /**
+     * 이름 글자 수 — 서버와 같이 공백을 뺀 글자 수(기본 칭호 「출석 100일」이 6자).
+     * @param {string} name - 이름.
+     * @returns {number} 공백 뺀 글자 수.
+     */
+    static nameLength(name: string): number {
+        return Array.from(name.replace(/\s+/g, '')).length;
+    }
+
+    /**
      * 입력 문제(칸 → 문제) — 빈 칸은 [저장]을 한 번 누른 뒤에 탓한다(부르는 쪽). 서버와 같은 규칙만(칸 경로 키도 서버와 같다).
      * @param {TitleForm} form - 입력 값.
      * @returns {Partial<Record<string, TitleFormProblem>>} 칸 경로(`name`·`tiers`·`conditions[i].value`) → 문제.
      */
     static problems(form: TitleForm): Partial<Record<string, TitleFormProblem>> {
         const out: Partial<Record<string, TitleFormProblem>> = {};
-        const nameLength = Array.from(form.name.trim()).length;
+        const nameLength = UtilTitle.nameLength(form.name);
         if (nameLength === 0) out.name = 'NAME_REQUIRED';
         else if (nameLength > UtilTitle.NAME_MAX) out.name = 'NAME_TOO_LONG';
         if (form.method !== 'AWARD' && form.tierMetric) {
@@ -218,14 +226,12 @@ export default class UtilTitle {
                       gradeKey: c.type === 'GRADE_AT_LEAST' ? c.gradeKey : null,
                   })),
             tierMetric: metric,
-            tiers: metric
-                ? [
-                      { tier: 'BRONZE', threshold: form.tierBronze ?? 0 },
-                      { tier: 'SILVER', threshold: form.tierSilver ?? 0 },
-                      { tier: 'GOLD', threshold: form.tierGold ?? 0 },
-                  ]
-                : [],
-            benefits: { ...form.benefits },
+            tierBronze: metric ? form.tierBronze : null,
+            tierSilver: metric ? form.tierSilver : null,
+            tierGold: metric ? form.tierGold : null,
+            benefitTrialPriority: form.benefitTrialPriority,
+            benefitMagazine: form.benefitMagazine,
+            benefitAvatarFrame: form.benefitAvatarFrame,
             dormantHide: form.dormantHide,
             enabled: form.enabled,
             sortOrder: form.sortOrder,

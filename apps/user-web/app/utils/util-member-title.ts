@@ -16,8 +16,8 @@ export default class UtilMemberTitle {
         return `/boards/${encodeURIComponent(slug)}/titles`;
     }
 
-    /** 거절 사유 최대 글자(서버 규칙과 같게 가정 — 다른 심사 사유와 같은 200자) */
-    static readonly REASON_MAX = 200;
+    /** 심사 사유 최대 글자(서버 `TitleReviewService` — 500자) */
+    static readonly REASON_MAX = 500;
 
     /**
      * 보유 비율(0~1)을 퍼센트 글자로 — 1% 이상은 정수, 그 아래는 소수 한 자리, 0.1% 미만이면 「0.1」(문구가 「미만」을 붙인다).

@@ -160,10 +160,10 @@ export interface AdminPostItem {
      */
     featured: boolean;
     /**
-     * 이 글이 그 달 「이달의 작가 후보에 넣기」로 넣은 글인가(member-title-contract 「구현 결정」 3 — `title_monthly_candidates`) — ⋯ 메뉴의 「후보에 넣기」/「후보에서 빼기」를 가른다.
-     * ⚠ 계약에 없는 칸(화면이 필요해 더함) — 서버가 주기 전까지 `usePostApi` 가 목업으로 채운다(MOCK). 칸이 없으면 「넣기」만 보인다
+     * 이 글이 이번 달(한국 시간) 「이달의 작가 후보에 넣기」로 넣은 글인가(member-title-contract 「구현 결정」 3 — `title_monthly_candidates`, 서버 `AdminPostItemView.monthlyCandidate`)
+     * — ⋯ 메뉴의 「후보에 넣기」/「후보에서 빼기」를 가른다.
      */
-    monthlyCandidate?: boolean;
+    monthlyCandidate: boolean;
 }
 
 /** 상태 알약(`PostStateTag`)·상태 줄(`UtilPostMessages.stateLines`)이 읽는 칸 — 공지 관리의 줄(`NoticeItem`)도 같은 칸을 가져 알약을 같이 쓴다 */

@@ -43,7 +43,7 @@
                 <ul v-else class="m-0 list-none p-0" :class="state === 'loading' ? 'opacity-60' : ''">
                     <li v-for="row in page.items" :key="row.id" class="border-b border-surface py-3" :data-status="row.status" data-testid="board-title-row">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <TitleChip :title="{ ...row, tier: null }" />
+                            <TitleChip :title="row.title" />
                             <span :class="[TAG, statusClass(row.status)]"><span class="relative top-[-0.09em]">{{ UtilMemberTitleMessages.status(t, row.status) }}</span></span>
                             <NuxtLink :to="UtilProfile.path(row.member.id)" class="min-w-0 truncate text-sm font-semibold hover:underline">{{ row.member.nickname }}</NuxtLink>
                             <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.date(row.createdAt) }}</span>
@@ -57,7 +57,7 @@
                             </li>
                         </ul>
                         <p v-if="row.reason" class="mb-0 mt-1.5 rounded-lg bg-surface-100 px-2.5 py-1.5 text-xs dark:bg-surface-800/60">{{ t('memberTitle.reviewReasonLine', { reason: row.reason }) }}</p>
-                        <div v-if="row.status === 'PENDING' && !row.mine" class="mt-2 flex gap-2">
+                        <div v-if="row.canReview" class="mt-2 flex gap-2">
                             <Button type="button" :label="t('memberTitle.approve')" icon="pi pi-check" size="small" :data-testid="`board-title-approve-${row.id}`" @click="openReview(row, true)" />
                             <Button type="button" :label="t('memberTitle.reject')" icon="pi pi-times" size="small" severity="secondary" variant="outlined" :data-testid="`board-title-reject-${row.id}`" @click="openReview(row, false)" />
                         </div>
@@ -70,7 +70,7 @@
         <!-- 승인·거절 — 거절은 사유 필수 -->
         <Dialog v-model:visible="reviewOpen" modal :header="reviewApprove ? t('memberTitle.approveTitle') : t('memberTitle.rejectTitle')" :style="{ width: 'min(26rem, calc(100vw - 2rem))' }" :draggable="false" :closable="!reviewing">
             <form v-if="reviewTarget" class="flex flex-col gap-3" novalidate @submit.prevent="submitReview">
-                <p class="m-0 text-sm">{{ reviewApprove ? t('memberTitle.approveText', { name: reviewTarget.member.nickname, label: reviewTarget.label }) : t('memberTitle.rejectText', { name: reviewTarget.member.nickname, label: reviewTarget.label }) }}</p>
+                <p class="m-0 text-sm">{{ reviewApprove ? t('memberTitle.approveText', { name: reviewTarget.member.nickname, label: localizedName(reviewTarget.title.label, reviewTarget.title.labelEn ?? null) }) : t('memberTitle.rejectText', { name: reviewTarget.member.nickname, label: localizedName(reviewTarget.title.label, reviewTarget.title.labelEn ?? null) }) }}</p>
                 <LabeledField :label="reviewApprove ? t('memberTitle.approveReasonLabel') : t('memberTitle.rejectReasonLabel')" :error="reasonError">
                     <template #aside>
                         <span class="text-xs tabular-nums text-muted-color">{{ t('boardSanction.textCounter', { n: reason.trim().length, max: UtilMemberTitle.REASON_MAX }) }}</span>
@@ -92,7 +92,7 @@
 
 <script setup lang="ts">
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { BoardTitleApplication, TitleApplicationStatus } from '~/composables/title/api/useTitleApi.types';
+import type { BoardTitleApplication, BoardTitleApplicationPage, TitleApplicationStatus } from '~/composables/title/api/useTitleApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilMemberTitle from '~/utils/util-member-title';
 import UtilMemberTitleMessages from '~/utils/util-member-title-messages';
@@ -100,7 +100,7 @@ import UtilProfile from '~/utils/util-profile';
 
 /**
  * 게시판 매니저의 칭호 신청 심사 — 흐름: 게시판 읽기 → 신청 목록(매니저가 아니면 404·403 → 「찾을 수 없어요」) → [승인]·[거절] 대화창.
- * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useBoardApi`·`useTitleApi`(⚠ 칭호 쪽은 지금 목업).
+ * 한 화면의 값이라 페이지 `ref` 로 둔다. 서버는 `useBoardApi`·`useTitleApi`.
  */
 definePageMeta({ middleware: 'auth' });
 
@@ -126,8 +126,8 @@ const statusOptions = computed(() => [
 const state = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading');
 const errorMessage = ref('');
 const board = ref<BoardDetail | null>(null);
-/** 신청 목록(서버는 배열) — 받기 전은 null */
-const page = ref<{ items: BoardTitleApplication[] } | null>(null);
+/** 신청 목록(서버 `{ items }`) — 받기 전은 null */
+const page = ref<BoardTitleApplicationPage | null>(null);
 
 let seq = 0;
 let abort: AbortController | null = null;
@@ -141,9 +141,9 @@ async function load(): Promise<void> {
         const b = board.value?.slug === slug.value ? board.value : await boardApi.board(slug.value, controller.signal);
         if (mine !== seq) return;
         board.value = b;
-        const res = await titleApi.staffApplications(slug.value, status.value === 'ALL' ? null : 'PENDING', controller.signal);
+        const res = await titleApi.staffApplications(slug.value, status.value, controller.signal);
         if (mine !== seq) return;
-        page.value = { items: res };
+        page.value = res;
         state.value = 'ready';
     } catch (e) {
         if (mine !== seq) return;
