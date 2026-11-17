@@ -70,6 +70,8 @@ public class AiDraftEntity {
     /** 뉴스 글 출처(V232 — JSON 배열 {@code [{name,url}]}, 없으면 null). 등록 때 글의 출처 칸으로 싣는다 */
     @JdbcTypeCode(SqlTypes.JSON)
     private String sources;
+    /** 뉴스 글에 넣을 원문 대표 이미지 주소(V247 — og:image, 없으면 null). 게시할 때 받아 글 이미지로 넣고, 못 받으면 글자만 올린다 */
+    private String newsImageUrl;
 
     protected AiDraftEntity() {
     }
@@ -183,6 +185,15 @@ public class AiDraftEntity {
         this.prefixName = prefixName == null || prefixName.isBlank() ? null : prefixName;
         this.tags = tags == null || tags.isEmpty() ? null : String.join(",", tags);
         this.sources = PostSources.toJson(sources);
+    }
+
+    /** 원문 대표 이미지 주소(V247) — http(s) 이고 2000자 이하일 때만 */
+    public void newsImage(String url) {
+        this.newsImageUrl = url != null && url.length() <= 2000 && (url.startsWith("https://") || url.startsWith("http://")) ? url : null;
+    }
+
+    public String getNewsImageUrl() {
+        return newsImageUrl;
     }
 
     public void fail(String reason) {

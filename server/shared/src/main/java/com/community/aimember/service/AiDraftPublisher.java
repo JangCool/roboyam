@@ -11,6 +11,9 @@ import com.community.aimember.repository.master.AiMemberProfileRepository;
 import com.community.aimember.repository.master.AiMemberQueries;
 import com.community.aimember.repository.master.AiMemberSettingsRepository;
 import com.community.board.exception.BlockedWordException;
+import com.community.hotdeal.og.DealPageFetcher;
+import com.community.media.service.PostImageUploads;
+import com.community.post.dto.PostSource;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ValidationException;
 import java.time.Instant;
@@ -47,9 +50,14 @@ public class AiDraftPublisher {
     private final TransactionTemplate tx;
     private final AiMemberSettingsRepository settings;
     private final AiNewsSources news;
+    private final DealPageFetcher images;
+    private final PostImageUploads uploads;
 
     public AiDraftPublisher(AiDraftRepository drafts, AiMemberProfileRepository accounts, AiMemberQueries queries, AiContentWriter writer,
-                            PlatformTransactionManager txManager, AiMemberSettingsRepository settings, AiNewsSources news) {
+                            PlatformTransactionManager txManager, AiMemberSettingsRepository settings, AiNewsSources news, DealPageFetcher images,
+                            PostImageUploads uploads) {
+        this.images = images;
+        this.uploads = uploads;
         this.settings = settings;
         this.news = news;
         this.drafts = drafts;
@@ -110,8 +118,10 @@ public class AiDraftPublisher {
                         finish(id, null, null, AiDraftGenerator.NO_TAGS); // 승인을 기다리는 사이 금지어가 바뀌어 태그가 모두 걸렸다
                         return false;
                     }
-                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), tags, d.sourceList(), account.getBoardIds().contains(d.getBoardId()),
-                            SERVER_IP); // 출처(V232) — 그 게시판이 「출처 칸 쓰기」일 때만 저장(꺼졌으면 무시)
+                    // 원문 대표 사진(V247) — 받아서 이 AI 회원의 글 이미지로 올린 뒤 맨 위에 넣는다. 못 받으면 글자만
+                    Long imageId = d.isNews() && d.getNewsImageUrl() != null && writer.imageAllowed(d.getBoardId()) ? newsImage(id, userId, d.getNewsImageUrl()) : null;
+                    long postId = writer.post(userId, d.getBoardId(), prefixId, d.getTitle(), d.getBody(), tags, d.sourceList(), imageId,
+                            imageId == null ? null : caption(d.sourceList()), account.getBoardIds().contains(d.getBoardId()), SERVER_IP); // 출처(V232) — 「출처 칸 쓰기」일 때만 저장
                     finish(id, postId, null, null);
                 }
             } else {
@@ -136,6 +146,29 @@ public class AiDraftPublisher {
             finish(id, null, null, "ERROR");
         }
         return false;
+    }
+
+    /**
+     * 원문 대표 사진을 받아 글 이미지로 올린다(2026-11-18) — 핫딜 링크 미리보기와 같은 SSRF 방어 받기({@link DealPageFetcher#fetchImage}, {@code image/*} 5MB 까지),
+     * 공개 글 이미지와 같은 검사·다시 만들기·목록 썸네일({@link PostImageUploads#store}). 실패하면 null(글자만 올린다).
+     */
+    private Long newsImage(long draftId, long userId, String url) {
+        try {
+            DealPageFetcher.Image image = images.fetchImage(url);
+            if (image.outcome() != DealPageFetcher.Outcome.OK || image.data() == null) {
+                log.info("AI 뉴스 사진을 받지 못했다(글자만 올린다) draftId={} 결과={}", draftId, image.outcome());
+                return null;
+            }
+            return uploads.store(userId, image.data()).id();
+        } catch (RuntimeException e) {
+            log.info("AI 뉴스 사진을 올리지 못했다(글자만 올린다) draftId={} 원인={}", draftId, e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    /** 사진 아래 글자 — 「사진: {출처 이름}」(출처 이름이 없으면 없음) */
+    static String caption(List<PostSource> sources) {
+        return sources.stream().map(PostSource::name).filter(n -> n != null && !n.isBlank()).findFirst().map(n -> "사진: " + n.strip()).orElse(null);
     }
 
     private static String reasonOf(CommonException e) {
