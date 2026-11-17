@@ -206,6 +206,8 @@ export interface PurchaseProof {
     purged: boolean;
     createdAt: string;
     reviewedAt: string | null;
+    /** 확인한 사람 이름(매니저 닉네임 또는 운영자 이름 — 서버 `Proof.reviewerName`, 확인 전·모르면 없다) */
+    reviewerName?: string | null;
 }
 
 /** 구매 인증 올리기 결과(서버 `ProofResult`) */

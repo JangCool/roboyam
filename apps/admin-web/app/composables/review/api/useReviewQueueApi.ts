@@ -1,5 +1,3 @@
-// MOCK: 서버를 붙이기 전까지 `TRIAL_ADMIN_MOCK` 분기로 목업을 돌려준다(칭호 신청 줄은 실제 칭호 서버에서) — 서버가 붙으면 이 import 와 `// MOCK:` 줄을 지운다
-import TrialAdminMock, { TRIAL_ADMIN_MOCK } from '~/composables/trial/api/mock/trial-admin-mock';
 import type { ReviewQueueList, ReviewQueueStatus, ReviewQueueType } from '~/composables/review/api/useReviewQueueApi.types';
 
 /**
@@ -17,19 +15,15 @@ const PATH = {
 export function useReviewQueueApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
-    const titleApi = useTitleApi(); // MOCK: 목업이 칭호 신청 줄을 실제 칭호 서버에서 받는다
 
     return {
         /** 확인할 일 — 종류(null = 볼 수 있는 전체)·상태 */
         list: (type: ReviewQueueType | null, status: ReviewQueueStatus): Promise<ReviewQueueList> => {
-            // MOCK: 칭호 줄은 실제 칭호 서버(처리할 것이면 PENDING, 그 밖은 ALL)
-            if (TRIAL_ADMIN_MOCK) return TrialAdminMock.reviewQueue(type, status, async () => (type && type !== 'TITLE_APPLICATION' ? [] : (await titleApi.applications(status === 'PENDING' ? 'PENDING' : 'ALL', null)).items));
             return client.get<ReviewQueueList>(PATH.queue, { query: { type: type ?? undefined, status } });
         },
 
         /** 협찬 숨김 확인(협찬 표시를 붙이고 제재 대상) · 무시 */
         decideSponsor: (postId: string, confirm: boolean, note: string): Promise<void> => {
-            if (TRIAL_ADMIN_MOCK) return TrialAdminMock.sponsor(postId, confirm); // MOCK:
             return client.post<void>(PATH.sponsor(postId, confirm ? 'confirm' : 'dismiss'), { note });
         },
     };

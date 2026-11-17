@@ -156,9 +156,11 @@ const appearance = useGradeAppearance();
 const time = useDisplayTime();
 const tab = useBoardDefaultsTab({ load: api.report, save: api.saveReport, savedKey: 'board.tabSaved' });
 
-const REASONS: readonly BoardReportReason[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
+/** 표의 사유 — 서버 `ReportReasons.ALL` + 협찬 숨김(`SPONSOR_ONLY` — 구입 경로를 받는 게시판 글에서만 받고 자동 숨김 셈에서 빠진다, trial-group-contract 「협찬 숨김」) */
+type ReasonRow = BoardReportReason | 'SPONSOR_HIDDEN';
+const REASONS: readonly ReasonRow[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'SPONSOR_HIDDEN', 'OTHER'];
 /** 스텝·매니저 처리 사유에도 있는 코드 */
-const STAFF_CODES: readonly BoardReportReason[] = ['SPAM_AD', 'ABUSE', 'OTHER'];
+const STAFF_CODES: readonly ReasonRow[] = ['SPAM_AD', 'ABUSE', 'OTHER'];
 const AUTO_HIDE = ['autoHideThreshold', 'autoHideTarget', 'autoHideMinGrade', 'autoHideExemptStaffPosts'] as const satisfies readonly (keyof BoardReportSettings)[];
 const LIMIT = ['dailyReportLimit', 'reportCooldownSeconds', 'rejectionLimitCount', 'rejectionLimitDays', 'rejectionBlockDays'] as const satisfies readonly (keyof BoardReportSettings)[];
 const NOTIFY = ['notifyOperatorScope', 'notifyAuthorOnAction', 'notifyReporterOnResult'] as const satisfies readonly (keyof BoardReportSettings)[];
@@ -170,8 +172,9 @@ const autoHideOff = computed(() => UtilBoard.parse(form.value?.autoHideThreshold
 const rejectionOff = computed(() => UtilBoard.parse(form.value?.rejectionLimitCount ?? '') === 0);
 
 /** 사유별 처리 — 즉시 숨김 · 임시조치 · 자동 숨김 셈 */
-function handlingOf(reason: BoardReportReason): string {
+function handlingOf(reason: ReasonRow): string {
     if (reason === 'ILLEGAL_FILMING') return t('board.handling.immediate');
+    if (reason === 'SPONSOR_HIDDEN') return t('board.handling.sponsor');
     if (reason === 'RIGHTS') return t('board.handling.tempMeasure', { days: form.value?.rightsTempMeasureDays ?? '' });
     return autoHideOff.value ? t('board.handling.operator') : t('board.handling.autoHide', { n: form.value?.autoHideThreshold ?? '' });
 }

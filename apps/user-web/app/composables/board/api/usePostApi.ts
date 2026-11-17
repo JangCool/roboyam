@@ -1,5 +1,3 @@
-// MOCK: 구매 인증 올리기는 체험단 서버와 함께 붙는다 — 서버가 붙으면 이 import 와 `uploadPurchaseProof` 의 `// MOCK:` 줄을 지운다
-import TrialMock, { TRIAL_MOCK } from '~/composables/trial/api/mock/trial-mock';
 import type { PurchaseProofResult } from '~/composables/trial/api/useTrialApi.types';
 import type {
     PostDeleteRequest,
@@ -48,7 +46,7 @@ import type {
  *   여러 번 틀리면 `429 PASSWORD_ATTEMPTS_EXCEEDED`). 잠긴 비회원 비밀글은 `403 SECRET_POST` extras `guestPost: true`.
  *
  * 구입 경로(trial-group-contract 「구현 결정」 5·9): 쓰기 본문 `purchaseSource`·`trialParticipantId` · 글 보기 `purchase` ·
- *   구매 인증 `POST /api/posts/{id}/purchase-proof`(multipart `file` — 주문 내역·영수증 사진, 비공개 — 글쓴이만, `SELF` 글만) → `{ id, status }`. ⚠ MOCK(체험단 서버 전).
+ *   구매 인증 `POST /api/posts/{id}/purchase-proof`(multipart `file` — 주문 내역·영수증 사진, 비공개 — 글쓴이만, `SELF` 글만) → `{ id, status }`.
  */
 const PATH = {
     posts: '/api/posts',
@@ -92,7 +90,6 @@ export function usePostApi() {
 
         /** 구매 인증 사진 올리기(글 저장 뒤 — 글쓴이만, 「내 돈으로 샀어요」 글) — 확인하는 사람만 본다 */
         uploadPurchaseProof: (id: string, file: File): Promise<PurchaseProofResult> => {
-            if (TRIAL_MOCK) return TrialMock.uploadProof(); // MOCK:
             const form = new FormData();
             form.append('file', file);
             return client.upload<PurchaseProofResult>(PATH.purchaseProof(id), form);

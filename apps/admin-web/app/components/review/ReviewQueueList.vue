@@ -4,7 +4,7 @@
         거르기: 상태(처리할 것 · 처리됨 · 전체) · 종류(전체 + 볼 수 있는 종류, 처리할 것 수 — 서버 `pending`). 한 줄: 종류 딱지 · 대상(칭호 이름·글 제목·모집 제목 + 메모) · 회원 · 때 · 상태 · 처리 단추.
           칭호 신청 — [승인](확인) · [거절](사유 필수 — 회원에게 보인다)
           구매 인증 — 글(→ 공개 글) · [사진](비공개 — 열람 기록) · [승인](보너스 포인트) · [거절](사유 필수)
-          반납 확인 — 모집(→ 모집 상세) · [반납 받음](확인 — 사진은 모집 상세 입고·발송 탭에서)
+          반납 확인 — 모집(→ 모집 상세) · [모집에서 반납 받기](→ 모집 상세 입고·발송 탭 — 서버가 반납 사진을 꼭 받으므로 사진을 올리는 그 자리에서 처리)
           파손 신고 — 모집 · 회원 이의(없으면 신고 설명) · [판정](모집 상세에서 신고·사진을 받아 사진 비교 — 보내기 전 ↔ 반납 뒤 ↔ 신고 · 판정표 4종 + 메모)
           협찬 숨김 — 글 · 신고 수 · [확인](협찬 표시 붙이기 — 제재 대상 · 무시)
         그새 다른 사람이 처리했으면(409·404·403) 토스트 + 다시 받기. 처리 권한이 없으면 단추를 감춘다(`canTitle`·`canTrial`).
@@ -40,7 +40,7 @@
                     </template>
                 </Column>
                 <Column :header="t('trial.queue.colMember')" style="min-width: 8rem">
-                    <template #body="{ data }"><span class="text-[13px]">{{ data.member?.nickname ?? '—' }}</span></template>
+                    <template #body="{ data }"><TrialMemberName :member="data.member" :linkable="canReadMember" class="text-[13px]" /></template>
                 </Column>
                 <Column :header="t('trial.queue.colAt')" style="min-width: 8rem">
                     <template #body="{ data }"><span class="text-[12px] tabular-nums">{{ data.at ? time.full(data.at) : '—' }}</span></template>
@@ -58,7 +58,7 @@
                                 <Button type="button" :label="t('trial.queue.approve')" icon="pi pi-check" size="small" :disabled="busy" @click="approve(data)" />
                                 <Button type="button" :label="t('trial.queue.reject')" icon="pi pi-times" size="small" severity="danger" variant="outlined" :disabled="busy" @click="openReject(data)" />
                             </template>
-                            <Button v-else-if="data.type === 'RETURN_CHECK'" type="button" :label="t('trial.queue.markReturned')" icon="pi pi-replay" size="small" :disabled="busy" @click="markReturned(data)" />
+                            <Button v-else-if="data.type === 'RETURN_CHECK' && data.refs.trialId" as="router-link" :to="{ path: UtilTrial.detailPath(data.refs.trialId), query: { tab: 'shipping' } }" :label="t('trial.queue.openReturn')" icon="pi pi-replay" size="small" />
                             <Button v-else-if="data.type === 'DAMAGE_REPORT'" type="button" :label="t('trial.queue.decide')" icon="pi pi-check-square" size="small" :disabled="busy" :loading="loadingDamage === data.id" @click="openDecide(data)" />
                             <Button v-else-if="data.type === 'SPONSOR_HIDDEN'" type="button" :label="t('trial.queue.sponsorDecide')" icon="pi pi-flag" size="small" :disabled="busy" @click="openSponsor(data)" />
                         </div>
@@ -181,12 +181,14 @@ interface Props {
     canTitle?: boolean;
     /** 체험단 확인 처리 권한(`trial.review`) */
     canTrial?: boolean;
+    /** 회원 이름을 회원 관리로 가는 링크로(`member.read`) */
+    canReadMember?: boolean;
     /** 공개 사이트 주소(글 링크) — 비우면 상대 주소 */
     siteOrigin?: string;
     actions: ReviewQueueActions;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, loadError: '', type: null, pendingCounts: () => ({}), canTitle: false, canTrial: false, siteOrigin: '' });
+const props = withDefaults(defineProps<Props>(), { loading: false, loadError: '', type: null, pendingCounts: () => ({}), canTitle: false, canTrial: false, canReadMember: false, siteOrigin: '' });
 const emit = defineEmits<{ 'update:status': [status: ReviewQueueStatus]; 'update:type': [type: ReviewQueueType | null] }>();
 
 const { t } = useI18n();
@@ -296,12 +298,6 @@ async function submitReject(reason: string): Promise<void> {
     if (!row) return;
     const done = await run(() => (row.type === 'TITLE_APPLICATION' ? props.actions.rejectTitle(row.id, reason) : props.actions.rejectProof(row.id, reason)), t('trial.queue.rejected', { name: row.member?.nickname ?? '' }), true);
     if (done) rejectOpen.value = false;
-}
-
-async function markReturned(row: ReviewQueueItem): Promise<void> {
-    const ok = await confirm({ title: t('trial.queue.markReturnedTitle'), message: t('trial.queue.markReturnedText', { name: row.member?.nickname ?? '', title: row.title ?? '' }), confirmLabel: t('trial.queue.markReturned') });
-    if (!ok) return;
-    await run(() => props.actions.markReturned(row.id), t('trial.queue.returnedDone'), false);
 }
 
 /* ── 사진 ── */

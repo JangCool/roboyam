@@ -23,6 +23,8 @@
         태그(post-tags-contract): 게시판 `tagsEnabled` 면 본문(·대표 이미지) 아래 태그 칸(`PostTagInput`), 글의 `tags` 로 채우고 바꿨을 때만 본문 `tags`(빈 목록 = 모두 지움).
         출처(shared V232): 게시판 `sourcesEnabled` 면 태그 위에 출처 칸(`PostSourcesField`), 글의 `sources` 로 채우고 바꿨을 때만 본문 `sources`(빈 목록 = 모두 지움). 소모임 글은 없다.
           게시판 옵션이 꺼졌으면 칸을 감추고 보내지 않는다(이미 단 태그는 그대로).
+        구입 경로(trial-group-contract 「구입 경로」·「구현 결정」 9): 게시판 `purchaseSourceMode` 가 끔이 아니면 출처 위에 글쓰기와 같은 「어떻게 구했나요」(`PostPurchaseSourceField`), 글의 `purchase.source` 로 채우고
+          바꿨을 때만 본문 `purchaseSource`(지우기는 빈 글자). 체험단으로 이어진 글(TRIAL)은 바꿀 수 없게 고정해 보인다(게시판이 껐어도). 새 체험단 연결·구매 인증 사진은 여기서 하지 않는다(연결은 글쓰기, 사진은 글 보기). 소모임 글은 없다.
         비밀글(운영 게시판): 「비밀글」 칸은 회원 글·비회원 글이 같은 규칙(`OPTIONAL` 이면 체크). 아직 열지 않은 비밀글(`403 SECRET_POST`)이면 글 보기의 잠금 화면으로 보낸다.
     -->
     <div class="content-card">
@@ -111,7 +113,16 @@
             <template v-if="dealMode !== 'hidden'" #titleHint>
                 <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
             </template>
-            <template v-if="thumbnailMode !== 'hidden' || tagsShown || sourcesShown" #belowContent="{ imageUpload }">
+            <template v-if="thumbnailMode !== 'hidden' || tagsShown || sourcesShown || purchaseShown" #belowContent="{ imageUpload }">
+                <!-- 구입 경로(trial-group-contract) — 게시판 「구입 경로 받기」가 끔이 아닐 때(체험단 연결 글은 고정으로 늘) -->
+                <PostPurchaseSourceField
+                    v-if="purchaseShown"
+                    v-model="purchase"
+                    :required="purchaseRequired"
+                    :locked="purchaseLocked"
+                    :disabled="submitting"
+                    :error="fieldErrors.purchaseSource ?? ''"
+                />
                 <!-- 출처(V232) — 게시판 옵션 「출처 칸 쓰기」를 켠 게시판만(소모임 글 아님). 본문 바로 아래(대표 이미지보다 먼저 — 글 보기와 같은 자리, 사용자 2026-11-16) -->
                 <PostSourcesField v-if="sourcesShown" v-model="sources" :disabled="submitting" :error="fieldErrors.sources ?? ''" :show-problems="sourcesTried" />
                 <!-- 대표 이미지(list-thumbnail-contract 「2단계」) — 게시판 옵션을 켠 게시판의 내 회원 글만, 운영자가 정했으면 잠김 -->
@@ -147,7 +158,8 @@
 <script setup lang="ts">
 import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { PostDetail } from '~/composables/board/api/usePostApi.types';
+import type { PostDetail, PurchaseSource } from '~/composables/board/api/usePostApi.types';
+import { EMPTY_PURCHASE_SOURCE, type PurchaseSourceValue } from '~/components/board/PostPurchaseSourceField.types';
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEditorForm.types';
 import { AUTO_THUMBNAIL, type PostThumbnailChoice } from '~/components/board/PostThumbnailPicker.types';
@@ -228,6 +240,8 @@ async function load(): Promise<void> {
         tags.value = [...tagsInitial.value];
         sourcesInitial.value = UtilPostSource.toRows(loaded.sources);
         sources.value = UtilPostSource.toRows(loaded.sources);
+        purchaseInitial.value = loaded.purchase?.source ?? null;
+        purchase.value = { ...EMPTY_PURCHASE_SOURCE, source: purchaseInitial.value };
         pageState.value = 'ready';
     } catch (e) {
         // 아직 열지 않은 비밀글(비회원 비밀글은 글 보기에서 비밀번호로 연다) — 글 보기의 잠금 화면으로 보낸다
@@ -420,6 +434,25 @@ watch(sources, () => {
     if (fieldErrors.value.sources) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'sources'));
 });
 
+/*
+ * ── 구입 경로(trial-group-contract 「구현 결정」 9) — 서버 `PUT` 은 칸을 빼면 그대로라, 바꿨을 때만 싣는다. 이 화면에서는 체험단을 새로 잇지 않는다(체험단 고르기 없음).
+ * 「꼭 골라야 함」으로 바뀐 게시판의 옛 글도 서버는 그대로 저장을 받으므로 화면이 막지 않는다 ──
+ */
+const purchase = ref<PurchaseSourceValue>({ ...EMPTY_PURCHASE_SOURCE });
+const purchaseInitial = ref<PurchaseSource | null>(null);
+const purchaseOn = computed(() => (board.value?.purchaseSourceMode ?? 'OFF') !== 'OFF');
+/** 체험단으로 이어진 글 — 서버가 TRIAL 로 고정한다 */
+const purchaseLocked = computed(() => purchaseInitial.value === 'TRIAL');
+const purchaseShown = computed(() => !post.value?.group && (purchaseOn.value || purchaseLocked.value));
+const purchaseRequired = computed(() => board.value?.purchaseSourceMode === 'REQUIRED');
+const purchaseChanged = computed(() => purchaseOn.value && !post.value?.group && !purchaseLocked.value && purchase.value.source !== purchaseInitial.value);
+/** 보낼 값 — 지우기는 빈 글자(체험단은 이 화면에서 고를 수 없다) */
+const purchaseInput = computed<Exclude<PurchaseSource, 'TRIAL'> | ''>(() => (purchase.value.source && purchase.value.source !== 'TRIAL' ? purchase.value.source : ''));
+// 구입 경로를 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(purchase, () => {
+    if (fieldErrors.value.purchaseSource) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'purchaseSource'));
+});
+
 /** [저장]을 눌렀다(폼 검사 전) — 폼 밖 칸(딜·태그·출처)의 검사 문구도 함께 보이게 */
 function onAttempt(): void {
     dealTried.value = true;
@@ -455,7 +488,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value || tagsChanged.value || sourcesChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || a.secret !== b.secret || debateChanged.value || pollChanged.value || dealChanged.value || thumbnailChanged.value || tagsChanged.value || sourcesChanged.value || purchaseChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -502,6 +535,8 @@ async function submit(): Promise<void> {
             ...(tagsChanged.value ? { tags: tags.value.slice() } : {}),
             // 출처 — 바꿨을 때만(빼면 그대로, 빈 목록이면 모두 지움)
             ...(sourcesChanged.value ? { sources: UtilPostSource.toRequest(sources.value) } : {}),
+            // 구입 경로 — 바꿨을 때만(빼면 그대로, 빈 글자면 지움 · 체험단 연결 글은 늘 뺀다)
+            ...(purchaseChanged.value ? { purchaseSource: purchaseInput.value } : {}),
         });
         saved = true;
         password.value = '';

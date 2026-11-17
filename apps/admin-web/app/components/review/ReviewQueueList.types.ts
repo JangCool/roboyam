@@ -18,7 +18,6 @@ export interface ReviewQueueActions {
     rejectProof: (proofId: string, reason: string) => Promise<void>;
     /** 구매 인증 사진 주소(비공개 — 열람 기록) */
     proofPhotoUrl: (proofId: string) => string;
-    markReturned: (participantId: string) => Promise<void>;
     /** 파손 판정 대화상자 — 그 모집 상세에서 신고·사진을 찾는다 */
     loadDamage: (trialId: string, reportId: string) => Promise<ReviewQueueDamageView>;
     decideDamage: (reportId: string, verdict: TrialDamageVerdict, note: string) => Promise<void>;

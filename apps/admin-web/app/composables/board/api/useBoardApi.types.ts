@@ -318,6 +318,8 @@ export interface BoardListItem extends BoardRef {
     /** 소모임 분류(소모임 게시판만) — 분류에 안 들었거나 일반 게시판이면 null */
     groupCategoryId: string | null;
     groupCategoryName: string | null;
+    /** 「체험단 사용기 받기」를 켰나(서버 `BoardListItemView.trialReviewsEnabled` — 체험단 모집 서랍의 사용기 게시판 후보) */
+    trialReviewsEnabled?: boolean;
 }
 
 export interface BoardListResponse {

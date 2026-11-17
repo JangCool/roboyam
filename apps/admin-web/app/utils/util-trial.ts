@@ -32,6 +32,11 @@ export default class UtilTrial {
         return `${UtilTrial.PATHS.list}/${encodeURIComponent(id)}`;
     }
 
+    /** 회원 관리 화면에서 그 회원을 여는 주소(서버 `TrialViews.Member.memberNo`) */
+    static memberLink(memberNo: string): { path: string; query: { memberNo: string } } {
+        return { path: '/members', query: { memberNo } };
+    }
+
     /** 리뷰어 몫·일반 몫 인원(반올림 — 서버 `TrialSelection` 과 같다고 가정) */
     static split(recruitCount: number, reviewerShare: number): { reviewer: number; general: number } {
         const reviewer = Math.round((recruitCount * reviewerShare) / 100);

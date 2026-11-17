@@ -32,9 +32,10 @@ export interface TrialBoardRef {
     name: string;
 }
 
-/** 회원 조각(서버 `TrialViews.Member`) */
+/** 회원 조각(서버 `TrialViews.Member`) — `memberNo` 는 회원 관리(`/members?memberNo=`)로 가는 번호 */
 export interface TrialMember {
     id: string;
+    memberNo?: string;
     nickname: string | null;
     avatarUrl: string | null;
 }
@@ -209,13 +210,20 @@ export interface AdminTrialRequest {
 /** 만들기 서랍 고를 거리 — 화면이 광고주 목록·게시판 목록·체험단 설정으로 모은다(`useTrialFormOptions`) */
 export interface AdminTrialFormOptions {
     advertisers: { id: string; name: string }[];
-    /** 사용기 게시판 후보 — 서버 게시판 목록에 「체험단 사용기 받기」 칸이 있으면 켠 것만, 없으면 활성 일반 게시판 전부 */
+    /** 사용기 게시판 후보 — 서버 게시판 목록의 「체험단 사용기 받기」(`trialReviewsEnabled`)를 켠 활성 일반 게시판 */
     reviewBoards: { id: string; slug: string; name: string }[];
     /** 제공형 상한(설정 — 못 받으면 계약 기본 5만) */
     givePriceLimit: number;
     /** 사용기 기한 처음 값(설정) */
     defaultReviewDays: number;
+    /**
+     * 받지 못한 고를 거리 — 광고주 목록(`ad.read`) · 게시판 목록(`board.read`) · 체험단 설정. 권한이 없거나(403) 실패하면 빈 후보·기본값으로 그리고 서랍이 안내한다
+     */
+    unavailable: TrialFormOptionSource[];
 }
+
+/** 모집 서랍 고를 거리의 출처 */
+export type TrialFormOptionSource = 'advertisers' | 'boards' | 'settings';
 
 /** 신청자 숫자(서버 `TrialViews.ApplicantStats`) — 사용기 수 · 평균 추천 · 약속 지킨 비율 %(판정 없으면 null) · 판정된 줄 수 */
 export interface AdminTrialApplicantStats {

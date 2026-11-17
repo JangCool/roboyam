@@ -44,7 +44,7 @@
                                 <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.date(row.createdAt) }}</span>
                             </p>
                             <NuxtLink :to="`/posts/${encodeURIComponent(row.postId)}`" class="mt-1 line-clamp-1 block text-sm hover:underline">{{ row.postTitle }}</NuxtLink>
-                            <p v-if="row.reviewedAt" class="m-0 mt-1 text-xs text-muted-color">{{ t('trial.proofReviewedAt', { at: time.date(row.reviewedAt) }) }}</p>
+                            <p v-if="row.reviewedAt" class="m-0 mt-1 text-xs text-muted-color">{{ row.reviewerName ? t('trial.proofReviewedBy', { at: time.date(row.reviewedAt), name: row.reviewerName }) : t('trial.proofReviewedAt', { at: time.date(row.reviewedAt) }) }}</p>
                             <p v-if="row.rejectReason" class="mb-0 mt-1.5 rounded-lg bg-surface-100 px-2.5 py-1.5 text-xs dark:bg-surface-800/60">{{ t('trial.proofRejectLine', { reason: row.rejectReason }) }}</p>
                             <div v-if="row.status === 'PENDING' && row.author?.id !== user?.id" class="mt-2 flex gap-2">
                                 <Button type="button" :label="t('trial.proofApprove')" icon="pi pi-check" size="small" @click="openReview(row, true)" />

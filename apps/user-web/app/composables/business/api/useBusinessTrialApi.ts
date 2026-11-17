@@ -1,5 +1,3 @@
-// MOCK: 서버를 붙이기 전까지 `TRIAL_MOCK` 분기로 목업을 돌려준다 — 서버가 붙으면 이 import 와 각 메서드의 `// MOCK:` 줄을 지운다
-import TrialMock, { TRIAL_MOCK } from '~/composables/trial/api/mock/trial-mock';
 import type {
     BizTrialDamageRequest,
     BizTrialPhotoKind,
@@ -38,25 +36,21 @@ export function useBusinessTrialApi() {
     return {
         /** 내 모집 */
         list: (signal?: AbortSignal): Promise<BizTrialRow[]> => {
-            if (TRIAL_MOCK) return TrialMock.bizList(); // MOCK:
             return client.get<BizTrialRow[]>(PATH.list, { signal });
         },
 
         /** 모집 하나 — 신청자 · 뽑힌 줄 · 파손 신고 */
         detail: (id: string, signal?: AbortSignal): Promise<BizTrialView> => {
-            if (TRIAL_MOCK) return TrialMock.bizDetail(id); // MOCK:
             return client.get<BizTrialView>(PATH.one(id), { signal });
         },
 
         /** 후보 추천 켜기·끄기 */
         recommend: (applicationId: string, recommended: boolean): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.bizRecommend(applicationId, recommended); // MOCK:
             return client.post<void>(PATH.recommend(applicationId), { recommended });
         },
 
         /** 사진 올리기(발송 전 · 반납 · 파손) */
         uploadPhoto: (id: string, kind: BizTrialPhotoKind, file: File): Promise<BizTrialUploaded> => {
-            if (TRIAL_MOCK) return TrialMock.bizUploadPhoto(kind, file); // MOCK:
             const form = new FormData();
             form.append('file', file);
             return client.upload<BizTrialUploaded>(PATH.photos(id), form, { query: { kind } });
@@ -64,19 +58,16 @@ export function useBusinessTrialApi() {
 
         /** 송장 넣기(발송 전 사진 필수) */
         shipment: (participantId: string, body: BizTrialShipmentRequest): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.bizShipment(participantId, body); // MOCK:
             return client.put<void>(PATH.shipment(participantId), body);
         },
 
         /** 반납 받음(대여형) + 반납 사진 */
         returned: (participantId: string, body: BizTrialReturnedRequest): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.bizReturned(participantId, body); // MOCK:
             return client.post<void>(PATH.returned(participantId), body);
         },
 
         /** 파손 신고(사진 + 설명) */
         damage: async (participantId: string, body: BizTrialDamageRequest): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.bizDamage(participantId, body); // MOCK:
             await client.post<unknown>(PATH.damage(participantId), body);
         },
     };

@@ -604,6 +604,11 @@ export interface PostUpdateRequest {
     tags?: string[];
     /** 출처(V232) — 게시판 `sourcesEnabled` 일 때만 싣는다(빼면 그대로, 빈 목록이면 모두 지움) */
     sources?: PostSource[];
+    /**
+     * 구입 경로(trial-group-contract 「구현 결정」 9, 서버 `PostUpdateRequest.purchaseSource`) — 바꿨을 때만 싣는다. **빼면 그대로**, 빈 글자면 지우기(꼭 골라야 하는 게시판이면 `400 fields.purchaseSource`),
+     * 값은 SELF·SPONSORED·BORROWED 만(TRIAL 은 `400` — 체험단 연결은 글쓰기에서만). 체험단 연결 글은 서버가 TRIAL 로 고정(칸 무시)
+     */
+    purchaseSource?: Exclude<PurchaseSource, 'TRIAL'> | '';
 }
 
 /**

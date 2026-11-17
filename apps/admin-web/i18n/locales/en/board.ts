@@ -846,6 +846,7 @@ export default {
         OBSCENE: 'Obscene',
         ILLEGAL_FILMING: 'Illegally filmed / child sexual abuse material',
         RIGHTS: 'Privacy exposure / defamation (rights violation)',
+        SPONSOR_HIDDEN: 'Hidden sponsorship (boards that collect how it was obtained)',
         OTHER: 'Other',
     },
     handling: {
@@ -853,6 +854,7 @@ export default {
         operator: 'Operators decide in Reports (auto-hide off)',
         immediate: 'Hidden on 1 report + urgent operator alert',
         tempMeasure: 'Temporary measure — hidden up to {days} days + author notified',
+        sponsor: 'Not counted for auto-hide — operators review it in To review and add a sponsorship label',
     },
     openNotificationEvents: 'Open notification events',
     openRate: 'Go to posting rate',

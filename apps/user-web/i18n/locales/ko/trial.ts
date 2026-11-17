@@ -263,6 +263,7 @@ export default {
     proofPhotoPrivate: '비공개 사진이에요. 확인 목적 밖으로 쓰거나 옮기지 말아 주세요.',
     proofPhotoPurged: '사진 보관 기간이 지났어요',
     proofReviewedAt: '{at} 확인',
+    proofReviewedBy: '{at} {name} 확인',
     proofRejectLine: '거절 사유: {reason}',
     proofApprove: '승인',
     proofReject: '거절',

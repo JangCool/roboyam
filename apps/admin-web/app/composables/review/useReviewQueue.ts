@@ -4,7 +4,7 @@ import UtilTrial from '~/utils/util-trial';
 
 /**
  * 확인할 일 목록 한 벌 — 칭호 관리 「확인할 일」 탭(`/members/titles/review`)과 「광고 › 체험단」 확인할 일(`/ads/trials/review`)이 같이 쓴다(trial-group-contract 「구현 결정」 7).
- * 받기(종류·상태가 바뀌면 다시) + 처리(칭호는 `useTitleApi`, 체험단 확인 일은 `useTrialApi`, 협찬 숨김은 `useReviewQueueApi`) — 그리는 것은 `ReviewQueueList`. 화면마다 따로 쓰는 상태라 `useState` 가 아니다.
+ * 받기(종류·상태가 바뀌면 다시) + 처리(칭호는 `useTitleApi`, 체험단 확인 일은 `useTrialApi`, 협찬 숨김은 `useReviewQueueApi` — 반납 확인은 사진이 필수라 모집 상세에서) — 그리는 것은 `ReviewQueueList`. 화면마다 따로 쓰는 상태라 `useState` 가 아니다.
  * ⚠ setup 에서 부른다.
  */
 export function useReviewQueue(type: MaybeRef<ReviewQueueType | null>, status: MaybeRef<ReviewQueueStatus>) {
@@ -49,7 +49,6 @@ export function useReviewQueue(type: MaybeRef<ReviewQueueType | null>, status: M
         approveProof: (id) => trialApi.approveProof(id),
         rejectProof: (id, reason) => trialApi.rejectProof(id, reason),
         proofPhotoUrl: (id) => trialApi.proofPhotoUrl(id),
-        markReturned: (participantId) => trialApi.returned(participantId, { photoIds: [] }),
         /** 판정 대화상자 — 모집 상세에서 신고와 비교 사진(입고·발송 전 ↔ 반납)을 찾는다 */
         loadDamage: async (trialId, reportId) => {
             const detail = await trialApi.detail(trialId);

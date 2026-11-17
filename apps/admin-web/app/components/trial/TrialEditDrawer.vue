@@ -14,15 +14,19 @@
 
         <form v-if="options" :id="formId" class="grid min-w-0 gap-6 pb-4 lg:grid-cols-[minmax(0,1fr)_15rem]" novalidate @submit.prevent="submit">
             <div class="flex min-w-0 flex-col gap-4">
+                <!-- 고를 거리를 못 받았다(권한 없음 403 등) — 빈 후보·기본값으로 그린다 -->
+                <Message v-if="options.unavailable.length" severity="warn" variant="simple" size="small">
+                    <span v-for="src in options.unavailable" :key="src" class="block">{{ t(`trial.drawer.unavailable.${src}`) }}</span>
+                </Message>
                 <section class="grid gap-3 sm:grid-cols-2">
                     <LabeledField :label="t('trial.drawer.advertiser')" :error="errorOf('advertiserId')">
                         <template #default="{ id, describedBy, invalid }">
-                            <Select v-model="form.advertiserId" :input-id="id" :options="options.advertisers" option-label="name" option-value="id" filter class="w-full" :invalid="invalid" :aria-describedby="describedBy" />
+                            <Select v-model="form.advertiserId" :input-id="id" :options="advertisers" option-label="name" option-value="id" filter class="w-full" :invalid="invalid" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
                     <LabeledField :label="t('trial.drawer.reviewBoard')" :help="t('trial.drawer.reviewBoardHelp')" :error="errorOf('reviewBoardId')">
                         <template #default="{ id, describedBy, invalid }">
-                            <Select v-model="form.reviewBoardId" :input-id="id" :options="options.reviewBoards" option-label="name" option-value="id" class="w-full" :invalid="invalid" :aria-describedby="describedBy" :empty-message="t('trial.drawer.noReviewBoard')" />
+                            <Select v-model="form.reviewBoardId" :input-id="id" :options="reviewBoards" option-label="name" option-value="id" class="w-full" :invalid="invalid" :aria-describedby="describedBy" :empty-message="t('trial.drawer.noReviewBoard')" />
                         </template>
                     </LabeledField>
                     <LabeledField :label="t('trial.drawer.title')" class="sm:col-span-2" :error="errorOf('title')">
@@ -206,6 +210,18 @@ watch(
 );
 
 const giveLimit = computed(() => props.options?.givePriceLimit ?? 50000);
+/** 광고주 후보 — 목록을 못 받았어도(권한 없음) 고치는 모집의 광고주는 보이게 맨 앞에 둔다 */
+const advertisers = computed(() => {
+    const list = props.options?.advertisers ?? [];
+    const current = props.trial?.advertiser;
+    return current && !list.some((a) => a.id === current.id) ? [current, ...list] : list;
+});
+/** 사용기 게시판 후보 — 「체험단 사용기 받기」를 켠 게시판(`useTrialFormOptions`). 고치는 모집의 게시판이 그새 꺼졌어도 지금 값은 보이게 맨 앞에 둔다 */
+const reviewBoards = computed(() => {
+    const list = props.options?.reviewBoards ?? [];
+    const current = props.trial?.reviewBoard;
+    return current && !list.some((b) => b.id === current.id) ? [current, ...list] : list;
+});
 /** 제품값이 상한을 넘으면 제공형을 막는다(이미 골랐으면 대여형으로 옮긴다) */
 const giveBlocked = computed(() => !UtilTrial.giveAllowed(form.value.productPrice, giveLimit.value));
 watch(giveBlocked, (blocked) => {

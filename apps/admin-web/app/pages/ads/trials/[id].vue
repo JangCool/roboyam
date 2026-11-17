@@ -84,7 +84,7 @@
                         </template>
                         <Column v-if="selectable" selection-mode="multiple" style="width: 3rem" />
                         <Column :header="t('trial.col.member')" style="min-width: 9rem">
-                            <template #body="{ data }"><span class="text-[13px] font-medium">{{ data.member.nickname ?? t('trial.withdrawn') }}</span></template>
+                            <template #body="{ data }"><TrialMemberName :member="data.member" :linkable="canReadMember" class="text-[13px] font-medium" /></template>
                         </Column>
                         <Column :header="t('trial.col.quota')" style="min-width: 7rem">
                             <template #body="{ data }">
@@ -149,7 +149,7 @@
                         <template #empty><EmptyState icon="pi pi-users" :title="t('trial.noParticipants')" /></template>
                         <Column :header="t('trial.col.member')" style="min-width: 8rem">
                             <template #body="{ data }">
-                                <span class="text-[13px]">{{ data.member.nickname ?? t('trial.withdrawn') }}</span><span class="block text-[11px] text-muted-color">{{ t(`trial.quota.${data.quota}`) }}</span>
+                                <TrialMemberName :member="data.member" :linkable="canReadMember" class="text-[13px]" /><span class="block text-[11px] text-muted-color">{{ t(`trial.quota.${data.quota}`) }}</span>
                                 <span v-if="data.recipient && !data.addressPurged" class="block text-[11px] text-muted-color">{{ data.recipient }} · {{ data.phone }}</span>
                                 <span v-if="data.address1 && !data.addressPurged" class="block text-[11px] text-muted-color">({{ data.postcode }}) {{ data.address1 }} {{ data.address2 }}</span>
                                 <span v-if="data.addressPurged" class="block text-[11px] text-muted-color">{{ t('trial.addressPurged') }}</span>
@@ -179,7 +179,7 @@
                                 <span v-else-if="data.returnedAt" class="text-[12px]">{{ t('trial.returnedAt', { date: time.date(data.returnedAt) }) }}</span>
                                 <template v-else>
                                     <span v-if="data.returnDueAt" class="block text-[12px] text-muted-color">{{ t('trial.returnDueAt', { date: time.date(data.returnDueAt) }) }}</span>
-                                    <Button v-if="canManage && detail.shipper === 'OPERATOR' && data.receivedAt" type="button" :label="t('trial.markReturned')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" class="mt-1" @click="openAction('returned', data)" />
+                                    <Button v-if="canMarkReturned && data.shippedAt" type="button" :label="t('trial.markReturned')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" class="mt-1" @click="openAction('returned', data)" />
                                 </template>
                             </template>
                         </Column>
@@ -203,7 +203,7 @@
                     <li v-for="r in detail.damageReports" :key="r.id" class="rounded-xl border border-(--line) bg-(--p-content-background) p-3 text-[13px]">
                         <p class="m-0 flex flex-wrap items-center gap-2">
                             <Tag :value="r.verdict ? t(`trial.verdict.${r.verdict}`) : t(`trial.damageStatus.${r.status}`)" :severity="r.verdict ? 'secondary' : 'warn'" />
-                            <span class="font-medium">{{ r.member?.nickname ?? t('trial.withdrawn') }}</span>
+                            <TrialMemberName :member="r.member" :linkable="canReadMember" class="font-medium" />
                             <span class="text-[11px] text-muted-color">{{ t('trial.reportedBy', { kind: t(`trial.reporter.${r.reporterType}`), at: time.full(r.createdAt) }) }}</span>
                         </p>
                         <p class="m-0 mt-1 whitespace-pre-line">{{ r.description }}</p>
@@ -293,6 +293,9 @@ const { confirm } = useConfirmDialog();
 const { origin } = useUserWebOrigin();
 
 const canManage = computed(() => can('trial.manage'));
+const canReadMember = computed(() => can('member.read'));
+/** 반납 받음 — 서버 `confirmReturn`: 운영자는 보내는 쪽과 상관없이, 발송한 줄이면(받음을 안 눌렀으면 서버가 받음으로 채운다). 반납 사진이 필수인데 사진 올리기가 trial.manage 라 그 권한만 */
+const canMarkReturned = computed(() => canManage.value);
 const id = computed(() => String(route.params.id ?? ''));
 const tab = computed<Tab>(() => (route.query.tab === 'shipping' || route.query.tab === 'damage' ? route.query.tab : 'applicants'));
 function setTab(v: string): void {

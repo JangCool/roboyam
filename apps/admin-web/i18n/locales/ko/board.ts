@@ -849,6 +849,7 @@ export default {
         OBSCENE: '음란·선정',
         ILLEGAL_FILMING: '불법촬영물·아동성착취물',
         RIGHTS: '개인정보 노출·명예훼손(권리침해)',
+        SPONSOR_HIDDEN: '협찬을 숨겼어요(구입 경로 받는 게시판 글만)',
         OTHER: '기타',
     },
     handling: {
@@ -856,6 +857,7 @@ export default {
         operator: '운영자가 신고 관리에서 판단(자동 숨김 끔)',
         immediate: '1건으로 즉시 숨김 + 운영자 긴급 알림',
         tempMeasure: '임시조치 — 최대 {days}일 숨김 + 작성자 알림',
+        sponsor: '자동 숨김에 세지 않음 — 운영자가 확인할 일에서 보고 협찬 표시를 붙여요',
     },
     openNotificationEvents: '알림 이벤트 설정 열기',
     openRate: '작성 속도로 가기',

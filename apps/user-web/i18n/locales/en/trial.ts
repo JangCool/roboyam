@@ -256,6 +256,7 @@ export default {
     proofPhotoPrivate: "This photo is private. Don't use or share it beyond checking.",
     proofPhotoPurged: 'Photo retention ended',
     proofReviewedAt: 'Checked {at}',
+    proofReviewedBy: 'Checked {at} by {name}',
     proofRejectLine: 'Reason: {reason}',
     proofApprove: 'Approve',
     proofReject: 'Reject',

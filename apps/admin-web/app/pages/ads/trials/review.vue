@@ -15,6 +15,7 @@
             :pending-counts="queue.pendingCounts.value"
             :can-title="can('title.review')"
             :can-trial="can('trial.review')"
+            :can-read-member="can('member.read')"
             :site-origin="origin"
             :actions="queue.actions"
             @update:status="(v) => go({ status: v })"

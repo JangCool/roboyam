@@ -1,5 +1,3 @@
-// MOCK: 서버를 붙이기 전까지 `TRIAL_MOCK` 분기로 목업을 돌려준다 — 서버가 붙으면 이 import 와 각 메서드의 `// MOCK:` 줄을 지운다
-import TrialMock, { TRIAL_MOCK } from '~/composables/trial/api/mock/trial-mock';
 import type {
     MyTrial,
     PurchaseProof,
@@ -24,8 +22,6 @@ import type {
  *  - `POST   /api/me/trials/participants/{id}/received` → 204 · `POST /api/me/trials/damage-reports/{id}/objection` `{ text }` → 204
  *  - `GET    /api/boards/{slug}/staff/purchase-proofs?status=PENDING|ALL` → `PurchaseProof[]`(그 게시판 매니저만 — 아니면 404·403)
  *    · 사진 `GET …/{id}/photo`(JPEG · 열람 기록 · 파기되면 410) · `POST …/{id}/approve`(본문 없음) · `POST …/{id}/reject` `{ reason }` → 204
- *
- * ⚠ MOCK — `TRIAL_MOCK` 이면 `mock/trial-mock.ts` 가 답한다(실제 호출 줄은 그 아래에 그대로 있다).
  */
 const PATH = {
     list: '/api/trials',
@@ -48,73 +44,61 @@ export function useTrialApi() {
     return {
         /** 체험단 페이지 탭 목록 */
         list: (status: TrialListStatus, signal?: AbortSignal): Promise<TrialCard[]> => {
-            if (TRIAL_MOCK) return TrialMock.list(status); // MOCK:
             return client.get<TrialCard[]>(PATH.list, { query: { status }, signal });
         },
 
         /** 모집 상세 */
         detail: (id: string, signal?: AbortSignal): Promise<TrialPublicDetail> => {
-            if (TRIAL_MOCK) return TrialMock.detail(id); // MOCK:
             return client.get<TrialPublicDetail>(PATH.one(id), { signal });
         },
 
         /** 신청 — 배송지 하나 + 동의 → 바뀐 내 신청 상태 */
         apply: (id: string, body: TrialApplyRequest): Promise<TrialMine> => {
-            if (TRIAL_MOCK) return TrialMock.apply(id, body); // MOCK:
             return client.post<TrialMine>(PATH.apply(id), body);
         },
 
         /** 내 신청 취소(뽑기 전) */
         cancel: (id: string): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.cancel(id); // MOCK:
             return client.del<void>(PATH.cancel(id));
         },
 
         /** 내 체험단 */
         mine: (signal?: AbortSignal): Promise<MyTrial[]> => {
-            if (TRIAL_MOCK) return TrialMock.mine(); // MOCK:
             return client.get<MyTrial[]>(PATH.mine, { signal });
         },
 
         /** 이 게시판에 사용기로 연결할 수 있는 내 뽑힌 체험단 */
         writable: (board: string, signal?: AbortSignal): Promise<TrialWritable[]> => {
-            if (TRIAL_MOCK) return TrialMock.writable(board); // MOCK:
             return client.get<TrialWritable[]>(PATH.writable, { query: { board }, signal });
         },
 
         /** 「받음」 */
         received: (participantId: string): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.received(participantId); // MOCK:
             return client.post<void>(PATH.received(participantId));
         },
 
         /** 파손 신고 이의 제기(신고 뒤 7일 안) */
         objection: (reportId: string, body: TrialObjectionRequest): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.objection(reportId, body.text); // MOCK:
             return client.post<void>(PATH.objection(reportId), body);
         },
 
         /** 게시판 스텝 「구매 인증」 목록 */
         staffProofs: (slug: string, status: 'PENDING' | 'ALL', signal?: AbortSignal): Promise<PurchaseProof[]> => {
-            if (TRIAL_MOCK) return TrialMock.staffProofs(status); // MOCK:
             return client.get<PurchaseProof[]>(PATH.staffProofs(slug), { query: { status }, signal });
         },
 
         /** 구매 인증 사진 주소(비공개 — `<img>` 가 로그인 쿠키로 받는다, 열람 기록) */
         staffProofPhotoUrl: (slug: string, id: string): string => {
-            if (TRIAL_MOCK) return `https://picsum.photos/seed/irobit-receipt-${encodeURIComponent(id)}/600/800`; // MOCK:
             return PATH.staffProof(slug, id, 'photo');
         },
 
         /** 게시판 스텝 구매 인증 승인 */
         staffApprove: (slug: string, id: string): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.staffReview(id, true, ''); // MOCK:
             return client.post<void>(PATH.staffProof(slug, id, 'approve'));
         },
 
         /** 게시판 스텝 구매 인증 거절 — 사유 필수 */
         staffReject: (slug: string, id: string, reason: string): Promise<void> => {
-            if (TRIAL_MOCK) return TrialMock.staffReview(id, false, reason); // MOCK:
             return client.post<void>(PATH.staffProof(slug, id, 'reject'), { reason });
         },
     };
