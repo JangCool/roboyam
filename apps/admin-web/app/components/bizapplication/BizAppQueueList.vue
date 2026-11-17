@@ -30,7 +30,7 @@
                     <span class="flex flex-wrap items-center gap-1">
                         <span class="text-[12px] tabular-nums">{{ UtilBizApplicationMessages.won(t, row.total, locale) }}</span>
                         <Tag v-if="row.deadlineAt && (queue === 'PAYMENT' || queue === 'DEPOSIT' || queue === 'DEPOSIT_OVERDUE')" :value="UtilBizApplicationMessages.remain(t, row.deadlineAt, now)" :severity="UtilBizApplicationMessages.remainSeverity(row.deadlineAt, now)" icon="pi pi-clock" />
-                        <Tag v-if="queue === 'REVIEW' && UtilBizApplication.started(row.period, now)" :value="t('bizApplication.startPassed')" severity="warn" />
+                        <Tag v-if="queue === 'REVIEW' && row.kind !== 'TRIAL' && UtilBizApplication.started(row.period, now)" :value="t('bizApplication.startPassed')" severity="warn" />
                         <Tag v-if="row.hasRefundRequest" :value="t('bizApplication.refundRequested')" severity="danger" />
                         <Tag v-if="pauseTag(row)" :value="t(`bizApplication.pauseState.${pauseTag(row)}`)" :severity="UtilBizApplication.pauseStateSeverity(pauseTag(row)!)" />
                         <Tag v-else-if="queue === 'LIVE' || queue === 'CLOSED'" :value="t(`bizApplication.status.${row.status}`)" :severity="UtilBizApplication.statusSeverity(row.status)" />

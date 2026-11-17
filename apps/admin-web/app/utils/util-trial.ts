@@ -1,4 +1,19 @@
-import type { AdminTrialApplication, AdminTrialDetail, AdminTrialFormOptions, AdminTrialParticipant, AdminTrialRequest, TrialAction, TrialPhoto, TrialPhotoKind, TrialSettings, TrialStatus } from '~/composables/trial/api/useTrialApi.types';
+import type {
+    AdminTrialApplication,
+    AdminTrialDetail,
+    AdminTrialFormOptions,
+    AdminTrialParticipant,
+    AdminTrialRequest,
+    TrialAction,
+    TrialPaymentStatus,
+    TrialPhoto,
+    TrialPhotoKind,
+    TrialSettings,
+    TrialStatus,
+} from '~/composables/trial/api/useTrialApi.types';
+import UtilBizApplication from '~/utils/util-biz-application';
+
+type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
 
 /** 서랍 칸 문제 — 칸 이름 → 문제 코드(문구는 화면이 `trial.problem.<코드>` 로) */
 export type TrialFormProblems = Partial<Record<keyof AdminTrialRequest, 'required' | 'range' | 'giveLimit' | 'order'>>;
@@ -23,6 +38,8 @@ export default class UtilTrial {
         daysMax: 90,
         textMax: 1000,
         disclosureMax: 300,
+        /** 뽑힌 줄 취소 사유(서버 `trial.cancel.reason` — 1~200자) */
+        cancelReasonMax: 200,
     } as const;
 
     static readonly STATUSES = ['DRAFT', 'RECRUITING', 'SELECTING', 'RUNNING', 'CLOSED', 'CANCELLED'] as const;
@@ -164,14 +181,51 @@ export default class UtilTrial {
         return text.replaceAll('{광고주}', advertiser).replaceAll('{제공/대여}', lend ? loan : give);
     }
 
-    /** 고치기에서 할 수 있는 상태 바꾸기(서버 `TrialService.transition`) — 준비 → 모집 열기 · 모집 중 → 신청 마감 · 진행 중 → 끝내기 · 뽑기 전 → 취소 */
-    static actionsFor(status: TrialStatus, selected: boolean): TrialAction[] {
+    /**
+     * 고치기에서 할 수 있는 상태 바꾸기(서버 `TrialService.transition` · `TrialPayments.cancel`) — 준비 → 모집 열기 · 모집 중 → 신청 마감 · 진행 중 → 끝내기 ·
+     * 취소는 준비·모집 중·뽑는 중·진행 중(V242 — 진행 중은 아직 보낸 줄이 없을 때만, 보냈으면 서버 409 `TRIAL_SHIPPING_STARTED`)
+     */
+    static actionsFor(status: TrialStatus): TrialAction[] {
         const out: TrialAction[] = [];
         if (status === 'DRAFT') out.push('PUBLISH');
         if (status === 'RECRUITING') out.push('CLOSE_APPLY');
         if (status === 'RUNNING') out.push('CLOSE');
-        if (!selected && (status === 'DRAFT' || status === 'RECRUITING' || status === 'SELECTING')) out.push('CANCEL');
+        if (status === 'DRAFT' || status === 'RECRUITING' || status === 'SELECTING' || status === 'RUNNING') out.push('CANCEL');
         return out;
+    }
+
+    /** 광고 결제 상태 Tag 색 — 결제 끝 초록 · 승인·결제·입금 대기 주황 · 취소 빨강 · 뽑기 전·결제 없음 흐림 */
+    static paymentSeverity(status: TrialPaymentStatus): Severity {
+        switch (status) {
+            case 'PAID':
+                return 'success';
+            case 'AWAITING_APPROVAL':
+            case 'AWAITING_PAYMENT':
+            case 'AWAITING_DEPOSIT':
+                return 'warn';
+            case 'CANCELED':
+                return 'danger';
+            default:
+                return 'secondary';
+        }
+    }
+
+    /** 광고 신청 건을 광고 심사 화면에서 여는 주소(체험단 건은 광고 도메인 — 다른 화면의 「광고 심사에서 열기」와 같은 `?id=`) */
+    static bizReviewLink(bizApplicationId: string): { path: string; query: { id: string } } {
+        return { path: UtilBizApplication.DOMAIN_SCREENS.AD.path, query: { id: bizApplicationId } };
+    }
+
+    /** 운영자가 뽑힌 줄을 취소할 수 있어 보이나 — 진행 중 모집 · 취소 안 됨 · 아직 아무것도 시작 안 됨(송장·받음·사용기 — 서버 `started()` 가 다시 판정) */
+    static participantCancellable(status: TrialStatus, p: Pick<AdminTrialParticipant, 'cancelledAt' | 'trackingNo' | 'shippedAt' | 'receivedAt' | 'reviewPost'>): boolean {
+        return status === 'RUNNING' && !p.cancelledAt && !p.trackingNo && !p.shippedAt && !p.receivedAt && !p.reviewPost;
+    }
+
+    /** 취소 사유 검사 — 비었음 · 너무 김(서버 1~200자) */
+    static cancelReasonProblem(text: string): 'required' | 'tooLong' | null {
+        const v = text.trim();
+        if (!v) return 'required';
+        if (v.length > UtilTrial.LIMITS.cancelReasonMax) return 'tooLong';
+        return null;
     }
 
     /** 그 줄의 한 종류 사진 */

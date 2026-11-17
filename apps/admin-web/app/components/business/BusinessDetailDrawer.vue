@@ -271,7 +271,8 @@ const approvability = computed(() => (props.detail ? UtilBusiness.approvability(
 const hasLiveDealings = computed(() => {
     const d = props.detail;
     if (!d) return false;
-    return d.impact.awaitingPayment + d.impact.scheduled + d.impact.running > 0 || d.serviceCards.some((s) => s.liveCount + s.pendingCount > 0);
+    const i = d.impact;
+    return i.awaitingPayment + i.scheduled + i.running + (i.trialRecruiting ?? 0) + (i.trialRunning ?? 0) > 0 || d.serviceCards.some((s) => s.liveCount + s.pendingCount > 0);
 });
 /**
  * 「서비스만 정지」 — 서버가 사유 코드를 준 줄(`suspendCode != null`). 신원 정지를 따라간 줄은 `SUSPENDED` 라도 코드가 null 이라 가른다.

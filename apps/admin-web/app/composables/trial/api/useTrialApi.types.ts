@@ -18,6 +18,12 @@ export type TrialPriceUnit = 'PER_RECRUIT' | 'PER_PERSON';
 export type TrialPhotoKind = 'STOCK' | 'PRE_SHIP' | 'RETURN' | 'DAMAGE';
 /** 고치기의 상태 바꾸기(서버 `TrialForm.action`) — 모집 열기(준비 → 모집 중) · 신청 마감(→ 뽑는 중) · 끝내기(진행 중 → 끝남) · 취소(뽑기 전). 있으면 칸은 바꾸지 않는다 */
 export type TrialAction = 'PUBLISH' | 'CLOSE_APPLY' | 'CLOSE' | 'CANCEL';
+/**
+ * 광고 결제 상태(서버 `TrialViews.Payment.status` — V242 「유료 결제 연결」) — 뽑기 전(금액 미정) · 0원(결제 없음) · 운영자 승인 대기(광고 심사 큐) ·
+ * 온라인 결제 대기 · 수동 입금 대기 · 결제 끝(예약) · 취소·반려·만료(신청 건이 닫힘)
+ */
+export type TrialPaymentStatus = 'BEFORE_SELECTION' | 'NOT_REQUIRED' | 'AWAITING_APPROVAL' | 'AWAITING_PAYMENT' | 'AWAITING_DEPOSIT' | 'PAID' | 'CANCELED';
+export const TRIAL_PAYMENT_STATUSES: readonly TrialPaymentStatus[] = ['BEFORE_SELECTION', 'NOT_REQUIRED', 'AWAITING_APPROVAL', 'AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'PAID', 'CANCELED'];
 
 /** 이름 있는 조각(서버 `TrialViews.Ref`) */
 export interface TrialRef {
@@ -68,6 +74,8 @@ export interface AdminTrialRow {
     /** 광고 상품 금액(뽑기 뒤 확정 — 전 null) */
     amount: number | null;
     createdAt: string;
+    /** 광고 결제 상태(V242) */
+    paymentStatus: TrialPaymentStatus;
 }
 
 /** 입고(서버 `TrialViews.Stock` — 운영자가 대신 보낼 때만). `keepUntil` = 입고 + 보관 일수 */
@@ -111,6 +119,10 @@ export interface AdminTrialParticipant {
     contactProvidedAt: string | null;
     /** 그 줄의 사진(발송 전 · 반납 · 파손 — `kind` 로 가른다) */
     photos: TrialPhoto[];
+    /** 운영자가 취소한 줄(V242 — 발송 전 뽑힌 줄 취소·모집 취소). 취소하지 않았으면 null */
+    cancelledAt: string | null;
+    /** 취소 사유(회원에게도 보인다) */
+    cancelReason: string | null;
 }
 
 /** 파손 신고(서버 `TrialViews.DamageReport`) */
@@ -141,6 +153,33 @@ export interface AdminTrialCounts {
     returned: number;
     kept: number;
     unreturned: number;
+    /** 운영자가 취소한 뽑힌 줄(V242 — `selected` 는 취소하지 않은 줄만) */
+    cancelled: number;
+}
+
+/**
+ * 광고 결제(서버 `TrialViews.Payment` — V242 「유료 결제 연결」). 관리자·광고주 모집 상세가 같이 쓴다.
+ *  - `required` 뽑기를 마쳤고 금액 > 0 — 결제가 끝나야 입고·발송(아니면 409 `TRIAL_PAYMENT_PENDING`)
+ *  - `shippingAllowed` 입고·발송을 할 수 있나(결제 필요 없음 또는 결제 끝)
+ *  - `bizApplicationId` 광고 신청 건 — 관리자 광고 심사 `/ad-reviews?id=` · 광고주 결제 `/business/applications/{id}`
+ *  - 금액은 승인 뒤엔 확정 금액, 그 전엔 뽑기 견적 · `method`·`deadlineAt` 은 승인 뒤만
+ *  - `payOnline` 광고주가 사업자 센터에서 온라인 결제를 할 수 있다(온라인 결제 대기 · 기한 전 · 광고주 회원이 그 건의 주인)
+ */
+export interface TrialPayment {
+    required: boolean;
+    status: TrialPaymentStatus;
+    shippingAllowed: boolean;
+    bizApplicationId: string | null;
+    bizApplicationNo: string | null;
+    /** 신청 건 저장 상태(SUBMITTED·AWAITING_PAYMENT·… — 화면 보조) */
+    bizStatus: string | null;
+    supply: number;
+    vat: number;
+    total: number;
+    method: 'ONLINE' | 'MANUAL' | null;
+    deadlineAt: string | null;
+    paidAt: string | null;
+    payOnline: boolean;
 }
 
 /** `GET /api/admin/trials/{id}` — 모집 상세(서버 `TrialViews.TrialDetail`) */
@@ -179,6 +218,8 @@ export interface AdminTrialDetail {
     damageReports: AdminTrialDamageReport[];
     createdAt: string;
     updatedAt: string;
+    /** 광고 결제 상태(V242) */
+    payment: TrialPayment;
 }
 
 /**
@@ -279,6 +320,11 @@ export interface AdminTrialShipmentRequest {
     carrier: string;
     trackingNo: string;
     photoIds?: string[];
+}
+
+/** `POST /api/admin/trials/participants/{id}/cancel` — 뽑힌 줄 운영자 취소(발송 전만 · 진행 중 모집만). 사유 1~200자(400 `fields.reason`) → 바뀐 상세 */
+export interface AdminTrialCancelParticipantRequest {
+    reason: string;
 }
 
 /** `POST …/participants/{id}/returned` — 반납 받음 + 사진(서버 `PhotosRequest`) */

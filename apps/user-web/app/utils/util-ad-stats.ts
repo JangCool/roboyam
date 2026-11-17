@@ -57,6 +57,7 @@ export default class UtilAdStats {
     /** 노출 자리가 있는 종류인가 — 광고 둘 · 핫딜 노출 · 노출 자리를 같이 산 사업자 핫딜 글 */
     static exposes(kind: BizApplicationKind, placement: DealPlacement | null): boolean {
         if (kind === 'HOTDEAL_POST') return placement !== null && placement !== 'NONE';
+        if (kind === 'TRIAL') return false; // 체험단 건은 노출 자리가 없다(V242)
         return true;
     }
 

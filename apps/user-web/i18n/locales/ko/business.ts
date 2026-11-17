@@ -171,6 +171,7 @@ export default {
         AD_TEXT_LINE: '한 줄 광고',
         HOTDEAL_POST: '사업자 핫딜',
         HOTDEAL_PLACEMENT: '핫딜 노출',
+        TRIAL: '체험단',
     },
 
     adType: {
@@ -449,6 +450,33 @@ export default {
         refundRequested: '환불 요청',
     },
 
+    // 체험단 건(kind TRIAL — V242 「유료 결제 연결」) — 신청 건 상세의 모집 카드·안내
+    trialApp: {
+        title: '체험단 모집',
+        open: '모집 화면 열기',
+        status: '모집 상태',
+        product: '상품',
+        form: '형태',
+        shipper: '보내는 쪽',
+        selected: '뽑힌 인원',
+        selectedN: '{n}명',
+        priceUnit: '값 매기는 단위',
+        unitPrice: '단가',
+        shippingFee: '1명당 발송비',
+        amount: '금액(공급가)',
+        pending: '뽑기 전',
+        period: '모집 신청 기간',
+        formValue: { GIVE: '제공형', LEND: '대여형' },
+        shipperValue: { ADVERTISER: '광고주가 보냄', OPERATOR: '운영자가 대신 보냄' },
+        priceUnitValue: { PER_RECRUIT: '모집 건당', PER_PERSON: '뽑힌 1명당' },
+        statusValue: { DRAFT: '준비', RECRUITING: '모집 중', SELECTING: '뽑는 중', RUNNING: '진행 중', CLOSED: '끝남', CANCELLED: '취소' },
+        reviewText: '뽑기를 마친 인원으로 금액이 정해졌어요. 운영팀이 확인하면 결제 안내가 가요.',
+        runningText: '결제를 마쳤어요. 체험단을 진행해요 — 송장은 모집 화면에서 넣어요.',
+        endedText: '모집이 끝났어요.',
+        paidText: '결제를 마쳤어요. 이제 제품을 보낼 수 있어요.',
+        noSelfCancel: '체험단 건은 여기서 취소·환불을 요청할 수 없어요. 운영팀에 문의해 주세요.',
+    },
+
     detail: {
         title: '신청 건',
         seoDescription: '사업자 신청 건 상세',
@@ -602,6 +630,9 @@ export default {
             RESUMED: '다시 켬',
             STOPPED: '중단(광고주 요청)',
             CLAIM_REFUNDED: '추가 환불',
+            TRIAL_QUOTED: '체험단 금액 확정',
+            TRIAL_REQUOTED: '체험단 금액 다시 셈',
+            TRIAL_CLOSED: '체험단 모집 끝남',
         },
         note: {
             PERIOD_MOVED: '시작이 지나 기간을 뒤로 옮겼어요',

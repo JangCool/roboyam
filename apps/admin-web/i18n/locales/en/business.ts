@@ -106,6 +106,7 @@ export default {
     impactPending: 'Awaiting payment/deposit',
     impactScheduled: 'Scheduled (not started)',
     impactRunning: 'Running',
+    impactTrial: 'Trials — {recruiting} not yet running will be canceled; {running} running continue as is.',
     countN: '{n}',
     defaultChoice: '(default)',
     optPendingCancel: 'Cancel automatically and release slots',

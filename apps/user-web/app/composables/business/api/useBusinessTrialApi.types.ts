@@ -16,6 +16,29 @@ import type {
     TrialStatus,
 } from '~/composables/trial/api/useTrialApi.types';
 
+/** 광고 결제 상태(서버 `TrialViews.Payment.status` — V242 「유료 결제 연결」) */
+export type BizTrialPaymentStatus = 'BEFORE_SELECTION' | 'NOT_REQUIRED' | 'AWAITING_APPROVAL' | 'AWAITING_PAYMENT' | 'AWAITING_DEPOSIT' | 'PAID' | 'CANCELED';
+
+/**
+ * 광고 결제(서버 `TrialViews.Payment`) — `shippingAllowed` false 면 송장을 넣을 수 없다(서버 409 `TRIAL_PAYMENT_PENDING`).
+ * `payOnline` 이면 신청 건 화면(`/business/applications/{bizApplicationId}`)에서 온라인 결제. 금액은 승인 뒤 확정 금액, 그 전엔 뽑기 견적
+ */
+export interface BizTrialPayment {
+    required: boolean;
+    status: BizTrialPaymentStatus;
+    shippingAllowed: boolean;
+    bizApplicationId: string | null;
+    bizApplicationNo: string | null;
+    bizStatus: string | null;
+    supply: number;
+    vat: number;
+    total: number;
+    method: 'ONLINE' | 'MANUAL' | null;
+    deadlineAt: string | null;
+    paidAt: string | null;
+    payOnline: boolean;
+}
+
 /** 이름 있는 조각(서버 `TrialViews.Ref`) */
 export interface TrialRef {
     id: string;
@@ -41,6 +64,8 @@ export interface BizTrialRow {
     reviewBoard: TrialBoardRef;
     amount: number | null;
     createdAt: string;
+    /** 광고 결제 상태(V242) */
+    paymentStatus: BizTrialPaymentStatus;
 }
 
 /** 뽑힌 한 줄(서버 `TrialViews.Participant`) — 사진은 종류(`kind` PRE_SHIP · RETURN · …)로 가른다 */
@@ -71,6 +96,9 @@ export interface BizTrialParticipant {
     unreturnedAt: string | null;
     contactProvidedAt: string | null;
     photos: TrialPhoto[];
+    /** 운영자가 취소한 줄(V242 — 보내지 않는다). 아니면 null */
+    cancelledAt: string | null;
+    cancelReason: string | null;
 }
 
 /** 파손 신고(서버 `TrialViews.DamageReport`) */
@@ -114,6 +142,8 @@ export interface BizTrialDetail {
     selectedCount: number | null;
     participants: BizTrialParticipant[];
     damageReports: BizTrialDamageReport[];
+    /** 광고 결제(V242) */
+    payment: BizTrialPayment;
 }
 
 /** 신청자 숫자(서버 `TrialViews.ApplicantStats`) — 사용기 수 · 평균 추천 · 약속 지킨 비율 %(판정 없으면 null) · 판정된 줄 수 */

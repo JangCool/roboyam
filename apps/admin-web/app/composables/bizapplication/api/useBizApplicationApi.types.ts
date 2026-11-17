@@ -5,15 +5,19 @@
  */
 import type { DocFileChannel } from '~/composables/docintake/api/useDocIntakeApi.types';
 
-export type BizApplicationKind = 'AD_BANNER' | 'AD_TEXT_LINE' | 'HOTDEAL_POST' | 'HOTDEAL_PLACEMENT';
-export const BIZ_APPLICATION_KINDS: readonly BizApplicationKind[] = ['AD_BANNER', 'AD_TEXT_LINE', 'HOTDEAL_POST', 'HOTDEAL_PLACEMENT'];
+/**
+ * 종류 — `TRIAL` 은 체험단 모집 건(shared V241·V242 「유료 결제 연결」 — 운영자 등록 건). 뽑기로 금액이 굳고 금액 > 0 일 때만 광고 심사 큐에 나온다(서버 `BizApplicationStore.paidTrial`).
+ * 금액은 견적 그대로 · 기간 검사·자리 한도 없음 · 결제가 끝나야 입고·발송.
+ */
+export type BizApplicationKind = 'AD_BANNER' | 'AD_TEXT_LINE' | 'HOTDEAL_POST' | 'HOTDEAL_PLACEMENT' | 'TRIAL';
+export const BIZ_APPLICATION_KINDS: readonly BizApplicationKind[] = ['AD_BANNER', 'AD_TEXT_LINE', 'HOTDEAL_POST', 'HOTDEAL_PLACEMENT', 'TRIAL'];
 
 /** 업무 도메인 — 종류(kind)를 화면·권한 단위로 가른다(서버 `BizDomain`, 04-ia-review S1) */
 export type BizDomain = 'AD' | 'HOTDEAL';
 export const BIZ_DOMAINS: readonly BizDomain[] = ['AD', 'HOTDEAL'];
-/** 도메인 → 그 도메인의 종류(서버 `BizApplicationKind.domain()` 과 같게) */
+/** 도메인 → 그 도메인의 종류(서버 `BizApplicationKind.domain()` 과 같게 — 체험단 `TRIAL` 은 광고 도메인, 거르기 `kind=TRIAL` 은 금액 > 0 인 체험단 건만) */
 export const BIZ_DOMAIN_KINDS: Readonly<Record<BizDomain, readonly BizApplicationKind[]>> = {
-    AD: ['AD_BANNER', 'AD_TEXT_LINE'],
+    AD: ['AD_BANNER', 'AD_TEXT_LINE', 'TRIAL'],
     HOTDEAL: ['HOTDEAL_POST', 'HOTDEAL_PLACEMENT'],
 };
 
@@ -111,12 +115,46 @@ export type BizApplicationContent =
           /** 상품 이미지(2차) */
           imageUrl?: string | null;
       }
-    | { type: 'HOTDEAL_PLACEMENT'; postId: string; postTitle: string; price: number; originalPrice: number | null; mallName: string; categoryName: string | null };
+    | { type: 'HOTDEAL_PLACEMENT'; postId: string; postTitle: string; price: number; originalPrice: number | null; mallName: string; categoryName: string | null }
+    | BizTrialContent;
 
-/** 요금표 한 줄 — 핫딜 글 + 노출이면 두 줄. `product` 는 자리 상품 이름(`BizAdType`) 또는 `HOTDEAL_POST` */
+/** 체험단 모집 형태 · 보내는 쪽 · 값 매기는 단위(서버 `TrialEntity` 값 — 관리자 체험단 화면과 같은 값) */
+export type BizTrialForm = 'GIVE' | 'LEND';
+export type BizTrialShipper = 'ADVERTISER' | 'OPERATOR';
+export type BizTrialPriceUnit = 'PER_RECRUIT' | 'PER_PERSON';
+
+/**
+ * 체험단 건 내용(kind `TRIAL` — 서버 `BizApplicationAdminService.trialContent`, V242). 모집 상세 `/ads/trials/{trialId}`.
+ * 금액 = 단가(건당이면 × 1, 인원당이면 × 뽑힌 인원) + 운영자가 대신 보내면 1명당 발송비 × 뽑힌 인원 — `amount` 는 확정 공급가(뽑기 뒤).
+ */
+export interface BizTrialContent {
+    type: 'TRIAL';
+    trialId: string;
+    trialTitle: string;
+    /** 모집 상태(DRAFT·RECRUITING·SELECTING·RUNNING·CLOSED·CANCELLED) */
+    trialStatus: string;
+    productName: string;
+    form: BizTrialForm;
+    shipper: BizTrialShipper;
+    /** 뽑힌 인원(취소한 줄 뺌 — 뽑기 전 null) */
+    selectedCount: number | null;
+    priceUnit: BizTrialPriceUnit;
+    unitPrice: number;
+    shippingFeePerPerson: number;
+    /** 확정 공급가(뽑기 전 null) */
+    amount: number | null;
+}
+
+/** 견적 줄 단위 — 하루 · 건(핫딜 글 · 체험단 모집 건당) · 사람(체험단 인원당 · 대신 발송비) */
+export type BizQuoteUnit = 'DAY' | 'POST' | 'PERSON';
+
+/**
+ * 요금표 한 줄 — 핫딜 글 + 노출이면 두 줄. `product` 는 자리 상품 이름(`BizAdType`) 또는 `HOTDEAL_POST`,
+ * 체험단은 `TRIAL`(모집 상품) + 운영자가 대신 보내면 `TRIAL_SHIPPING`(1명당 발송비 × 뽑힌 인원)
+ */
 export interface BizQuoteLine {
-    product: BizAdType | 'HOTDEAL_POST';
-    unit: 'DAY' | 'POST';
+    product: BizAdType | 'HOTDEAL_POST' | 'TRIAL' | 'TRIAL_SHIPPING';
+    unit: BizQuoteUnit;
     unitPrice: number;
     units: number;
     supply: number;
@@ -126,7 +164,7 @@ export interface BizQuoteLine {
 export interface BizQuote {
     unitPrice: number;
     units: number;
-    unit: 'DAY' | 'POST';
+    unit: BizQuoteUnit;
     supply: number;
     vat: number;
     total: number;
@@ -291,6 +329,10 @@ export const BIZ_HISTORY_ACTIONS = [
     'PAPER_HANDLING',
     'PAPER_DISPOSED',
     'PAPER_VOIDED',
+    // 체험단 건(kind TRIAL — V242 「유료 결제 연결」) — 뽑기로 견적 굳힘(note = 합계 원) · 결제 전 뽑힌 줄 취소로 다시 셈(note = 새 합계 원) · 결제를 마친 모집이 끝남
+    'TRIAL_QUOTED',
+    'TRIAL_REQUOTED',
+    'TRIAL_CLOSED',
 ] as const;
 export type BizHistoryAction = (typeof BIZ_HISTORY_ACTIONS)[number];
 
@@ -459,11 +501,14 @@ export interface BizAvailability {
 
 export interface BizApproveRequest {
     method: BizPaymentMethod;
-    /** 공급가(조정 가능 — 부가세는 서버가 10% 계산) */
+    /** 공급가(조정 가능 — 부가세는 서버가 10% 계산). 체험단 건은 견적 공급가 그대로(다르면 400 `fields.supply` — `bizapp.trial.amountFixed`) */
     supply: number;
     adjustReason?: string;
-    /** 결제 기한(온라인 — 시작 시각 이전) 또는 입금 기한(수동) */
-    deadlineAt: string;
+    /**
+     * 결제 기한(온라인 — 시작 시각 이전) 또는 입금 기한(수동). 체험단 건은 비워도 된다 — 서버가 온라인 승인 + 72시간 · 수동 승인 + 7일로 채운다.
+     * 체험단 온라인 승인은 광고주에 이어진 사업자 회원이 있어야 한다(없으면 400 `fields.method` — `bizapp.trial.onlineNeedsMember`)
+     */
+    deadlineAt?: string;
     period: BizPeriod;
     /** 자기 승인 메모(운영자 등록 건을 등록한 운영자가 승인할 때 1~200자 필수 — 400 `fields.memo`) */
     memo?: string;

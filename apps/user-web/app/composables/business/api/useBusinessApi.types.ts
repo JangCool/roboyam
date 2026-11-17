@@ -118,8 +118,8 @@ export interface BusinessDocSendTo {
 
 /* ── 사업자 신청 건(광고·핫딜) ─────────────────────────────── */
 
-/** 신청 건 종류(★-1) */
-export type BizApplicationKind = 'AD_BANNER' | 'AD_TEXT_LINE' | 'HOTDEAL_POST' | 'HOTDEAL_PLACEMENT';
+/** 신청 건 종류(★-1) — `TRIAL` 은 체험단 모집 건(V242 「유료 결제 연결」 — 운영자가 만든다, 사업자 취소·소재 변경·환불 요청은 409 `BIZ_APPLICATION_STATE_CHANGED`) */
+export type BizApplicationKind = 'AD_BANNER' | 'AD_TEXT_LINE' | 'HOTDEAL_POST' | 'HOTDEAL_PLACEMENT' | 'TRIAL';
 
 /** 신청 건 상태(★-3). 「예약 → 진행 → 종료」는 `SCHEDULED` 안에서 시각으로 계산한 `phase` 다 */
 export type BizApplicationStatus = 'SUBMITTED' | 'REJECTED' | 'CANCELED' | 'AWAITING_PAYMENT' | 'EXPIRED' | 'AWAITING_DEPOSIT' | 'SCHEDULED' | 'TAKEN_DOWN';
@@ -275,6 +275,10 @@ export interface BizHistoryEntry {
         | 'STOPPED'
         // 운영팀 추가 환불(클레임 — V128) — note = 금액(원)
         | 'CLAIM_REFUNDED'
+        // 체험단 건(V242) — 뽑기로 금액 확정(note = 합계 원) · 결제 전 뽑힌 줄 취소로 다시 셈(note = 새 합계 원) · 결제를 마친 모집이 끝남
+        | 'TRIAL_QUOTED'
+        | 'TRIAL_REQUOTED'
+        | 'TRIAL_CLOSED'
         // 서버는 기록하지 않는다 — 화면이 `phase` 로 덧붙인다(`UtilBusiness.withPhaseHistory`)
         | 'STARTED'
         | 'ENDED';
@@ -371,6 +375,27 @@ export interface BizApplicationDetail extends BizApplicationSummary {
     refunds: BizRefundLine[];
     /** 결제액·승인된 환불 합 — 결제 전이면 null */
     refundTotals: { paid: number; refunded: number } | null;
+    /** 체험단 건(kind TRIAL)이면 그 모집 요약, 아니면 null(V242 — 서버 `BizMemberView.Trial`) */
+    trial?: BizApplicationTrial | null;
+}
+
+/**
+ * 체험단 건의 모집 요약(서버 `BizMemberView.Trial`) — 광고주 모집 화면 `/business/trials/{trialId}`.
+ * 금액 = 단가(건당 × 1 · 인원당 × 뽑힌 인원) + 운영자가 대신 보내면 1명당 발송비 × 뽑힌 인원(공급가)
+ */
+export interface BizApplicationTrial {
+    trialId: string;
+    title: string;
+    /** 모집 상태(DRAFT·RECRUITING·SELECTING·RUNNING·CLOSED·CANCELLED) */
+    status: string;
+    productName: string;
+    form: 'GIVE' | 'LEND';
+    shipper: 'ADVERTISER' | 'OPERATOR';
+    selectedCount: number | null;
+    priceUnit: 'PER_RECRUIT' | 'PER_PERSON';
+    unitPrice: number;
+    shippingFeePerPerson: number;
+    amount: number | null;
 }
 
 /** 공개 환불 내역 한 줄 — 서버 `BizMemberView.RefundLine` */

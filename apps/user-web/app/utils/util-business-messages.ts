@@ -164,6 +164,8 @@ export default class UtilBusinessMessages {
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':
             case 'CLAIM_REFUNDED':
+            case 'TRIAL_QUOTED':
+            case 'TRIAL_REQUOTED':
                 return amount();
             case 'POST_FAILED':
                 return (FAIL_REASONS as readonly string[]).includes(note) ? t(`business.post.failReason.${note}`) : note;

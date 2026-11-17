@@ -170,6 +170,7 @@ export default {
         AD_TEXT_LINE: 'Text-line ad',
         HOTDEAL_POST: 'Business deal',
         HOTDEAL_PLACEMENT: 'Deal placement',
+        TRIAL: 'Product trial',
     },
 
     adType: {
@@ -448,6 +449,33 @@ export default {
         refundRequested: 'Refund requested',
     },
 
+    // Trial requests (kind TRIAL — V242 paid trial link) — recruitment card and notes on the request page
+    trialApp: {
+        title: 'Trial recruitment',
+        open: 'Open recruitment',
+        status: 'Recruitment status',
+        product: 'Product',
+        form: 'Type',
+        shipper: 'Shipped by',
+        selected: 'Selected',
+        selectedN: '{n}',
+        priceUnit: 'Pricing unit',
+        unitPrice: 'Unit price',
+        shippingFee: 'Shipping per person',
+        amount: 'Amount (supply)',
+        pending: 'Before selection',
+        period: 'Application period',
+        formValue: { GIVE: 'Give-away', LEND: 'Loan' },
+        shipperValue: { ADVERTISER: 'You ship', OPERATOR: 'The site ships' },
+        priceUnitValue: { PER_RECRUIT: 'Per recruitment', PER_PERSON: 'Per selected person' },
+        statusValue: { DRAFT: 'Draft', RECRUITING: 'Recruiting', SELECTING: 'Selecting', RUNNING: 'Running', CLOSED: 'Closed', CANCELLED: 'Canceled' },
+        reviewText: 'The amount is set from the selected people. You will get a payment notice once the team checks it.',
+        runningText: 'Paid. The trial is running — add tracking on the recruitment page.',
+        endedText: 'The recruitment has ended.',
+        paidText: 'Paid. You can ship the products now.',
+        noSelfCancel: 'Trial requests cannot be canceled or refunded here. Please contact the team.',
+    },
+
     detail: {
         title: 'Request',
         seoDescription: 'Business request details',
@@ -601,6 +629,9 @@ export default {
             RESUMED: 'Resumed',
             STOPPED: 'Stopped (advertiser request)',
             CLAIM_REFUNDED: 'Additional refund',
+            TRIAL_QUOTED: 'Trial amount set',
+            TRIAL_REQUOTED: 'Trial amount recounted',
+            TRIAL_CLOSED: 'Trial recruitment closed',
         },
         note: {
             PERIOD_MOVED: 'The start had passed, so the period was moved later',

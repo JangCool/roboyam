@@ -399,7 +399,7 @@ const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, svcS
 const serviceTarget = ref<BusinessService | null>(null);
 /** 그 서비스만의 영향 건수(서버가 카드마다 준다) */
 const serviceImpact = computed<BusinessSuspendImpact>(
-    () => drawerDetail.value?.serviceCards.find((c) => c.service === serviceTarget.value)?.impact ?? { awaitingPayment: 0, scheduled: 0, running: 0 },
+    () => drawerDetail.value?.serviceCards.find((c) => c.service === serviceTarget.value)?.impact ?? { awaitingPayment: 0, scheduled: 0, running: 0, trialRecruiting: 0, trialRunning: 0 },
 );
 
 function openDialog(name: keyof typeof dialogs): void {

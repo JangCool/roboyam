@@ -15,6 +15,7 @@
         · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김 — 숨김 까닭 「판매자 일시 정지」·「판매자 중단」)과 노출 줄 상태.
         · 광고주 요청 일시 정지·중단(상세 `pause` 가 있을 때만 — biz-pause-contract): 까닭 · 멈춘 시각 · 누가(+ 요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내,
           운영자 대신 처리 [대신 일시 정지](진행 중 — 횟수를 다 썼으면 비활성) · [대신 다시 켜기]·[대신 중단(환불 심사)](정지 중). 광고주 요청 건에는 긴급 내림 [되돌리기] 보상이 없다.
+        · 체험단 건(kind TRIAL — V242 「유료 결제 연결」): 기간 = 모집 신청 기간(시작 지남 경고·남은 자리 없음) · 모집 줄([모집 상세] 링크) · 견적 줄(인원 단위 · 대신 발송비)을 한 줄이어도 보인다.
         맨 아래 처리 기록. 서버는 부르지 않는다 — 동작은 emit.
     -->
     <div class="flex flex-col gap-5 p-4">
@@ -35,12 +36,19 @@
                 <dt class="text-muted-color">{{ t('bizApplication.adTypeLabel') }}</dt>
                 <dd class="m-0">{{ t(`bizApplication.adType.${detail.adType}`) }}</dd>
             </template>
-            <dt class="text-muted-color">{{ detail.kind === 'HOTDEAL_POST' ? t('bizApplication.dealPeriod') : t('bizApplication.periodLabel') }}</dt>
+            <template v-if="trialContent">
+                <dt class="text-muted-color">{{ t('bizApplication.trial.title') }}</dt>
+                <dd class="m-0 [overflow-wrap:anywhere]">
+                    <NuxtLink :to="UtilTrial.detailPath(trialContent.trialId)" class="text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ trialContent.trialTitle }}</NuxtLink>
+                    <span class="text-[11px] text-muted-color"> · {{ t(`bizApplication.trial.statusValue.${trialContent.trialStatus}`) }}</span>
+                </dd>
+            </template>
+            <dt class="text-muted-color">{{ trialContent ? t('bizApplication.trial.periodLabel') : detail.kind === 'HOTDEAL_POST' ? t('bizApplication.dealPeriod') : t('bizApplication.periodLabel') }}</dt>
             <dd class="m-0 tabular-nums">
                 <span :class="EMPH.date">{{ UtilBizApplicationMessages.period(t, time, detail.period) }}</span>
                 <span class="text-muted-color"> · {{ t('bizApplication.daysN', { n: UtilBizApplication.days(detail.period) }) }}</span>
             </dd>
-            <template v-if="detail.adType && detail.status === 'SUBMITTED'">
+            <template v-if="detail.adType && !trialContent && detail.status === 'SUBMITTED'">
                 <dt class="text-muted-color">{{ t('bizApplication.slots') }}</dt>
                 <dd class="m-0 font-semibold" :class="detail.remainingSlots <= 0 ? EMPH.refund : EMPH.ok">{{ t('bizApplication.slotsLeft', { n: detail.remainingSlots, limit: detail.slotLimit }) }}</dd>
             </template>
@@ -207,8 +215,10 @@
 
         <!-- 심사 대기 -->
         <section v-if="detail.status === 'SUBMITTED'" class="flex flex-col gap-3">
-            <Message v-if="UtilBizApplication.started(detail.period, now)" severity="warn" :closable="false"><span class="text-[13px]">{{ t('bizApplication.startPassedNote') }}</span></Message>
-            <Message v-if="detail.adType && detail.remainingSlots <= 0" severity="error" :closable="false"><span class="text-[13px]">{{ t('bizApplication.noSlotNote') }}</span></Message>
+            <!-- 체험단 건은 기간 노출 상품이 아니라(기간 = 모집 신청 기간) 시작 지남·자리 경고가 없다 -->
+            <Message v-if="trialContent" severity="secondary" :closable="false"><span class="text-[13px]">{{ t('bizApplication.trial.amountLocked') }}</span></Message>
+            <Message v-else-if="UtilBizApplication.started(detail.period, now)" severity="warn" :closable="false"><span class="text-[13px]">{{ t('bizApplication.startPassedNote') }}</span></Message>
+            <Message v-if="detail.adType && !trialContent && detail.remainingSlots <= 0" severity="error" :closable="false"><span class="text-[13px]">{{ t('bizApplication.noSlotNote') }}</span></Message>
             <fieldset class="m-0 flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2.5" :disabled="!canManage || busy">
                 <legend class="px-1 text-[13px] font-semibold">{{ t('bizApplication.checklist') }} <span class="font-normal tabular-nums text-muted-color">{{ checked.length }}/{{ UtilBizApplication.CHECKLIST.length }}</span></legend>
                 <div v-for="item in UtilBizApplication.CHECKLIST" :key="item" class="flex items-start gap-2">
@@ -390,6 +400,7 @@ import type { DocIntakeEvent, DocIntakeHost } from '~/composables/docintake/useD
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 import UtilDocIntake from '~/utils/util-doc-intake';
+import UtilTrial from '~/utils/util-trial';
 
 interface Props {
     detail: BizApplicationDetail;
@@ -461,8 +472,13 @@ const canClaim = computed(() => {
 const operator = computed(() => props.detail.source === 'OPERATOR');
 /** 내가 등록한 건인데 자기 승인을 막는 설정 — 서버 409 `BIZ_SELF_APPROVAL_DENIED` */
 const selfDenied = computed(() => props.detail.registrant?.me === true && props.detail.selfApproval === 'DENY');
-/** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출)일 때만 나눠 보인다 */
-const quoteLines = computed(() => (props.detail.quote.lines && props.detail.quote.lines.length > 1 ? props.detail.quote.lines : []));
+/** 체험단 건 내용(kind TRIAL) — 아니면 null */
+const trialContent = computed(() => (props.detail.content.type === 'TRIAL' ? props.detail.content : null));
+/** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출 · 체험단 + 대신 발송비)일 때만 나눠 보인다. 체험단은 단위(인원·건)를 보이려고 한 줄이어도 */
+const quoteLines = computed(() => {
+    const lines = props.detail.quote.lines ?? [];
+    return lines.length > 1 || (trialContent.value && lines.length > 0) ? lines : [];
+});
 const history = computed(() => [...props.detail.history].sort((a, b) => b.at.localeCompare(a.at)));
 /** 계약서 인쇄본·팩스 접수 — 줄 수(잘못 기록 포함, 결제 기록 칸을 보일까) · 스캔본 후보 */
 const paperRows = computed(() => props.intake?.bundle?.intakes.length ?? 0);

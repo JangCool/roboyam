@@ -3,9 +3,10 @@
         신청 건 오른쪽 칸 — 공개 화면에서 어떻게 보일지(배너 / 한 줄 / 핫딜 카드). 모든 미리보기에 「광고」 표시가 붙고,
         링크는 `rel="sponsored nofollow noopener"`(공개 노출과 같다 — noreferrer 는 광고주 유입 집계 때문에 뺀다). 날개 배너는 세로 틀(4:15, 폭 160px). 실제 테마 틀이 아니라 목업 모양이다.
         사업자 핫딜 글(2차): 올라갈 게시판·말머리 · 상품 이미지 · 「광고」 + 상호 · 재고(옛 값 PLENTY·LIMITED 도 같은 문구) — 새 칸이 없으면 예전 모양.
+        체험단 건(kind TRIAL — V242): 노출 소재가 없어 모집 카드(모집 이름 · 상태 · 상품 · 형태 · 보내는 쪽 · 뽑힌 인원 · 단위·단가 · 1명당 발송비 · 금액) + [모집 상세 열기](`/ads/trials/{trialId}`).
     -->
     <div class="flex flex-col gap-3 p-3">
-        <h3 class="m-0 text-sm font-semibold">{{ t('bizApplication.preview') }}</h3>
+        <h3 class="m-0 text-sm font-semibold">{{ content.type === 'TRIAL' ? t('bizApplication.trial.title') : t('bizApplication.preview') }}</h3>
 
         <div class="rounded-lg border border-dashed border-(--line) bg-(--p-content-hover-background) p-3">
             <template v-if="content.type === 'AD_BANNER'">
@@ -31,6 +32,39 @@
                     <a :href="content.linkUrl" target="_blank" rel="sponsored nofollow noopener" class="min-w-0 truncate hover:underline">{{ content.text }}</a>
                 </div>
                 <p class="m-0 mt-2 text-xs text-muted-color">{{ t('bizApplication.textLength', { n: content.text.length }) }}</p>
+            </template>
+
+            <!-- 체험단 건 — 모집 카드 -->
+            <template v-else-if="content.type === 'TRIAL'">
+                <div class="flex flex-col gap-2 rounded bg-(--p-content-background) px-3 py-2.5" data-testid="biz-app-preview-trial">
+                    <span class="flex flex-wrap items-center gap-1.5">
+                        <Tag :value="t(`bizApplication.trial.statusValue.${content.trialStatus}`)" severity="secondary" class="text-[11px]!" />
+                        <strong class="min-w-0 text-[14px] leading-snug [overflow-wrap:anywhere]">{{ content.trialTitle }}</strong>
+                    </span>
+                    <dl class="m-0 grid grid-cols-[6.5rem_1fr] gap-x-2 gap-y-1 text-xs">
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.product') }}</dt>
+                        <dd class="m-0 [overflow-wrap:anywhere]">{{ content.productName }}</dd>
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.form') }}</dt>
+                        <dd class="m-0">{{ t(`bizApplication.trial.formValue.${content.form}`) }}</dd>
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.shipper') }}</dt>
+                        <dd class="m-0">{{ t(`bizApplication.trial.shipperValue.${content.shipper}`) }}</dd>
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.selected') }}</dt>
+                        <dd class="m-0 tabular-nums">{{ content.selectedCount === null ? t('bizApplication.trial.pending') : t('bizApplication.trial.selectedN', { n: content.selectedCount }) }}</dd>
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.priceUnit') }}</dt>
+                        <dd class="m-0">{{ t(`bizApplication.trial.priceUnitValue.${content.priceUnit}`) }}</dd>
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.unitPrice') }}</dt>
+                        <dd class="m-0 tabular-nums">{{ UtilBizApplicationMessages.won(t, content.unitPrice, locale) }}</dd>
+                        <template v-if="content.shipper === 'OPERATOR'">
+                            <dt class="text-muted-color">{{ t('bizApplication.trial.shippingFee') }}</dt>
+                            <dd class="m-0 tabular-nums">{{ UtilBizApplicationMessages.won(t, content.shippingFeePerPerson, locale) }}</dd>
+                        </template>
+                        <dt class="text-muted-color">{{ t('bizApplication.trial.amount') }}</dt>
+                        <dd class="m-0 font-semibold tabular-nums">{{ content.amount === null ? t('bizApplication.trial.pending') : UtilBizApplicationMessages.won(t, content.amount, locale) }}</dd>
+                    </dl>
+                </div>
+                <NuxtLink :to="UtilTrial.detailPath(content.trialId)" class="mt-2 inline-flex items-center gap-1 rounded text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    <i class="pi pi-external-link text-[10px]" aria-hidden="true" />{{ t('bizApplication.trial.open') }}
+                </NuxtLink>
             </template>
 
             <template v-else>
@@ -66,13 +100,14 @@
             </template>
         </div>
 
-        <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ t('bizApplication.previewNote') }}</p>
+        <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ content.type === 'TRIAL' ? t('bizApplication.trial.previewNote') : t('bizApplication.previewNote') }}</p>
     </div>
 </template>
 
 <script setup lang="ts">
 import type { BizAdType, BizApplicationContent } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
+import UtilTrial from '~/utils/util-trial';
 
 interface Props {
     content: BizApplicationContent;

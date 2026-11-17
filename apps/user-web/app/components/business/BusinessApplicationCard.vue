@@ -6,7 +6,7 @@
         data-testid="business-application-card"
     >
         <div class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
-            <i :class="[UtilBusiness.isAd(item.kind) ? 'pi pi-megaphone' : 'pi pi-tag', 'text-base']" />
+            <i :class="[UtilBusiness.kindIcon(item.kind), 'text-base']" />
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
             <div class="flex flex-wrap items-center gap-1.5">

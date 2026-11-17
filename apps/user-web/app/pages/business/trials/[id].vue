@@ -5,6 +5,9 @@
           ① 신청자 — 닉네임 · 리뷰어 단계 · 몫 · 사용기 수 · 평균 추천 · 약속 지킨 비율 · [후보 추천] 켬/끔(최종 선정은 운영자 — 회원 개인정보는 없다).
           ② 뽑힌 사람 — 보내는 쪽이 광고주면 받을 곳(동의 범위 — 반납 확인(제공형은 받음) 뒤 파기) · [송장 넣기](발송 전 사진 필수 — 없으면 처리 안 됨) · 받음 · 사용기 ·
              (대여형) [반납 받음](반납 사진) · [파손 신고](사진 + 설명 — 회원 7일 이의 뒤 운영자 판정). 보내는 쪽이 운영자면 주소 없이 진행 상황만(발송은 운영자가 한다).
+        광고 결제(V242 「유료 결제 연결」 — `trial.payment`): 머리 아래 구획 — 상태 · 금액 · 기한/결제 시각 + 상태별 안내.
+          온라인 결제 대기이고 `payOnline` 이면 [결제하기](신청 건 `/business/applications/{id}?pay=1` — 그 화면이 결제창을 연다), 그 밖 신청 건이 있으면 [신청 건 보기](입금 안내 등).
+          `shippingAllowed` false 면 [송장 넣기]를 막고 안내(서버 409 `TRIAL_PAYMENT_PENDING` — 문구를 보이고 다시 읽는다). 운영자가 취소한 줄은 「운영자가 취소했어요」 + 단추 없음.
         서버 오류는 대화상자 안(칸 오류는 칸 아래)·목록 한 줄 실패는 토스트.
     -->
     <div class="content-card flex flex-col gap-4" data-testid="business-trial-detail">
@@ -29,6 +32,41 @@
                     <span>{{ t('trial.periodLine', { from: time.full(trial!.applyStartAt), to: time.full(trial!.applyEndAt) }) }}</span>
                 </p>
             </header>
+
+            <!-- 광고 결제(V242) -->
+            <section class="flex flex-col gap-2 rounded-xl border p-3 text-sm" :class="paymentBorder" :aria-labelledby="paymentId" data-testid="business-trial-payment" :data-status="trial!.payment.status">
+                <h2 :id="paymentId" class="m-0 flex flex-wrap items-center gap-1.5 text-base font-bold">
+                    {{ t('trial.bizPayment.title') }}
+                    <span :class="[TAG, paymentTone]"><span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${trial!.payment.status}`) }}</span></span>
+                </h2>
+                <p v-if="trial!.payment.required" class="m-0 flex flex-wrap gap-x-3 text-xs tabular-nums">
+                    <span class="font-semibold">{{ t('trial.bizPayment.amount', { total: won(trial!.payment.total), supply: won(trial!.payment.supply), vat: won(trial!.payment.vat) }) }}</span>
+                    <span v-if="trial!.payment.paidAt" class="text-muted-color">{{ t('trial.bizPayment.paidAt', { at: time.full(trial!.payment.paidAt) }) }}</span>
+                    <span v-else-if="trial!.payment.deadlineAt" class="text-muted-color">{{ t('trial.bizPayment.deadline', { at: time.full(trial!.payment.deadlineAt) }) }}</span>
+                </p>
+                <p class="m-0 text-xs text-muted-color">{{ t(`trial.bizPayment.note.${trial!.payment.status}`) }}</p>
+                <div v-if="trial!.payment.bizApplicationId && trial!.payment.status !== 'NOT_REQUIRED'" class="flex flex-wrap gap-2">
+                    <Button
+                        v-if="trial!.payment.status === 'AWAITING_PAYMENT' && trial!.payment.payOnline"
+                        as="router-link"
+                        :to="{ path: UtilBusiness.applicationPath(trial!.payment.bizApplicationId), query: { pay: '1' } }"
+                        :label="t('trial.bizPayment.pay')"
+                        icon="pi pi-credit-card"
+                        size="small"
+                        data-testid="business-trial-pay"
+                    />
+                    <Button
+                        v-else
+                        as="router-link"
+                        :to="UtilBusiness.applicationPath(trial!.payment.bizApplicationId)"
+                        :label="t('trial.bizPayment.openApplication')"
+                        icon="pi pi-file"
+                        size="small"
+                        severity="secondary"
+                        variant="outlined"
+                    />
+                </div>
+            </section>
 
             <!-- ① 신청자 -->
             <section v-if="view.applicants.items.length" class="flex flex-col gap-2" :aria-labelledby="applicantsId">
@@ -78,6 +116,7 @@
             <section class="flex flex-col gap-2" :aria-labelledby="participantsId">
                 <h2 :id="participantsId" class="m-0 text-base font-bold">{{ t('trial.bizParticipantsTitle', { n: trial!.participants.length }) }}</h2>
                 <p v-if="trial!.shipper === 'OPERATOR'" class="m-0 text-xs text-muted-color">{{ t('trial.bizOperatorShips') }}</p>
+                <Message v-else-if="!trial!.payment.shippingAllowed" severity="warn" size="small" :closable="false" data-testid="business-trial-shipping-blocked">{{ t('trial.bizPayment.shippingBlocked') }}</Message>
                 <EmptyState v-if="trial!.participants.length === 0" icon="pi pi-users" :title="t('trial.bizNoParticipants')" />
                 <ul v-else class="m-0 flex list-none flex-col gap-2 p-0">
                     <li v-for="p in trial!.participants" :key="p.id" class="rounded-xl border border-surface p-3 text-sm">
@@ -96,7 +135,8 @@
                             </template>
                         </div>
                         <ul class="m-0 mt-2 flex list-none flex-col gap-1 p-0 text-xs">
-                            <li>{{ p.trackingNo ? t('trial.trackingLine', { carrier: p.carrier ?? '', no: p.trackingNo }) : t('trial.bizNotShipped') }}</li>
+                            <li v-if="p.cancelledAt" class="font-medium text-red-700 dark:text-red-400" data-testid="business-trial-participant-cancelled">{{ t('trial.bizCancelledLine', { at: time.date(p.cancelledAt) }) }}</li>
+                            <li v-else>{{ p.trackingNo ? t('trial.trackingLine', { carrier: p.carrier ?? '', no: p.trackingNo }) : t('trial.bizNotShipped') }}</li>
                             <li v-if="p.receivedAt">{{ t('trial.bizReceivedAt', { at: time.date(p.receivedAt) }) }}</li>
                             <li v-if="p.reviewPost">
                                 <NuxtLink :to="`/posts/${encodeURIComponent(p.reviewPost.id)}`" class="text-primary hover:underline">{{ p.reviewPost.name }}</NuxtLink>
@@ -109,8 +149,8 @@
                         <div v-if="p.photos.length" class="mt-2 flex flex-wrap gap-1.5">
                             <a v-for="photo in p.photos" :key="photo.id" :href="photo.url" target="_blank" rel="noopener"><img :src="photo.url" alt="" class="size-14 rounded object-cover" loading="lazy" /></a>
                         </div>
-                        <div v-if="trial!.shipper === 'ADVERTISER'" class="mt-2 flex flex-wrap gap-2">
-                            <Button v-if="!p.shippedAt" type="button" :label="t('trial.bizShip')" icon="pi pi-truck" size="small" @click="openAction('ship', p)" />
+                        <div v-if="trial!.shipper === 'ADVERTISER' && !p.cancelledAt" class="mt-2 flex flex-wrap gap-2">
+                            <Button v-if="!p.shippedAt" type="button" :label="t('trial.bizShip')" icon="pi pi-truck" size="small" :disabled="!trial!.payment.shippingAllowed" @click="openAction('ship', p)" />
                             <Button v-if="trial!.form === 'LEND' && p.receivedAt && !p.returnedAt" type="button" :label="t('trial.bizReturned')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" @click="openAction('returned', p)" />
                             <Button v-if="trial!.form === 'LEND' && p.returnedAt" type="button" :label="t('trial.bizDamage')" icon="pi pi-exclamation-triangle" size="small" severity="warn" variant="outlined" @click="openAction('damage', p)" />
                         </div>
@@ -159,6 +199,7 @@
 <script setup lang="ts">
 import type { BizTrialParticipant, BizTrialUploaded, BizTrialView } from '~/composables/business/api/useBusinessTrialApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBusiness from '~/utils/util-business';
 import UtilTrial from '~/utils/util-trial';
 import UtilTrialMessages from '~/utils/util-trial-messages';
 
@@ -174,6 +215,8 @@ const toast = useAppToast();
 const time = useDisplayTime();
 const applicantsId = useId();
 const participantsId = useId();
+const paymentId = useId();
+const won = (n: number) => UtilTrialMessages.won(t, n, locale.value);
 
 const id = computed(() => String(route.params.id ?? ''));
 const view = ref<BizTrialView | null>(null);
@@ -193,6 +236,24 @@ async function load(): Promise<void> {
     }
 }
 watch(id, () => void load(), { immediate: true });
+
+/** 결제 상태 딱지 · 테두리 색 — 결제 완료 초록 · 대기 주황 · 취소 빨강 · 그 밖 흐림 */
+const paymentKind = computed<'ok' | 'wait' | 'bad' | 'none'>(() => {
+    const s = trial.value?.payment.status;
+    if (s === 'PAID') return 'ok';
+    if (s === 'AWAITING_APPROVAL' || s === 'AWAITING_PAYMENT' || s === 'AWAITING_DEPOSIT') return 'wait';
+    return s === 'CANCELED' ? 'bad' : 'none';
+});
+const paymentTone = computed(() =>
+    paymentKind.value === 'ok'
+        ? 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200'
+        : paymentKind.value === 'wait'
+          ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200'
+          : paymentKind.value === 'bad'
+            ? 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200'
+            : 'bg-surface-100 text-muted-color dark:bg-surface-800',
+);
+const paymentBorder = computed(() => (paymentKind.value === 'wait' ? 'border-amber-300 dark:border-amber-700' : 'border-surface'));
 
 function damagesOf(participantId: string) {
     return trial.value?.damageReports.filter((d) => d.participantId === participantId) ?? [];
@@ -292,6 +353,8 @@ async function submitAction(): Promise<void> {
             fieldErrors.value = { ...e.fields };
             if (e.fields.photoIds) photoError.value = e.fields.photoIds;
         } else actionError.value = UtilBoardMessages.of(t, e);
+        // 결제 전 송장(409 TRIAL_PAYMENT_PENDING) · 취소된 줄(409 TRIAL_PARTICIPANT_CANCELLED) — 문구를 보이고 결제 상태·줄을 다시 읽는다
+        if (e instanceof ApiError && e.status === 409 && (e.code === 'TRIAL_PAYMENT_PENDING' || e.code === 'TRIAL_PARTICIPANT_CANCELLED')) void load();
     } finally {
         acting.value = false;
     }

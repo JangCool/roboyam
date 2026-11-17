@@ -96,6 +96,10 @@ export interface BusinessSuspendImpact {
     scheduled: number;
     /** 진행 중 */
     running: number;
+    /** 체험단 모집 전 단계(준비·모집 중·뽑는 중) — 정지·탈퇴면 모집을 취소한다(V242 — 위 셋은 체험단 건을 뺀 수) */
+    trialRecruiting: number;
+    /** 체험단 진행 중 — 정지해도 그대로 진행한다(V242) */
+    trialRunning: number;
 }
 
 /**

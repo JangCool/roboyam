@@ -5,6 +5,7 @@
           신청함(뽑기 기다림) → 뽑힘(발송 기다림) → 배송 중(송장 · [받음] — 7일 안 안 누르면 송장 기준 배송 완료) → 사용기 쓸 차례([쓰러 가기] · 기한 · 남은 날 — 연결된 글만 센다)
           → (대여형) 반납할 차례(반납 기한 · 반납 안내 — 광고주 부담 수거·착불 · 미반납 14일이면 영구 금지) → 끝(약속 지킴).
         파손 신고를 받았으면 그 줄 아래 신고 카드(사진 · 설명 · 이의 기한) + [이의 제기](서버 `canObject` — 받을 때부터 그랬다·택배 파손 등) · 판정이 나면 판정과 메모.
+        운영자가 발송 전에 뽑힌 줄을 취소했으면(`participation.cancelledAt` — V242) 「운영자가 취소함」 딱지 + 취소 시각 안내(사유는 알림).
         단추는 서버가 준 `canCancel`·`canReceive`·`canWrite`·`canObject` 로만 보인다(판정은 서버). 로그인 필요.
     -->
     <div class="content-card flex flex-col gap-4" data-testid="my-trials">
@@ -45,7 +46,8 @@
                 <div v-if="row.participation" class="mt-3 flex flex-col gap-2 rounded-lg bg-surface-50 p-3 text-[13px] dark:bg-surface-800/50">
                     <p v-if="row.participation.trackingNo" class="m-0 tabular-nums">{{ t('trial.trackingLine', { carrier: row.participation.carrier ?? '', no: row.participation.trackingNo }) }}</p>
 
-                    <p v-if="UtilTrial.stageOf(row) === 'WAIT_SHIP'" class="m-0 text-muted-color">{{ t('trial.waitShipText') }}</p>
+                    <p v-if="UtilTrial.stageOf(row) === 'OPERATOR_CANCELLED'" class="m-0 text-muted-color" data-testid="my-trial-operator-cancelled">{{ t('trial.operatorCancelledText', { at: time.full(row.participation.cancelledAt ?? '') }) }}</p>
+                    <p v-else-if="UtilTrial.stageOf(row) === 'WAIT_SHIP'" class="m-0 text-muted-color">{{ t('trial.waitShipText') }}</p>
                     <template v-else-if="UtilTrial.stageOf(row) === 'SHIPPED'">
                         <p class="m-0 text-muted-color">{{ t('trial.shippedText') }}</p>
                         <Button v-if="row.participation.canReceive" type="button" :label="t('trial.received')" icon="pi pi-check" size="small" class="self-start" :loading="busyId === row.participation.id" @click="markReceived(row.participation.id)" />
@@ -170,7 +172,7 @@ void load();
 function stageClass(stage: MyTrialStage): string {
     if (stage === 'WRITE' || stage === 'SHIPPED' || stage === 'RETURN') return 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200';
     if (stage === 'DONE' || stage === 'WAIT_SHIP') return 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200';
-    if (stage === 'UNRETURNED') return 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200';
+    if (stage === 'UNRETURNED' || stage === 'OPERATOR_CANCELLED') return 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200';
     return 'bg-surface-100 text-muted-color dark:bg-surface-800';
 }
 

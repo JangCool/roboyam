@@ -206,9 +206,20 @@ export default class UtilBusiness {
         });
     }
 
-    /** 광고 종류인가(핫딜 아님) */
+    /** 광고 종류인가(핫딜·체험단 아님 — 소재·새 광고 신청 길이 있는 종류) */
     static isAd(kind: BizApplicationKind): boolean {
         return kind === 'AD_BANNER' || kind === 'AD_TEXT_LINE';
+    }
+
+    /** 체험단 건인가(V242 — 운영자가 만든 건이라 사업자 취소·소재 변경·환불 요청·다시 신청 단추를 감춘다) */
+    static isTrial(kind: BizApplicationKind): boolean {
+        return kind === 'TRIAL';
+    }
+
+    /** 종류 아이콘 — 광고 확성기 · 체험단 상자 · 핫딜 가격표 */
+    static kindIcon(kind: BizApplicationKind): string {
+        if (UtilBusiness.isAd(kind)) return 'pi pi-megaphone';
+        return kind === 'TRIAL' ? 'pi pi-box' : 'pi pi-tag';
     }
 
     /**

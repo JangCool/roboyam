@@ -98,6 +98,9 @@ export default class UtilBizApplicationMessages {
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':
             case 'CLAIM_REFUNDED':
+            // 체험단 견적 굳힘 · 다시 셈(V242) — note = 합계(원)
+            case 'TRIAL_QUOTED':
+            case 'TRIAL_REQUOTED':
                 return amount();
             case 'TAKEN_DOWN':
                 if (note === 'EMERGENCY' || advertiser(note)) return t(`bizApplication.takedownCause.${note}`);

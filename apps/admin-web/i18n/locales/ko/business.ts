@@ -107,6 +107,7 @@ export default {
     impactPending: '결제·입금 대기',
     impactScheduled: '시작 전 예약',
     impactRunning: '진행 중',
+    impactTrial: '체험단 — 모집 전 단계 {recruiting}건은 취소되고, 진행 중 {running}건은 그대로 진행돼요.',
     countN: '{n}건',
     defaultChoice: '(기본)',
     optPendingCancel: '자동 취소하고 자리를 돌려놓기',

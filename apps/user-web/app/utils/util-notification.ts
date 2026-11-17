@@ -117,6 +117,8 @@ export default class UtilNotification {
         if (type === 'TRIAL_REVIEW_DUE' || type === 'TRIAL_RETURN_DUE') return 'pi pi-clock';
         if (type === 'TRIAL_UNRETURNED' || type === 'TRIAL_DAMAGE_REPORTED') return 'pi pi-exclamation-triangle';
         if (type === 'TRIAL_DAMAGE_DECIDED') return 'pi pi-check-square';
+        // 운영자가 뽑힌 체험단을 취소함(V242) — X 동그라미(문장·사유·이동은 서버가 준다)
+        if (type === 'TRIAL_CANCELLED_BY_OPERATOR') return 'pi pi-times-circle';
         // 구매 인증 — 승인 영수증 · 거절 금지
         if (type === 'PURCHASE_PROOF_APPROVED') return 'pi pi-receipt';
         if (type === 'PURCHASE_PROOF_REJECTED') return 'pi pi-ban';

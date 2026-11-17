@@ -2,7 +2,7 @@ import type { PurchaseSource } from '~/composables/board/api/usePostApi.types';
 import type { MyTrial, TrialListStatus } from '~/composables/trial/api/useTrialApi.types';
 
 /** 내 체험단 한 줄의 지금 단계 */
-export type MyTrialStage = 'APPLIED' | 'NOT_SELECTED' | 'CANCELLED' | 'WAIT_SHIP' | 'SHIPPED' | 'WRITE' | 'RETURN' | 'UNRETURNED' | 'DONE';
+export type MyTrialStage = 'APPLIED' | 'NOT_SELECTED' | 'CANCELLED' | 'OPERATOR_CANCELLED' | 'WAIT_SHIP' | 'SHIPPED' | 'WRITE' | 'RETURN' | 'UNRETURNED' | 'DONE';
 
 /**
  * 체험단·구입 경로 화면의 순수 규칙(trial-group-contract) — 주소 · 탭 · 내 체험단 단계 · 구입 경로 칩. 문구가 낀 것은 `UtilTrialMessages`.
@@ -64,6 +64,7 @@ export default class UtilTrial {
         if (row.applicationStatus === 'CANCELLED') return 'CANCELLED';
         const p = row.participation;
         if (!p) return 'WAIT_SHIP';
+        if (p.cancelledAt) return 'OPERATOR_CANCELLED'; // 운영자가 발송 전에 취소(V242)
         if (p.unreturnedAt) return 'UNRETURNED';
         if (!p.shippedAt) return 'WAIT_SHIP';
         if (!p.receivedAt) return 'SHIPPED';

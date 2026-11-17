@@ -1,5 +1,6 @@
 import type {
     AdminTrialApplicantPage,
+    AdminTrialCancelParticipantRequest,
     AdminTrialDamageReport,
     AdminTrialDamageRequest,
     AdminTrialDecideRequest,
@@ -25,6 +26,9 @@ import type {
  *  - `GET  /api/admin/trials/{id}/applications` → `AdminTrialApplicantPage` · `POST /api/admin/trials/{id}/select` `{ applicationIds }` → 상세(인원 넘으면 400)
  *  - `POST /api/admin/trials/applications/{id}/recommend` `{ recommended }` → 204(운영자도 후보 추천)
  *  - 입고·발송 `POST …/{id}/stock` → 상세 · `PUT …/participants/{id}/shipment` → 204 · `POST …/participants/{id}/returned` → 204 · `POST …/{id}/return-shipment` → 상세
+ *    (유료 모집은 광고 결제가 끝나야 입고·발송 — 아니면 409 `TRIAL_PAYMENT_PENDING`, V242)
+ *  - 뽑힌 줄 취소 `POST …/participants/{id}/cancel` `{ reason }` → 상세(진행 중 · 발송 전만 — 보냈으면 409 `TRIAL_SHIPPING_STARTED`, 이미 취소 409 `TRIAL_PARTICIPANT_CANCELLED`, V242)
+ *  - 모집 취소(`PUT …/{id}` `action: CANCEL`)는 진행 중에도 발송 전이면 된다(광고 신청 건도 함께 — 결제 뒤면 전액 환불, 보냈으면 409 `TRIAL_SHIPPING_STARTED`)
  *  - 파손 `POST …/participants/{id}/damage-reports` → 201 신고 · `POST /api/admin/trials/damage-reports/{id}/decide` `{ verdict, note }` → 판정한 신고
  *  - 구매 인증 `GET /api/admin/purchase-proofs/{id}/photo`(JPEG · 열람 기록) · `POST …/{id}/approve`(본문 없음) · `POST …/{id}/reject` `{ reason }` → 204
  *  - `GET/PUT /api/admin/trials/settings`
@@ -41,6 +45,7 @@ const PATH = {
     stock: (id: string) => `${ROOT}/${encodeURIComponent(id)}/stock`,
     shipment: (participantId: string) => `${ROOT}/participants/${encodeURIComponent(participantId)}/shipment`,
     returned: (participantId: string) => `${ROOT}/participants/${encodeURIComponent(participantId)}/returned`,
+    cancelParticipant: (participantId: string) => `${ROOT}/participants/${encodeURIComponent(participantId)}/cancel`,
     returnShipment: (id: string) => `${ROOT}/${encodeURIComponent(id)}/return-shipment`,
     damage: (participantId: string) => `${ROOT}/participants/${encodeURIComponent(participantId)}/damage-reports`,
     decide: (reportId: string) => `${ROOT}/damage-reports/${encodeURIComponent(reportId)}/decide`,
@@ -113,6 +118,11 @@ export function useTrialApi() {
         /** 회원별 송장 */
         shipment: (participantId: string, body: AdminTrialShipmentRequest): Promise<void> => {
             return client.put<void>(PATH.shipment(participantId), body);
+        },
+
+        /** 뽑힌 줄 운영자 취소(발송 전 — 사유는 회원에게 보인다) → 바뀐 상세 */
+        cancelParticipant: (participantId: string, body: AdminTrialCancelParticipantRequest): Promise<AdminTrialDetail> => {
+            return client.post<AdminTrialDetail>(PATH.cancelParticipant(participantId), body);
         },
 
         /** 반납 받음 + 사진 */

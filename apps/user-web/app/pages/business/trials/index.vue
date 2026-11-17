@@ -25,6 +25,10 @@
                         <span :class="[TAG, 'bg-surface-100 dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.status.${item.status}`) }}</span></span>
                         <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.form.${item.form}`) }}</span></span>
                         <span class="text-xs text-muted-color">{{ t(`trial.shipper.${item.shipper}`) }}</span>
+                        <!-- 광고 결제 — 결제할 차례(승인·결제·입금 대기)만 눈에 띄게(V242) -->
+                        <span v-if="item.paymentStatus === 'AWAITING_PAYMENT' || item.paymentStatus === 'AWAITING_DEPOSIT' || item.paymentStatus === 'AWAITING_APPROVAL'" :class="[TAG, 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200']">
+                            <span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
+                        </span>
                     </p>
                     <span class="line-clamp-1 text-sm font-semibold">{{ item.title }}</span>
                     <span class="flex flex-wrap gap-x-3 text-xs tabular-nums text-muted-color">

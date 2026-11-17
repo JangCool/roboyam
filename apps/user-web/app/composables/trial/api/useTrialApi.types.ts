@@ -164,6 +164,8 @@ export interface MyTrialParticipation {
     kept: boolean | null;
     unreturnedAt: string | null;
     damageReports: MyTrialDamage[];
+    /** 운영자가 이 줄을 취소함(발송 전 — V242). 취소하지 않았으면 null — 사유는 알림 `TRIAL_CANCELLED_BY_OPERATOR` 로 간다 */
+    cancelledAt: string | null;
 }
 
 /** 내 체험단 한 줄(서버 `TrialViews.MyTrial`) — `GET /api/me/trials` 는 이것의 배열 */
