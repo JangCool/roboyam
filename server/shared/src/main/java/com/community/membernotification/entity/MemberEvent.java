@@ -126,7 +126,9 @@ public enum MemberEvent {
     REWARD_EVENT_GRANTED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_GRANTED, MemberEventLockReason.ACTION, null),
     REWARD_EVENT_REVOKED(NotificationArea.MEMBER, MemberNotificationType.REWARD_EVENT_REVOKED, MemberEventLockReason.ACTION, null),
     /** 내 글의 처리 상태가 바뀜(V166 — 버그 신고·기능 요청 같은 운영 게시판) — 진행 안내라 회원이 끌 수 있다(잠금 없음, 가정) */
-    POST_STATUS_CHANGED(NotificationArea.CONTENT, MemberNotificationType.POST_STATUS_CHANGED, null, null);
+    POST_STATUS_CHANGED(NotificationArea.CONTENT, MemberNotificationType.POST_STATUS_CHANGED, null, null),
+    /** 칭호를 받음(V240 — member-title-contract) — 축하 알림이라 회원이 끌 수 있다(잠금 없음, 가정). 축하 창은 알림과 따로(내 칭호의 unseen) */
+    TITLE_GRANTED(NotificationArea.MEMBER, MemberNotificationType.TITLE_GRANTED, null, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

@@ -14,6 +14,8 @@
                 <b class="text-sm font-semibold text-surface-700 md:col-start-1 md:mb-1 dark:text-surface-200">{{ siteLabel }}</b>
                 <!-- 사이트 소개(`/about`, 같은 탭) — 사이트 정보의 `about` 이 true 일 때만(옛 서버는 칸이 없어 숨김). 데스크톱은 1열 사이트 이름 바로 아래(문의·© 위), 모바일은 사이트 이름 다음 맨 앞(약관 링크 앞) -->
                 <NuxtLink v-if="hasAbout" to="/about" class="hover:underline" :class="personal ? 'md:col-start-1' : ''" data-testid="footer-about">{{ t('siteAbout.title') }}</NuxtLink>
+                <!-- 명예의 전당 · 칭호 도감(member-title-contract — 누구나, 같은 탭). 사이트 소개 바로 뒤(데스크톱 개인 모양은 1열) -->
+                <NuxtLink :to="UtilMemberTitle.HALL_PATH" class="hover:underline" :class="personal ? 'md:col-start-1' : ''" data-testid="footer-hall-of-fame">{{ t('memberTitle.hallOfFame') }}</NuxtLink>
                 <!-- 약관 링크 — 캐시 관리 미리보기의 영역 표시(`data-cache-area`, `contents` 라 줄 배치는 그대로 — 데스크톱 3열에서는 2열 한 칸) -->
                 <span class="contents" :class="personal ? 'md:col-start-2 md:row-span-3 md:row-start-1 md:flex md:flex-col md:items-start md:gap-1' : ''" data-cache-area="terms.public">
                     <span v-if="personal" class="hidden font-semibold text-surface-700 md:block dark:text-surface-200">{{ t('shell.footerTerms') }}</span>
@@ -74,6 +76,7 @@
 import UtilFooterNotice from '~/utils/util-footer-notice';
 import UtilBusiness from '~/utils/util-business';
 import UtilMenu from '~/utils/util-menu';
+import UtilMemberTitle from '~/utils/util-member-title';
 
 const { t } = useI18n();
 const { siteLabel } = useSiteName();

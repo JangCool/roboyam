@@ -1,7 +1,7 @@
 <template>
     <!--
-        게시판 운영 내역 탭 머리 — 「처리 내역」(`/boards/{slug}/actions`) · 「제재 내역」(`/boards/{slug}/sanctions`) 두 화면 위에 같이 선다(board-staff-action-contract 「화면 > user-web」).
-        게시판 이름(→ 게시판) + 두 탭(주소 링크 — 지금 화면은 `aria-current="page"`). 운영진 판정은 각 화면의 목록 응답이 한다.
+        게시판 운영 내역 탭 머리 — 「처리 내역」(`/boards/{slug}/actions`) · 「제재 내역」(`/boards/{slug}/sanctions`) · 「칭호 신청」(`/boards/{slug}/titles` — member-title-contract 「구현 결정」 5, 매니저 심사) 세 화면 위에 같이 선다(board-staff-action-contract 「화면 > user-web」).
+        게시판 이름(→ 게시판) + 세 탭(주소 링크 — 지금 화면은 `aria-current="page"`). 운영진 판정은 각 화면의 목록 응답이 한다.
     -->
     <div class="flex flex-col gap-2">
         <NuxtLink :to="`/boards/${encodeURIComponent(slug)}`" class="self-start text-xs font-semibold text-primary hover:underline">{{ boardName }}</NuxtLink>
@@ -24,6 +24,7 @@
 <script setup lang="ts">
 import UtilBoardSanction from '~/utils/util-board-sanction';
 import UtilBoardStaffAction from '~/utils/util-board-staff-action';
+import UtilMemberTitle from '~/utils/util-member-title';
 
 interface Props {
     /** 게시판 slug */
@@ -31,7 +32,7 @@ interface Props {
     /** 화면 언어의 게시판 이름 */
     boardName: string;
     /** 지금 화면 */
-    active: 'actions' | 'sanctions';
+    active: 'actions' | 'sanctions' | 'titles';
 }
 
 const props = withDefaults(defineProps<Props>(), {});
@@ -41,5 +42,7 @@ const { t } = useI18n();
 const tabs = computed(() => [
     { key: 'actions' as const, label: t('boardStaffAction.tabActions'), to: UtilBoardStaffAction.listPath(props.slug) },
     { key: 'sanctions' as const, label: t('boardStaffAction.tabSanctions'), to: UtilBoardSanction.listPath(props.slug) },
+    // 칭호 신청 심사(그 게시판에 연결된 칭호만 — 매니저가 아니거나 연결된 칭호가 없으면 그 화면이 안내한다)
+    { key: 'titles' as const, label: t('memberTitle.staffTab'), to: UtilMemberTitle.staffPath(props.slug) },
 ]);
 </script>

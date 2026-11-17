@@ -140,6 +140,8 @@ export default {
         POLL_DELETE: 'Remove poll',
         FEATURE: 'Feature post',
         UNFEATURE: 'Unfeature post',
+        CANDIDATE: 'Add to writer of the month candidates',
+        UNCANDIDATE: 'Remove from writer of the month candidates',
     },
     // Feature / unfeature confirmation (point-board-tier-contract) — confirm only, no reason
     featureDialog: {
@@ -211,6 +213,8 @@ export default {
         POLL_DELETE: 'Poll removed.',
         FEATURE: 'Post featured.',
         UNFEATURE: 'Post unfeatured.',
+        CANDIDATE: 'Added to writer of the month candidates.',
+        UNCANDIDATE: 'Removed from writer of the month candidates.',
     },
     doneHideNotified: 'Post hidden. The author was notified.',
     staleFailed: '{reason} Reloaded the latest state.',

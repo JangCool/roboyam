@@ -72,6 +72,31 @@
                     </p>
                     <!-- 경험치 막대(다음 레벨까지) — 등급 줄이 보이는 회원만, 레벨을 받았을 때만(남의 비공개 프로필은 숨김) -->
                     <GradeLevelBar v-if="levelProgress && gradeShown" :progress="levelProgress" class="mt-2" />
+                    <!-- 칭호 모음(member-title-contract) — 등급 도트·레벨 아래, 2배 칩. 같은 칭호 여러 번은 「이달의 작가 ×4」 → 누르면 받은 달 목록(Popover). 비공개 프로필이면 서버가 대표 칭호 하나만 준다 -->
+                    <ul v-if="profileTitles.length" class="m-0 mt-2 flex list-none flex-wrap gap-1.5 p-0" :aria-label="t('memberTitle.profileHeading')" data-testid="profile-titles">
+                        <li v-for="title in profileTitles" :key="title.key">
+                            <button
+                                v-if="title.periods.length > 1"
+                                type="button"
+                                class="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-primary"
+                                :aria-label="t('memberTitle.periodsOpen', { label: localizedName(title.label, title.labelEn ?? null), count: title.count })"
+                                aria-haspopup="dialog"
+                                data-testid="profile-title-periods-open"
+                                @click="openPeriods($event, title)"
+                            >
+                                <TitleChip :title="title" :scale="2" :count="title.count" />
+                            </button>
+                            <TitleChip v-else :title="title" :scale="2" :count="title.count" />
+                        </li>
+                    </ul>
+                    <Popover ref="periodsPopover" data-testid="profile-title-periods">
+                        <div v-if="periodsTitle" class="max-w-[16rem]">
+                            <p class="m-0 text-sm font-semibold">{{ t('memberTitle.periodsTitle', { label: localizedName(periodsTitle.label, periodsTitle.labelEn ?? null) }) }}</p>
+                            <ul class="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0 text-sm tabular-nums">
+                                <li v-for="period in periodsTitle.periods" :key="period">{{ UtilMemberTitleMessages.period(t, period) }}</li>
+                            </ul>
+                        </div>
+                    </Popover>
                 </div>
                 <div v-if="profile.isMe" class="flex gap-2 max-md:w-full md:ml-auto">
                     <Button as="router-link" to="/settings/profile" :label="t('me.editProfile')" icon="pi pi-pencil" size="small" class="max-md:flex-1" data-testid="profile-edit" />
@@ -341,6 +366,8 @@
 <script setup lang="ts">
 import type { AuthorCommentRow, ProfileGroupRow, ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
 import type { DmCanSend } from '~/composables/dm/api/useDmApi.types';
+import type { ProfileTitle } from '~/composables/title/api/useTitleApi.types';
+import UtilMemberTitleMessages from '~/utils/util-member-title-messages';
 import type { UserAction } from '~/composables/block/useUserActions';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilDm from '~/utils/util-dm';
@@ -413,6 +440,15 @@ const privateView = computed(() => profile.value?.visibility === 'PRIVATE' && !p
 const gradeShown = computed(() => Boolean(profile.value && profile.value.role === 'USER' && !profile.value.operator && !profile.value.ai));
 /** 레벨·경험치 막대 — 레벨이 없으면(옛 응답·남의 비공개 프로필) null(숨김) */
 const levelProgress = computed(() => (privateView.value ? null : UtilGrade.levelProgress(profile.value)));
+/** 칭호 모음(서버 `titles` — 칸이 없는 옛 응답이면 빈 목록) */
+const profileTitles = computed<ProfileTitle[]>(() => profile.value?.titles ?? []);
+const periodsPopover = ref<{ toggle: (event: Event) => void } | null>(null);
+/** 받은 달 목록을 연 칭호 */
+const periodsTitle = ref<ProfileTitle | null>(null);
+function openPeriods(event: Event, title: ProfileTitle): void {
+    periodsTitle.value = title;
+    periodsPopover.value?.toggle(event);
+}
 /** 내 프로필이 비공개 — 나에게는 다 보이고 위에 안내 띠 */
 const privateMine = computed(() => profile.value?.visibility === 'PRIVATE' && profile.value.isMe);
 /** 프로필 자리표시 — 닉네임 첫 글자(프로필 그림 기능이 없다) */

@@ -197,6 +197,11 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.REWARD_EVENT_GRANTED, null, null, null, 1, points, null, null, false, eventName, items + ":" + manual);
         }
 
+        /** 칭호를 받음(V240) — 표시 이름({@code snapshot} — 이달의 작가는 「11월의 작가」) · 단계({@code result} — BRONZE·SILVER·GOLD, 없으면 null) */
+        public static Facts titleGranted(String label, String tier) {
+            return new Facts(MemberNotificationType.TITLE_GRANTED, null, null, null, 1, 0, null, null, false, label, tier);
+        }
+
         /** 보상 이벤트 회수 — 이벤트 이름({@code snapshot}) · 운영자가 적은 사유({@code note}) */
         public static Facts rewardEventRevoked(String eventName, String reason) {
             return new Facts(MemberNotificationType.REWARD_EVENT_REVOKED, null, null, null, 1, 0, null, reason, false, eventName, null);
@@ -435,6 +440,9 @@ public class MemberNotificationMessages {
             case POINT_SHOP_REFUND_REJECTED -> builder.variable("itemName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
             case REWARD_EVENT_GRANTED -> builder.variable("eventName", nz(facts.snapshot())).variable("rewards", rewardSummary(facts, locale));
             case REWARD_EVENT_REVOKED -> builder.variable("eventName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
+            // 칭호(V240) — 표시 이름 · 단계(「 · 금」 처럼 앞에 가운뎃점, 단계가 없으면 빈 글자 — 번들 member.notification.TITLE_GRANTED.tier.*)
+            case TITLE_GRANTED -> builder.variable("titleName", nz(facts.snapshot())).variable("titleTier", facts.result() == null || facts.result().isBlank() ? ""
+                    : messages.get(new MessageRef("member.notification.TITLE_GRANTED.tier." + facts.result()), locale));
             case POST_STATUS_CHANGED -> builder.variable("boardName", nz(facts.snapshot()))
                     .variable("status", messages.get(new MessageRef("post.processStatus." + PostProcessStatus.parse(facts.result()).orElse(PostProcessStatus.RECEIVED).name()),
                             locale))

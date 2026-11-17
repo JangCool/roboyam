@@ -41,6 +41,11 @@
             :can-change-nickname="canChangeNickname"
             :sanctions="sanctions"
             :emoticon-creator="emoticonCreator"
+            :can-manage-titles="canManageTitles"
+            :titles="titles"
+            @grant-title="emit('grant-title')"
+            @revoke-title="(row) => emit('revoke-title', row)"
+            @retry-titles="emit('retry-titles')"
             @sanction="emit('sanction')"
             @lift-sanction="(line) => emit('lift-sanction', line)"
             @retry-sanctions="emit('retry-sanctions')"
@@ -64,7 +69,7 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 import type { MemberDetail, MemberRow } from '~/composables/member/api/useMemberApi.types';
-import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberTitlesView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember from '~/utils/util-member';
 
 /** 서랍이 열려 있는가 */
@@ -95,9 +100,13 @@ interface Props {
     sanctions?: MemberSanctionsView | null;
     /** 「등급·포인트」 구획의 로보티콘 작가 한 줄(실제 API `GET /api/admin/emoticons/creators/{memberNo}`) — 작가가 아니거나 받지 않는 화면은 null */
     emoticonCreator?: EmoticonCreatorSummary | null;
+    /** 「칭호」 구획의 [칭호 주기]·[회수](`title.manage`) — 받지 않는 화면은 false */
+    canManageTitles?: boolean;
+    /** 「칭호」 구획의 목록 — 받지 않는 화면은 null(구획 없음) */
+    titles?: MemberTitlesView | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, canChangeNickname: false, sanctions: null, emoticonCreator: null });
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, canChangeNickname: false, sanctions: null, emoticonCreator: null, canManageTitles: false, titles: null });
 const emit = defineEmits<{ retry: [] } & MemberDetailEmits>();
 
 const { t } = useI18n();

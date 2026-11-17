@@ -214,6 +214,10 @@ export default class UtilPermissionCatalog {
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },
         { code: 'grade.manage', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.gradeManage', descKey: 'permission.gradeManageDesc', featureReady: true },
         { code: 'grade.override', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.gradeOverride', descKey: 'permission.item.gradeOverrideDesc', featureReady: false },
+        // 회원 칭호(member-title-contract 「권한」 — 관리자 /members/titles, 등급과 섞지 않는 별도 표시). ⚠ 서버 `Permission.TITLE_*`(GRADE_POINT 묶음)와 목록·순서·featureReady 를 맞출 것
+        { code: 'title.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.titleRead', descKey: 'permission.item.titleReadDesc', featureReady: true },
+        { code: 'title.manage', unit: 'MANAGE', type: 'gradePoint', nameKey: 'permission.item.titleManage', descKey: 'permission.item.titleManageDesc', featureReady: true },
+        { code: 'title.review', unit: 'MANAGE', type: 'gradePoint', nameKey: 'permission.item.titleReview', descKey: 'permission.item.titleReviewDesc', featureReady: true },
         { code: 'point.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointRead', descKey: 'permission.item.pointReadDesc', featureReady: true },
         { code: 'point.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.pointSettings', descKey: 'permission.item.pointSettingsDesc', featureReady: true },
         { code: 'point.adjust', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjust', descKey: 'permission.item.pointAdjustDesc', featureReady: true },

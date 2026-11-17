@@ -709,6 +709,35 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 칭호를 받았다({@code TITLE_GRANTED} — V240, member-title-contract 「알림·축하 창」 — 단계가 오른 것도). 덧붙임 {@code titleKey}·{@code label}(알릴 때 표시 이름)·{@code tier}.
+     * 누르면 내 칭호. 지급 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 지급을 깨지 않는다).
+     */
+    public int titleGranted(long userId, String titleKey, String label, String tier) {
+        return isolated.run("member-notification:title-granted", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.TITLE_GRANTED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(label, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("titleKey", titleKey);
+                payload.put("label", name);
+                if (tier != null) {
+                    payload.put("tier", tier);
+                }
+                writer.insert(ids.nextId(), userId, MemberNotificationType.TITLE_GRANTED.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.titleGranted(name, tier), null, null, "/me/titles");
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 내 글의 처리 상태가 바뀌었다({@code POST_STATUS_CHANGED} — V166 운영 게시판). 덧붙임 {@code boardName}·{@code status}·{@code title}(알릴 때 값), 누르면 그 글.
      * 바꾼 사람이 글쓴이 본인이면 보내지 않는다({@code changedByUserId} — 관리자 앱 운영자면 null).
      */

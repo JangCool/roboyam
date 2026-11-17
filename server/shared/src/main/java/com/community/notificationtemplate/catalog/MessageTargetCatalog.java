@@ -263,6 +263,9 @@ public final class MessageTargetCatalog {
                 "/me/points", List.of()));
         out.add(member(MemberEvent.REWARD_EVENT_REVOKED, List.of(MessageVariable.of("eventName", "rewardEventName"), MessageVariable.of("reason", "rewardEventRevokeReason")),
                 new InAppText("member.notification.REWARD_EVENT_REVOKED.title", null, "{{reason}}", List.of("eventName")), "/me/points", List.of()));
+        // 칭호를 받음(V240 — member-title-contract) — 제목만(표시 이름 · 단계). 누르면 내 칭호
+        out.add(member(MemberEvent.TITLE_GRANTED, List.of(MessageVariable.of("titleName", "titleName"), MessageVariable.of("titleTier", "titleTier")),
+                new InAppText("member.notification.TITLE_GRANTED.title", null, null, List.of("titleName", "titleTier")), "/me/titles", List.of()));
         // 내 글의 처리 상태가 바뀜(V166 — 운영 게시판) — 제목은 게시판 이름 · 새 상태, 본문은 글 제목 + 메모 한 줄(V168 — 메모가 없으면 빈 글자). 누르면 그 글
         out.add(member(MemberEvent.POST_STATUS_CHANGED, List.of(MessageVariable.of("boardName", "statusBoardName"), MessageVariable.of("status", "postProcessStatus"),
                         MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("statusNote", "postProcessStatusNote")),

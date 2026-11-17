@@ -308,6 +308,12 @@ public class MemberNotificationService {
                         payload.get("reason") instanceof String why && !why.isBlank() ? why : null);
                 link = "/me/points";
             }
+            case TITLE_GRANTED -> {
+                // 칭호를 받음(V240) — 알릴 때 표시 이름 · 단계. 누르면 내 칭호
+                facts = MemberNotificationMessages.Facts.titleGranted(payload.get("label") instanceof String n ? n : null,
+                        payload.get("tier") instanceof String t && !t.isBlank() ? t : null);
+                link = "/me/titles";
+            }
             case GROUP_BUY -> {
                 // 공동구매(2b-4) — 종류 · 공구 제목(알릴 때) · 금액 · 주문 번호·날짜. 누르면 발행 때 정한 곳(내 주문 상세 또는 공구 상세)
                 facts = MemberNotificationMessages.Facts.groupBuy(payload.get("kind") instanceof String k ? k : "", payload.get("title") instanceof String t ? t : null,

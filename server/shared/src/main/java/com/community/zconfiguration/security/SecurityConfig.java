@@ -102,6 +102,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/*/profile", "/api/users/*/posts", "/api/users/*/comments", "/api/users/*/groups").permitAll()
                         // 회원 활동·둘러보기(docs/features/member-activity-contract.md) — 최신글·인기글·통합 검색·등급 조건표는 비회원도 읽는다. 내 등급(/api/me/grade)은 아래 규칙대로 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/home/latest", "/api/home/popular", "/api/search", "/api/grade-rules").permitAll()
+                        // 칭호 도감·명예의 전당(member-title-contract) — 누구나 본다. 내 칭호(/api/me/titles)는 아래 규칙대로 로그인 필요
+                        .requestMatchers(HttpMethod.GET, "/api/titles", "/api/hall-of-fame").permitAll()
                         // 공개 홈 가젯(site-theme-layout-contract) — 비회원도 읽는다
                         .requestMatchers(HttpMethod.GET, "/api/home/gadgets").permitAll()
                         // 공개 가젯 페이지(gadget-page-contract) — 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)

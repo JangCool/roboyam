@@ -1,6 +1,7 @@
 package com.community.post.dto.response;
 
 import com.community.pointshop.dto.response.AuthorDecorationView;
+import com.community.title.dto.response.TitleBadgeView;
 
 /**
  * 글·댓글의 작성자(user-web {@code PostAuthor}).
@@ -31,17 +32,19 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  * @param anonymous  익명 글·댓글(V184 — anonymous-board-contract 「API 계약」)의 표시 — 글 작성자면 {@code number null · op true}, 댓글 작성자가 그 익명 글의 글쓴이면 {@code op true},
  *                   그 밖은 글 안 번호({@code number} — 번호 표에 없으면 null). 익명이 아니면 null. 익명이면 그 밖 칸(회원 ID·이름·등급·역할·IP·메모·장식·아바타·소개·프로필·AI)은
  *                   모두 null, 사업자·운영자 뱃지는 false
+ * @param title      대표 칭호(member-title-contract 「구현 결정」 7 — {@code { key, label, labelEn, icon, tier, chip }}) — 고른 칭호, 고르지 않았으면 가진 작가 칭호 중 가장 높은 것
+ *                   (이달의 작가는 「11월의 작가」). 「안 보이기」·칭호 없음·제재 기간·휴면 숨김·비회원·익명·숨긴 글·지운 댓글은 null. 목록 하나에 한 번 묶어 읽는다({@code AuthorViews#members})
  */
 public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo,
                              AuthorDecorationView decoration, String avatarUrl, String avatarStillUrl, boolean business, boolean operator, String bio, String profile, AuthorAiView ai,
-                             AuthorAnonymousView anonymous) {
+                             AuthorAnonymousView anonymous, TitleBadgeView title) {
 
     /** 익명 작성자 종류(V184) */
     public static final String ANONYMOUS = "ANONYMOUS";
 
     /** 익명 작성자 — 신원 칸을 모두 비운다(정책 4) */
     public static PostAuthorView anonymous(Integer number, boolean op) {
-        return new PostAuthorView(ANONYMOUS, null, null, null, null, null, null, null, null, null, null, false, false, null, null, null, new AuthorAnonymousView(number, op));
+        return new PostAuthorView(ANONYMOUS, null, null, null, null, null, null, null, null, null, null, false, false, null, null, null, new AuthorAnonymousView(number, op), null);
     }
 
     /** 익명 작성자인가 — 메모·AI·프로필을 덧붙이지 않는다 */
@@ -54,7 +57,7 @@ public record PostAuthorView(String kind, String memberId, String name, String g
         if (anonymousAuthor()) {
             return this;
         }
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile, ai, anonymous);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile, ai, anonymous, title);
     }
 
     /** 같은 작성자에 AI 칸만 바꾼 것(글·댓글을 만든 모델 — {@code AuthorViews#ofPost}·{@code #ofComment}) — 익명 작성자는 그대로 */
@@ -62,7 +65,7 @@ public record PostAuthorView(String kind, String memberId, String name, String g
         if (anonymousAuthor()) {
             return this;
         }
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile, value, anonymous);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator, bio, profile, value, anonymous, title);
     }
 
     /** 같은 작성자에 자기소개·프로필 공개 범위만 바꾼 것 — 글 상세만 채운다({@code PostQueryService}). {@code detail} 이 null 이면 둘 다 null. 익명 작성자는 그대로 */
@@ -71,7 +74,7 @@ public record PostAuthorView(String kind, String memberId, String name, String g
             return this;
         }
         return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, memo, decoration, avatarUrl, avatarStillUrl, business, operator,
-                detail == null ? null : detail.bio(), detail == null ? null : detail.visibility(), ai, anonymous);
+                detail == null ? null : detail.bio(), detail == null ? null : detail.visibility(), ai, anonymous, title);
     }
 
     /** 익명 작성자 표시(user-web {@code AuthorAnonymous}) — {@code number} 글 안 번호(글쓴이·번호 전이면 null), {@code op} 그 익명 글의 글쓴이 */

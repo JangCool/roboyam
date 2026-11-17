@@ -1,3 +1,5 @@
+// MOCK: 칭호 모음(member-title-contract) — 서버가 `titles` 를 주면 이 import 와 `profile` 의 `// MOCK:` 줄을 지운다
+import TitleMock, { TITLE_MOCK } from '~/composables/title/api/mock/title-mock';
 import type { AuthorCommentPage, ProfileGroupsResponse, PublicProfile, UserFeedQuery, UserPostPage } from '~/composables/profile/api/useUserProfileApi.types';
 
 /**
@@ -25,7 +27,11 @@ export function useUserProfileApi() {
 
     return {
         /** 프로필 머리 — 닉네임·등급·소개·가입일·수치(비공개 프로필이면 본인이 아닐 때 소개·가입일·수치가 null) */
-        profile: (id: string, signal?: AbortSignal): Promise<PublicProfile> => client.get<PublicProfile>(PATH.profile(id), { signal }),
+        profile: async (id: string, signal?: AbortSignal): Promise<PublicProfile> => {
+            const res = await client.get<PublicProfile>(PATH.profile(id), { signal });
+            if (TITLE_MOCK && res.titles === undefined && !res.ai) res.titles = res.isMe || res.visibility !== 'PRIVATE' ? TitleMock.profileTitles() : TitleMock.profileTitles().slice(0, 1); // MOCK: 서버가 칭호 칸을 주기 전까지
+            return res;
+        },
 
         /** 작성글 한 쪽 */
         posts: (id: string, query: UserFeedQuery, signal?: AbortSignal): Promise<UserPostPage> =>

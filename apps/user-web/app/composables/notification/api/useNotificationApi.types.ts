@@ -98,7 +98,12 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      * 내 글의 처리 상태가 바뀜(운영 게시판 — 버그 신고·기능 요청 등 `statusEnabled` 게시판, shared V166). 묶음 `system`, 회원이 끌 수 있다.
      * 문구는 서버 `title`·`body`(「{게시판} 글이 「{상태}」 상태가 됐어요」 · 글 제목), `link` `/posts/{id}`. 바꾼 사람이 글쓴이 본인이면 오지 않는다
      */
-    | 'POST_STATUS_CHANGED';
+    | 'POST_STATUS_CHANGED'
+    /**
+     * 칭호를 받음(member-title-contract 「구현 결정」 4 — 자동·신청 승인·운영자 수여). 문구는 서버 `title`·`body`, 이동은 서버 `link`(내 칭호 `/me/titles` 후보).
+     * 다음 접속 때 축하 창은 알림과 따로 `GET /api/me/titles` 의 `unseen` 으로 뜬다
+     */
+    | 'TITLE_GRANTED';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

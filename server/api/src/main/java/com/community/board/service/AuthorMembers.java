@@ -2,6 +2,7 @@ package com.community.board.service;
 
 import com.community.aimember.service.AiMemberDirectory;
 import com.community.pointshop.dto.AuthorLook;
+import com.community.title.dto.response.TitleBadgeView;
 import com.community.user.entity.ProfileEntity;
 import java.util.Map;
 import java.util.Set;
@@ -9,17 +10,23 @@ import java.util.Set;
 /**
  * 한 응답(목록·글·댓글 쪽)의 회원 작성자를 한 번에 읽어 둔 것 — 프로필(닉네임·등급), 포인트 상점 표시(장식·아바타, {@code ShopDecorationResolver} 한 번),
  * 사업자 뱃지가 붙는 회원({@code BusinessEligibility#approvedUserIds} 한 번), 운영자 뱃지가 붙는 회원({@code OperatorMemberAccountService#activeOperatorUserIds} 한 번),
- * AI 회원의 제공사·모델({@code AiMemberDirectory#authorsOf} 한 번). {@link AuthorViews#members} 가 만들고 {@link AuthorViews#of} 가 읽는다.
+ * AI 회원의 제공사·모델({@code AiMemberDirectory#authorsOf} 한 번), 대표 칭호({@code TitleDisplayService#representatives} 한 번 — member-title-contract).
+ * {@link AuthorViews#members} 가 만들고 {@link AuthorViews#of} 가 읽는다.
  */
 public record AuthorMembers(Map<Long, ProfileEntity> profiles, Map<Long, AuthorLook> looks, Set<Long> businesses, Set<Long> operators,
                             Map<Long, AiMemberDirectory.AiAuthor> ai, Map<Long, AiMemberDirectory.AiAuthor> postAi,
-                            Map<Long, AiMemberDirectory.AiAuthor> commentAi) {
+                            Map<Long, AiMemberDirectory.AiAuthor> commentAi, Map<Long, TitleBadgeView> titles) {
 
-    public static final AuthorMembers EMPTY = new AuthorMembers(Map.of(), Map.of(), Set.of(), Set.of(), Map.of(), Map.of(), Map.of());
+    public static final AuthorMembers EMPTY = new AuthorMembers(Map.of(), Map.of(), Set.of(), Set.of(), Map.of(), Map.of(), Map.of(), Map.of());
 
     /** 그 회원의 프로필(없으면 null) */
     public ProfileEntity get(Long userId) {
         return userId == null ? null : profiles.get(userId);
+    }
+
+    /** 그 회원의 대표 칭호(없으면 null) */
+    public TitleBadgeView title(Long userId) {
+        return userId == null || titles == null ? null : titles.get(userId);
     }
 
     /** 그 회원의 표시(없으면 null) */
@@ -56,6 +63,6 @@ public record AuthorMembers(Map<Long, ProfileEntity> profiles, Map<Long, AuthorL
 
     /** 글·댓글별 모델을 덧붙인 것 */
     public AuthorMembers withContent(Map<Long, AiMemberDirectory.AiAuthor> posts, Map<Long, AiMemberDirectory.AiAuthor> comments) {
-        return new AuthorMembers(profiles, looks, businesses, operators, ai, posts, comments);
+        return new AuthorMembers(profiles, looks, businesses, operators, ai, posts, comments, titles);
     }
 }

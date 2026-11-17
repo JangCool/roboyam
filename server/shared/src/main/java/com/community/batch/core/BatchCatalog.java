@@ -341,7 +341,14 @@ public enum BatchCatalog implements BatchDefinition {
      * (Java 배치 {@code AiNewsCollectJob} → {@code AiNewsCollector}, ai-news-reporter-contract 「소재 수집」). 기본 <b>30분마다</b>(배치 화면에서 cron 을 바꾼다 — 30~60분 권장).
      * 관리자 「지금 수집」도 같은 서비스. 늦어도 AI 기자 글이 줄 뿐이라 정리(SYSTEM) 분류.
      */
-    AI_NEWS_COLLECT("ai-news-collect", BatchCategory.SYSTEM, BatchSource.JAVA, "0 */30 * * * *", true);
+    AI_NEWS_COLLECT("ai-news-collect", BatchCategory.SYSTEM, BatchSource.JAVA, "0 */30 * * * *", true),
+
+    /**
+     * 회원 칭호 자동 판정 — 받는 방법이 자동(AUTO)인 켜진 칭호마다 조건을 채운 회원에게 칭호를 주고 단계 칭호는 단계를 올린다(Java 배치 {@code TitleAutoGrantJob},
+     * member-title-contract 「구현 결정」 1). 인기글 일수는 인기글 보상과 같은 날짜별 목록({@code point_popular_rewards})을 쓰고, 포인트 보상이 꺼져 있어도 이 배치가 그날 목록을 뽑아 둔다
+     * (상위 {@code popularRewardTopN}, 0 이면 10). 기본 매일 00:10 KST(인기글 보상 00:00 뒤). 칭호 저장(조건 바꿈) 때는 그 칭호만 「지금 실행」한다. 분류는 회원(MEMBER).
+     */
+    TITLE_AUTO_GRANT("title-auto-grant", BatchCategory.MEMBER, BatchSource.JAVA, "0 10 0 * * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

@@ -24,7 +24,7 @@ export default defineNuxtConfig({
     // 가젯 배치(`@irobit/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
     // 서식 에디터(`@irobit/rich-editor`)는 메일 템플릿 편집이 쓴다(간단 수준)
     // 차트(`@irobit/chart` — ECharts)는 광고 성과 날짜별 추이와 방문 분석(추이 · 이동 흐름 sankey)이 쓴다
-    extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart'],
+    extends: ['@irobit/display-time', '@irobit/rich-editor', '@irobit/i18n', '@irobit/home-layout', '@irobit/chart', '@irobit/member-title'],
     ssr: false,
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },

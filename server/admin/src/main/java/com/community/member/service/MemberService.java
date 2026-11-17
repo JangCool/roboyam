@@ -99,13 +99,18 @@ public class MemberService {
     private final IdentityVerificationService identities;
     private final com.community.sanction.service.BoardSanctionViews boardSanctionViews;
     private final com.community.operator.service.OperatorMemberAccountService operatorAccounts;
+    private final com.community.title.repository.master.TitleQueries titleQueries;
+    private final com.community.title.service.AdminTitleViews titleViews;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
                          RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
                          ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints,
                          ProfileNicknameHistoryRepository nicknameHistory, MemberSettingsAssembler settingsAssembler,
                          IdentityVerificationService identities, com.community.sanction.service.BoardSanctionViews boardSanctionViews,
-                         com.community.operator.service.OperatorMemberAccountService operatorAccounts) {
+                         com.community.operator.service.OperatorMemberAccountService operatorAccounts, com.community.title.repository.master.TitleQueries titleQueries,
+                         com.community.title.service.AdminTitleViews titleViews) {
+        this.titleQueries = titleQueries;
+        this.titleViews = titleViews;
         this.operatorAccounts = operatorAccounts;
         this.boardSanctionViews = boardSanctionViews;
         this.nicknameHistory = nicknameHistory;
@@ -192,7 +197,8 @@ public class MemberService {
                 gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity, members.approvedBusinessUsers(List.of(id)).contains(id),
                 withdrawn ? null : boardSanctionViews.memberSummary(id), // 게시판 제재 요약(board-sanction-contract) — 탈퇴 회원은 null
                 operatorAccounts.linkOfUser(id).map(l -> new MemberOperatorAccountRef(Long.toString(l.operatorId()), l.operatorName(), l.active())).orElse(null),
-                profile == null ? null : profile.getLevel(), profile == null ? null : profile.getXp()); // 레벨·경험치(V196)
+                profile == null ? null : profile.getLevel(), profile == null ? null : profile.getXp(), // 레벨·경험치(V196)
+                titleViews.grants(titleQueries.allOf(id))); // 칭호(member-title-contract) — 받은 줄 전부, 회수 포함
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));

@@ -35,6 +35,7 @@ import com.community.profile.dto.response.PublicProfileView;
 import com.community.profile.exception.ProfileNotFoundException;
 import com.community.profile.exception.ProfilePrivateException;
 import com.community.profile.repository.master.UserActivityQueries;
+import com.community.title.service.TitleDisplayService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.ProfileRepository;
@@ -90,11 +91,13 @@ public class UserProfileService {
     private final OperatorMemberAccountService operatorAccounts;
     private final AiMemberDirectory aiMembers;
     private final XpProgressReader xpProgress;
+    private final TitleDisplayService titleDisplay;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
                               GroupQueryService groups, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
-                              AiMemberDirectory aiMembers, XpProgressReader xpProgress) {
+                              AiMemberDirectory aiMembers, XpProgressReader xpProgress, TitleDisplayService titleDisplay) {
+        this.titleDisplay = titleDisplay;
         this.xpProgress = xpProgress;
         this.aiMembers = aiMembers;
         this.operatorAccounts = operatorAccounts;
@@ -134,7 +137,7 @@ public class UserProfileService {
                 !businesses.approvedUserIds(List.of(m.id())).isEmpty(), operatorAccounts.isActiveOperatorAccount(m.id()), m.profile().getVisibility(),
                 aiMembers.profileOf(m.id()).map(UserProfileService::aiView).orElse(null),
                 progress == null ? null : progress.level(), progress == null ? null : progress.xp(), progress == null ? null : progress.levelXp(),
-                progress == null ? null : progress.nextLevelXp());
+                progress == null ? null : progress.nextLevelXp(), titleDisplay.profile(m.id(), me, m.profile().isPrivate()));
     }
 
     /** 공개 프로필의 AI 칸 */

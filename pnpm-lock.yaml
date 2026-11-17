@@ -75,6 +75,15 @@ importers:
         specifier: 3.5.44
         version: 3.5.44(typescript@5.9.3)
 
+  apps-packages/member-title:
+    devDependencies:
+      nuxt:
+        specifier: 4.6.2
+        version: 4.6.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@oxc-project/types@0.154.0)(@types/node@24.19.2)(@vue/compiler-sfc@3.5.44)(acorn@8.19.0)(confbox@0.3.1)(db0@0.3.4)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(lightningcss@1.33.0)(mlly@1.8.2)(oxc-parser@0.141.0)(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.64.10))(rollup@4.64.10)(srvx@1.0.6)(supports-color@10.2.2)(terser@5.51.2)(typescript@5.9.3)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue-tsc@3.3.13(typescript@5.9.3))(yaml@2.9.1)
+      vue:
+        specifier: 3.5.44
+        version: 3.5.44(typescript@5.9.3)
+
   apps-packages/rich-editor:
     dependencies:
       '@irobit/i18n':
@@ -111,15 +120,6 @@ importers:
 
   apps/admin-web:
     dependencies:
-      '@primeui/license-manager':
-        specifier: ^1.1.0
-        version: 1.1.0
-      '@primeuix/themes':
-        specifier: 3.0.1
-        version: 3.0.1
-      '@primevue/nuxt-module':
-        specifier: 5.0.2
-        version: 5.0.2(@babel/parser@7.29.9)(magicast@0.5.5)(supports-color@10.2.2)(vue@3.5.44(typescript@5.9.3))
       '@irobit/chart':
         specifier: workspace:*
         version: link:../../apps-packages/chart
@@ -132,9 +132,21 @@ importers:
       '@irobit/i18n':
         specifier: workspace:*
         version: link:../../apps-packages/i18n
+      '@irobit/member-title':
+        specifier: workspace:*
+        version: link:../../apps-packages/member-title
       '@irobit/rich-editor':
         specifier: workspace:*
         version: link:../../apps-packages/rich-editor
+      '@primeui/license-manager':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@primeuix/themes':
+        specifier: 3.0.1
+        version: 3.0.1
+      '@primevue/nuxt-module':
+        specifier: 5.0.2
+        version: 5.0.2(@babel/parser@7.29.9)(magicast@0.5.5)(supports-color@10.2.2)(vue@3.5.44(typescript@5.9.3))
       '@tabler/icons':
         specifier: 3.49.0
         version: 3.49.0
@@ -178,18 +190,6 @@ importers:
 
   apps/user-web:
     dependencies:
-      '@portone/browser-sdk':
-        specifier: 0.1.13
-        version: 0.1.13
-      '@primeui/license-manager':
-        specifier: ^1.1.0
-        version: 1.1.0
-      '@primeuix/themes':
-        specifier: 3.0.1
-        version: 3.0.1
-      '@primevue/nuxt-module':
-        specifier: 5.0.2
-        version: 5.0.2(@babel/parser@7.29.9)(magicast@0.5.5)(supports-color@10.2.2)(vue@3.5.44(typescript@5.9.3))
       '@irobit/analytics':
         specifier: workspace:*
         version: link:../../apps-packages/analytics
@@ -205,9 +205,24 @@ importers:
       '@irobit/i18n':
         specifier: workspace:*
         version: link:../../apps-packages/i18n
+      '@irobit/member-title':
+        specifier: workspace:*
+        version: link:../../apps-packages/member-title
       '@irobit/rich-editor':
         specifier: workspace:*
         version: link:../../apps-packages/rich-editor
+      '@portone/browser-sdk':
+        specifier: 0.1.13
+        version: 0.1.13
+      '@primeui/license-manager':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@primeuix/themes':
+        specifier: 3.0.1
+        version: 3.0.1
+      '@primevue/nuxt-module':
+        specifier: 5.0.2
+        version: 5.0.2(@babel/parser@7.29.9)(magicast@0.5.5)(supports-color@10.2.2)(vue@3.5.44(typescript@5.9.3))
       nuxt:
         specifier: 4.6.2
         version: 4.6.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@oxc-project/types@0.154.0)(@types/node@24.19.2)(@vue/compiler-sfc@3.5.44)(acorn@8.19.0)(confbox@0.3.1)(db0@0.3.4)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(lightningcss@1.33.0)(mlly@1.8.2)(oxc-parser@0.141.0)(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.64.10))(rollup@4.64.10)(srvx@1.0.6)(supports-color@10.2.2)(terser@5.51.2)(typescript@5.9.3)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue-tsc@3.3.13(typescript@5.9.3))(yaml@2.9.1)
@@ -1968,6 +1983,7 @@ packages:
 
   '@tiptap/y-tiptap@3.0.10':
     resolution: {integrity: sha512-vJtwYVoBBk+e8KyUVoH9WSsfUfKTXf1Uh+tk2UNTlD8wim9j7XVTuc7sakWUYuznB7DkXThT9w5uQTGH2SN0Kg==}
+    deprecated: Persistent position migrations can cause excessive collaborative document growth. Upgrade all collaborating clients to 3.1.0 or later.
     peerDependencies:
       prosemirror-model: ^1.7.1
       prosemirror-state: ^1.2.3

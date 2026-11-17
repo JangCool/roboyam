@@ -141,6 +141,8 @@ export default {
         POLL_DELETE: '투표 지우기',
         FEATURE: '우수 글로 선정',
         UNFEATURE: '우수 글 선정 취소',
+        CANDIDATE: '이달의 작가 후보에 넣기',
+        UNCANDIDATE: '이달의 작가 후보에서 빼기',
     },
     // 우수 글 선정·취소 확인(point-board-tier-contract) — 사유 없이 확인만
     featureDialog: {
@@ -212,6 +214,8 @@ export default {
         POLL_DELETE: '투표를 지웠어요.',
         FEATURE: '우수 글로 선정했어요.',
         UNFEATURE: '우수 글 선정을 취소했어요.',
+        CANDIDATE: '이달의 작가 후보에 넣었어요.',
+        UNCANDIDATE: '이달의 작가 후보에서 뺐어요.',
     },
     doneHideNotified: '글을 숨겼어요. 작성자에게 알림을 보냈어요.',
     staleFailed: '{reason} 최신 상태로 다시 불러왔어요.',

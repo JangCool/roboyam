@@ -10,6 +10,7 @@ import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useD
 import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
 import type { DealInput, DealModeration, DealSort, DealStoreChip, DealWarning, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
+import type { AuthorTitle } from '~/composables/title/api/useTitleApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -104,6 +105,11 @@ export interface PostAuthor {
     profile?: 'PUBLIC' | 'PRIVATE' | null;
     /** 익명 작성자(`kind === 'ANONYMOUS'`)의 글 안 표시 — 익명이 아니면 null(칸이 없는 옛 응답도 익명 아님) */
     anonymous?: AnonymousMark | null;
+    /**
+     * 대표 칭호 1개(member-title-contract 「구현 결정」 7) — 기본 = 가진 작가 칭호 중 가장 높은 것(명예 작가 > 올해의 작가 > 이달의 작가, 이달의 작가는 「11월의 작가」).
+     * 「안 보이기」·제재 기간·휴면·비회원·익명이면 null(칸이 없는 옛 응답도 표시 없음). 작성자 줄(`PostAuthorLabel`)이 이름 뒤에 1배 칩으로 그린다
+     */
+    title?: AuthorTitle | null;
 }
 
 /** 말머리를 가리키는 짧은 모양 */

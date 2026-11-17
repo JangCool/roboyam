@@ -42,6 +42,15 @@
                         @lots-query="(q) => emit('point-lots-query', q)"
                         @retry-lots="emit('retry-point-lots')"
                     />
+                    <!-- 칭호(member-title-contract) — 주기·회수는 부모가 대화상자를 띄운다 -->
+                    <MemberDetailTitleSection
+                        v-else-if="section.key === 'titles'"
+                        :view="titles"
+                        :can-manage="canManageTitles && detail.status !== 'WITHDRAWN'"
+                        @grant-title="emit('grant-title')"
+                        @revoke-title="(row) => emit('revoke-title', row)"
+                        @retry-titles="emit('retry-titles')"
+                    />
                     <MemberDetailSettingsSection v-else-if="section.key === 'settings'" :detail="detail" />
                     <MemberDetailConsentSection v-else-if="section.key === 'consent'" :detail="detail" />
                     <MemberDetailIdentitySection v-else-if="section.key === 'identity'" :detail="detail" />
@@ -70,7 +79,7 @@
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
 import type { EmoticonCreatorSummary } from '~/composables/emoticon/api/useEmoticonAdminApi.types';
 
-import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberTitlesView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 
 interface Props {
     detail: MemberDetail;
@@ -90,9 +99,13 @@ interface Props {
     sanctions?: MemberSanctionsView | null;
     /** 「등급·포인트」 구획의 로보티콘 작가 한 줄(실제 API `GET /api/admin/emoticons/creators/{memberNo}`) — 작가가 아니거나 받지 않는 화면은 null */
     emoticonCreator?: EmoticonCreatorSummary | null;
+    /** 「칭호」 구획의 [칭호 주기]·[회수]를 보일지(`title.manage`) — 받지 않는 화면은 false(목록만) */
+    canManageTitles?: boolean;
+    /** 「칭호」 구획의 목록(부모가 받는다) — 받지 않는 화면은 null(구획을 그리지 않는다) */
+    titles?: MemberTitlesView | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, canChangeNickname: false, sanctions: null, emoticonCreator: null });
+const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, canChangeNickname: false, sanctions: null, emoticonCreator: null, canManageTitles: false, titles: null });
 const emit = defineEmits<MemberDetailEmits>();
 
 const { t } = useI18n();
@@ -121,6 +134,8 @@ const sections = computed<Section[]>(() => {
         { key: 'profile', labelKey: 'member.detail.sectionProfile', show: shown(d.profile) },
         { key: 'roles', labelKey: 'member.detail.sectionRoles', show: true },
         { key: 'gradePoint', labelKey: 'member.detail.sectionGradePoint', show: true },
+        // 칭호(member-title-contract — 등급과 따로) — 회수한 줄도 기록으로 보이므로 탈퇴 회원도 서버가 주면 보인다
+        { key: 'titles', labelKey: 'memberTitle.member.section', show: props.titles !== null && (d.status !== 'WITHDRAWN' || (props.titles.items?.length ?? 0) > 0) },
         { key: 'settings', labelKey: 'member.detail.sectionSettings', show: shown(d.settings) },
         { key: 'consent', labelKey: 'member.detail.sectionConsent', show: shown(d.consents) },
         { key: 'identity', labelKey: 'member.detail.sectionIdentity', show: d.status !== 'WITHDRAWN' },

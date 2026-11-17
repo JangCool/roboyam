@@ -42,6 +42,7 @@ import java.util.List;
  * @param operatorAccount 이 회원이 운영자 회원 계정이면 그 운영자(operator-member-account-contract) — 아니면 null
  * @param level          레벨(V196 — grade-level-contract 5절). 프로필 행이 없으면 null
  * @param xp             누적 경험치(V196). 프로필 행이 없으면 null
+ * @param titles         칭호(member-title-contract 「회원 상세에 칭호 목록」) — 받은 줄 전부(회수 포함, 최신 순, admin-web {@code MemberTitleRow})
  */
 public record MemberDetailView(
         String memberNo, String email, boolean emailMasked, String nickname, String grade, String memberType, String status, String authMethod,
@@ -52,5 +53,6 @@ public record MemberDetailView(
         List<MemberNicknameChange> nicknameHistory, boolean piiMasked,
         MemberGradePoint gradePoint, MemberSettingsView settings, Object contact, Object profile, MemberConsents consents, Object groupBuy,
         MemberNicknameChangeUsage nicknameChange, MemberNicknameImageView nicknameImage, MemberIdentityView identity, boolean businessVerified,
-        com.community.sanction.dto.response.MemberBoardSanctionSummaryView boardSanctions, MemberOperatorAccountRef operatorAccount, Integer level, Long xp) {
+        com.community.sanction.dto.response.MemberBoardSanctionSummaryView boardSanctions, MemberOperatorAccountRef operatorAccount, Integer level, Long xp,
+        List<com.community.title.dto.response.AdminTitleGrantView> titles) {
 }

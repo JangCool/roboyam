@@ -8,6 +8,8 @@ import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.service.AnonymousAuthors;
+import com.community.title.dto.response.TitleBadgeView;
+import com.community.title.service.TitleDisplayService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserStatus;
 import com.community.user.repository.master.ProfileRepository;
@@ -40,9 +42,11 @@ public class AuthorViews {
     private final OperatorMemberAccountService operatorAccounts;
     private final UserRepository users;
     private final AiMemberDirectory aiMembers;
+    private final TitleDisplayService titleDisplay;
 
     public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations, BusinessEligibility businesses, OperatorMemberAccountService operatorAccounts,
-                       UserRepository users, AiMemberDirectory aiMembers) {
+                       UserRepository users, AiMemberDirectory aiMembers, TitleDisplayService titleDisplay) {
+        this.titleDisplay = titleDisplay;
         this.aiMembers = aiMembers;
         this.users = users;
         this.operatorAccounts = operatorAccounts;
@@ -65,7 +69,8 @@ public class AuthorViews {
         Set<Long> approved = businesses.approvedUserIds(wanted);
         Set<Long> operators = operatorAccounts.activeOperatorUserIds(wanted); // 운영자 뱃지(정책 10) — 힘이 살아 있는 연결만, 한 질의
         Map<Long, AiMemberDirectory.AiAuthor> ai = aiMembers.authorsOf(wanted); // AI 배지(ai-members-contract 정책 3) — 한 질의
-        return new AuthorMembers(out, looks, approved, operators, ai, Map.of(), Map.of());
+        Map<Long, TitleBadgeView> titles = titleDisplay.representatives(wanted); // 대표 칭호(member-title-contract) — 받은 줄 한 질의(+ 받은 회원이 있을 때만 설정·상태)
+        return new AuthorMembers(out, looks, approved, operators, ai, Map.of(), Map.of(), titles);
     }
 
     /**
@@ -104,7 +109,7 @@ public class AuthorViews {
      */
     public PostAuthorView of(Long authorId, String guestName, String authorIp, AuthorMembers members, BoardCatalogSnapshot catalog) {
         if (authorId == null) {
-            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, null, false, false, null, null, null, null);
+            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, null, false, false, null, null, null, null, null);
         }
         ProfileEntity profile = members.get(authorId);
         String gradeKey = profile == null ? null : profile.getGradeKey();
@@ -112,7 +117,7 @@ public class AuthorViews {
         AuthorLook look = members.look(authorId);
         return new PostAuthorView(MEMBER, Long.toString(authorId), profile == null ? "" : profile.getNickname(), gradeKey, label == null ? gradeKey : label,
                 ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), look == null ? null : look.avatarStillUrl(), members.business(authorId),
-                members.operator(authorId), null, null, aiView(members.ai(authorId)), null);
+                members.operator(authorId), null, null, aiView(members.ai(authorId)), null, members.title(authorId));
     }
 
     /**
@@ -141,7 +146,7 @@ public class AuthorViews {
         if (author.anonymousAuthor()) {
             return author;
         }
-        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, null, false, false, null, null, null, null);
+        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, null, false, false, null, null, null, null, null);
     }
 
     /**

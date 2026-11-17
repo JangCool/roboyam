@@ -55,13 +55,16 @@ export type PostReasonProblem = 'REQUIRED' | 'TOO_LONG';
 export type PostMoveProblem = 'BOARD_REQUIRED' | 'SAME_LOCATION';
 
 /** 글 하나의 조치 */
-export type PostActionKind = 'HIDE' | 'UNHIDE' | 'DELETE' | 'RESTORE' | 'MOVE' | 'NOTICE' | 'PIN' | 'UNPIN' | 'FEATURE' | 'UNFEATURE';
+export type PostActionKind = 'HIDE' | 'UNHIDE' | 'DELETE' | 'RESTORE' | 'MOVE' | 'NOTICE' | 'PIN' | 'UNPIN' | 'FEATURE' | 'UNFEATURE' | 'CANDIDATE' | 'UNCANDIDATE';
 
 /** 확인 대화상자로 묻는 조치(사유 없음) — 우수 글 선정·선정 취소(point-board-tier-contract) */
 export type PostConfirmKind = 'FEATURE' | 'UNFEATURE';
 
 /** 사유 대화창(`PostReasonDialog`)이 받는 조치 — 이동·우수 글 말고 글 조치 + 글의 투표 지우기(post-poll-contract, 서랍의 투표 구획에서만) */
-export type PostReasonKind = Exclude<PostActionKind, 'MOVE' | PostConfirmKind> | 'POLL_DELETE';
+export type PostReasonKind = Exclude<PostActionKind, 'MOVE' | PostConfirmKind | PostCandidateKind> | 'POLL_DELETE';
+
+/** 이달의 작가 후보에 넣기·빼기(member-title-contract 「구현 결정」 3 — `POST/DELETE /api/admin/titles/monthly-candidates`, `title.manage`) — 사유 없이 바로 */
+export type PostCandidateKind = 'CANDIDATE' | 'UNCANDIDATE';
 
 /** 서랍 투표 구획의 득표 막대 한 줄 — 퍼센트 = 득표 / 참여한 사람 수(복수 선택은 합이 100 을 넘을 수 있다) */
 export interface PostPollRow {
@@ -78,6 +81,8 @@ export interface PostActionPermissions {
     restore: boolean;
     /** 우수 글 선정·취소(point-board-tier-contract) — 주지 않으면 그 조치가 없다(하이라이트 화면 등) */
     feature?: boolean;
+    /** 이달의 작가 후보에 넣기·빼기(member-title-contract, `title.manage`) — 주지 않으면 그 조치가 없다 */
+    candidate?: boolean;
 }
 
 type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
@@ -146,7 +151,7 @@ export default class UtilPost {
     /** 일괄 조치 차례 */
     static readonly BULK_ACTIONS: readonly PostBulkAction[] = ['HIDE', 'UNHIDE', 'DELETE'];
     /** ⋯ 메뉴·바닥 단추의 차례 */
-    static readonly ACTION_ORDER: readonly PostActionKind[] = ['HIDE', 'UNHIDE', 'MOVE', 'NOTICE', 'PIN', 'UNPIN', 'FEATURE', 'UNFEATURE', 'DELETE', 'RESTORE'];
+    static readonly ACTION_ORDER: readonly PostActionKind[] = ['HIDE', 'UNHIDE', 'MOVE', 'NOTICE', 'PIN', 'UNPIN', 'FEATURE', 'UNFEATURE', 'CANDIDATE', 'UNCANDIDATE', 'DELETE', 'RESTORE'];
 
     /* ── 처리 상태(운영 게시판) ── */
 
@@ -324,7 +329,7 @@ export default class UtilPost {
     /* ── 가능한 조치 ── */
 
     static noActions(): PostActions {
-        return { HIDE: false, UNHIDE: false, DELETE: false, RESTORE: false, MOVE: false, NOTICE: false, PIN: false, UNPIN: false, FEATURE: false, UNFEATURE: false };
+        return { HIDE: false, UNHIDE: false, DELETE: false, RESTORE: false, MOVE: false, NOTICE: false, PIN: false, UNPIN: false, FEATURE: false, UNFEATURE: false, CANDIDATE: false, UNCANDIDATE: false };
     }
 
     /** 확인 대화상자로 묻는 조치인가(우수 글 선정·취소) */
@@ -332,16 +337,22 @@ export default class UtilPost {
         return kind === 'FEATURE' || kind === 'UNFEATURE';
     }
 
+    /** 이달의 작가 후보에 넣기·빼기인가 */
+    static isCandidateKind(kind: PostActionKind): kind is PostCandidateKind {
+        return kind === 'CANDIDATE' || kind === 'UNCANDIDATE';
+    }
+
     /**
      * 한 글에 누를 수 있는 조치 — 상태와 권한이 정한다(서버도 `409 POST_STATE_INVALID` 로 막는다).
      * 공개: 숨기기·이동·공지 지정(이미 고정된 공지가 아니면)·고정 또는 고정 해제·삭제. 숨김: 숨김 해제·이동·삭제. 삭제: 복구(`post.restore`, 파기 전).
      * 소모임 글(`group` 이 있음)은 이동이 없다 — 소모임 게시판에 남아야 소모임 안에서 보인다(서버도 `409 POST_STATE_INVALID`).
      * 우수 글(point-board-tier-contract): 공개 글이고 아직 선정 전이면 선정, 선정된 글이면(지운 글 말고) 선정 취소 — `can.feature` 가 있을 때만.
+     * 이달의 작가 후보(member-title-contract): 공개 글이면 후보에 넣기, 넣은 글이면(`monthlyCandidate`) 후보에서 빼기 — `can.candidate` 가 있을 때만.
      * @param {AdminPostItem} item - 글.
      * @param {PostActionPermissions} can - 권한.
      * @returns {PostActions} 누를 수 있는 조치.
      */
-    static actionsOf(item: Pick<AdminPostItem, 'state' | 'notice' | 'pinned' | 'purged' | 'group' | 'featured'>, can: PostActionPermissions): PostActions {
+    static actionsOf(item: Pick<AdminPostItem, 'state' | 'notice' | 'pinned' | 'purged' | 'group' | 'featured' | 'monthlyCandidate'>, can: PostActionPermissions): PostActions {
         const actions = UtilPost.noActions();
         if (item.state === 'DELETED') {
             actions.RESTORE = can.restore && !item.purged;
@@ -350,6 +361,10 @@ export default class UtilPost {
         if (can.feature) {
             actions.FEATURE = item.state === 'PUBLIC' && !item.featured;
             actions.UNFEATURE = item.featured === true;
+        }
+        if (can.candidate) {
+            actions.CANDIDATE = item.state === 'PUBLIC' && item.monthlyCandidate !== true;
+            actions.UNCANDIDATE = item.monthlyCandidate === true;
         }
         if (!can.manage) return actions;
         const movable = !item.group;
@@ -406,6 +421,8 @@ export default class UtilPost {
             UNPIN: 'pi pi-thumbtack',
             FEATURE: 'pi pi-star',
             UNFEATURE: 'pi pi-star-fill',
+            CANDIDATE: 'pi pi-user-plus',
+            UNCANDIDATE: 'pi pi-user-minus',
         };
         return icons[kind];
     }

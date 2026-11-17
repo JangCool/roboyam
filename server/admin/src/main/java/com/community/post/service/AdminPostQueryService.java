@@ -47,6 +47,7 @@ import com.community.post.repository.master.PostFeatureRepository;
 import com.community.post.repository.master.PostRepository;
 import com.community.site.dto.SiteValues;
 import com.community.site.service.SiteSettingsService;
+import com.community.title.repository.master.TitleMonthlyCandidateRepository;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.ProfileRepository;
@@ -126,11 +127,13 @@ public class AdminPostQueryService {
     private final PostProcessStatusHistoryRepository statusHistory;
     private final PostThumbnailChoices thumbnails;
     private final PostFeatureRepository features;
+    private final TitleMonthlyCandidateRepository titleCandidates;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
                                  UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
                                  GroupRepository groupRepository, PostDealRepository deals, PostProcessStatusHistoryRepository statusHistory,
-                                 PostThumbnailChoices thumbnails, PostFeatureRepository features) {
+                                 PostThumbnailChoices thumbnails, PostFeatureRepository features, TitleMonthlyCandidateRepository titleCandidates) {
+        this.titleCandidates = titleCandidates;
         this.features = features;
         this.statusHistory = statusHistory;
         this.thumbnails = thumbnails;
@@ -274,16 +277,20 @@ public class AdminPostQueryService {
         deals.findAllById(ids).forEach(d -> dealIds.add(d.getPostId()));
         Set<Long> featured = new java.util.HashSet<>(); // 우수 글(point-board-tier-contract — 살아 있는 선정)
         features.findByPostIdInAndUnfeaturedAtIsNull(ids).forEach(f -> featured.add(f.getPostId()));
+        // 이번 달(한국 시간) 이달의 작가 후보로 넣은 글(member-title-contract 「구현 결정」 3 — ⋯ 메뉴 넣기/빼기)
+        Set<Long> candidates = new java.util.HashSet<>();
+        titleCandidates.findByMonthAndPostIdIn(java.time.YearMonth.from(now.atZone(com.community.zconfiguration.time.ServiceTime.ZONE)).toString(), ids)
+                .forEach(c -> candidates.add(c.getPostId()));
         List<AdminPostItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
-            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, dealIds, featured, now));
+            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, dealIds, featured, candidates, now));
         }
         return out;
     }
 
     private static AdminPostItemView item(AdminPostListRow r, BoardCatalogSnapshot s, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById,
                                           Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Map<Long, Integer> opinions,
-                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Set<Long> dealIds, Set<Long> featured,
+                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Set<Long> dealIds, Set<Long> featured, Set<Long> candidates,
                                           Instant now) {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         AdminPostBoardRefView board = new AdminPostBoardRefView(r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
@@ -319,7 +326,7 @@ public class AdminPostQueryService {
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
                 pinRequests.getOrDefault(r.id(), 0), group, r.restricted(), b != null && BoardFields.KIND_DEAL.equals(b.kind()) && dealIds.contains(r.id()),
                 Boolean.TRUE.equals(r.secret()), PostProcessStatus.effective(b, r.processStatus()), PostProcessStatus.effectiveAt(b, r.processStatusAt()), null,
-                featured.contains(r.id()));
+                featured.contains(r.id()), candidates.contains(r.id()));
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {

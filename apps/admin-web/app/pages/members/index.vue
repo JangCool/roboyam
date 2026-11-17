@@ -156,6 +156,11 @@
             :can-force-withdraw="canForceWithdraw"
             :can-change-nickname="canChangeNickname"
             :emoticon-creator="emoticonCreator"
+            :can-manage-titles="canManageTitles"
+            :titles="canReadTitles ? titlesView : null"
+            @grant-title="openTitleGrant"
+            @revoke-title="openTitleRevoke"
+            @retry-titles="loadMemberTitles"
             @retry-withdrawal="withdrawal.retry"
             @force-withdraw="openForce"
             @change-nickname="openNickname"
@@ -257,6 +262,33 @@
             :field-errors="cancelFieldErrors"
             @submit="submitCancel"
         />
+        <!-- 칭호 주기·회수(member-title-contract, `title.manage`) — 서랍 위에 뜬다 -->
+        <TitleGrantDialog
+            v-model:visible="titleGrantOpen"
+            :titles="titleOptions"
+            :member-name="detail?.nickname ?? ''"
+            :busy="titleBusy"
+            :error="titleError"
+            :field-errors="titleFieldErrors"
+            @submit="submitTitleGrant"
+        />
+        <MemberReasonDialog
+            v-model:visible="titleRevokeOpen"
+            :title="t('memberTitle.revokeTitle')"
+            :label="t('memberTitle.revokeReason')"
+            :submit-label="t('memberTitle.revoke')"
+            submit-icon="pi pi-times"
+            danger
+            :notice="t('memberTitle.revokeNotice')"
+            :min="1"
+            :max="UtilTitle.REASON_MAX"
+            :busy="titleBusy"
+            :error="titleError"
+            :field-error="titleFieldErrors.reason ?? ''"
+            @submit="submitTitleRevoke"
+        >
+            <p v-if="titleRevokeTarget" class="m-0 text-sm">{{ t('memberTitle.revokeText', { name: detail?.nickname ?? '', title: titleRevokeTarget.label }) }}</p>
+        </MemberReasonDialog>
         <MemberReasonDialog
             v-model:visible="revealOpen"
             :title="t('withdrawnContact.revealTitle')"
@@ -286,6 +318,9 @@ import type { SanctionCreateRequest, SanctionLine, SanctionRunningLine } from '~
 import type { MemberSanctionsView } from '~/components/member/MemberDetailContent.types';
 import UtilSanction from '~/utils/util-sanction';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
+import type { AdminTitle, TitleGrantRequest, TitleGrantRow } from '~/composables/title/api/useTitleApi.types';
+import type { MemberTitlesView } from '~/components/member/MemberDetailContent.types';
+import UtilTitle from '~/utils/util-title';
 
 // 등급 목록 — 앱 전체가 한 번 읽어 공유한다(`useGradeAppearance`). 표의 뱃지·필터 옵션·조건 칩이 이것을 본다
 const gradeState = useGradeAppearance();
@@ -569,6 +604,101 @@ function splitError(error: ApiError, keys: readonly string[]): { fields: Record<
         if (text) fields[key] = text;
     }
     return { fields, form: Object.keys(fields).length ? '' : error.message };
+}
+
+// ── 칭호 주기·회수(member-title-contract — `title.manage`) — 성공하면 상세를 다시 받는다. 칭호 목록은 처음 [칭호 주기]를 누를 때 받는다
+const titleApi = useTitleApi();
+const canReadTitles = computed(() => can('title.read'));
+const canManageTitles = computed(() => can('title.manage'));
+/** 「칭호」 구획 — 연 회원이 바뀔 때마다 `GET /api/admin/members/{id}/titles` 로 받는다(`title.read`) */
+const titlesView = reactive<MemberTitlesView>({ items: null, loading: false, error: null });
+let titlesTicket = 0;
+async function loadMemberTitles(): Promise<void> {
+    const memberNo = detail.value?.memberNo;
+    const mine = ++titlesTicket;
+    titlesView.items = null;
+    titlesView.error = null;
+    if (!memberNo || !canReadTitles.value) return;
+    titlesView.loading = true;
+    try {
+        const items = await titleApi.memberTitles(memberNo);
+        if (mine === titlesTicket) titlesView.items = items;
+    } catch (e) {
+        if (mine === titlesTicket) titlesView.error = errorOf(e);
+    } finally {
+        if (mine === titlesTicket) titlesView.loading = false;
+    }
+}
+watch(
+    () => detail.value?.memberNo ?? null,
+    () => void loadMemberTitles(),
+);
+const titleOptions = ref<AdminTitle[]>([]);
+const titleGrantOpen = ref(false);
+const titleRevokeOpen = ref(false);
+const titleRevokeTarget = ref<TitleGrantRow | null>(null);
+const titleBusy = ref(false);
+const titleError = ref('');
+const titleFieldErrors = ref<Record<string, string>>({});
+
+function resetTitleState(): void {
+    titleError.value = '';
+    titleFieldErrors.value = {};
+}
+
+function openTitleGrant(): void {
+    resetTitleState();
+    titleGrantOpen.value = true;
+    if (titleOptions.value.length === 0) {
+        void titleApi
+            .list()
+            .then((list) => (titleOptions.value = list))
+            .catch((e) => (titleError.value = errorOf(e).message));
+    }
+}
+
+async function submitTitleGrant(key: string, body: Omit<TitleGrantRequest, 'memberId'>): Promise<void> {
+    const memberNo = detail.value?.memberNo;
+    if (!memberNo || titleBusy.value) return;
+    titleBusy.value = true;
+    resetTitleState();
+    try {
+        await titleApi.grant(key, { ...body, memberId: memberNo });
+        titleGrantOpen.value = false;
+        toast.success(t('memberTitle.granted', { name: detail.value?.nickname ?? '' }));
+        void loadMemberTitles();
+    } catch (e) {
+        const split = splitError(errorOf(e), ['key', 'period', 'tier', 'reason']);
+        titleFieldErrors.value = split.fields;
+        titleError.value = split.form;
+    } finally {
+        titleBusy.value = false;
+    }
+}
+
+function openTitleRevoke(row: TitleGrantRow): void {
+    resetTitleState();
+    titleRevokeTarget.value = row;
+    titleRevokeOpen.value = true;
+}
+
+async function submitTitleRevoke(reason: string): Promise<void> {
+    const row = titleRevokeTarget.value;
+    if (!row || titleBusy.value) return;
+    titleBusy.value = true;
+    resetTitleState();
+    try {
+        await titleApi.revoke(row.key, row.id, { reason });
+        titleRevokeOpen.value = false;
+        toast.success(t('memberTitle.revoked', { name: detail.value?.nickname ?? '' }));
+        void loadMemberTitles();
+    } catch (e) {
+        const split = splitError(errorOf(e), ['reason']);
+        titleFieldErrors.value = split.fields;
+        titleError.value = split.form;
+    } finally {
+        titleBusy.value = false;
+    }
 }
 
 // ── 닉네임 변경(운영자) — 회원의 무료 변경 횟수·변경권은 쓰지 않는다. 성공하면 상세·목록을 다시 받는다

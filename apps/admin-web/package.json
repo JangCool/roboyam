@@ -17,6 +17,7 @@
         "@irobit/display-time": "workspace:*",
         "@irobit/home-layout": "workspace:*",
         "@irobit/i18n": "workspace:*",
+        "@irobit/member-title": "workspace:*",
         "@irobit/rich-editor": "workspace:*",
         "@tabler/icons": "3.49.0",
         "nuxt": "4.6.2",

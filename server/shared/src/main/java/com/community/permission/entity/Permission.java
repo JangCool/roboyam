@@ -94,6 +94,13 @@ public enum Permission {
     GRADE_READ("grade.read", GRADE_POINT, READ, true),
     GRADE_MANAGE("grade.manage", GRADE_POINT, CONFIG, true),
     GRADE_OVERRIDE("grade.override", GRADE_POINT, SENSITIVE, false),
+    // 회원 칭호(docs/features/member-title-contract.md 「권한」) — 등급과 섞지 않는 별도 표시, 관리자 /members/titles. 게시판 매니저 심사는 회원 쪽(자기 게시판 칭호만)이라 여기에 없다
+    /** 칭호 목록·설정·신청 목록·이달의 작가 후보·주고 뺀 기록·회원 칭호 조회 */
+    TITLE_READ("title.read", GRADE_POINT, READ, true),
+    /** 칭호 만들기·고치기·작가 칭호 설정·수여·회수·이달의 작가 후보 넣기/빼기 */
+    TITLE_MANAGE("title.manage", GRADE_POINT, MANAGE, true),
+    /** 칭호 신청 승인·거절 */
+    TITLE_REVIEW("title.review", GRADE_POINT, MANAGE, true),
     POINT_READ("point.read", GRADE_POINT, READ, true),
     POINT_SETTINGS("point.settings", GRADE_POINT, CONFIG, true),
     POINT_ADJUST("point.adjust", GRADE_POINT, SENSITIVE, true),

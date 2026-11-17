@@ -162,6 +162,9 @@ public final class AuditRetention {
             AuditActions.POST_THUMBNAIL,
             // 우수 글 선정·취소(point-board-tier-contract) — 글 삭제(포인트 회수가 따름)와 같은 콘텐츠 관리로 둔다
             AuditActions.POST_FEATURE, AuditActions.POST_UNFEATURE,
+            // 회원 칭호(member-title-contract) — 포인트·돈이 오가지 않는 표시 관리라 일반 운영
+            AuditActions.TITLE_CREATE, AuditActions.TITLE_UPDATE, AuditActions.TITLE_SETTINGS_UPDATE, AuditActions.TITLE_GRANT, AuditActions.TITLE_REVOKE,
+            AuditActions.TITLE_APPLICATION_APPROVE, AuditActions.TITLE_APPLICATION_REJECT, AuditActions.TITLE_CANDIDATE_ADD, AuditActions.TITLE_CANDIDATE_REMOVE,
             // 공지 관리(notice-admin-contract) — 게시글 관리와 같은 콘텐츠 관리(포인트가 오가지 않는다)
             AuditActions.NOTICE_CREATE, AuditActions.NOTICE_UPDATE, AuditActions.NOTICE_DELETE, AuditActions.NOTICE_PIN, AuditActions.NOTICE_UNPIN,
             AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,

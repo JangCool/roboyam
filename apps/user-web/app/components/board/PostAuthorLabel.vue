@@ -2,7 +2,7 @@
     <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 도트(운영자 회원 계정이면 그 자리에 「운영자」 공식 뱃지) + 승인된 사업자면 「사업자」 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
          공식 뱃지는 작성자 `role` 로 고르지 않는다 — 서버가 회원이면 늘 `USER` 로 준다(관리자 앱 운영자 자체는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다).
          「운영자」 뱃지는 `author.operator`(운영자 회원 계정이고 힘이 살아 있을 때만 true)로만 그린다 — 글자는 사이트 용어 `ADMIN_BADGE`(`StaffBadge role="ADMIN"`)
-         AI 회원(`author.ai` — ai-members-contract): 등급 뱃지 자리에 「AI · {모델명}」(`AiBadge`). 늘 보인다 — 좁은 줄(`grade` 끔)에서도 빼지 않는다. 뱃지 차례: 운영자 → AI → 등급(AI 면 없음) → 사업자 -->
+         AI 회원(`author.ai` — ai-members-contract): 등급 뱃지 자리에 「AI · {모델명}」(`AiBadge`). 늘 보인다 — 좁은 줄(`grade` 끔)에서도 빼지 않는다. 뱃지 차례: 운영자 → AI → 등급(AI 면 없음) → 대표 칭호(`author.title`, member-title-contract) → 사업자 -->
     <!--
         익명 작성자(`kind === 'ANONYMOUS'` — anonymous-board-contract): 사람 물음표 아이콘 + 「익명」(댓글이면 서버 번호로 「익명3」). 아바타·등급·닉네임·뱃지·메모·프로필 링크 없음 —
         목록·글 보기·댓글·홈/가젯·최신글·검색이 모두 이 줄을 쓰므로 여기 한 곳에서 가린다. `avatar` 를 켠 자리(글 줄·댓글)는 프로필 동그라미 자리에 회색 원 아이콘
@@ -56,6 +56,8 @@
         <AiBadge v-if="ai" :provider="ai.provider" :model="ai.model" plain :prefix="!showAvatar" data-testid="author-ai-badge" />
         <!-- 등급 — 작성자 줄에서는 기본으로 그리지 않는다(`grade` 기본 끔 — 등급·레벨은 공개 프로필·내 정보에서만, 사용자 결정 2026-11-12). 켜면 작은 도트만 -->
         <GradeBadge v-else-if="!operator && grade && author.kind === 'MEMBER' && author.grade" :grade="author.grade" :label="author.gradeLabel" :name="false" />
+        <!-- 대표 칭호 1개(member-title-contract — 서버 `author.title`, 없으면 그리지 않는다). 1배 칩(12px 도트 + 이름, 이달의 작가는 서버가 「11월의 작가」로 준다). 등급과 따로 늘 보인다 -->
+        <TitleChip v-if="authorTitle" :title="authorTitle" class="max-w-[9rem]" data-testid="author-title" />
         <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->
         <StaffBadge v-if="author.kind === 'MEMBER' && author.business" role="BUSINESS" class="shrink-0" data-testid="author-business-badge" />
         <!-- 이용자 메모 — 나에게만 보이는 노란 칩. 좁은 줄에서는 말줄임으로 줄어든다 -->
@@ -148,6 +150,8 @@ const anonymous = computed(() => props.author.kind === 'ANONYMOUS');
 const anonymousName = computed(() => UtilAnonymousMessages.name(t, props.author.anonymous));
 /** AI 회원의 글·댓글(`author.ai`) — 회원만 */
 const ai = computed(() => (props.author.kind === 'MEMBER' ? (props.author.ai ?? null) : null));
+/** 대표 칭호(`author.title`) — 회원이고 이름이 보일 때만(숨긴 글·지운 댓글·탈퇴 회원은 그리지 않는다) */
+const authorTitle = computed(() => (props.author.kind === 'MEMBER' && props.author.name ? (props.author.title ?? null) : null));
 /** 운영자 회원 계정의 글·댓글(`author.operator`) — 회원만 */
 const operator = computed(() => props.author.kind === 'MEMBER' && props.author.operator === true);
 /** 이용자 메모 — 서버가 준 `author.memo`(나에게만 오는 값, 서버 후보)에 이 기기에서 방금 남기거나 지운 것을 겹친다 */

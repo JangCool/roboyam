@@ -59,6 +59,9 @@ public final class AdminScreenRegistry {
                     // 탈퇴 관리(member-withdrawal-contract 「관리자」) — 주소가 /members 아래지만 다른 화면. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
                     leaf(s("memberWithdrawals", "/members/withdrawals", "menu.memberWithdrawals", "pi pi-user-minus", Permission.MEMBER_READ)),
                     leaf(s("grades", "/grades", "menu.grades", "pi pi-trophy", Permission.GRADE_READ)),
+                    // 회원 칭호(member-title-contract 「화면」 — 칭호·확인할 일·이달의 작가 뽑기·주고 뺀 기록 탭) — 등급 바로 아래, 보기 title.read(화면 안에서 title.manage·title.review).
+                    // 저장한 메뉴 구성에는 admin V11 이 넣는다. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
+                    leaf(s("memberTitles", "/members/titles", "menu.memberTitles", "pi pi-star", Permission.TITLE_READ)),
                     leaf(s("nicknameImages", "/members/nickname-images", "menu.nicknameImages", "pi pi-image", Permission.NICKNAME_IMAGE_READ)),
                     // 아바타 올리기 심사(commerce-motion-avatar-contract) — 닉네임 이미지 심사와 같은 권한. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
                     leaf(s("avatarUploads", "/members/avatar-uploads", "menu.avatarUploads", "pi pi-upload", Permission.NICKNAME_IMAGE_READ))),

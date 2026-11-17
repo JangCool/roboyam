@@ -4,6 +4,7 @@ import type { MemberWithdrawalOfMember } from '~/composables/member/api/useMembe
 import type { WithdrawnContact, WithdrawnContactRevealResult } from '~/composables/member/api/useWithdrawnContactApi.types';
 import type { PointMemberLots } from '~/composables/point/api/usePointApi.types';
 import type { SanctionPreview, SanctionRunningLine } from '~/composables/sanction/api/useSanctionApi.types';
+import type { TitleGrantRow } from '~/composables/title/api/useTitleApi.types';
 
 /**
  * 회원 상세 서랍이 부모(회원 관리 화면)에게서 받아 구획까지 내려보내는 값 — 서랍(`MemberDetailDrawer`) → 본문(`MemberDetailContent`) → 구획.
@@ -89,4 +90,18 @@ export interface MemberDetailEmits {
     'lift-sanction': [line: SanctionRunningLine];
     /** 제재 현황 다시 받기 */
     'retry-sanctions': [];
+    /** 칭호 구획의 [칭호 주기](`title.manage` — member-title-contract) */
+    'grant-title': [];
+    /** 칭호 구획 줄의 [회수] */
+    'revoke-title': [row: TitleGrantRow];
+    /** 칭호 목록 다시 받기 */
+    'retry-titles': [];
+}
+
+/** 「칭호」 구획 — 부모가 `GET /api/admin/members/{id}/titles` 로 받은 값(member-title-contract) */
+export interface MemberTitlesView {
+    /** 아직 받지 못했으면 null */
+    items: TitleGrantRow[] | null;
+    loading: boolean;
+    error: ApiError | null;
 }

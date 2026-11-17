@@ -58,6 +58,8 @@
         <LazyIdentityGateDialog v-if="opened.identityGate" />
         <LazyIdentityFakeDialog v-if="opened.identityFake" />
         <LazyAppConfirm v-if="opened.confirm" />
+        <!-- 칭호 축하 창(member-title-contract) — 로그인한 회원이면 첫 화면 뒤에 코드를 받고, 새로 받은 칭호(`unseen`)가 있을 때만 뜬다 -->
+        <LazyTitleCelebrationDialog v-if="titleCheck && user" />
         <AppToaster :with-tabs="!inner" />
     </div>
 </template>
@@ -117,4 +119,10 @@ const { cacheMode } = useAdminPreview();
 useNotificationBadge().start();
 // 안 읽은 쪽지 대화 수(데스크톱 헤더의 쪽지 아이콘·메뉴의 "쪽지함" 줄) — 알림과 같은 방식으로 한 번만 시작한다
 useDmBadge().start();
+
+/** 칭호 축하 창을 그려도 되는가 — 첫 화면 요청·코드와 겹치지 않게 마운트 뒤 잠깐 기다린다(축하 창이 그때 `GET /api/me/titles` 를 묻는다) */
+const titleCheck = ref(false);
+onMounted(() => {
+    setTimeout(() => (titleCheck.value = true), 1500);
+});
 </script>

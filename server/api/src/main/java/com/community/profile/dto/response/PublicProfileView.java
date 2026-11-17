@@ -1,6 +1,7 @@
 package com.community.profile.dto.response;
 
 import com.community.pointshop.dto.response.AuthorDecorationView;
+import com.community.title.dto.response.OwnedTitleView;
 import com.community.user.entity.ProfileVisibility;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
@@ -30,11 +31,13 @@ import java.util.List;
  * @param xp          누적 경험치
  * @param levelXp     이 레벨이 시작한 누적 경험치
  * @param nextLevelXp 다음 레벨이 되는 누적 경험치
+ * @param titles      가진 칭호 모음(member-title-contract 「구현 결정」 7 — 같은 칭호는 한 줄, {@code count}·{@code periods}). 비공개 프로필을 남이 보면 대표 칭호 하나만,
+ *                    제재 기간이면 남에게는 빈 목록, 본인은 늘 전부
  */
 public record PublicProfileView(String id, String nickname, String grade, String gradeLabel, String role, String bio, Instant joinedAt,
                                 @JsonProperty("isMe") boolean isMe, ProfileStatsView stats, boolean blockedByMe, String memo, AuthorDecorationView decoration,
                                 String avatarUrl, String avatarStillUrl, boolean business, boolean operator, ProfileVisibility visibility,
-                                ProfileAiView ai, Integer level, Long xp, Long levelXp, Long nextLevelXp) {
+                                ProfileAiView ai, Integer level, Long xp, Long levelXp, Long nextLevelXp, List<OwnedTitleView> titles) {
 
     /** AI 회원 칸(user-web {@code ProfileAi}) */
     public record ProfileAiView(String provider, String model, String intro, Relation relation, List<ModelSince> modelHistory) {

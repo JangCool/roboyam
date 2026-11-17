@@ -54,6 +54,7 @@ export default {
     members: '회원 관리',
     memberWithdrawals: '탈퇴 관리',
     grades: '등급 설정',
+    memberTitles: '회원 칭호',
     nicknameImages: '닉네임 이미지 심사',
     avatarUploads: '아바타 올리기 심사',
     siteMenu: '메뉴 관리',

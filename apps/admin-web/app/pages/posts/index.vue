@@ -22,6 +22,8 @@
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
         - 우수 글(point-board-tier-contract): ⋯ 메뉴·서랍 바닥에 「우수 글로 선정」(공개 글) / 「우수 글 선정 취소」(선정된 글) → 확인 대화상자 → `POST·DELETE /api/admin/posts/{id}/feature`(204).
           줄·서랍에 「우수 글」 칩(줄의 `featured`). 권한 `post.feature` 만(운영자). 409 `POST_STATE_INVALID`·404 `POST_NOT_FOUND` 는 다른 조치처럼 토스트 + 새로 받기.
+        - 이달의 작가 후보(member-title-contract 「구현 결정」 3): ⋯ 메뉴·서랍 바닥에 「이달의 작가 후보에 넣기」(공개 글) / 「후보에서 빼기」(넣은 글 — 줄의 `monthlyCandidate`, ⚠ 계약에 없는 칸이라 지금은 목업)
+          → 확인 없이 `POST·DELETE /api/admin/titles/monthly-candidates { postId }`. 권한 `title.manage`. 뽑기는 회원 칭호 › 이달의 작가 뽑기에서.
           선정 확인의 금액·보류 시간은 글이 있는 게시판의 유효 `pointMode`(관리자 게시판 API, `board.read`) + 포인트 정책 `boardTiers`(`point.read`)로 구한다 — 둘 중 하나라도 없거나 못 읽으면 금액 없는 일반 문구.
           끈 게시판이면 「포인트 없이 선정만」. 취소 확인은 금액 없이(보류 금액은 선정한 순간의 정책값). 「이달의 작가 후보에 넣기」는 칭호 기능 몫이라 여기 없다.
     -->
@@ -414,7 +416,7 @@ import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, AdminPostT
 import type { PostThumbnailActions } from '~/components/post/PostThumbnailDialog.types';
 import UtilDateRange from '~/utils/util-date-range';
 import UtilPoint from '~/utils/util-point';
-import UtilPost, { type PostActionKind, type PostConfirmKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
+import UtilPost, { type PostActionKind, type PostCandidateKind, type PostConfirmKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilSanctionMessages from '~/utils/util-sanction-messages';
 import type { SanctionCreateRequest } from '~/composables/sanction/api/useSanctionApi.types';
@@ -464,7 +466,35 @@ function openSealedReveal(): void {
 }
 
 function actionsOf(item: AdminPostItem) {
-    return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value, feature: canFeature.value });
+    return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value, feature: canFeature.value, candidate: canCandidate.value });
+}
+
+/* ── 이달의 작가 후보에 넣기·빼기(member-title-contract 「구현 결정」 3) ── */
+/** `title.manage`(운영자) */
+const canCandidate = computed(() => can('title.manage'));
+const titleApi = useTitleApi();
+
+/** 확인 없이 바로 넣고 뺀다(되돌리기 쉬운 조치) → 목록·서랍을 새로 받는다. 실패는 서버 문구 토스트 */
+async function runCandidate(item: AdminPostItem, kind: PostCandidateKind): Promise<void> {
+    if (acting.value) return;
+    acting.value = true;
+    try {
+        if (kind === 'CANDIDATE') await titleApi.addCandidate({ postId: item.id });
+        else await titleApi.removeCandidate({ postId: item.id });
+    } catch (e) {
+        const error = errorOf(e);
+        if (STALE_CODES.has(error.code)) {
+            toast.error(t('post.staleFailed', { reason: error.message }), 8000);
+            await refreshAfter(item.id);
+        } else {
+            toast.error(error.message, 8000);
+        }
+        return;
+    } finally {
+        acting.value = false;
+    }
+    toast.success(t(`post.done.${kind}`));
+    await refreshAfter(item.id);
 }
 
 /* ── 우수 글 선정·취소(point-board-tier-contract) ── */
@@ -832,6 +862,10 @@ function openAct(item: AdminPostItem, kind: PostActionKind): void {
     if (acting.value) return;
     if (UtilPost.isConfirmKind(kind)) {
         void openFeature(item, kind);
+        return;
+    }
+    if (UtilPost.isCandidateKind(kind)) {
+        void runCandidate(item, kind);
         return;
     }
     if (kind === 'MOVE') {

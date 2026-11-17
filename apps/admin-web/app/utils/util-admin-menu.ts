@@ -142,6 +142,8 @@ export default class UtilAdminMenu {
                 // 탈퇴 관리 — 주소가 `/members` 아래지만 다른 화면이다(member-withdrawal-contract 「관리자」). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
                 { key: 'memberWithdrawals', to: '/members/withdrawals', icon: 'pi pi-user-minus', labelKey: 'menu.memberWithdrawals', permission: 'member.read' },
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
+                // 회원 칭호(member-title-contract — 칭호·확인할 일·이달의 작가 뽑기·주고 뺀 기록 네 화면, `/members/titles/*`). 서버 `AdminScreenRegistry.memberTitles` 와 같은 키·주소·권한·아이콘
+                { key: 'memberTitles', to: '/members/titles', icon: 'pi pi-star', labelKey: 'menu.memberTitles', permission: 'title.read' },
                 // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
                 { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },
                 // 아바타 올리기 심사(서버 연결됨 — commerce-motion-avatar-contract) — 권한은 닉네임 이미지 심사와 같다. 서버 `AdminScreenRegistry.avatarUploads` 와 같은 줄

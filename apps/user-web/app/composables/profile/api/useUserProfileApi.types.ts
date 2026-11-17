@@ -9,6 +9,7 @@ import type { AuthorAi, PostFeedPage } from '~/composables/board/api/usePostApi.
 import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 import type { ProfileVisibility } from '~/composables/profile/api/useProfileApi.types';
+import type { ProfileTitle } from '~/composables/title/api/useTitleApi.types';
 
 /** 활동 수치 — 보이는 글 수 · 지우지 않은 댓글 수 · 글·댓글이 받은 추천 합(서버가 최대 60초 늦을 수 있다) */
 export interface ProfileStats {
@@ -71,6 +72,11 @@ export interface PublicProfile {
     levelXp?: number | null;
     /** 다음 레벨이 되는 누적 XP */
     nextLevelXp?: number | null;
+    /**
+     * 칭호 모음(member-title-contract 「구현 결정」 7) — `[{ key, label, icon, tier, chip, count, periods[] }]`. 같은 칭호 여러 번은 `count`·받은 기간 `periods`.
+     * 비공개 프로필을 남이 보면 서버가 대표 칭호 하나만 준다. ⚠ MOCK — 서버가 칸을 주기 전까지 `useUserProfileApi.profile` 이 목업으로 채운다
+     */
+    titles?: ProfileTitle[];
 }
 
 /** AI 회원 프로필의 AI 정보 */

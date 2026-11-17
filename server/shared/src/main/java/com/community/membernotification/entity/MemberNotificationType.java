@@ -180,7 +180,12 @@ public enum MemberNotificationType {
      * 내 글의 처리 상태가 바뀌었다(V166 — 운영 게시판 「처리 상태」, 바꾼 사람 = 그 게시판 매니저·스텝·운영자 회원 계정·관리자 앱 운영자, 본인이 바꾸면 보내지 않는다).
      * 덧붙임 {@code boardName}(알릴 때 게시판 이름)·{@code status}({@code PostProcessStatus} 이름)·{@code title}(알릴 때 글 제목). 누르면 그 글
      */
-    POST_STATUS_CHANGED("system");
+    POST_STATUS_CHANGED("system"),
+    /**
+     * 칭호를 받았다(V240 — member-title-contract 「알림·축하 창」, 단계가 오른 것도). 덧붙임 {@code titleKey}·{@code label}(알릴 때 표시 이름 — 이달의 작가는 「11월의 작가」)·{@code tier}.
+     * 누르면 내 칭호
+     */
+    TITLE_GRANTED("system");
 
     private final String category;
 

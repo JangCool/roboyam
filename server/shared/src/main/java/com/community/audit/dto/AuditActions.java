@@ -253,6 +253,19 @@ public final class AuditActions {
     /** 우수 글 선정·취소(point-board-tier-contract — 대상 POST, 덧붙임: 지급·보류 포인트) */
     public static final String POST_FEATURE = "POST_FEATURE";
     public static final String POST_UNFEATURE = "POST_UNFEATURE";
+    /** 회원 칭호(member-title-contract 「규칙」) — 만들기·고치기·설정(대상 TITLE, 바뀐 칸 before/after) */
+    public static final String TITLE_CREATE = "TITLE_CREATE";
+    public static final String TITLE_UPDATE = "TITLE_UPDATE";
+    public static final String TITLE_SETTINGS_UPDATE = "TITLE_SETTINGS_UPDATE";
+    /** 칭호 수여·회수(대상 MEMBER, 덧붙임: 칭호 키·기간·단계·사유 — 이달의 작가 수여로 명예 작가가 따라오면 {@code honorary}) */
+    public static final String TITLE_GRANT = "TITLE_GRANT";
+    public static final String TITLE_REVOKE = "TITLE_REVOKE";
+    /** 칭호 신청 승인·거절(대상 MEMBER, 덧붙임: 칭호 키·신청 ID·사유 — 게시판 매니저 심사는 회원이 행위자) */
+    public static final String TITLE_APPLICATION_APPROVE = "TITLE_APPLICATION_APPROVE";
+    public static final String TITLE_APPLICATION_REJECT = "TITLE_APPLICATION_REJECT";
+    /** 이달의 작가 후보 넣기·빼기(대상 POST, 덧붙임: 달) */
+    public static final String TITLE_CANDIDATE_ADD = "TITLE_CANDIDATE_ADD";
+    public static final String TITLE_CANDIDATE_REMOVE = "TITLE_CANDIDATE_REMOVE";
     /** 일괄 숨김·해제·삭제 — 대상 POST + {@code bulk}, {@code action}·{@code done}·{@code failed}(글 ID 목록) */
     public static final String POST_BULK = "POST_BULK";
     /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */
