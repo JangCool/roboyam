@@ -4,6 +4,8 @@
         등급은 순서 있는 목록이고 이 화면이 원천이다. 등급 **역할**(그 등급이 무엇을 할 수 있나)은 이 목록에서 자동으로 만들어지고, 역할 관리 › 등급 역할(`/settings/roles/grade`)에서는 권한만 정한다.
         community 와 다른 점: 등급을 추가·삭제·순서 이동할 수 있고(첫 등급 = 기본 등급은 삭제·이동·조건 편집 불가, 이름·뱃지는 편집 가능), 출하 완료글(인기글) 수 칸은 없다(irobit 에 같은 개념이 아직 없다). 새로고침 단추도 두지 않았다.
         수동으로 올린 회원 옵션·소급 영향 확인·뱃지는 irobit 정책(2026-10-21 확정)이다.
+        **위쪽 탭 네 개**(`?tab=rules|curve|badge|notes`, 기본 승급 조건 — 쿼리 없음): 승급 조건(구획 승급 조건 + 수동으로 올린 회원) · 레벨 곡선 · 등급 표시 · 안내(구획 안내·동작). 고른 탭의 구획만 그리고, 옛 구획 주소(`#grade-curve` 등)로 들어오면 그 구획이 든 탭을 연다.
+        탭은 보는 자리만 나눈다 — 값·검사·저장은 화면 하나가 들고 있어 탭을 옮겨도 그대로이고 저장 줄도 하나다. 탭 이름 옆에 그 탭의 오류 칸 수·바뀐 칸 수가 붙고, 저장이 막히면(화면 검사·서버 거절) 맞지 않는 칸이 있는 첫 탭을 연다.
         구획: 승급 조건(`grade-rules`, 등급 행 — 이름·조건·순서·삭제·추가) · 등급 표시(`grade-badge`, 행마다 미리보기·색·아이콘) · 수동으로 올린 회원(`grade-manual`, 라디오 둘 — 수동으로 올린 회원에게만 적용되는 옵션) · 안내·동작(`grade-notes`).
         **저장은 한 번에**(등급 목록 + 뱃지 + 옵션, PUT 한 번) — [저장]·[되돌리기]·상태 글·저장 실패 문구는 구획 안이 아니라 `<form>` 맨 끝, 페이지 맨 아래에 창 아래로 떠 있는 줄(`StickySaveBar`)에 둔다(`forms.md` 2-4. 구획 안에 두면 "그 구획만 저장된다"로 읽힌다). 서버는 목록을 diff 해서 추가·삭제·순서·수정을 처리한다.
         조건 칸은 글자 입력(`InputText` + `inputmode=numeric`)이다 — PrimeVue `InputNumber` 는 범위를 벗어난 값을 말없이 바꿔 버리고 `aria-describedby` 가 입력칸에 붙지 않아, 칸 아래 오류 문구로 알리려면 글자 입력이 맞다.
@@ -17,289 +19,321 @@
         곡선(지수·기준값)을 바꾼 저장은 올리든 내리든 미리보기를 거치고, 승급 인원이 없어도 확인을 묻는다(전 회원 레벨 재계산).
         등급 표시 구획에 **도트 캐릭터**(`sprite` 11종, 작은 판 2배 미리보기)를 더했다 — 공개 화면(작성자 줄·프로필)은 뱃지 대신 도트를 쓰고, 뱃지 색·아이콘은 관리자 화면 표시로 남는다.
         권한: 조회 `grade.read`(메뉴), 변경 `grade.manage` — 없으면 저장 줄·추가/삭제/순서 단추가 사라지고(저장 줄 자리에 읽기 전용 안내가 보인다) 입력칸은 `readonly`, 라디오는 `disabled`(서버 값이 그대로 보인다). 감추는 것은 편의이고 막는 것은 서버다.
-        저장하지 않은 변경(등급 목록·옵션)이 있는 채 다른 화면으로 가면 확인을 묻는다(`onBeforeRouteLeave`).
+        저장하지 않은 변경(등급 목록·옵션)이 있는 채 다른 화면으로 가면 확인을 묻는다(`onBeforeRouteLeave`). 탭 이동은 같은 화면 안에서 쿼리만 바뀌는 이동이라 묻지 않는다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('grade.title')" :subtitle="t('grade.subtitle')" />
 
-        <!-- 읽는 중 -->
-        <AppGadget v-if="loading && !saved" :title="t('grade.rulesTitle')">
-            <div class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
-                <Skeleton v-for="n in 4" :key="n" height="3.5rem" />
-            </div>
-        </AppGadget>
+        <!--
+            탭 줄 — 모양은 회원 칭호 관리의 탭 줄(`TitleAdminTabs`: 밑줄 탭, 넘치면 가로 스크롤)과 같다. 그쪽은 탭마다 화면이 달라 링크지만 여기는 한 화면 안에서 바꾸므로
+            탭(`role="tablist"` · `role="tab"` `aria-selected` `aria-controls` · 패널 `role="tabpanel"` `aria-labelledby`)으로 직접 그린다(광고 기본 설정 `ads/placements.vue` 와 같은 방식).
+            키: 왼·오른 화살표(끝에서 돌아간다), Home·End — 초점과 함께 탭이 바뀐다. 이름 옆 표시는 우측 구역 내비(`SectionNav`)와 같은 배지 — 오류 칸 수(빨강) · 바뀐 칸 수(노랑), 글자는 `sr-only` 가 읽는다.
+        -->
+        <div role="tablist" :aria-label="t('grade.tabsLabel')" class="flex gap-1 overflow-x-auto border-b border-(--line)" data-testid="grade-tabs" @keydown="onTabKeydown">
+            <button
+                v-for="item in TABS"
+                :id="tabIdOf(item.key)"
+                :key="item.key"
+                type="button"
+                role="tab"
+                :aria-selected="tab === item.key"
+                :aria-controls="tab === item.key ? panelId : undefined"
+                :tabindex="tab === item.key ? 0 : -1"
+                class="-mb-px inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 bg-transparent px-3 py-2 text-sm whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                :class="tab === item.key ? 'border-(--p-primary-color) font-semibold' : 'border-transparent text-muted-color hover:text-(--p-text-color)'"
+                :data-testid="`grade-tab-${item.key}`"
+                @click="selectTab(item.key)"
+            >
+                <span>{{ t(item.label) }}</span>
+                <Badge v-if="tabStatus[item.key].invalid > 0" :value="tabStatus[item.key].invalid" severity="danger" size="small" class="shrink-0" :title="UtilSectionNavMessages.invalid(t, tabStatus[item.key].invalid)" aria-hidden="true" />
+                <Badge v-if="tabStatus[item.key].changes > 0" :value="tabStatus[item.key].changes" severity="warn" size="small" class="shrink-0" :title="UtilSectionNavMessages.changed(t, tabStatus[item.key].changes)" aria-hidden="true" />
+                <span v-if="tabStatusText(item.key)" class="sr-only">({{ tabStatusText(item.key) }})</span>
+            </button>
+        </div>
 
-        <!-- 읽기 실패 — 서버 문구를 그대로 보이고 다시 시도 -->
-        <AppGadget v-else-if="!saved" :title="t('grade.rulesTitle')">
-            <ErrorState :title="t('grade.loadFailed')" :description="loadError?.message" retry :retrying="loading" @retry="load" />
-        </AppGadget>
+        <!-- 읽는 중 · 읽기 실패 — 탭 줄은 그대로 두고 고른 탭의 내용 자리에 보인다 -->
+        <div v-if="!saved" :id="panelId" role="tabpanel" :aria-labelledby="tabIdOf(tab)">
+            <AppGadget v-if="loading" :title="t(current.label)">
+                <div class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
+                    <Skeleton v-for="n in 4" :key="n" height="3.5rem" />
+                </div>
+            </AppGadget>
+
+            <!-- 읽기 실패 — 서버 문구를 그대로 보이고 다시 시도 -->
+            <AppGadget v-else :title="t(current.label)">
+                <ErrorState :title="t('grade.loadFailed')" :description="loadError?.message" retry :retrying="loading" @retry="load" />
+            </AppGadget>
+        </div>
 
         <form v-else class="flex flex-col gap-4" novalidate @submit.prevent="save">
-            <AppGadget :title="t('grade.rulesTitle')" anchor="grade-rules" :changes="changes.rules" :invalid="ruleErrorCount">
-                <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.rulesLead') }}</p>
+            <!-- 고른 탭의 구획만 그린다(v-if) — 값·검사 결과는 화면 상태에 있어 탭을 옮겨도 남고, 그려진 구획만 우측 구역 내비에 오른다 -->
+            <div :id="panelId" role="tabpanel" :aria-labelledby="tabIdOf(tab)" class="flex flex-col gap-4">
+                <AppGadget v-if="tab === 'rules'" :title="t('grade.rulesTitle')" anchor="grade-rules" :changes="changes.rules" :invalid="ruleErrorCount">
+                    <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.rulesLead') }}</p>
 
-                <ul class="m-0 flex list-none flex-col divide-y divide-(--line) border-y border-(--line) p-0">
-                    <li v-for="(row, i) in form" :key="row.id" role="group" :aria-labelledby="`${idBase}-${row.id}-title`" class="flex flex-col gap-3 py-4">
-                        <!-- 줄 머리 — 단계 · 기본/새 등급 표시 · 회원 수 · 순서·삭제 단추 -->
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span :id="`${idBase}-${row.id}-title`" class="text-sm font-medium">{{ t('grade.levelLabel', { level: i + 1 }) }}</span>
-                            <Tag v-if="i === 0" :value="t('grade.baseTag')" icon="pi pi-lock" severity="secondary" />
-                            <Tag v-else-if="row.gradeKey === null" :value="t('grade.newTag')" severity="info" />
-                            <span v-if="row.gradeKey !== null" class="text-xs tabular-nums text-muted-color">{{ t('grade.memberCount', { count: UtilGrade.format(row.memberCount) }) }}</span>
-                            <div v-if="canManage && i > 0" class="ml-auto flex items-center gap-0.5">
-                                <Button :id="`${idBase}-${row.id}-up`" type="button" icon="pi pi-arrow-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('grade.moveUp', { name: nameOf(row) })" :disabled="saving || !UtilGrade.canMove(form, i, -1)" @click="move(i, -1)" />
-                                <Button :id="`${idBase}-${row.id}-down`" type="button" icon="pi pi-arrow-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('grade.moveDown', { name: nameOf(row) })" :disabled="saving || !UtilGrade.canMove(form, i, 1)" @click="move(i, 1)" />
-                                <Button type="button" icon="pi pi-trash" size="small" severity="danger" variant="text" rounded :aria-label="t('grade.removeGrade', { name: nameOf(row) })" :disabled="saving || !UtilGrade.canRemove(form, i)" @click="removeRow(i)" />
+                    <ul class="m-0 flex list-none flex-col divide-y divide-(--line) border-y border-(--line) p-0">
+                        <li v-for="(row, i) in form" :key="row.id" role="group" :aria-labelledby="`${idBase}-${row.id}-title`" class="flex flex-col gap-3 py-4">
+                            <!-- 줄 머리 — 단계 · 기본/새 등급 표시 · 회원 수 · 순서·삭제 단추 -->
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span :id="`${idBase}-${row.id}-title`" class="text-sm font-medium">{{ t('grade.levelLabel', { level: i + 1 }) }}</span>
+                                <Tag v-if="i === 0" :value="t('grade.baseTag')" icon="pi pi-lock" severity="secondary" />
+                                <Tag v-else-if="row.gradeKey === null" :value="t('grade.newTag')" severity="info" />
+                                <span v-if="row.gradeKey !== null" class="text-xs tabular-nums text-muted-color">{{ t('grade.memberCount', { count: UtilGrade.format(row.memberCount) }) }}</span>
+                                <div v-if="canManage && i > 0" class="ml-auto flex items-center gap-0.5">
+                                    <Button :id="`${idBase}-${row.id}-up`" type="button" icon="pi pi-arrow-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('grade.moveUp', { name: nameOf(row) })" :disabled="saving || !UtilGrade.canMove(form, i, -1)" @click="move(i, -1)" />
+                                    <Button :id="`${idBase}-${row.id}-down`" type="button" icon="pi pi-arrow-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('grade.moveDown', { name: nameOf(row) })" :disabled="saving || !UtilGrade.canMove(form, i, 1)" @click="move(i, 1)" />
+                                    <Button type="button" icon="pi pi-trash" size="small" severity="danger" variant="text" rounded :aria-label="t('grade.removeGrade', { name: nameOf(row) })" :disabled="saving || !UtilGrade.canRemove(form, i)" @click="removeRow(i)" />
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- 입력 — 이름 · (기본 등급이 아니면) 최소 레벨 · 가입 후 일수 · 글·댓글 합계 -->
-                        <div class="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,14rem))]">
-                            <LabeledField :label="t('grade.fieldLabel')" :hint="t('grade.labelHint', { max: UtilGrade.LABEL_MAX })" :error="errorOf(row, 'label')">
-                                <template #default="{ id, describedBy, invalid }">
-                                    <InputText
-                                        :id="id"
-                                        :model-value="row.label"
-                                        :name="`${row.id}.label`"
-                                        autocomplete="off"
-                                        :placeholder="t('grade.labelPlaceholder')"
-                                        :readonly="!canManage || saving"
-                                        :invalid="invalid"
-                                        :aria-describedby="describedBy"
-                                        :aria-required="true"
-                                        fluid
-                                        @update:model-value="(value: string | undefined) => onInput(row, 'label', value ?? '')"
-                                    />
-                                </template>
-                            </LabeledField>
-
-                            <template v-if="i > 0">
-                                <LabeledField v-for="field in FIELDS" :key="field" :label="t(FIELD_TEXT[field].label)" :help="helpOf(field)" :error="errorOf(row, field)">
+                            <!-- 입력 — 이름 · (기본 등급이 아니면) 최소 레벨 · 가입 후 일수 · 글·댓글 합계 -->
+                            <div class="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,14rem))]">
+                                <LabeledField :label="t('grade.fieldLabel')" :hint="t('grade.labelHint', { max: UtilGrade.LABEL_MAX })" :error="errorOf(row, 'label')">
                                     <template #default="{ id, describedBy, invalid }">
-                                        <div class="flex items-center gap-2">
-                                            <InputText
-                                                :id="id"
-                                                :model-value="row[field]"
-                                                :name="`${row.id}.${field}`"
-                                                inputmode="numeric"
-                                                autocomplete="off"
-                                                :readonly="!canManage || saving"
-                                                :invalid="invalid"
-                                                :aria-describedby="describedBy"
-                                                :aria-required="true"
-                                                class="w-32 text-right tabular-nums"
-                                                @update:model-value="(value: string | undefined) => onInput(row, field, value ?? '')"
-                                            />
-                                            <span class="text-sm text-muted-color">{{ t(FIELD_TEXT[field].unit) }}</span>
-                                        </div>
+                                        <InputText
+                                            :id="id"
+                                            :model-value="row.label"
+                                            :name="`${row.id}.label`"
+                                            autocomplete="off"
+                                            :placeholder="t('grade.labelPlaceholder')"
+                                            :readonly="!canManage || saving"
+                                            :invalid="invalid"
+                                            :aria-describedby="describedBy"
+                                            :aria-required="true"
+                                            fluid
+                                            @update:model-value="(value: string | undefined) => onInput(row, 'label', value ?? '')"
+                                        />
                                     </template>
                                 </LabeledField>
-                            </template>
-                            <div v-else class="flex flex-col justify-center gap-1 xl:col-span-3">
-                                <p class="flex items-center gap-1.5 text-sm">
-                                    <i class="pi pi-lock text-[11px] text-muted-color" aria-hidden="true" />
-                                    {{ UtilGradeMessages.condition(t, { minDays: 0, minActivity: 0 }) }}
-                                </p>
-                                <p class="text-xs leading-relaxed text-muted-color">{{ t('grade.baseNote') }}</p>
-                            </div>
-                        </div>
-                    </li>
-                </ul>
 
-                <!-- 추가 — 등급 수는 최소·최대가 있다 -->
-                <div v-if="canManage" class="mt-4 flex flex-wrap items-center gap-3">
-                    <!-- 비활성 단추는 마우스 이벤트가 없어 툴팁을 감싼 칸에 단다 -->
-                    <span v-tooltip.top="form.length >= UtilGrade.MAX_GRADES ? t('grade.addLimit', { max: UtilGrade.MAX_GRADES }) : undefined" class="inline-flex">
-                        <Button type="button" :label="t('grade.addGrade')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" :disabled="saving || form.length >= UtilGrade.MAX_GRADES" :aria-description="form.length >= UtilGrade.MAX_GRADES ? t('grade.addLimit', { max: UtilGrade.MAX_GRADES }) : undefined" @click="addRow" />
-                    </span>
-                    <span class="text-xs tabular-nums text-muted-color">{{ t('grade.gradeCount', { count: form.length, max: UtilGrade.MAX_GRADES }) }}</span>
-                    <span v-if="form.length >= UtilGrade.MAX_GRADES" class="text-xs text-muted-color">{{ t('grade.addLimit', { max: UtilGrade.MAX_GRADES }) }}</span>
-                    <span v-else-if="form.length <= UtilGrade.MIN_GRADES" class="text-xs text-muted-color">{{ t('grade.removeMinTip', { min: UtilGrade.MIN_GRADES }) }}</span>
-                </div>
-            </AppGadget>
-
-            <!-- 레벨 곡선(전역) — 지수와 기준값으로 레벨마다 필요한 누적 경험치가 정해진다. 식 안내 + Lv.10·50·100 의 값, 그 아래 등급별 미리보기(걸리는 날), 곡선을 바꿨으면 경고 -->
-            <AppGadget :title="t('grade.curveTitle')" anchor="grade-curve" :changes="curveChanges" :invalid="curveErrorCount">
-                <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveLead') }}</p>
-                <div class="flex flex-wrap items-start gap-x-8 gap-y-4">
-                    <LabeledField :label="t('grade.curveExponent')" :help="t('grade.curveExponentHelp')" :error="serverExponentError">
-                        <template #default="{ describedBy, invalid }">
-                            <SelectButton
-                                :model-value="exponent"
-                                :options="exponentOptions"
-                                option-label="label"
-                                option-value="value"
-                                :allow-empty="false"
-                                size="small"
-                                :disabled="!canManage || saving"
-                                :invalid="invalid"
-                                :aria-label="t('grade.curveExponent')"
-                                :aria-describedby="describedBy"
-                                class="self-start"
-                                data-testid="grade-curve-exponent"
-                                @update:model-value="onExponentInput"
-                            />
-                        </template>
-                    </LabeledField>
-                    <LabeledField :label="t('grade.curveField')" :help="t('grade.curveHelp', { min: UtilGrade.CURVE_MIN, max: UtilGrade.format(UtilGrade.CURVE_MAX), def: UtilGrade.CURVE_DEFAULT })" :error="curveError">
-                        <template #default="{ id, describedBy, invalid }">
-                            <InputText
-                                :id="id"
-                                :model-value="curve"
-                                name="xpCurveBase"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                :readonly="!canManage || saving"
-                                :invalid="invalid"
-                                :aria-describedby="describedBy"
-                                :aria-required="true"
-                                class="w-32 text-right tabular-nums"
-                                @update:model-value="onCurveInput"
-                            />
-                        </template>
-                    </LabeledField>
-                </div>
-                <p class="mt-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveFormula') }}</p>
-                <p v-if="curveSample" class="mt-1 flex items-start gap-1.5 text-sm tabular-nums" data-testid="grade-curve-sample">
-                    <i class="pi pi-chart-line mt-1 text-xs text-muted-color" aria-hidden="true" />
-                    <span>{{ curveSample }}</span>
-                </p>
-
-                <!-- 등급별 미리보기 — 기본 등급을 뺀 등급 전부를 지금 편집 중인 값으로 바로 다시 계산한다(저장 전에도). 읽을 수 없는 칸은 「—」 -->
-                <section class="mt-4 rounded-lg bg-(--p-content-hover-background) px-3 py-2.5" :aria-labelledby="`${idBase}-pace-title`" data-testid="grade-curve-pace">
-                    <h3 :id="`${idBase}-pace-title`" class="m-0 text-sm font-medium">{{ t('grade.paceTitle') }}</h3>
-                    <p class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">
-                        {{ paceLead }}
-                        <template v-if="canReadPointPolicy"> · <NuxtLink to="/points/policy#point-daily-total" class="whitespace-nowrap text-primary hover:underline">{{ t('grade.paceLink') }}</NuxtLink></template>
-                    </p>
-                    <div class="mt-2 min-w-0 overflow-x-auto">
-                        <table class="w-full min-w-[34rem] border-collapse text-[13px]">
-                            <caption class="sr-only">{{ t('grade.paceCaption') }}</caption>
-                            <thead>
-                                <tr class="border-b border-(--line) text-[11px] text-muted-color">
-                                    <th scope="col" class="py-1.5 pr-2 text-left align-bottom font-normal">{{ t('grade.paceColGrade') }}</th>
-                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColLevel') }}</th>
-                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColXp') }}</th>
-                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColDays') }}</th>
-                                    <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColTypical') }}</th>
-                                    <th scope="col" class="py-1.5 text-right align-bottom font-normal">{{ t('grade.paceColCapped') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-(--line)">
-                                <tr v-for="row in paceRows" :key="row.id">
-                                    <th scope="row" class="py-1.5 pr-2 text-left font-normal whitespace-nowrap">{{ row.name }}</th>
-                                    <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.minLevel === null ? 'text-muted-color' : ''">{{ row.minLevel === null ? DASH : t('grade.paceLevel', { level: UtilGrade.format(row.minLevel) }) }}</td>
-                                    <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.xp === null ? 'text-muted-color' : ''">{{ row.xp === null ? DASH : UtilGrade.format(row.xp) }}</td>
-                                    <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.minDays === null ? 'text-muted-color' : ''">{{ row.minDays === null ? DASH : t('grade.paceDays', { n: UtilGrade.format(row.minDays) }) }}</td>
-                                    <td v-for="(cell, at) in [row.typical, row.capped]" :key="at" class="py-1.5 text-right whitespace-nowrap tabular-nums" :class="[at === 0 ? 'pr-2' : '', cell ? '' : 'text-muted-color']">
-                                        <template v-if="cell">
-                                            {{ UtilGradeMessages.duration(t, cell.days) }}
-                                            <Tag v-if="cell.byDays" :value="t('grade.paceByDays')" severity="warn" class="ml-1 text-[11px]!" />
+                                <template v-if="i > 0">
+                                    <LabeledField v-for="field in FIELDS" :key="field" :label="t(FIELD_TEXT[field].label)" :help="helpOf(field)" :error="errorOf(row, field)">
+                                        <template #default="{ id, describedBy, invalid }">
+                                            <div class="flex items-center gap-2">
+                                                <InputText
+                                                    :id="id"
+                                                    :model-value="row[field]"
+                                                    :name="`${row.id}.${field}`"
+                                                    inputmode="numeric"
+                                                    autocomplete="off"
+                                                    :readonly="!canManage || saving"
+                                                    :invalid="invalid"
+                                                    :aria-describedby="describedBy"
+                                                    :aria-required="true"
+                                                    class="w-32 text-right tabular-nums"
+                                                    @update:model-value="(value: string | undefined) => onInput(row, field, value ?? '')"
+                                                />
+                                                <span class="text-sm text-muted-color">{{ t(FIELD_TEXT[field].unit) }}</span>
+                                            </div>
                                         </template>
-                                        <template v-else>{{ DASH }}</template>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </LabeledField>
+                                </template>
+                                <div v-else class="flex flex-col justify-center gap-1 xl:col-span-3">
+                                    <p class="flex items-center gap-1.5 text-sm">
+                                        <i class="pi pi-lock text-[11px] text-muted-color" aria-hidden="true" />
+                                        {{ UtilGradeMessages.condition(t, { minDays: 0, minActivity: 0 }) }}
+                                    </p>
+                                    <p class="text-xs leading-relaxed text-muted-color">{{ t('grade.baseNote') }}</p>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <!-- 추가 — 등급 수는 최소·최대가 있다 -->
+                    <div v-if="canManage" class="mt-4 flex flex-wrap items-center gap-3">
+                        <!-- 비활성 단추는 마우스 이벤트가 없어 툴팁을 감싼 칸에 단다 -->
+                        <span v-tooltip.top="form.length >= UtilGrade.MAX_GRADES ? t('grade.addLimit', { max: UtilGrade.MAX_GRADES }) : undefined" class="inline-flex">
+                            <Button type="button" :label="t('grade.addGrade')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" :disabled="saving || form.length >= UtilGrade.MAX_GRADES" :aria-description="form.length >= UtilGrade.MAX_GRADES ? t('grade.addLimit', { max: UtilGrade.MAX_GRADES }) : undefined" @click="addRow" />
+                        </span>
+                        <span class="text-xs tabular-nums text-muted-color">{{ t('grade.gradeCount', { count: form.length, max: UtilGrade.MAX_GRADES }) }}</span>
+                        <span v-if="form.length >= UtilGrade.MAX_GRADES" class="text-xs text-muted-color">{{ t('grade.addLimit', { max: UtilGrade.MAX_GRADES }) }}</span>
+                        <span v-else-if="form.length <= UtilGrade.MIN_GRADES" class="text-xs text-muted-color">{{ t('grade.removeMinTip', { min: UtilGrade.MIN_GRADES }) }}</span>
                     </div>
-                    <p class="m-0 mt-2 flex flex-wrap items-center gap-x-1.5 text-xs leading-relaxed text-muted-color">
-                        <Tag :value="t('grade.paceByDays')" severity="warn" class="text-[11px]!" />
-                        <span>{{ t('grade.paceByDaysNote') }}</span>
+                </AppGadget>
+
+                <AppGadget v-if="tab === 'rules'" :title="t('grade.manualTitle')" anchor="grade-manual" :changes="policyChanged ? 1 : 0" :invalid="serverPolicyError ? 1 : 0">
+                    <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.manualLead') }}</p>
+
+                    <!-- 수동으로 올린 회원의 이후 동작 — 둘 중 하나 -->
+                    <div role="radiogroup" :aria-label="t('grade.manualTitle')" class="flex flex-col gap-3">
+                        <div v-for="value in POLICIES" :key="value" class="flex items-start gap-3">
+                            <RadioButton v-model="policy" :input-id="`${idBase}-policy-${value}`" name="manualPolicy" :value="value" :disabled="!canManage || saving" :invalid="Boolean(serverPolicyError)" class="mt-0.5 shrink-0" />
+                            <label :for="`${idBase}-policy-${value}`" class="flex min-w-0 flex-col gap-0.5" :class="canManage && !saving ? 'cursor-pointer' : ''">
+                                <span class="text-sm font-medium">{{ t(POLICY_TEXT[value].label) }}</span>
+                                <span class="text-xs leading-relaxed text-muted-color">{{ t(POLICY_TEXT[value].help) }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    <p v-if="serverPolicyError" role="alert" class="mt-2 text-xs text-red-600 dark:text-red-400">{{ serverPolicyError }}</p>
+                </AppGadget>
+
+                <!-- 레벨 곡선(전역) — 지수와 기준값으로 레벨마다 필요한 누적 경험치가 정해진다. 식 안내 + Lv.10·50·100 의 값, 그 아래 등급별 미리보기(걸리는 날), 곡선을 바꿨으면 경고 -->
+                <AppGadget v-if="tab === 'curve'" :title="t('grade.curveTitle')" anchor="grade-curve" :changes="curveChanges" :invalid="curveErrorCount">
+                    <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveLead') }}</p>
+                    <div class="flex flex-wrap items-start gap-x-8 gap-y-4">
+                        <LabeledField :label="t('grade.curveExponent')" :help="t('grade.curveExponentHelp')" :error="serverExponentError">
+                            <template #default="{ describedBy, invalid }">
+                                <SelectButton
+                                    :model-value="exponent"
+                                    :options="exponentOptions"
+                                    option-label="label"
+                                    option-value="value"
+                                    :allow-empty="false"
+                                    size="small"
+                                    :disabled="!canManage || saving"
+                                    :invalid="invalid"
+                                    :aria-label="t('grade.curveExponent')"
+                                    :aria-describedby="describedBy"
+                                    class="self-start"
+                                    data-testid="grade-curve-exponent"
+                                    @update:model-value="onExponentInput"
+                                />
+                            </template>
+                        </LabeledField>
+                        <LabeledField :label="t('grade.curveField')" :help="t('grade.curveHelp', { min: UtilGrade.CURVE_MIN, max: UtilGrade.format(UtilGrade.CURVE_MAX), def: UtilGrade.CURVE_DEFAULT })" :error="curveError">
+                            <template #default="{ id, describedBy, invalid }">
+                                <InputText
+                                    :id="id"
+                                    :model-value="curve"
+                                    name="xpCurveBase"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    :readonly="!canManage || saving"
+                                    :invalid="invalid"
+                                    :aria-describedby="describedBy"
+                                    :aria-required="true"
+                                    class="w-32 text-right tabular-nums"
+                                    @update:model-value="onCurveInput"
+                                />
+                            </template>
+                        </LabeledField>
+                    </div>
+                    <p class="mt-4 text-xs leading-relaxed text-muted-color">{{ t('grade.curveFormula') }}</p>
+                    <p v-if="curveSample" class="mt-1 flex items-start gap-1.5 text-sm tabular-nums" data-testid="grade-curve-sample">
+                        <i class="pi pi-chart-line mt-1 text-xs text-muted-color" aria-hidden="true" />
+                        <span>{{ curveSample }}</span>
                     </p>
-                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('grade.paceOutsideNote') }}</p>
-                </section>
 
-                <!-- 곡선(지수·기준값)을 바꿨을 때 — 저장하면 전 회원 레벨을 다시 계산한다. 완만해지는 쪽이면 승급 안내를 잇는다 -->
-                <Message v-if="curveWarning" severity="warn" size="small" :closable="false" class="mt-3" data-testid="grade-curve-warning">{{ curveWarning }}</Message>
-            </AppGadget>
-
-            <AppGadget :title="t('grade.badgeTitle')" anchor="grade-badge" :changes="changes.badge" :invalid="badgeErrorCount">
-                <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.badgeLead') }}</p>
-
-                <ul class="m-0 flex list-none flex-col divide-y divide-(--line) border-y border-(--line) p-0">
-                    <li v-for="row in form" :key="row.id" class="grid gap-x-4 gap-y-3 py-4 sm:grid-cols-[8rem_minmax(0,1fr)]">
-                        <!-- 미리보기 — 공개 화면의 도트(작은 판 2배) + 관리자 화면의 뱃지(같은 `GradeBadge`) -->
-                        <div class="flex flex-col gap-1">
-                            <span class="text-xs text-muted-color">{{ t('grade.badgePreview') }}</span>
-                            <div class="flex min-h-10 items-center">
-                                <GradeSpriteImage :sprite="row.sprite" :label="nameOf(row)" :scale="2" />
-                            </div>
-                            <div><GradeBadge :label="nameOf(row)" :color="row.color" :icon="row.icon || null" /></div>
+                    <!-- 등급별 미리보기 — 기본 등급을 뺀 등급 전부를 지금 편집 중인 값으로 바로 다시 계산한다(저장 전에도). 읽을 수 없는 칸은 「—」 -->
+                    <section class="mt-4 rounded-lg bg-(--p-content-hover-background) px-3 py-2.5" :aria-labelledby="`${idBase}-pace-title`" data-testid="grade-curve-pace">
+                        <h3 :id="`${idBase}-pace-title`" class="m-0 text-sm font-medium">{{ t('grade.paceTitle') }}</h3>
+                        <p class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">
+                            {{ paceLead }}
+                            <template v-if="canReadPointPolicy"> · <NuxtLink to="/points/policy#point-daily-total" class="whitespace-nowrap text-primary hover:underline">{{ t('grade.paceLink') }}</NuxtLink></template>
+                        </p>
+                        <div class="mt-2 min-w-0 overflow-x-auto">
+                            <table class="w-full min-w-[34rem] border-collapse text-[13px]">
+                                <caption class="sr-only">{{ t('grade.paceCaption') }}</caption>
+                                <thead>
+                                    <tr class="border-b border-(--line) text-[11px] text-muted-color">
+                                        <th scope="col" class="py-1.5 pr-2 text-left align-bottom font-normal">{{ t('grade.paceColGrade') }}</th>
+                                        <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColLevel') }}</th>
+                                        <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColXp') }}</th>
+                                        <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColDays') }}</th>
+                                        <th scope="col" class="py-1.5 pr-2 text-right align-bottom font-normal">{{ t('grade.paceColTypical') }}</th>
+                                        <th scope="col" class="py-1.5 text-right align-bottom font-normal">{{ t('grade.paceColCapped') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-(--line)">
+                                    <tr v-for="row in paceRows" :key="row.id">
+                                        <th scope="row" class="py-1.5 pr-2 text-left font-normal whitespace-nowrap">{{ row.name }}</th>
+                                        <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.minLevel === null ? 'text-muted-color' : ''">{{ row.minLevel === null ? DASH : t('grade.paceLevel', { level: UtilGrade.format(row.minLevel) }) }}</td>
+                                        <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.xp === null ? 'text-muted-color' : ''">{{ row.xp === null ? DASH : UtilGrade.format(row.xp) }}</td>
+                                        <td class="py-1.5 pr-2 text-right tabular-nums" :class="row.minDays === null ? 'text-muted-color' : ''">{{ row.minDays === null ? DASH : t('grade.paceDays', { n: UtilGrade.format(row.minDays) }) }}</td>
+                                        <td v-for="(cell, at) in [row.typical, row.capped]" :key="at" class="py-1.5 text-right whitespace-nowrap tabular-nums" :class="[at === 0 ? 'pr-2' : '', cell ? '' : 'text-muted-color']">
+                                            <template v-if="cell">
+                                                {{ UtilGradeMessages.duration(t, cell.days) }}
+                                                <Tag v-if="cell.byDays" :value="t('grade.paceByDays')" severity="warn" class="ml-1 text-[11px]!" />
+                                            </template>
+                                            <template v-else>{{ DASH }}</template>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
+                        <p class="m-0 mt-2 flex flex-wrap items-center gap-x-1.5 text-xs leading-relaxed text-muted-color">
+                            <Tag :value="t('grade.paceByDays')" severity="warn" class="text-[11px]!" />
+                            <span>{{ t('grade.paceByDaysNote') }}</span>
+                        </p>
+                        <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('grade.paceOutsideNote') }}</p>
+                    </section>
 
-                        <div class="flex min-w-0 flex-col gap-3">
-                            <!-- 도트 캐릭터 — 공개 화면이 쓴다. 고르개는 뱃지 아이콘과 같은 네이티브 라디오 묶음(화살표로 고른다) -->
-                            <div>
-                                <div class="mb-1.5 flex flex-wrap items-baseline gap-x-2">
-                                    <span class="text-sm font-medium">{{ t('grade.sprite') }}</span>
-                                    <span class="text-xs text-muted-color">{{ t('grade.spritePublic') }}</span>
+                    <!-- 곡선(지수·기준값)을 바꿨을 때 — 저장하면 전 회원 레벨을 다시 계산한다. 완만해지는 쪽이면 승급 안내를 잇는다 -->
+                    <Message v-if="curveWarning" severity="warn" size="small" :closable="false" class="mt-3" data-testid="grade-curve-warning">{{ curveWarning }}</Message>
+                </AppGadget>
+
+                <AppGadget v-if="tab === 'badge'" :title="t('grade.badgeTitle')" anchor="grade-badge" :changes="changes.badge" :invalid="badgeErrorCount">
+                    <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.badgeLead') }}</p>
+
+                    <ul class="m-0 flex list-none flex-col divide-y divide-(--line) border-y border-(--line) p-0">
+                        <li v-for="row in form" :key="row.id" class="grid gap-x-4 gap-y-3 py-4 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                            <!-- 미리보기 — 공개 화면의 도트(작은 판 2배) + 관리자 화면의 뱃지(같은 `GradeBadge`) -->
+                            <div class="flex flex-col gap-1">
+                                <span class="text-xs text-muted-color">{{ t('grade.badgePreview') }}</span>
+                                <div class="flex min-h-10 items-center">
+                                    <GradeSpriteImage :sprite="row.sprite" :label="nameOf(row)" :scale="2" />
                                 </div>
-                                <div role="radiogroup" :aria-label="t('grade.spriteGroup', { name: nameOf(row) })" class="flex flex-wrap gap-1.5">
-                                    <label v-for="s in UtilGradeSprite.SPRITES" :key="s" v-tooltip.top="t(`grade.spriteName.${s}`)" class="icon-opt sprite-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
-                                        <input v-model="row.sprite" type="radio" class="sr-only" :name="`${idBase}-${row.id}-sprite`" :value="s" :disabled="!canManage || saving" :aria-label="t(`grade.spriteName.${s}`)" />
-                                        <GradeSpriteImage :sprite="s" :scale="2" />
-                                    </label>
-                                </div>
-                                <p v-if="serverCellOf(row, 'sprite')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'sprite') }}</p>
+                                <div><GradeBadge :label="nameOf(row)" :color="row.color" :icon="row.icon || null" /></div>
                             </div>
 
-                            <div>
-                                <div :id="`${idBase}-${row.id}-color-label`" class="mb-1.5 text-sm font-medium">{{ t('grade.badgeColor') }}</div>
-                                <div role="radiogroup" :aria-label="t('grade.badgeColorGroup', { name: nameOf(row) })" class="flex flex-wrap gap-2">
-                                    <label v-for="c in UtilGrade.BADGE_COLORS" :key="c.name" class="swatch" :class="{ 'swatch--disabled': !canManage || saving }" :style="UtilGrade.badgeStyle(c.name)">
-                                        <input v-model="row.color" type="radio" class="sr-only" :name="`${idBase}-${row.id}-color`" :value="c.name" :disabled="!canManage || saving" />
-                                        <i v-if="row.color === c.name" class="pi pi-check text-[10px]" aria-hidden="true" />
-                                        <span>{{ t(`grade.color.${c.name}`) }}</span>
-                                    </label>
+                            <div class="flex min-w-0 flex-col gap-3">
+                                <!-- 도트 캐릭터 — 공개 화면이 쓴다. 고르개는 뱃지 아이콘과 같은 네이티브 라디오 묶음(화살표로 고른다) -->
+                                <div>
+                                    <div class="mb-1.5 flex flex-wrap items-baseline gap-x-2">
+                                        <span class="text-sm font-medium">{{ t('grade.sprite') }}</span>
+                                        <span class="text-xs text-muted-color">{{ t('grade.spritePublic') }}</span>
+                                    </div>
+                                    <div role="radiogroup" :aria-label="t('grade.spriteGroup', { name: nameOf(row) })" class="flex flex-wrap gap-1.5">
+                                        <label v-for="s in UtilGradeSprite.SPRITES" :key="s" v-tooltip.top="t(`grade.spriteName.${s}`)" class="icon-opt sprite-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
+                                            <input v-model="row.sprite" type="radio" class="sr-only" :name="`${idBase}-${row.id}-sprite`" :value="s" :disabled="!canManage || saving" :aria-label="t(`grade.spriteName.${s}`)" />
+                                            <GradeSpriteImage :sprite="s" :scale="2" />
+                                        </label>
+                                    </div>
+                                    <p v-if="serverCellOf(row, 'sprite')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'sprite') }}</p>
                                 </div>
-                                <p v-if="serverCellOf(row, 'badgeColor')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'badgeColor') }}</p>
-                            </div>
 
-                            <div>
-                                <div :id="`${idBase}-${row.id}-icon-label`" class="mb-1.5 text-sm font-medium">{{ t('grade.badgeIcon') }}</div>
-                                <div role="radiogroup" :aria-label="t('grade.badgeIconGroup', { name: nameOf(row) })" class="flex flex-wrap gap-1.5">
-                                    <label class="icon-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
-                                        <input v-model="row.icon" type="radio" class="sr-only" :name="`${idBase}-${row.id}-icon`" value="" :disabled="!canManage || saving" :aria-label="t('grade.iconNone')" />
-                                        <i class="pi pi-ban" aria-hidden="true" />
-                                    </label>
-                                    <label v-for="icon in UtilGrade.BADGE_ICONS" :key="icon" class="icon-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
-                                        <input v-model="row.icon" type="radio" class="sr-only" :name="`${idBase}-${row.id}-icon`" :value="icon" :disabled="!canManage || saving" :aria-label="t(`grade.icon.${icon.replace('pi pi-', '')}`)" />
-                                        <i :class="icon" aria-hidden="true" />
-                                    </label>
+                                <div>
+                                    <div :id="`${idBase}-${row.id}-color-label`" class="mb-1.5 text-sm font-medium">{{ t('grade.badgeColor') }}</div>
+                                    <div role="radiogroup" :aria-label="t('grade.badgeColorGroup', { name: nameOf(row) })" class="flex flex-wrap gap-2">
+                                        <label v-for="c in UtilGrade.BADGE_COLORS" :key="c.name" class="swatch" :class="{ 'swatch--disabled': !canManage || saving }" :style="UtilGrade.badgeStyle(c.name)">
+                                            <input v-model="row.color" type="radio" class="sr-only" :name="`${idBase}-${row.id}-color`" :value="c.name" :disabled="!canManage || saving" />
+                                            <i v-if="row.color === c.name" class="pi pi-check text-[10px]" aria-hidden="true" />
+                                            <span>{{ t(`grade.color.${c.name}`) }}</span>
+                                        </label>
+                                    </div>
+                                    <p v-if="serverCellOf(row, 'badgeColor')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'badgeColor') }}</p>
                                 </div>
-                                <p v-if="serverCellOf(row, 'badgeIcon')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'badgeIcon') }}</p>
+
+                                <div>
+                                    <div :id="`${idBase}-${row.id}-icon-label`" class="mb-1.5 text-sm font-medium">{{ t('grade.badgeIcon') }}</div>
+                                    <div role="radiogroup" :aria-label="t('grade.badgeIconGroup', { name: nameOf(row) })" class="flex flex-wrap gap-1.5">
+                                        <label class="icon-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
+                                            <input v-model="row.icon" type="radio" class="sr-only" :name="`${idBase}-${row.id}-icon`" value="" :disabled="!canManage || saving" :aria-label="t('grade.iconNone')" />
+                                            <i class="pi pi-ban" aria-hidden="true" />
+                                        </label>
+                                        <label v-for="icon in UtilGrade.BADGE_ICONS" :key="icon" class="icon-opt" :class="{ 'icon-opt--disabled': !canManage || saving }">
+                                            <input v-model="row.icon" type="radio" class="sr-only" :name="`${idBase}-${row.id}-icon`" :value="icon" :disabled="!canManage || saving" :aria-label="t(`grade.icon.${icon.replace('pi pi-', '')}`)" />
+                                            <i :class="icon" aria-hidden="true" />
+                                        </label>
+                                    </div>
+                                    <p v-if="serverCellOf(row, 'badgeIcon')" role="alert" class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ serverCellOf(row, 'badgeIcon') }}</p>
+                                </div>
                             </div>
-                        </div>
-                    </li>
-                </ul>
-            </AppGadget>
+                        </li>
+                    </ul>
+                </AppGadget>
 
-            <AppGadget :title="t('grade.manualTitle')" anchor="grade-manual" :changes="policyChanged ? 1 : 0" :invalid="serverPolicyError ? 1 : 0">
-                <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('grade.manualLead') }}</p>
+                <AppGadget v-if="tab === 'notes'" :title="t('grade.notesTitle')" anchor="grade-notes">
+                    <ul class="m-0 flex list-none flex-col gap-2 p-0 text-sm">
+                        <li v-for="key in NOTES" :key="key" class="flex items-start gap-2">
+                            <i class="pi pi-info-circle mt-1 text-xs text-muted-color" aria-hidden="true" />
+                            <span>{{ t(key) }}</span>
+                        </li>
+                    </ul>
+                </AppGadget>
+            </div>
 
-                <!-- 수동으로 올린 회원의 이후 동작 — 둘 중 하나 -->
-                <div role="radiogroup" :aria-label="t('grade.manualTitle')" class="flex flex-col gap-3">
-                    <div v-for="value in POLICIES" :key="value" class="flex items-start gap-3">
-                        <RadioButton v-model="policy" :input-id="`${idBase}-policy-${value}`" name="manualPolicy" :value="value" :disabled="!canManage || saving" :invalid="Boolean(serverPolicyError)" class="mt-0.5 shrink-0" />
-                        <label :for="`${idBase}-policy-${value}`" class="flex min-w-0 flex-col gap-0.5" :class="canManage && !saving ? 'cursor-pointer' : ''">
-                            <span class="text-sm font-medium">{{ t(POLICY_TEXT[value].label) }}</span>
-                            <span class="text-xs leading-relaxed text-muted-color">{{ t(POLICY_TEXT[value].help) }}</span>
-                        </label>
-                    </div>
-                </div>
-                <p v-if="serverPolicyError" role="alert" class="mt-2 text-xs text-red-600 dark:text-red-400">{{ serverPolicyError }}</p>
-            </AppGadget>
-
-            <AppGadget :title="t('grade.notesTitle')" anchor="grade-notes">
-                <ul class="m-0 flex list-none flex-col gap-2 p-0 text-sm">
-                    <li v-for="key in NOTES" :key="key" class="flex items-start gap-2">
-                        <i class="pi pi-info-circle mt-1 text-xs text-muted-color" aria-hidden="true" />
-                        <span>{{ t(key) }}</span>
-                    </li>
-                </ul>
-            </AppGadget>
-
-            <!-- 저장 줄 — 구획 밖, 모든 구획 아래. 등급 목록·뱃지·옵션을 한 번에 저장한다. 저장 실패(칸에 붙지 않는 것)는 이 줄 안에 선다 -->
+            <!-- 저장 줄 — 탭 패널 밖, 어느 탭에서나 보인다. 등급 목록·뱃지·옵션을 한 번에 저장한다(탭마다 따로 저장하지 않는다). 저장 실패(칸에 붙지 않는 것)는 이 줄 안에 선다 -->
             <StickySaveBar v-if="canManage" submit revertable :dirty="dirty" :saving="saving" :disabled="!canSave" :count="changeCount" :error-count="errorCount" :error="formError" @revert="revert" />
             <p v-else class="text-xs text-muted-color">{{ t('grade.readOnlyNote') }}</p>
         </form>
@@ -314,6 +348,10 @@ import UtilGrade from '~/utils/util-grade';
 import type { GradeCurveChange } from '~/utils/util-grade-messages';
 import UtilGradeMessages from '~/utils/util-grade-messages';
 import UtilGradeSprite from '~/utils/util-grade-sprite';
+import UtilSectionNavMessages from '~/utils/util-section-nav-messages';
+
+/** 화면 위쪽 탭 — 승급 조건(구획 승급 조건 + 수동으로 올린 회원) · 레벨 곡선 · 등급 표시 · 안내 */
+type GradeTab = 'rules' | 'curve' | 'badge' | 'notes';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('grade.title') });
@@ -325,6 +363,60 @@ const toApiError = useApiErrorOf();
 const { confirm } = useConfirmDialog();
 const { can } = useAdminPermission();
 const idBase = useId();
+
+/** 탭 목록(이 차례로 그린다) — `key` 가 주소의 `?tab=` 값이다 */
+const TABS: readonly { key: GradeTab; label: string }[] = [
+    { key: 'rules', label: 'grade.tab.rules' },
+    { key: 'curve', label: 'grade.tab.curve' },
+    { key: 'badge', label: 'grade.tab.badge' },
+    { key: 'notes', label: 'grade.tab.notes' },
+];
+const DEFAULT_TAB = TABS[0]!;
+/** 구획 주소(`AppGadget` 의 `anchor`) → 그 구획이 든 탭 — 탭으로 나누기 전의 주소(`/grades#grade-curve`)로 들어와도 맞는 탭이 열린다 */
+const ANCHOR_TABS = new Map<string, GradeTab>([
+    ['grade-rules', 'rules'],
+    ['grade-manual', 'rules'],
+    ['grade-curve', 'curve'],
+    ['grade-badge', 'badge'],
+    ['grade-notes', 'notes'],
+]);
+
+const route = useRoute();
+const router = useRouter();
+
+/**
+ * 지금 탭 — 주소가 정한다(새로 고침·뒤로 가기·링크로 들어와도 같다). 구획 주소(`#grade-…`)가 있으면 그 구획의 탭, 없으면 `?tab=`, 모르는 값·없으면 승급 조건.
+ * 탭은 보는 자리만 바꾼다 — 입력값·검사 결과는 이 화면의 상태라 탭을 옮겨도 남는다.
+ */
+const tab = computed<GradeTab>(() => ANCHOR_TABS.get(route.hash.slice(1)) ?? TABS.find((item) => item.key === route.query.tab)?.key ?? DEFAULT_TAB.key);
+const current = computed(() => TABS.find((item) => item.key === tab.value) ?? DEFAULT_TAB);
+
+const tabIdOf = (key: GradeTab) => `${idBase}-tab-${key}`;
+const panelId = `${idBase}-tabpanel`;
+
+/**
+ * 탭을 바꾼다 — 주소의 쿼리만 바꾼다(기본 탭은 쿼리를 뺀다. 뒤로 가기 목록을 쌓지 않고, 다른 쿼리는 그대로, 구획 주소 조각은 떨어진다).
+ * 같은 화면 안에서 쿼리만 바뀌는 이동이라 화면을 떠나는 것이 아니다 — 아래 `onBeforeRouteLeave`(저장하지 않은 변경 확인)는 불리지 않는다.
+ */
+async function selectTab(next: GradeTab): Promise<void> {
+    if (next === tab.value) return;
+    await router.replace({ query: { ...route.query, tab: next === DEFAULT_TAB.key ? undefined : next } });
+}
+
+/** 탭 줄의 키 — 왼 화살표는 앞 탭, 오른 화살표는 다음 탭(끝에서 돌아간다), Home·End 는 처음·끝. 초점을 옮기면서 그 탭을 고른다 */
+function onTabKeydown(event: KeyboardEvent): void {
+    const index = TABS.findIndex((item) => item.key === tab.value);
+    let next = -1;
+    if (event.key === 'ArrowRight') next = (index + 1) % TABS.length;
+    else if (event.key === 'ArrowLeft') next = (index - 1 + TABS.length) % TABS.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = TABS.length - 1;
+    if (next < 0) return;
+    event.preventDefault();
+    const key = TABS[next]!.key;
+    void selectTab(key);
+    document.getElementById(tabIdOf(key))?.focus();
+}
 
 /** 이 화면에서 하는 일에 필요한 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('grade.manage'));
@@ -426,6 +518,28 @@ const ruleErrorCount = computed(() => UtilGrade.problemCount(problems.value) + s
 const badgeErrorCount = computed(() => serverBadgeErrorCount.value);
 /** 맞지 않는 칸 수 — 화면이 미리 검사한 것 + 서버가 거절한 것 */
 const errorCount = computed(() => ruleErrorCount.value + badgeErrorCount.value + curveErrorCount.value + (serverPolicyError.value ? 1 : 0));
+/** 탭마다 저장 전에 바뀐 칸 수와 맞지 않는 칸 수 — 그 탭에 든 구획이 우측 구역 내비에 넘기는 값(`AppGadget` 의 `changes`·`invalid`)의 합이다 */
+const tabStatus = computed<Record<GradeTab, { changes: number; invalid: number }>>(() => ({
+    rules: { changes: changes.value.rules + Number(policyChanged.value), invalid: ruleErrorCount.value + Number(Boolean(serverPolicyError.value)) },
+    curve: { changes: curveChanges.value, invalid: curveErrorCount.value },
+    badge: { changes: changes.value.badge, invalid: badgeErrorCount.value },
+    notes: { changes: 0, invalid: 0 },
+}));
+
+/** 탭 이름 뒤에 화면 낭독기가 읽는 상태 글("오류 2건 · 바뀜 3칸") — 없으면 빈 글자. 우측 구역 내비와 같은 문구다 */
+function tabStatusText(key: GradeTab): string {
+    return UtilSectionNavMessages.statusText(t, tabStatus.value[key].changes, tabStatus.value[key].invalid);
+}
+
+/** 저장이 막혔을 때 — 지금 탭에 맞지 않는 칸이 없으면 그런 칸이 있는 첫 탭을 열고 그 탭에 초점을 둔다(낭독기가 탭 이름과 오류 수를 읽는다). 지금 탭에 있으면 그대로 둔다 */
+async function showInvalidTab(): Promise<void> {
+    if (tabStatus.value[tab.value].invalid > 0) return;
+    const target = TABS.find((item) => tabStatus.value[item.key].invalid > 0);
+    if (!target) return;
+    await selectTab(target.key);
+    document.getElementById(tabIdOf(target.key))?.focus();
+}
+
 /** 서버가 거절한 칸은 저장을 막지 않는다 — 고치지 않고 다시 보내 볼 수 있어야 하고, 서버가 다시 판정한다 */
 const canSave = computed(() => canManage.value && dirty.value && UtilGrade.problemCount(problems.value) === 0 && !curveProblem.value);
 
@@ -575,7 +689,12 @@ async function confirmImpact(body: GradePreviewRequest, lowered: Record<GradeFie
 }
 
 async function save() {
-    if (saving.value || !canSave.value || !saved.value) return;
+    if (saving.value || !saved.value) return;
+    if (!canSave.value) {
+        // 화면 검사에 걸려 저장할 수 없다 — 맞지 않는 칸이 다른 탭에 있으면 그 탭을 연다
+        await showInvalidTab();
+        return;
+    }
     const body = UtilGrade.toRequest(form.value, policy.value, curve.value, exponent.value);
     if (!body) return;
     formError.value = '';
@@ -611,6 +730,8 @@ async function save() {
             serverCurveError.value = rejected.curve;
             serverExponentError.value = rejected.exponent;
             formError.value = [Object.keys(rejected.cells).length || rejected.policy || rejected.curve || rejected.exponent ? t('grade.saveFieldsRejected') : '', rejected.form].filter(Boolean).join(' ');
+            // 거절된 칸이 다른 탭에 있으면 그 탭을 연다
+            await showInvalidTab();
         } else {
             formError.value = `${t('grade.saveFailed')} — ${toApiError(e).message}`;
         }
@@ -619,7 +740,7 @@ async function save() {
     }
 }
 
-// 저장하지 않은 변경(등급 목록·뱃지·옵션)이 있는 채 다른 화면으로 가려 하면 묻는다
+// 저장하지 않은 변경(등급 목록·뱃지·옵션)이 있는 채 다른 화면으로 가려 하면 묻는다. 탭 이동(`?tab=` 만 바뀐다)은 이 화면의 라우트 레코드가 그대로라 여기 오지 않는다
 onBeforeRouteLeave(async () => {
     if (!dirty.value) return true;
     return confirm({ title: t('grade.leaveTitle'), message: t('grade.leaveMessage'), confirmLabel: t('grade.leaveConfirm'), cancelLabel: t('grade.leaveCancel'), tone: 'danger' });

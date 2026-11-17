@@ -8,6 +8,15 @@ export default {
     subtitle: 'Set the names and order of member grades, the conditions for automatic promotion, and the badges. What each grade can do is set in Roles.',
     loadFailed: 'Could not load the grade settings',
 
+    // Tabs at the top — Promotion conditions (sections: promotion conditions + manually promoted members) · Level curve · Grade display · Notes
+    tabsLabel: 'Grade settings sections',
+    tab: {
+        rules: 'Promotion conditions',
+        curve: 'Level curve',
+        badge: 'Grade display',
+        notes: 'Notes',
+    },
+
     // Promotion conditions section (the grade list)
     rulesTitle: 'Promotion conditions',
     rulesLead: 'Grades get higher going down. A member moves up when all conditions (minimum level, days since sign-up, posts and comments) are met, and a higher grade must be the same or larger.',
