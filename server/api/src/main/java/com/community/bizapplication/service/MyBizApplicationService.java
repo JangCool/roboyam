@@ -241,7 +241,7 @@ public class MyBizApplicationService {
         }
         return trials.getIfAvailable(() -> com.community.bizapplication.service.BizTrialLink.NONE).info(a.id())
                 .map(t -> new BizMemberView.Trial(Long.toString(t.trialId()), t.title(), t.status(), t.productName(), t.form(), t.shipper(), t.selectedCount(),
-                        t.priceUnit(), t.unitPrice(), t.shippingFeePerPerson(), t.amount())).orElse(null);
+                        t.priceUnit(), t.unitPrice(), t.shippingFeePerPerson(), t.amount(), t.paymentTiming(), t.recruitCount())).orElse(null);
     }
 
     /** 환불 내역(오래된 차례) — 종류·상태·금액·시각만(사유·운영자 메모 없음) */

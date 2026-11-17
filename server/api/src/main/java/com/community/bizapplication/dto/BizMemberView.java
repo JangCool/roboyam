@@ -76,9 +76,11 @@ public final class BizMemberView {
     /**
      * 체험단 건의 모집 요약 — {@code status} 모집 상태(DRAFT·RECRUITING·SELECTING·RUNNING·CLOSED·CANCELLED) · {@code priceUnit} PER_RECRUIT(모집 건당)·PER_PERSON(1명당) ·
      * {@code shipper} ADVERTISER·OPERATOR(운영자가 대신 보내면 1명당 발송비가 더해진다) · {@code selectedCount} 뽑힌 인원 · {@code amount} 확정 공급가(원). 광고주 모집 화면 {@code /business/trials/{trialId}}
+     * (초안은 광고주 모집 화면에 없다 — 선결제 결제는 이 신청 건 화면에서). {@code paymentTiming} PREPAID(모집 인원으로 견적 · 결제가 끝나야 모집 공개 · 덜 모여도 차액 환불 없음)·
+     * POSTPAID(뽑힌 인원으로 견적 · 결제가 끝나야 발송)(V244) · {@code recruitCount} 모집 인원
      */
     public record Trial(String trialId, String title, String status, String productName, String form, String shipper, Integer selectedCount, String priceUnit,
-                        long unitPrice, long shippingFeePerPerson, Long amount) {
+                        long unitPrice, long shippingFeePerPerson, Long amount, String paymentTiming, int recruitCount) {
     }
 
     /**

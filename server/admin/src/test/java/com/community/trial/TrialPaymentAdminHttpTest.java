@@ -91,7 +91,7 @@ class TrialPaymentAdminHttpTest extends Commerce04AdminTestBase {
         Instant start = Instant.now().minus(Duration.ofMinutes(5)).truncatedTo(ChronoUnit.MINUTES);
         String form = "{\"advertiserId\":\"" + advertiser + "\",\"title\":\"결제 관리 체험\",\"productName\":\"청소기\",\"productPrice\":30000,\"form\":\"LEND\""
                 + ",\"reviewBoardId\":\"" + board + "\",\"recruitCount\":2,\"reviewerShare\":0,\"applyStartAt\":\"" + start + "\",\"applyEndAt\":\""
-                + start.plus(Duration.ofDays(2)) + "\",\"reviewDays\":14,\"returnDays\":10,\"shipper\":\"OPERATOR\"}";
+                + start.plus(Duration.ofDays(2)) + "\",\"reviewDays\":14,\"returnDays\":10,\"shipper\":\"OPERATOR\",\"paymentTiming\":\"POSTPAID\"}";
         String body = mvc.perform(withCsrf(post("/api/admin/trials"), manager).header("Accept-Language", "ko").content(form)).andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String id = JsonPath.read(body, "$.data.id");
@@ -182,5 +182,56 @@ class TrialPaymentAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(get("/api/admin/biz-applications/" + app).cookie(adReviewer)).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("RUNNING"));
         mvc.perform(withCsrf(post("/api/admin/trials/" + id + "/stock"), manager).content("{\"quantity\":2,\"photoIds\":[]}")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.photoIds").exists()); // 결제 뒤에는 결제 검사를 지나 사진 검사로
+    }
+
+    /** 선결제 모집 본문(결제 때 칸 없음 = 선결제 기본) — 모집 인원 {@code recruit} */
+    private String prepaidForm(int recruit, String extra) {
+        Instant start = Instant.now().minus(Duration.ofMinutes(5)).truncatedTo(ChronoUnit.MINUTES);
+        return "{\"advertiserId\":\"" + advertiser + "\",\"title\":\"선결제 관리 체험\",\"productName\":\"청소기\",\"productPrice\":30000,\"form\":\"LEND\""
+                + ",\"reviewBoardId\":\"" + board + "\",\"recruitCount\":" + recruit + ",\"reviewerShare\":0,\"applyStartAt\":\"" + start + "\",\"applyEndAt\":\""
+                + start.plus(Duration.ofDays(2)) + "\",\"reviewDays\":14,\"returnDays\":10,\"shipper\":\"OPERATOR\"" + extra + "}";
+    }
+
+    @Test
+    void 선결제_모집은_만들때_모집인원_견적으로_심사큐에_나오고_결제전_공개_409_결제뒤_금액칸_409_목록_상세_신청건에_결제때_칸() throws Exception {
+        mvc.perform(withCsrf(post("/api/admin/trials"), manager).content(prepaidForm(2, ",\"paymentTiming\":\"LATER\""))).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fields.paymentTiming").exists());
+        // 만들기 — 모집 2명 × 40,000 + 대신 발송 2명 × 2,000 = 84,000(공급가) · 92,400(합계)
+        String body = mvc.perform(withCsrf(post("/api/admin/trials"), manager).content(prepaidForm(2, ""))).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.paymentTiming").value("PREPAID")).andExpect(jsonPath("$.data.amount").value(84000))
+                .andExpect(jsonPath("$.data.payment.timing").value("PREPAID")).andExpect(jsonPath("$.data.payment.status").value("AWAITING_APPROVAL"))
+                .andExpect(jsonPath("$.data.payment.publishAllowed").value(false)).andExpect(jsonPath("$.data.payment.requestAllowed").value(false))
+                .andExpect(jsonPath("$.data.payment.total").value(92400)).andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(body, "$.data.id");
+        long app = jdbc.queryForObject("SELECT biz_application_id FROM trials WHERE id = ?", Long.class, Long.parseLong(id));
+
+        // 결제 전 공개 409
+        mvc.perform(withCsrf(put("/api/admin/trials/" + id), manager).content("{\"action\":\"PUBLISH\"}")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("TRIAL_PREPAY_REQUIRED"));
+        // 목록 줄 · 광고 심사 큐 · 신청 건 상세의 체험단 칸
+        String list = mvc.perform(get("/api/admin/trials").cookie(manager)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(JsonPath.<List<String>>read(list, "$.data[?(@.id == '" + id + "')].paymentTiming")).containsExactly("PREPAID");
+        assertThat(JsonPath.<List<String>>read(list, "$.data[?(@.id == '" + id + "')].paymentStatus")).containsExactly("AWAITING_APPROVAL");
+        String queue = mvc.perform(get("/api/admin/biz-applications?domain=AD&kind=TRIAL&queue=REVIEW").cookie(adReviewer)).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString();
+        assertThat(JsonPath.<List<String>>read(queue, "$.data.items[*].id")).contains(Long.toString(app));
+        mvc.perform(get("/api/admin/biz-applications/" + app).cookie(adReviewer)).andExpect(status().isOk()).andExpect(jsonPath("$.data.content.paymentTiming").value("PREPAID"))
+                .andExpect(jsonPath("$.data.content.recruitCount").value(2)).andExpect(jsonPath("$.data.content.currentPayment").value(true))
+                .andExpect(jsonPath("$.data.content.amount").value(84000)).andExpect(jsonPath("$.data.quote.lines[?(@.product == 'TRIAL_SHIPPING')].units").value(2));
+
+        // 승인(수동 — 회원 없는 광고주) → 계약서 + 입금 + 확정 → 결제 끝
+        mvc.perform(withCsrf(post("/api/admin/biz-applications/" + app + "/approve"), adReviewer).content("{\"method\":\"MANUAL\"}")).andExpect(status().isOk());
+        BizOperator op = new BizOperator(adReviewerId, "127.0.0.1");
+        review.uploadContracts(op, app, List.of(new BizUpload("계약서.pdf", "%PDF-1.4 test".getBytes(java.nio.charset.StandardCharsets.US_ASCII))), null);
+        review.saveDeposit(op, app, 92400L, LocalDate.now(ZoneId.of("Asia/Seoul")).toString(), "광고주", null);
+        review.confirm(op, app);
+        mvc.perform(get("/api/admin/trials/" + id).cookie(manager)).andExpect(status().isOk()).andExpect(jsonPath("$.data.payment.status").value("PAID"))
+                .andExpect(jsonPath("$.data.payment.publishAllowed").value(true));
+
+        // 결제 뒤 금액에 닿는 칸 409 · 공개 200
+        mvc.perform(withCsrf(put("/api/admin/trials/" + id), manager).content(prepaidForm(3, ""))).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("TRIAL_PREPAID_LOCKED"));
+        mvc.perform(withCsrf(put("/api/admin/trials/" + id), manager).content("{\"action\":\"PUBLISH\"}")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RECRUITING")).andExpect(jsonPath("$.data.amount").value(84000));
     }
 }

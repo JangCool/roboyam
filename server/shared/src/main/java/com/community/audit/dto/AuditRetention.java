@@ -68,7 +68,9 @@ public final class AuditRetention {
             // 체험단 뽑기 확정 — 광고 상품(TRIAL) 금액을 굳히는 일(trial-group-contract 「구현 결정」 1)
             AuditActions.TRIAL_SELECT,
             // 체험단 모집 취소(광고 결제 취소·전액 환불과 함께) · 뽑힌 줄 취소(결제 전 금액 다시 셈) — V242
-            AuditActions.TRIAL_CANCEL, AuditActions.TRIAL_PARTICIPANT_CANCEL);
+            AuditActions.TRIAL_CANCEL, AuditActions.TRIAL_PARTICIPANT_CANCEL,
+            // 선결제 결제 다시 요청(새 광고 신청 건 · 견적) — V244
+            AuditActions.TRIAL_PAYMENT_REQUEST);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,

@@ -26,6 +26,7 @@ import com.community.trial.entity.TrialDamageVerdict;
 import com.community.trial.entity.TrialEntity;
 import com.community.trial.entity.TrialForm;
 import com.community.trial.entity.TrialParticipantEntity;
+import com.community.trial.entity.TrialPaymentTiming;
 import com.community.trial.entity.TrialPhotoEntity;
 import com.community.trial.entity.TrialPhotoKind;
 import com.community.trial.entity.TrialQuota;
@@ -66,9 +67,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>만들기</b>: 광고주·상품·제품값·형태(제공형은 제품값 ≤ 설정 상한 — 넘으면 400 {@code fields.form})·사용기 게시판(「체험단 사용기 받기」 켠 일반 게시판, 없으면 slug review)·인원·
- *       리뷰어 몫·먼저 신청 시간·신청 기간(분 단위)·기한·보내는 쪽. 광고 신청 건(kind TRIAL, 운영자 등록, 0원) + 상품 줄(TRIAL) 을 같은 트랜잭션에 만든다. 요금은 그때의 요금표 값 사본.</li>
+ *       리뷰어 몫·먼저 신청 시간·신청 기간(분 단위)·기한·보내는 쪽·결제 때(V244 — 선결제 기본). 광고 신청 건(kind TRIAL, 운영자 등록, 0원) + 상품 줄(TRIAL) 을 같은 트랜잭션에
+ *       만든다. 요금은 그때의 요금표 값 사본. 선결제면 모집 인원으로 견적을 바로 굳힌다(결제가 끝나야 공개 — {@link TrialPayments}).</li>
  *   <li><b>뽑기</b>: 신청 마감 뒤(모집 중 + 마감 지남 · 뽑는 중). 리뷰어 몫 신청자는 리뷰어 몫을 먼저 채우고 넘치면 일반 몫, 일반 신청자는 일반 몫만 — 넘으면 400 {@code fields.applicationIds}.
- *       나머지 신청은 안 뽑힘(주소 사본 바로 파기). 금액 확정(인원당이면 인원 × 단가, 대신 발송이면 + 인원 × 발송비) → 광고 신청 건 견적에 굳힌다. 알림 뽑힘·안 뽑힘.</li>
+ *       나머지 신청은 안 뽑힘(주소 사본 바로 파기). 후불이면 금액 확정(인원당이면 인원 × 단가, 대신 발송이면 + 인원 × 발송비) → 광고 신청 건 견적에 굳힌다(선결제는 금액 그대로).
+ *       알림 뽑힘·안 뽑힘.</li>
  *   <li><b>입고</b>(운영자가 보낼 때만): 수량 + 상태 사진(없으면 400 {@code fields.photoIds}). <b>발송</b>: 운영자는 입고 수량까지, 광고주는 발송 전 사진 필수. 송장이 들어가면 알림.</li>
  *   <li><b>반납 받음</b>(대여형): 운영자 또는 광고주(광고주가 보내는 모집) — 반납 사진 필수. 기한 안 사용기가 연결돼 있으면 약속 지킴. <b>광고주 반송</b>(운영자): 송장.</li>
  *   <li><b>파손 신고</b>(대여형, 사진 필수) → 회원 알림(7일 안 이의) → <b>판정</b>(이의했거나 이의 기한이 지난 뒤) — 불이익은 {@link TrialPromiseService#damageVerdict}.</li>
@@ -216,18 +219,20 @@ public class TrialService {
     @Transactional
     public TrialViews.TrialDetail create(long operatorId, String ip, TrialViews.TrialForm body) {
         TrialEntity.Fields f = fields(body, null);
+        TrialPaymentTiming timing = TrialPaymentTiming.parse(body.paymentTiming()).orElse(TrialPaymentTiming.PREPAID); // 선결제 기본(V244 — 칸 검사는 fields)
         TrialTerms terms = prices.trialTerms(now()).orElseThrow(() -> new IllegalStateException("TRIAL 요금표 줄이 없다"));
-        AdAdvertiserStore.AdvertiserRow adv = advertisers.find(f.advertiserId()).orElseThrow();
         Instant now = now();
-        long appId = ids.nextId();
-        bizApplications.insertTrial(appId, adv.businessProfileId(), adv.id(), adv.name(), adv.companyName(), adv.bizNoLast4(), f.title(), f.applyStartAt(),
-                f.applyEndAt(), operatorId, now);
-        bizApplications.insertItem(new BizApplicationStore.ItemRow(ids.nextId(), appId, BizProduct.TRIAL, terms.unitPrice(), 1, terms.unitPrice(), f.applyStartAt(),
-                f.applyEndAt()), now);
-        TrialEntity t = TrialEntity.create(ids.nextId(), appId, f, terms.priceUnit(), terms.unitPrice(), terms.shippingFeePerPerson(), operatorId, now);
+        long appId = payments.openApplication(f.advertiserId(), f.title(), f.applyStartAt(), f.applyEndAt(), terms.unitPrice(), operatorId, now);
+        TrialEntity t = TrialEntity.create(ids.nextId(), appId, f, terms.priceUnit(), terms.unitPrice(), terms.shippingFeePerPerson(), timing, operatorId, now);
         trials.persist(t);
+        trials.flush(); // 이력 줄이 모집 행을 FK 로 가리킨다
+        payments.link(appId, t.getId(), now);
+        if (t.prepaid()) {
+            // 선결제 — 모집 인원으로 견적을 굳힌다(금액 > 0 이면 광고 심사 큐 「승인 대기」 → 결제가 끝나야 공개)
+            payments.syncPrepaid(t, bizApplications.find(appId).orElseThrow(), operatorId, now);
+        }
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.TRIAL_CREATE, AuditResult.SUCCESS).target("TRIAL", Long.toString(t.getId()))
-                .with("applicationId", Long.toString(appId)).with("after", snapshot(t)));
+                .with("applicationId", Long.toString(appId)).with("after", snapshot(t)).with("amount", t.getAmount()));
         return viewer.detail(t, TrialActorType.OPERATOR, now);
     }
 
@@ -239,26 +244,50 @@ public class TrialService {
     public TrialViews.TrialDetail update(long operatorId, String ip, String idText, TrialViews.TrialForm body) {
         long trialId = id(idText, TrialException::notFound);
         String action = body == null || body.action() == null ? null : body.action().strip().toUpperCase(java.util.Locale.ROOT);
-        // 끝내기·취소는 광고 신청 건(결제)도 함께 움직인다 — 열린 결제 → 신청 건 → 모집 차례로 잠근다(광고 쪽 처리와 같은 차례)
-        TrialPayments.Locked locked = "CANCEL".equals(action) || "CLOSE".equals(action) ? payments.lockFor(trialId, "TRIAL_" + action) : null;
+        boolean edit = action == null || action.isEmpty();
+        // 끝내기·취소·결제 요청, 그리고 선결제 금액에 닿는 칸·결제 방식이 바뀌는 고치기는 광고 신청 건(결제)도 함께 움직인다 — 열린 결제 → 신청 건 → 모집 차례로 잠근다(광고 쪽 처리와 같은 차례)
+        boolean lockApp = "CANCEL".equals(action) || "CLOSE".equals(action) || "REQUEST_PAYMENT".equals(action) || (edit && touchesPayment(trialId, body));
+        TrialPayments.Locked locked = lockApp ? payments.lockFor(trialId, "TRIAL_" + (edit ? "EDIT" : action)) : null;
         TrialEntity t = locked != null ? locked.trial() : trials.findWithLockById(trialId).orElseThrow(TrialException::notFound);
+        BizApplicationStore.AppRow app = locked == null ? null : locked.app();
         Instant now = now();
         Map<String, Object> before = snapshot(t);
-        if (action != null && !action.isEmpty()) {
-            transition(t, action, operatorId, now, locked == null ? null : locked.app());
+        if (!edit) {
+            transition(t, action, operatorId, now, app);
         } else {
             if (t.getStatus() != TrialStatus.DRAFT && t.getStatus() != TrialStatus.RECRUITING && t.getStatus() != TrialStatus.SELECTING) {
                 throw TrialException.stateInvalid();
             }
             TrialEntity.Fields f = fields(body, t);
+            TrialPaymentTiming timing = TrialPaymentTiming.parse(body.paymentTiming()).orElse(t.getPaymentTiming()); // 빠지면 그대로
+            boolean timingChanged = timing != t.getPaymentTiming();
             boolean anyApplication = applications.countByTrialIdAndStatusNot(t.getId(), TrialApplicationStatus.CANCELLED) > 0;
             // 신청자가 있으면: 동의 항목이 형태·보내는 쪽으로 정해지고, 회원은 그 광고주·그 제품값(청구 한도)에 동의하고 신청했다 — 바꾸거나 올리면 409(내리기는 된다 — 점검 D6)
             if (anyApplication && (f.form() != t.getForm() || f.shipper() != t.getShipper() || f.advertiserId() != t.getAdvertiserId()
-                    || f.productPrice() > t.getProductPrice())) {
+                    || f.productPrice() > t.getProductPrice() || timingChanged)) {
                 throw TrialException.applicantsLocked();
+            }
+            if (timingChanged && t.getStatus() != TrialStatus.DRAFT) {
+                throw TrialException.stateInvalid(); // 결제 방식은 초안에서만 — 선결제의 문은 공개다(V244)
+            }
+            boolean priced = f.advertiserId() != t.getAdvertiserId() || !f.productName().equals(t.getProductName()) || f.productPrice() != t.getProductPrice()
+                    || f.form() != t.getForm() || f.recruitCount() != t.getRecruitCount() || f.shipper() != t.getShipper();
+            boolean payment = timingChanged || (timing == TrialPaymentTiming.PREPAID && (priced || (t.getAmount() == null && t.getStatus() == TrialStatus.DRAFT)));
+            if (payment && app == null) {
+                throw TrialException.stateInvalid(); // 잠그기 전 읽은 칸과 달라졌다(동시 고치기) — 다시 시도
+            }
+            // 선결제를 마쳤으면 금액에 닿는 칸·결제 방식은 바꿀 수 없다(차액 정산 없음 — V244)
+            if (t.prepaid() && app != null && payments.paid(app) && (priced || timingChanged)) {
+                throw TrialException.prepaidLocked();
             }
             t.edit(f, now);
             bizApplications.retitleTrial(t.getBizApplicationId(), f.title(), f.applyStartAt(), f.applyEndAt(), now);
+            if (timingChanged && timing == TrialPaymentTiming.POSTPAID) {
+                payments.toPostpaid(t, app, operatorId, now);
+            } else if (payment && (t.getStatus() == TrialStatus.DRAFT || t.prepaidFixed())) {
+                t.changeTiming(timing, now);
+                payments.syncPrepaid(t, app, operatorId, now); // 모집 인원으로 다시 셈(결제 전 · 승인 뒤면 심사 대기로)
+            }
         }
         Map<String, Object> after = snapshot(t);
         Map<String, Object> b = new LinkedHashMap<>();
@@ -276,6 +305,32 @@ public class TrialService {
         return viewer.detail(t, TrialActorType.OPERATOR, now);
     }
 
+    /**
+     * 고치기가 선결제 결제 건을 건드리나(잠그기 전 칸 읽기로 판정 — 그렇다면 신청 건 행부터 잠근다): 결제 방식이 바뀌거나, 선결제(바꾼 뒤 포함)인데 금액에 닿는 칸
+     * (광고주·제품·제품값·형태·모집 인원·보내는 쪽)이 바뀌거나 견적 전 초안이다. 본문이 잘못됐으면 칸 검사(400)가 잠근 뒤 걸러낸다.
+     */
+    private boolean touchesPayment(long trialId, TrialViews.TrialForm b) {
+        TrialQueries.EditKey k = queries.editKey(trialId).orElseThrow(TrialException::notFound);
+        if (b == null) {
+            return false;
+        }
+        TrialPaymentTiming timing = TrialPaymentTiming.parse(b.paymentTiming()).orElse(k.timing());
+        if (timing != k.timing()) {
+            return true;
+        }
+        if (timing != TrialPaymentTiming.PREPAID) {
+            return false;
+        }
+        if (k.amount() == null && k.status() == TrialStatus.DRAFT) {
+            return true;
+        }
+        Long advertiserId = parseId(b.advertiserId());
+        String product = b.productName() == null ? "" : b.productName().strip();
+        return advertiserId == null || advertiserId != k.advertiserId() || !product.equals(k.productName()) || b.productPrice() == null
+                || b.productPrice() != k.productPrice() || TrialForm.parse(b.form()).orElse(null) != k.form() || b.recruitCount() == null
+                || b.recruitCount() != k.recruitCount() || TrialShipper.parse(b.shipper()).orElse(null) != k.shipper();
+    }
+
     private void transition(TrialEntity t, String action, long operatorId, Instant now, BizApplicationStore.AppRow app) {
         TrialStatus s = t.getStatus();
         switch (action) {
@@ -283,8 +338,11 @@ public class TrialService {
                 if (s != TrialStatus.DRAFT) {
                     throw TrialException.stateInvalid();
                 }
+                payments.requirePublishable(t); // 선결제는 결제가 끝나야 공개(0원은 그대로 — 409 TRIAL_PREPAY_REQUIRED, V244)
                 t.changeStatus(TrialStatus.RECRUITING, now);
             }
+            // 선결제 결제 (다시) 요청 — 닫힌 신청 건 대신 새 건 · 견적 전 초안이면 지금 건에 견적(V244)
+            case "REQUEST_PAYMENT" -> payments.requestPayment(t, app, operatorId, now);
             case "CLOSE_APPLY" -> {
                 if (s != TrialStatus.RECRUITING) {
                     throw TrialException.stateInvalid();
@@ -364,6 +422,9 @@ public class TrialService {
         if (image != null && !(GroupBuyImageUploader.ownKey(image) && image.startsWith("groupbuy/trialcover/"))) {
             f.put("imageKey", new MessageRef("trial.value.invalid"));
         }
+        if (b.paymentTiming() != null && !b.paymentTiming().isBlank() && TrialPaymentTiming.parse(b.paymentTiming()).isEmpty()) {
+            f.put("paymentTiming", new MessageRef("trial.value.invalid")); // PREPAID·POSTPAID(V244 — 빠지면 만들기 선결제 · 고치기 그대로)
+        }
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }
@@ -437,14 +498,16 @@ public class TrialService {
                 notices.trial(a.getUserId(), MemberNotificationType.TRIAL_NOT_SELECTED, t.getTitle(), null, "/me/trials");
             }
         }
-        long amount = TrialPayments.amountOf(t, slot.size());
+        // 선결제(V244) — 모집 인원으로 굳힌 금액 그대로(덜 뽑아도 다시 셈하지 않는다 · 차액 환불 없음). 견적 전 선결제(V244 전에 연 모집)는 후불처럼 여기서 굳힌다
+        boolean prepaid = t.prepaidFixed();
+        long amount = prepaid ? t.getAmount() : TrialPayments.amountOf(t, slot.size());
         t.select(slot.size(), amount, operatorId, now);
-        // 견적을 신청 건에 굳힌다(상품 줄 + 대신 발송비 줄) — 금액 > 0 이면 광고 심사 큐 「승인 대기」(승인 → 결제가 끝나야 입고·발송), 0원이면 결제 흐름 밖
-        BizPricing.Amount quote = payments.quote(t, slot.size(), amount, operatorId, false, now);
+        // 후불 — 견적을 신청 건에 굳힌다(상품 줄 + 대신 발송비 줄) — 금액 > 0 이면 광고 심사 큐 「승인 대기」(승인 → 결제가 끝나야 입고·발송), 0원이면 결제 흐름 밖
+        BizPricing.Amount quote = prepaid ? null : payments.quote(t, slot.size(), amount, operatorId, false, now);
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.TRIAL_SELECT, AuditResult.SUCCESS).target("TRIAL", Long.toString(t.getId()))
                 .with("selected", slot.keySet().stream().map(String::valueOf).toList()).with("reviewer", reviewerUsed).with("general", generalUsed)
                 .with("priceUnit", t.getPriceUnit()).with("unitPrice", t.getUnitPrice()).with("shippingFeePerPerson", t.getShippingFeePerPerson())
-                .with("amount", amount).with("total", quote.total()));
+                .with("paymentTiming", t.getPaymentTiming().name()).with("amount", amount).with("total", quote == null ? null : quote.total()));
         return viewer.detail(t, TrialActorType.OPERATOR, now);
     }
 
@@ -683,8 +746,9 @@ public class TrialService {
         notices.trial(p.getUserId(), MemberNotificationType.TRIAL_CANCELLED_BY_OPERATOR, t.getTitle(),
                 messages.get(new MessageRef("trial.notice.participantCancelled", reason)), "/me/trials");
         int count = (int) participants.findByTrialIdOrderByIdAsc(t.getId()).stream().filter(x -> !x.cancelled()).count();
-        boolean beforePayment = app.status() == com.community.bizapplication.entity.BizApplicationStatus.SUBMITTED
-                || (com.community.bizapplication.entity.BizApplicationStatus.AWAITING.contains(app.status()) && bizApplications.deposit(app.id()).isEmpty());
+        // 선결제(V244)는 금액 그대로(차액 환불 없음) — 후불만 결제 전 다시 센다
+        boolean beforePayment = !t.prepaidFixed() && (app.status() == com.community.bizapplication.entity.BizApplicationStatus.SUBMITTED
+                || (com.community.bizapplication.entity.BizApplicationStatus.AWAITING.contains(app.status()) && bizApplications.deposit(app.id()).isEmpty()));
         Long newAmount = null;
         if (beforePayment) {
             newAmount = TrialPayments.amountOf(t, count);
@@ -879,6 +943,7 @@ public class TrialService {
         m.put("reviewDays", t.getReviewDays());
         m.put("returnDays", t.getReturnDays());
         m.put("shipper", t.getShipper().name());
+        m.put("paymentTiming", t.getPaymentTiming().name());
         return m;
     }
 

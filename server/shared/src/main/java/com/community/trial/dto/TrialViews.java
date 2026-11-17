@@ -52,11 +52,20 @@ public final class TrialViews {
 
     /**
      * 모집 만들기·고치기 본문({@code POST·PUT /api/admin/trials}). {@code status} 는 고치기에서만 — PUBLISH 모집 열기(DRAFT→RECRUITING) · CLOSE_APPLY 신청 마감(→SELECTING) ·
-     * CLOSE 끝내기(RUNNING→CLOSED) · CANCEL 취소(뽑기 전). 빠지면 상태 그대로.
+     * CLOSE 끝내기(RUNNING→CLOSED) · CANCEL 취소(뽑기 전) · REQUEST_PAYMENT 선결제 결제 (다시) 요청(초안 — V244). 빠지면 상태 그대로.
+     * {@code paymentTiming} PREPAID(만들기 기본)·POSTPAID — 고치기에서 빠지면 그대로, 바꾸기는 초안에서만(V244).
      */
     public record TrialForm(String advertiserId, String title, String productName, Long productPrice, String form, String reviewBoardId, Integer recruitCount,
                             Integer reviewerShare, Integer reviewerGoldHours, Integer reviewerSilverHours, String applyStartAt, String applyEndAt, Integer reviewDays,
-                            Integer returnDays, String shipper, String description, String imageKey, String action) {
+                            Integer returnDays, String shipper, String description, String imageKey, String paymentTiming, String action) {
+
+        /** 결제 방식 없이(만들기 = 선결제 기본 · 고치기 = 그대로) */
+        public TrialForm(String advertiserId, String title, String productName, Long productPrice, String form, String reviewBoardId, Integer recruitCount,
+                         Integer reviewerShare, Integer reviewerGoldHours, Integer reviewerSilverHours, String applyStartAt, String applyEndAt, Integer reviewDays,
+                         Integer returnDays, String shipper, String description, String imageKey, String action) {
+            this(advertiserId, title, productName, productPrice, form, reviewBoardId, recruitCount, reviewerShare, reviewerGoldHours, reviewerSilverHours, applyStartAt,
+                    applyEndAt, reviewDays, returnDays, shipper, description, imageKey, null, action);
+        }
     }
 
     public record SelectRequest(List<String> applicationIds) {
@@ -89,7 +98,7 @@ public final class TrialViews {
     /** 모집 목록 한 줄 */
     public record TrialRow(String id, String title, String productName, String form, String shipper, String status, Ref advertiser, int recruitCount,
                            int reviewerShare, long applicantCount, Integer selectedCount, Instant applyStartAt, Instant applyEndAt, BoardRef reviewBoard, Long amount,
-                           Instant createdAt, String paymentStatus) {
+                           Instant createdAt, String paymentStatus, String paymentTiming) {
     }
 
     /** 입고·발송 탭의 입고 칸(운영자가 대신 보낼 때만) — {@code keepUntil} 보관 기한(입고 + 설정 일수) */
@@ -131,12 +140,15 @@ public final class TrialViews {
     }
 
     /**
-     * 광고 결제 상태(trial-group-contract 「유료 결제 연결」 — 관리자·광고주 모집 상세). {@code status}:
-     * {@code BEFORE_SELECTION} 뽑기 전(금액 미정) · {@code NOT_REQUIRED} 0원(결제 없음) · {@code AWAITING_APPROVAL} 운영자 승인 대기(광고 심사 큐) ·
-     * {@code AWAITING_PAYMENT} 온라인 결제 대기 · {@code AWAITING_DEPOSIT} 수동 입금 대기 · {@code PAID} 결제 끝(예약) · {@code CANCELED} 취소·반려·만료(신청 건이 닫혔다).
+     * 광고 결제 상태(trial-group-contract 「유료 결제 연결」 — 관리자·광고주 모집 상세). {@code timing} PREPAID(선결제 — V244 기본)·POSTPAID(후불). {@code status}:
+     * {@code BEFORE_SELECTION} 후불 뽑기 전(금액 미정) · {@code AWAITING_QUOTE_REQUEST} 선결제 견적 전(V244 전 초안 — 저장·결제 요청 때 굳힌다) · {@code NOT_REQUIRED} 0원(결제 없음) ·
+     * {@code AWAITING_APPROVAL} 운영자 승인 대기(광고 심사 큐) · {@code AWAITING_PAYMENT} 온라인 결제 대기 · {@code AWAITING_DEPOSIT} 수동 입금 대기 · {@code PAID} 결제 끝(예약) ·
+     * {@code CANCELED} 취소(후불은 반려·만료도 이 값) · {@code EXPIRED} 선결제 결제 기한 만료 · {@code REJECTED} 선결제 반려 — 선결제 공개 전이면 셋 다 「결제 다시 요청」 가능.
      *
-     * @param required         뽑기를 마쳤고 금액 &gt; 0 — 결제가 끝나야 입고·발송할 수 있다
+     * @param required         금액이 굳었고 &gt; 0 — 선결제는 결제가 끝나야 공개, 후불은 결제가 끝나야 입고·발송
      * @param shippingAllowed  입고·발송을 할 수 있나(결제 필요 없음 또는 결제 끝)
+     * @param publishAllowed   (선결제) 모집을 열 수 있나 — 금액 0 이거나 결제 끝. 후불은 늘 true
+     * @param requestAllowed   (선결제·초안) 「결제 요청」({@code PUT /api/admin/trials/{id}} {@code {action: REQUEST_PAYMENT}})을 할 수 있나 — 견적 전 · 신청 건이 닫힘(만료·반려·취소)
      * @param bizApplicationId 광고 신청 건 ID — 관리자 광고 심사 {@code /ad-reviews?id=} · 광고주 결제 {@code /business/applications/{id}}
      * @param bizStatus        신청 건 저장 상태(SUBMITTED·AWAITING_PAYMENT·… — 화면 보조)
      * @param supply           공급가 · {@code vat} 부가세 · {@code total} 합계(승인 뒤엔 확정 금액, 그 전엔 뽑기 견적)
@@ -144,16 +156,21 @@ public final class TrialViews {
      * @param deadlineAt       결제·입금 기한(승인 뒤, 그 전 null)
      * @param payOnline        광고주가 사업자 센터에서 온라인 결제를 할 수 있다(온라인 결제 대기 · 기한 전 · 광고주 회원이 그 건의 주인)
      */
-    public record Payment(boolean required, String status, boolean shippingAllowed, String bizApplicationId, String bizApplicationNo, String bizStatus, long supply,
-                          long vat, long total, String method, Instant deadlineAt, Instant paidAt, boolean payOnline) {
+    public record Payment(String timing, boolean required, String status, boolean shippingAllowed, boolean publishAllowed, boolean requestAllowed,
+                          String bizApplicationId, String bizApplicationNo, String bizStatus, long supply, long vat, long total, String method, Instant deadlineAt,
+                          Instant paidAt, boolean payOnline) {
     }
 
-    /** 모집 상세(관리자) — 금액은 뽑기 뒤 확정({@code amount}), 그 전에는 null. {@code payment} 광고 결제 상태(V242) */
+    /**
+     * 모집 상세(관리자) — 금액({@code amount})은 선결제면 저장 때 모집 인원으로, 후불이면 뽑기 뒤 확정(그 전 null). {@code paymentTiming} PREPAID·POSTPAID(V244).
+     * {@code payment} 광고 결제 상태(V242)
+     */
     public record TrialDetail(String id, String title, String productName, long productPrice, String form, String shipper, String status, Ref advertiser,
                               Ref bizApplication, BoardRef reviewBoard, int recruitCount, int reviewerShare, int reviewerSlots, int reviewerGoldHours,
                               int reviewerSilverHours, Instant applyStartAt, Instant applyEndAt, int reviewDays, Integer returnDays, String description, String imageKey,
                               String imageUrl, String priceUnit, long unitPrice, long shippingFeePerPerson, Integer selectedCount, Long amount, Counts counts, Stock stock,
-                              List<Participant> participants, List<DamageReport> damageReports, Instant createdAt, Instant updatedAt, Payment payment) {
+                              List<Participant> participants, List<DamageReport> damageReports, Instant createdAt, Instant updatedAt, Payment payment,
+                              String paymentTiming) {
     }
 
     /** 신청자 한 줄(관리자 뽑기 · 광고주 추천) — 리뷰어 단계 · 몫 · 숫자 · 추천 */

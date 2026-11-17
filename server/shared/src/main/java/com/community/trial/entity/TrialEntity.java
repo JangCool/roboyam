@@ -10,7 +10,7 @@ import java.time.Instant;
 
 /**
  * 체험단 모집 — {@code trials}(V241, trial-group-contract 「구현 결정」 2). 광고 신청 건(kind TRIAL) 한 건과 1:1. 요금(단위·단가·발송비)은 만들 때의 요금표 값 사본이고
- * 금액은 뽑기를 마친 뒤 확정한다({@link #select}).
+ * 금액은 선결제(V244 기본)면 저장 때 모집 인원으로({@link #prepay}), 후불이면 뽑기를 마친 뒤({@link #select}) 굳힌다.
  */
 @Entity
 @Table(name = "trials")
@@ -43,6 +43,8 @@ public class TrialEntity {
     private String priceUnit;
     private long unitPrice;
     private long shippingFeePerPerson;
+    @Enumerated(EnumType.STRING)
+    private TrialPaymentTiming paymentTiming;
     private Integer selectedCount;
     private Long amount;
     private Long createdBy;
@@ -62,8 +64,10 @@ public class TrialEntity {
                          String description, String imageKey) {
     }
 
-    public static TrialEntity create(long id, long bizApplicationId, Fields f, String priceUnit, long unitPrice, long shippingFeePerPerson, long operatorId, Instant now) {
+    public static TrialEntity create(long id, long bizApplicationId, Fields f, String priceUnit, long unitPrice, long shippingFeePerPerson, TrialPaymentTiming timing,
+                                     long operatorId, Instant now) {
         TrialEntity e = new TrialEntity();
+        e.paymentTiming = timing;
         e.id = id;
         e.bizApplicationId = bizApplicationId;
         e.apply(f);
@@ -111,6 +115,37 @@ public class TrialEntity {
         } else if (next == TrialStatus.CANCELLED) {
             this.cancelledAt = now;
         }
+    }
+
+    /** 결제 방식 바꾸기(초안만 — 부르는 쪽이 본다). 후불로 바꾸면 금액은 뽑기 때 굳힌다(비운다) */
+    public void changeTiming(TrialPaymentTiming next, Instant now) {
+        this.paymentTiming = next;
+        if (next == TrialPaymentTiming.POSTPAID) {
+            this.amount = null;
+        }
+        this.updatedAt = now;
+    }
+
+    /** 선결제 견적 금액(모집 인원으로 — 저장·결제 요청 때) */
+    public void prepay(long confirmedAmount, Instant now) {
+        this.amount = confirmedAmount;
+        this.updatedAt = now;
+    }
+
+    /** 지금 결제 건을 새 광고 신청 건으로(선결제 「결제 다시 요청」 · 닫힌 건 대신) */
+    public void relink(long newBizApplicationId, Instant now) {
+        this.bizApplicationId = newBizApplicationId;
+        this.updatedAt = now;
+    }
+
+    /** 선결제 모집인가 */
+    public boolean prepaid() {
+        return paymentTiming == TrialPaymentTiming.PREPAID;
+    }
+
+    /** 선결제 견적이 굳었나(금액이 있다) — 금액 없는 선결제(V244 전 행)는 저장·결제 요청 때 굳히고, 이미 연 모집은 뽑기 때 후불처럼 굳힌다 */
+    public boolean prepaidFixed() {
+        return prepaid() && amount != null;
     }
 
     /** 뽑기 확정 — 인원·금액을 굳히고 진행 중으로 */
@@ -246,6 +281,10 @@ public class TrialEntity {
 
     public long getShippingFeePerPerson() {
         return shippingFeePerPerson;
+    }
+
+    public TrialPaymentTiming getPaymentTiming() {
+        return paymentTiming;
     }
 
     public Integer getSelectedCount() {

@@ -164,9 +164,12 @@ class TrialApiTest extends CommerceApiTestBase {
                 memberId, titleId, tier);
     }
 
+    /** 모집 결제 때(null = 선결제 기본 — V244). 뽑기 뒤 견적을 보는 시험은 POSTPAID 로 둔다 */
+    private String timing;
+
     private TrialViews.TrialForm form(String form, String shipper, long price, int recruit, int share, Instant start, Integer returnDays) {
         return new TrialViews.TrialForm(Long.toString(advertiser), "체험 " + start.toEpochMilli() % 100000, "무선 이어폰", price, form, Long.toString(board), recruit, share, 48,
-                24, start.toString(), start.plus(Duration.ofDays(3)).toString(), 14, returnDays, shipper, "설명", null, null);
+                24, start.toString(), start.plus(Duration.ofDays(3)).toString(), 14, returnDays, shipper, "설명", null, timing, null);
     }
 
     /** 모집 만들기 + 열기 — 신청 시작 = 지금 + {@code startHours} */
@@ -341,6 +344,7 @@ class TrialApiTest extends CommerceApiTestBase {
     @Test
     void 뽑기는_리뷰어몫부터_채우고_넘치면_일반몫_일반은_일반몫만_넘으면_400_금액은_인원당_더하기_대신발송비() throws Exception {
         jdbc.update("UPDATE biz_price_rules SET unit_price = 50000, price_unit = 'PER_PERSON', shipping_fee_per_person = 3000 WHERE product = 'TRIAL'");
+        timing = "POSTPAID"; // 뽑힌 인원으로 견적(후불 — 선결제는 TrialPrepaidTest)
         long t = trial("GIVE", "OPERATOR", 2, 50, 0); // 리뷰어 몫 1 · 일반 몫 1
         long r1 = member(true);
         reviewer(r1, null);

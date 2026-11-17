@@ -224,7 +224,8 @@ public class TrialViewer {
     public TrialViews.TrialRow row(TrialEntity t, long applicants, String paymentStatus) {
         return new TrialViews.TrialRow(Long.toString(t.getId()), t.getTitle(), t.getProductName(), t.getForm().name(), t.getShipper().name(), t.getStatus().name(),
                 new TrialViews.Ref(Long.toString(t.getAdvertiserId()), advertiserName(t.getAdvertiserId())), t.getRecruitCount(), t.getReviewerShare(), applicants,
-                t.getSelectedCount(), t.getApplyStartAt(), t.getApplyEndAt(), board(t.getReviewBoardId()), t.getAmount(), t.getCreatedAt(), paymentStatus);
+                t.getSelectedCount(), t.getApplyStartAt(), t.getApplyEndAt(), board(t.getReviewBoardId()), t.getAmount(), t.getCreatedAt(), paymentStatus,
+                t.getPaymentTiming().name());
     }
 
     /**
@@ -283,7 +284,7 @@ public class TrialViewer {
                 t.reviewerSlots(), t.getReviewerGoldHours(), t.getReviewerSilverHours(), t.getApplyStartAt(), t.getApplyEndAt(), t.getReviewDays(), t.getReturnDays(),
                 t.getDescription(), t.getImageKey(), imageUrl(t.getImageKey()), t.getPriceUnit(), t.getUnitPrice(), t.getShippingFeePerPerson(), t.getSelectedCount(),
                 t.getAmount(), counts, viewer == TrialActorType.OPERATOR || t.operatorShips() ? stock : null, rows, damageRows, t.getCreatedAt(), t.getUpdatedAt(),
-                payments.view(t, bizApp, now));
+                payments.view(t, bizApp, now), t.getPaymentTiming().name());
     }
 
     private TrialViews.Participant participant(TrialEntity t, TrialParticipantEntity p, TrialApplicationEntity a, TrialViews.Member member, Map<Long, String> postTitles,

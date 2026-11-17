@@ -381,7 +381,8 @@ public class BizApplicationAdminService {
     /**
      * 체험단 건 내용(kind TRIAL — trial-group-contract 「유료 결제 연결」): {@code type} TRIAL · {@code trialId} · {@code trialTitle} · {@code trialStatus} · {@code productName} · {@code form}
      * GIVE·LEND · {@code shipper} ADVERTISER·OPERATOR · {@code selectedCount} 뽑힌 인원 · {@code priceUnit} PER_RECRUIT·PER_PERSON · {@code unitPrice} 단가 ·
-     * {@code shippingFeePerPerson} 1명당 발송비 · {@code amount} 확정 공급가(뽑기 뒤)
+     * {@code shippingFeePerPerson} 1명당 발송비 · {@code amount} 확정 공급가(선결제 = 저장 때 모집 인원으로 · 후불 = 뽑기 뒤) · {@code paymentTiming} PREPAID·POSTPAID(V244) ·
+     * {@code recruitCount} 모집 인원 · {@code currentPayment} 이 건이 모집의 지금 결제 건인가(「결제 다시 요청」 전의 예전 건이면 false)
      */
     private static Map<String, Object> trialContent(BizTrialLink.TrialInfo t) {
         Map<String, Object> out = new LinkedHashMap<>();
@@ -397,6 +398,9 @@ public class BizApplicationAdminService {
         out.put("unitPrice", t.unitPrice());
         out.put("shippingFeePerPerson", t.shippingFeePerPerson());
         out.put("amount", t.amount());
+        out.put("paymentTiming", t.paymentTiming());
+        out.put("recruitCount", t.recruitCount());
+        out.put("currentPayment", t.current());
         return out;
     }
 

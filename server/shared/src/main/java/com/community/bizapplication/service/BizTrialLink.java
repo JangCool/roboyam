@@ -10,9 +10,12 @@ import java.util.Optional;
  */
 public interface BizTrialLink {
 
-    /** 신청 건 상세에 싣는 모집 요약 — 단위 PER_RECRUIT·PER_PERSON · 보내는 쪽 ADVERTISER·OPERATOR */
+    /**
+     * 신청 건 상세에 싣는 모집 요약 — 단위 PER_RECRUIT·PER_PERSON · 보내는 쪽 ADVERTISER·OPERATOR · 결제 때 PREPAID(모집 인원 견적 — 결제가 끝나야 공개)·POSTPAID(뽑힌 인원 견적)
+     * (V244) · {@code current} 이 건이 모집의 지금 결제 건인가(「결제 다시 요청」 전의 예전 건이면 false)
+     */
     record TrialInfo(long trialId, String title, String status, String productName, String form, String shipper, Integer selectedCount, String priceUnit,
-                     long unitPrice, long shippingFeePerPerson, Long amount) {
+                     long unitPrice, long shippingFeePerPerson, Long amount, String paymentTiming, int recruitCount, boolean current) {
     }
 
     /** 사업자 정지·탈퇴 영향 — 모집 전 단계(준비·모집 중·뽑는 중 — 정지·탈퇴면 취소) · 진행 중(그대로 진행) */
@@ -27,7 +30,8 @@ public interface BizTrialLink {
     boolean shippingStarted(long bizApplicationId);
 
     /**
-     * 광고 쪽에서 신청 건이 닫혔다(결제 기한 만료·반려·운영자 취소·환불 승인) — 모집이 아직 열려 있으면 취소한다(신청자·뽑힌 회원 알림 · 주소 파기). 발송이 있었으면
+     * 광고 쪽에서 신청 건이 닫혔다(결제 기한 만료·반려·운영자 취소·환불 승인) — 모집이 아직 열려 있으면 취소한다(신청자·뽑힌 회원 알림 · 주소 파기). 선결제 초안(공개 전 — V244)은
+     * 취소하지 않고 그대로 둔다(결제 상태만 닫힘 — 「결제 다시 요청」). 지금 결제 건이 아니면(예전 건) 아무것도 하지 않는다. 발송이 있었으면
      * 409 {@code BIZ_APPLICATION_STATE_CHANGED}(부르는 쪽 처리 전체가 되돌아간다). 신청 건은 부르는 쪽이 이미 닫았다.
      */
     void bizClosed(long bizApplicationId, String reason, Long operatorId);

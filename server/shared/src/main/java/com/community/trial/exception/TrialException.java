@@ -96,6 +96,16 @@ public class TrialException extends CommonException {
         return new TrialException(HttpStatus.CONFLICT, "TRIAL_PAYMENT_PENDING");
     }
 
+    /** 409 — 선결제 모집은 광고 결제가 끝나야(예약 SCHEDULED) 공개할 수 있다(V244 — 0원이면 막지 않는다) */
+    public static TrialException prepayRequired() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_PREPAY_REQUIRED");
+    }
+
+    /** 409 — 선결제를 마친 모집은 금액에 닿는 칸(광고주·제품·제품값·형태·모집 인원·보내는 쪽·결제 방식)을 바꿀 수 없다(V244 — 차액 정산 없음) */
+    public static TrialException prepaidLocked() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_PREPAID_LOCKED");
+    }
+
     /** 409 — 취소한 뽑힌 줄이다(발송·받음·사용기 연결을 할 수 없다) */
     public static TrialException participantCancelled() {
         return new TrialException(HttpStatus.CONFLICT, "TRIAL_PARTICIPANT_CANCELLED");

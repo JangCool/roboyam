@@ -33,7 +33,10 @@ import com.community.trial.entity.TrialEntity;
 import com.community.trial.entity.TrialParticipantEntity;
 import com.community.trial.entity.TrialStatus;
 import com.community.trial.exception.TrialException;
+import com.community.trial.entity.TrialBizApplicationEntity;
+import com.community.trial.entity.TrialPaymentTiming;
 import com.community.trial.repository.master.TrialApplicationRepository;
+import com.community.trial.repository.master.TrialBizApplicationRepository;
 import com.community.trial.repository.master.TrialParticipantRepository;
 import com.community.trial.repository.master.TrialQueries;
 import com.community.trial.repository.master.TrialRepository;
@@ -59,8 +62,12 @@ import org.springframework.stereotype.Component;
  * (체험단 쪽 처리는 {@link #lockFor} 로 신청 건 행을 먼저 잠근 뒤 모집 행을 잠근다).
  *
  * <ul>
- *   <li><b>견적</b>: 뽑기 때 금액(인원당이면 인원 × 단가, 건당이면 단가, 운영자가 대신 보내면 + 인원 × 1명당 발송비)을 신청 건 견적에 굳히고 줄을 상품 줄(TRIAL) + 발송비 줄
- *       (TRIAL_SHIPPING)로 둔다. 금액 &gt; 0 이면 광고주 회원(사업자 신원)을 건의 회원으로 넣고(온라인 결제·사업자 알림) 운영자 심사 대기 알림. 0원이면 결제 흐름 밖(심사 큐에 안 보인다).</li>
+ *   <li><b>결제 때</b>(V244 — 2026-11-17 사용자 결정 「선결제가 우선」): 선결제(기본)는 저장 때 <b>모집 인원</b>으로 견적을 굳히고 결제가 끝나야 모집을 연다(공개 409
+ *       {@code TRIAL_PREPAY_REQUIRED}, 0원은 결제 없이). 덜 모이거나 덜 뽑혀도·뽑힌 줄을 취소해도 금액 그대로(차액 환불 없음 — 뽑기 때 다시 굳히지 않는다). 결제 뒤에는 금액에 닿는
+ *       칸 변경 409 {@code TRIAL_PREPAID_LOCKED}. 공개 전 광고 쪽 만료·반려·취소면 모집은 초안 그대로, 「결제 다시 요청」이 새 신청 건을 연다. 후불은 아래 V242 규칙 그대로.</li>
+ *   <li><b>견적</b>: 금액(인원당이면 인원 × 단가, 건당이면 단가, 운영자가 대신 보내면 + 인원 × 1명당 발송비 — 인원 = 선결제 모집 인원 · 후불 뽑힌 인원)을 신청 건 견적에 굳히고
+ *       줄을 상품 줄(TRIAL) + 발송비 줄(TRIAL_SHIPPING)로 둔다. 금액 &gt; 0 이면 광고주 회원(사업자 신원)을 건의 회원으로 넣고(온라인 결제·사업자 알림) 운영자 심사 대기 알림.
+ *       0원이면 결제 흐름 밖(심사 큐에 안 보인다).</li>
  *   <li><b>결제 전 발송 막기</b>: 금액 &gt; 0 인데 신청 건이 예약(SCHEDULED)이 아니면 입고·발송 409 {@code TRIAL_PAYMENT_PENDING}.</li>
  *   <li><b>모집 취소</b>: 결제 전이면 신청 건 취소(입금 기록이 있으면 수동 전액 환불), 결제 뒤·발송 전이면 전액 환불(온라인 PG 취소·수동 송금 대기), 발송이 있었으면 취소 불가
  *       (409 {@code TRIAL_SHIPPING_STARTED} — 모집을 끝내고 운영자 추가 환불). 신청자·뽑힌 회원 알림 · 주소 파기.</li>
@@ -91,10 +98,13 @@ public class TrialPayments implements BizTrialLink {
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
     private final Clock clock;
+    private final TrialBizApplicationRepository links;
 
     public TrialPayments(TrialRepository trials, TrialApplicationRepository applications, TrialParticipantRepository participants, TrialQueries queries,
                          BizApplicationStore store, ObjectProvider<BizApplicationOps> ops, AdAdvertiserStore advertisers, BusinessProfileRepository profiles,
-                         MemberNotificationPublisher notices, AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+                         MemberNotificationPublisher notices, AuditLogService audit, Messages messages, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks,
+                         TrialBizApplicationRepository links) {
+        this.links = links;
         this.trials = trials;
         this.applications = applications;
         this.participants = participants;
@@ -184,6 +194,153 @@ public class TrialPayments implements BizTrialLink {
                 .filter(p -> p.getErasedAt() == null).map(BusinessProfileEntity::getUserId).orElse(null);
     }
 
+    // ── 신청 건 열기 · 선결제(V244) ──────────────────────────────────────────
+
+    /**
+     * 새 광고 신청 건(kind TRIAL · 운영자 등록 · 견적 0) + 상품 줄(TRIAL 단가 × 1) — 모집 만들기 · 「결제 다시 요청」. 이력({@link #link})은 모집 행이 생긴 뒤 부르는 쪽이 남긴다.
+     */
+    public long openApplication(long advertiserId, String title, Instant startAt, Instant endAt, long unitPrice, long operatorId, Instant now) {
+        AdAdvertiserStore.AdvertiserRow adv = advertisers.find(advertiserId).orElseThrow(TrialException::notFound);
+        long appId = ids.nextId();
+        store.insertTrial(appId, adv.businessProfileId(), adv.id(), adv.name(), adv.companyName(), adv.bizNoLast4(), title, startAt, endAt, operatorId, now);
+        store.insertItem(new ItemRow(ids.nextId(), appId, BizProduct.TRIAL, unitPrice, 1, unitPrice, startAt, endAt), now);
+        return appId;
+    }
+
+    /** 모집 ↔ 신청 건 이력 한 줄(V244 — 예전 건도 어느 모집의 건인지 찾는다) */
+    public void link(long bizApplicationId, long trialId, Instant now) {
+        links.persist(TrialBizApplicationEntity.of(bizApplicationId, trialId, now));
+    }
+
+    /** 결제가 끝났나 — 예약·내림, 또는 입금 기록이 있는 입금 대기(돈이 들어왔다 — 금액을 다시 셀 수 없다) */
+    public boolean paid(AppRow app) {
+        return app.status() == BizApplicationStatus.SCHEDULED || app.status() == BizApplicationStatus.TAKEN_DOWN
+                || (app.status() == BizApplicationStatus.AWAITING_DEPOSIT && store.deposit(app.id()).isPresent());
+    }
+
+    /**
+     * 선결제 견적 맞추기(잠근 모집 · 잠근 신청 건 — 만들기·고치기·결제 요청) — 금액 = 모집 인원으로 센 값({@link #amountOf}).
+     * <ul>
+     *   <li>신청 건이 닫혔으면(만료·반려·취소) 금액만 두고 「결제 다시 요청」 때 새 건에 굳힌다.</li>
+     *   <li>결제가 끝났으면 금액이 바뀌는 고치기 409 {@code TRIAL_PREPAID_LOCKED}(차액 정산 없음). 연 모집(초안 아님)도 금액이 바뀌면 409(0원으로 연 모집이 유료가 되지 않게).</li>
+     *   <li>결제 전이면 다시 센다 — 승인 뒤(결제·입금 대기, 입금 기록 없음)면 심사 대기로 되돌린다(열린 결제는 잠글 때 닫았다). 0원 → 0원은 처리 기록 없이 줄만.</li>
+     * </ul>
+     */
+    public void syncPrepaid(TrialEntity t, AppRow app, long operatorId, Instant now) {
+        int count = t.getRecruitCount();
+        long amount = amountOf(t, count);
+        Long before = t.getAmount();
+        boolean changed = before == null || before != amount;
+        if (BizApplicationStatus.CLOSED.contains(app.status())) {
+            t.prepay(amount, now);
+            return;
+        }
+        if (changed && (paid(app) || t.getStatus() != TrialStatus.DRAFT)) {
+            throw TrialException.prepaidLocked();
+        }
+        if (!changed) {
+            return;
+        }
+        t.prepay(amount, now);
+        if (app.status() == BizApplicationStatus.SUBMITTED && app.quote().total() == 0 && amount == 0) {
+            store.replaceItems(app.id(), lines(t, count), now); // 0원 — 결제 흐름 밖(심사 큐·처리 기록 없이 줄만)
+            return;
+        }
+        if (BizApplicationStatus.AWAITING.contains(app.status()) && !store.backToReview(app.id(), app.status(), app.title(), now)) {
+            throw TrialException.stateInvalid();
+        }
+        quote(t, count, amount, operatorId, before != null, now);
+    }
+
+    /**
+     * 선결제 → 후불(초안 · 잠근 신청 건) — 결제가 끝났으면 409 {@code TRIAL_PREPAID_LOCKED}. 닫힌 건이면 새 건을 열고, 아니면 견적을 0 으로 거둔다(승인 뒤면 심사 대기로 되돌린 뒤 —
+     * 처리 기록 TRIAL_REQUOTED 0). 금액은 뽑기 때 굳힌다.
+     */
+    public void toPostpaid(TrialEntity t, AppRow app, long operatorId, Instant now) {
+        if (paid(app)) {
+            throw TrialException.prepaidLocked();
+        }
+        t.changeTiming(TrialPaymentTiming.POSTPAID, now);
+        if (BizApplicationStatus.CLOSED.contains(app.status())) {
+            reopen(t, app, operatorId, now);
+            return;
+        }
+        if (BizApplicationStatus.AWAITING.contains(app.status()) && !store.backToReview(app.id(), app.status(), app.title(), now)) {
+            throw TrialException.stateInvalid();
+        }
+        if (!store.quoteTrial(app.id(), BizPricing.amountOf(0), null, now)) {
+            throw TrialException.stateInvalid();
+        }
+        store.replaceItems(app.id(), List.of(new ItemRow(ids.nextId(), app.id(), BizProduct.TRIAL, t.getUnitPrice(), 1, t.getUnitPrice(), t.getApplyStartAt(),
+                t.getApplyEndAt())), now);
+        if (app.quote().total() > 0) {
+            ops().event(app.id(), BizEventAction.TRIAL_REQUOTED, BizActorType.OPERATOR, operatorId, "0", now);
+        }
+    }
+
+    /**
+     * 「결제 다시 요청」({@code PUT /api/admin/trials/{id}} {@code {action: REQUEST_PAYMENT}} — 선결제 초안만, 아니면 409 {@code TRIAL_STATE_INVALID}).
+     * 신청 건이 닫혔으면(만료·반려·취소) 새 신청 건을 열어 지금 결제 건으로 잇고 견적을 굳힌다. 견적 전(V244 전 초안)이면 지금 건에 굳힌다. 이미 요청했으면 409.
+     *
+     * @return 새로 연 신청 건 ID(지금 건에 굳혔으면 null)
+     */
+    public Long requestPayment(TrialEntity t, AppRow app, long operatorId, Instant now) {
+        if (!t.prepaid() || t.getStatus() != TrialStatus.DRAFT) {
+            throw TrialException.stateInvalid();
+        }
+        if (BizApplicationStatus.CLOSED.contains(app.status())) {
+            return reopen(t, app, operatorId, now);
+        }
+        if (t.getAmount() == null && app.status() == BizApplicationStatus.SUBMITTED) {
+            syncPrepaid(t, app, operatorId, now);
+            return null;
+        }
+        throw TrialException.stateInvalid();
+    }
+
+    /** 닫힌 건 대신 새 신청 건을 열어 잇는다 — 선결제면 모집 인원으로 견적을 굳힌다(0원이면 줄만) */
+    private long reopen(TrialEntity t, AppRow closed, long operatorId, Instant now) {
+        long appId = openApplication(t.getAdvertiserId(), t.getTitle(), t.getApplyStartAt(), t.getApplyEndAt(), t.getUnitPrice(), operatorId, now);
+        link(appId, t.getId(), now);
+        t.relink(appId, now);
+        if (t.prepaid()) {
+            int count = t.getRecruitCount();
+            long amount = amountOf(t, count);
+            t.prepay(amount, now);
+            if (amount > 0) {
+                quote(t, count, amount, operatorId, false, now);
+            } else {
+                store.replaceItems(appId, lines(t, count), now);
+            }
+        }
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("previousBizApplicationId", Long.toString(closed.id()));
+        detail.put("previousBizStatus", closed.status().name());
+        detail.put("bizApplicationId", Long.toString(appId));
+        detail.put("paymentTiming", t.getPaymentTiming().name());
+        detail.put("amount", t.getAmount());
+        audit.record(new AuditEvent(AuditActorType.OPERATOR, operatorId, AuditActions.TRIAL_PAYMENT_REQUEST, AuditResult.SUCCESS, "TRIAL", Long.toString(t.getId()), null,
+                detail));
+        return appId;
+    }
+
+    /** 선결제 공개 검사 — 견적 전이면, 금액 &gt; 0 인데 결제(예약)가 끝나지 않았으면 409 {@code TRIAL_PREPAY_REQUIRED}. 0원·후불은 막지 않는다 */
+    public void requirePublishable(TrialEntity t) {
+        if (!t.prepaid()) {
+            return;
+        }
+        if (t.getAmount() == null) {
+            throw TrialException.prepayRequired();
+        }
+        if (t.getAmount() == 0) {
+            return;
+        }
+        AppRow app = store.find(t.getBizApplicationId()).orElseThrow(TrialException::notFound);
+        if (app.status() != BizApplicationStatus.SCHEDULED) {
+            throw TrialException.prepayRequired();
+        }
+    }
+
     // ── 결제 상태 ─────────────────────────────────────────────────────────
 
     /** 결제가 끝나야 하는데 아직이면 409 {@code TRIAL_PAYMENT_PENDING} — 0원·뽑기 전(입고·발송은 뽑기 뒤라 해당 없음)은 막지 않는다 */
@@ -205,7 +362,9 @@ public class TrialPayments implements BizTrialLink {
         boolean selected = t.getAmount() != null;
         boolean required = selected && t.getAmount() > 0;
         String status;
-        if (!selected) {
+        if (t.prepaid()) {
+            status = prepaidStatus(app, selected, required);
+        } else if (!selected) {
             status = "BEFORE_SELECTION";
         } else if (!required && app.status() == BizApplicationStatus.SUBMITTED) {
             status = "NOT_REQUIRED";
@@ -221,9 +380,32 @@ public class TrialPayments implements BizTrialLink {
         BizPricing.Amount shown = app.approved() != null ? app.approved() : app.quote();
         boolean payOnline = app.status() == BizApplicationStatus.AWAITING_PAYMENT && app.paymentMethod() == BizPaymentMethod.ONLINE && app.userId() != null
                 && app.paymentDeadlineAt() != null && app.paymentDeadlineAt().isAfter(now);
-        return new TrialViews.Payment(required, status, !required || "PAID".equals(status), Long.toString(app.id()), app.no(), app.status().name(), shown.supply(),
-                shown.vat(), shown.total(), app.paymentMethod() == null || app.approved() == null ? null : app.paymentMethod().name(), app.deadlineAt(), app.paidAt(),
-                payOnline);
+        boolean paidStatus = "PAID".equals(status);
+        boolean publishAllowed = !t.prepaid() || (selected && (!required || paidStatus));
+        boolean requestAllowed = t.prepaid() && t.getStatus() == TrialStatus.DRAFT
+                && ((!selected && app.status() == BizApplicationStatus.SUBMITTED) || BizApplicationStatus.CLOSED.contains(app.status()));
+        return new TrialViews.Payment(t.getPaymentTiming().name(), required, status, !required || paidStatus, publishAllowed, requestAllowed, Long.toString(app.id()),
+                app.no(), app.status().name(), shown.supply(), shown.vat(), shown.total(),
+                app.paymentMethod() == null || app.approved() == null ? null : app.paymentMethod().name(), app.deadlineAt(), app.paidAt(), payOnline);
+    }
+
+    /** 선결제 결제 상태 — 견적 전 · 0원 · 승인·결제·입금 대기 · 결제 끝 · 닫힘(만료·반려·취소 — 공개 전이면 다시 요청) */
+    private static String prepaidStatus(AppRow app, boolean quoted, boolean required) {
+        if (!quoted) {
+            return "AWAITING_QUOTE_REQUEST";
+        }
+        if (!required) {
+            return "NOT_REQUIRED";
+        }
+        return switch (app.status()) {
+            case SUBMITTED -> "AWAITING_APPROVAL";
+            case AWAITING_PAYMENT -> "AWAITING_PAYMENT";
+            case AWAITING_DEPOSIT -> "AWAITING_DEPOSIT";
+            case SCHEDULED, TAKEN_DOWN -> "PAID";
+            case EXPIRED -> "EXPIRED";
+            case REJECTED -> "REJECTED";
+            case CANCELED -> "CANCELED";
+        };
     }
 
     /** 목록 줄의 결제 상태(상세 {@code payment.status} 와 같은 값) */
@@ -319,7 +501,8 @@ public class TrialPayments implements BizTrialLink {
     public Optional<TrialInfo> info(long bizApplicationId) {
         return queries.trialIdOfBizApplication(bizApplicationId).flatMap(trials::findById)
                 .map(t -> new TrialInfo(t.getId(), t.getTitle(), t.getStatus().name(), t.getProductName(), t.getForm().name(), t.getShipper().name(), t.getSelectedCount(),
-                        t.getPriceUnit(), t.getUnitPrice(), t.getShippingFeePerPerson(), t.getAmount()));
+                        t.getPriceUnit(), t.getUnitPrice(), t.getShippingFeePerPerson(), t.getAmount(), t.getPaymentTiming().name(), t.getRecruitCount(),
+                        t.getBizApplicationId() == bizApplicationId));
     }
 
     @Override
@@ -336,6 +519,12 @@ public class TrialPayments implements BizTrialLink {
         TrialEntity t = trials.findWithLockById(trialId.get()).orElseThrow(TrialException::notFound);
         if (t.getStatus() == TrialStatus.CLOSED || t.getStatus() == TrialStatus.CANCELLED) {
             return;
+        }
+        if (t.getBizApplicationId() != bizApplicationId) {
+            return; // 「결제 다시 요청」 전의 예전 건 — 지금 결제 건이 아니다
+        }
+        if (t.prepaid() && t.getStatus() == TrialStatus.DRAFT) {
+            return; // 선결제 공개 전(V244) — 모집은 초안 그대로, 결제 상태만 만료·반려·취소로 보이고 「결제 다시 요청」을 할 수 있다
         }
         cancel(t, null, reason, operatorId, true, now());
     }

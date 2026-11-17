@@ -34,7 +34,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 /**
  * 유료 체험단 결제 연결(trial-group-contract 「유료 결제 연결」 — 점검 결정 D1·D7·D9 금액·L5, 커머스 규칙이라 규칙마다 시험) — 공개 사이트 앱 문맥 + 실제 PostgreSQL + 옮길 수 있는 시계 +
  * 가짜 PG. 체험단 처리(만들기·뽑기·입고·발송·취소)는 shared 서비스를 바로 부르고, 광고 신청 건 처리(승인·결제·만료·반려·취소·정지 훅)는 광고 신청 시험 바탕의 도우미로 부른다.
- * 관리자 HTTP 모양(심사 큐·상세·승인 본문·대시보드)은 관리자 시험 {@code TrialPaymentAdminHttpTest}.
+ * 관리자 HTTP 모양(심사 큐·상세·승인 본문·대시보드)은 관리자 시험 {@code TrialPaymentAdminHttpTest}. 여기 모집은 모두 <b>후불</b>(POSTPAID — 뽑기 뒤 견적)이고
+ * 선결제(V244 기본)는 {@code TrialPrepaidTest}.
  */
 class TrialPaymentTest extends BizApplicationApiTestBase {
 
@@ -108,7 +109,7 @@ class TrialPaymentTest extends BizApplicationApiTestBase {
     private long trial(String shipper, int recruit) {
         Instant start = clock.instant().truncatedTo(ChronoUnit.MINUTES);
         TrialViews.TrialForm f = new TrialViews.TrialForm(Long.toString(advertiser), "결제 체험 " + ids.nextId() % 100000, "무선 이어폰", 30000L, "GIVE", Long.toString(board),
-                recruit, 0, 48, 24, start.toString(), start.plus(Duration.ofDays(3)).toString(), 14, null, shipper, "설명", null, null);
+                recruit, 0, 48, 24, start.toString(), start.plus(Duration.ofDays(3)).toString(), 14, null, shipper, "설명", null, "POSTPAID", null);
         String id = trials.create(creator, "127.0.0.1", f).id();
         trials.update(creator, "127.0.0.1", id, action("PUBLISH"));
         return Long.parseLong(id);

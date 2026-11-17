@@ -211,9 +211,22 @@ public class TrialQueries extends IrobitRepositoryQDSL {
         return java.util.Optional.ofNullable(query.select(P.trialId).from(P).where(P.id.eq(participantId)).fetchFirst());
     }
 
-    /** 신청 건 ID → 모집 ID(칸 읽기) */
+    /** 신청 건 ID → 모집 ID(칸 읽기) — 지금 결제 건이 아니어도(선결제 「결제 다시 요청」 전의 닫힌 건 — V244 이력 표) */
     public java.util.Optional<Long> trialIdOfBizApplication(long bizApplicationId) {
-        return java.util.Optional.ofNullable(query.select(T.id).from(T).where(T.bizApplicationId.eq(bizApplicationId)).fetchFirst());
+        com.community.trial.entity.QTrialBizApplicationEntity L = com.community.trial.entity.QTrialBizApplicationEntity.trialBizApplicationEntity;
+        return java.util.Optional.ofNullable(query.select(L.trialId).from(L).where(L.bizApplicationId.eq(bizApplicationId)).fetchFirst());
+    }
+
+    /** 고치기 전 잠금 판정용 칸(엔티티를 올리지 않는 칸 읽기 — 선결제 금액에 닿는 칸이 바뀌는지 보고 신청 건 행부터 잠글지 정한다) */
+    public record EditKey(com.community.trial.entity.TrialPaymentTiming timing, TrialStatus status, long advertiserId, String productName, long productPrice,
+                          TrialForm form, int recruitCount, com.community.trial.entity.TrialShipper shipper, Long amount) {
+    }
+
+    public java.util.Optional<EditKey> editKey(long trialId) {
+        Tuple r = query.select(T.paymentTiming, T.status, T.advertiserId, T.productName, T.productPrice, T.form, T.recruitCount, T.shipper, T.amount).from(T)
+                .where(T.id.eq(trialId)).fetchFirst();
+        return r == null ? java.util.Optional.empty() : java.util.Optional.of(new EditKey(r.get(T.paymentTiming), r.get(T.status), r.get(T.advertiserId),
+                r.get(T.productName), r.get(T.productPrice), r.get(T.form), r.get(T.recruitCount), r.get(T.shipper), r.get(T.amount)));
     }
 
     /** 사업자 신원에 지금 이어진 광고주의 모집(그 상태들만) — ID 차례 */
