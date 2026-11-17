@@ -7,6 +7,8 @@ import type {
     TrialAction,
     TrialPaymentStatus,
     TrialPhoto,
+    TrialPriceTerms,
+    TrialShipper,
     TrialPhotoKind,
     TrialSettings,
     TrialStatus,
@@ -95,6 +97,7 @@ export default class UtilTrial {
             shipper: 'ADVERTISER',
             description: '',
             imageKey: null,
+            paymentTiming: 'PREPAID',
         };
     }
 
@@ -118,7 +121,45 @@ export default class UtilTrial {
             shipper: d.shipper,
             description: d.description,
             imageKey: d.imageKey,
+            paymentTiming: d.paymentTiming,
         };
+    }
+
+    /**
+     * 예상 광고 금액(공급가, 서버 `TrialTerms.amount` 와 같은 식) — 인원당이면 단가 × 인원, 건당이면 단가, 운영자가 대신 보내면 + 1명당 발송비 × 인원.
+     * 선결제는 인원 = 모집 인원(저장 때 굳힌다), 뽑기 뒤 결제는 뽑힌 인원(뽑기 때 굳힌다).
+     */
+    static estimate(terms: TrialPriceTerms, people: number, shipper: TrialShipper): number {
+        const count = Math.max(0, Math.trunc(people));
+        const base = terms.priceUnit === 'PER_RECRUIT' ? terms.unitPrice : terms.unitPrice * count;
+        return base + (shipper === 'OPERATOR' ? terms.shippingFeePerPerson * count : 0);
+    }
+
+    /** 모집의 요금 사본(만들 때 굳힌 요금표 값) */
+    static termsOf(d: Pick<AdminTrialDetail, 'priceUnit' | 'unitPrice' | 'shippingFeePerPerson'>): TrialPriceTerms {
+        return { priceUnit: d.priceUnit, unitPrice: d.unitPrice, shippingFeePerPerson: d.shippingFeePerPerson };
+    }
+
+    /**
+     * 결제 방식을 바꿀 수 없는 까닭(서버 `TrialService.update` — V244) — 초안이 아님(409 `TRIAL_STATE_INVALID`) · 신청자가 있음(409 `TRIAL_APPLICANTS_LOCKED`) ·
+     * 선결제를 마침(409 `TRIAL_PREPAID_LOCKED`). 바꿀 수 있으면 null. 만들기(모집 없음)는 늘 null
+     */
+    static timingLock(d: Pick<AdminTrialDetail, 'status' | 'counts' | 'paymentTiming' | 'payment'> | null): 'state' | 'applicants' | 'paid' | null {
+        if (!d) return null;
+        if (d.status !== 'DRAFT') return 'state';
+        if (d.counts.applied > 0) return 'applicants';
+        if (d.paymentTiming === 'PREPAID' && d.payment.status === 'PAID') return 'paid';
+        return null;
+    }
+
+    /**
+     * 선결제 금액에 닿는 칸(광고주·상품 이름·제품값·형태·모집 인원·보내는 쪽·결제 방식)을 잠그나(서버 409 `TRIAL_PREPAID_LOCKED` — 차액 정산 없음):
+     * 선결제 견적이 굳었고 결제가 끝났거나(예약) 모집을 연 뒤. 입금 기록만 있는 입금 대기는 화면이 알 수 없어 서버가 막는다.
+     * (모집을 연 0원 모집은 서버가 금액이 바뀔 때만 막지만, 화면은 단순하게 같은 칸을 잠근다)
+     */
+    static prepaidLocked(d: Pick<AdminTrialDetail, 'status' | 'paymentTiming' | 'amount' | 'payment'> | null): boolean {
+        if (!d || d.paymentTiming !== 'PREPAID' || d.amount === null) return false;
+        return d.payment.status === 'PAID' || d.status !== 'DRAFT';
     }
 
     /** 제공형을 고를 수 있나 — 제품값이 설정 상한 이하(넘으면 대여형으로만) */
@@ -195,16 +236,19 @@ export default class UtilTrial {
         return out;
     }
 
-    /** 광고 결제 상태 Tag 색 — 결제 끝 초록 · 승인·결제·입금 대기 주황 · 취소 빨강 · 뽑기 전·결제 없음 흐림 */
+    /** 광고 결제 상태 Tag 색 — 결제 끝 초록 · 견적 전·승인·결제·입금 대기 주황 · 취소·만료·반려 빨강 · 뽑기 전·결제 없음 흐림 */
     static paymentSeverity(status: TrialPaymentStatus): Severity {
         switch (status) {
             case 'PAID':
                 return 'success';
+            case 'AWAITING_QUOTE_REQUEST':
             case 'AWAITING_APPROVAL':
             case 'AWAITING_PAYMENT':
             case 'AWAITING_DEPOSIT':
                 return 'warn';
             case 'CANCELED':
+            case 'EXPIRED':
+            case 'REJECTED':
                 return 'danger';
             default:
                 return 'secondary';

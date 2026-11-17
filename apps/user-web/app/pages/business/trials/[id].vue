@@ -8,6 +8,7 @@
         광고 결제(V242 「유료 결제 연결」 — `trial.payment`): 머리 아래 구획 — 상태 · 금액 · 기한/결제 시각 + 상태별 안내.
           온라인 결제 대기이고 `payOnline` 이면 [결제하기](신청 건 `/business/applications/{id}?pay=1` — 그 화면이 결제창을 연다), 그 밖 신청 건이 있으면 [신청 건 보기](입금 안내 등).
           `shippingAllowed` false 면 [송장 넣기]를 막고 안내(서버 409 `TRIAL_PAYMENT_PENDING` — 문구를 보이고 다시 읽는다). 운영자가 취소한 줄은 「운영자가 취소했어요」 + 단추 없음.
+          결제 방식(V244 `payment.timing`): 제목 옆 딱지(선결제 · 뽑기 뒤 결제) + 선결제면 「모집 인원 기준 금액 · 덜 모여도 차액 환불 없음」, 상태 안내도 결제 방식마다(`notePrepaid`).
         서버 오류는 대화상자 안(칸 오류는 칸 아래)·목록 한 줄 실패는 토스트.
     -->
     <div class="content-card flex flex-col gap-4" data-testid="business-trial-detail">
@@ -41,13 +42,15 @@
                 <h2 :id="paymentId" class="m-0 flex flex-wrap items-center gap-1.5 text-base font-bold">
                     {{ t('trial.bizPayment.title') }}
                     <span :class="[TAG, paymentTone]"><span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${trial!.payment.status}`) }}</span></span>
+                    <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']" data-testid="business-trial-payment-timing"><span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.timing.${trial!.payment.timing}`) }}</span></span>
                 </h2>
+                <p v-if="trial!.payment.timing === 'PREPAID'" class="m-0 text-xs">{{ t('trial.bizPayment.prepaidRule', { n: trial!.recruitCount }) }}</p>
                 <p v-if="trial!.payment.required" class="m-0 flex flex-wrap gap-x-3 text-xs tabular-nums">
                     <span class="font-semibold">{{ t('trial.bizPayment.amount', { total: won(trial!.payment.total), supply: won(trial!.payment.supply), vat: won(trial!.payment.vat) }) }}</span>
                     <span v-if="trial!.payment.paidAt" class="text-muted-color">{{ t('trial.bizPayment.paidAt', { at: time.full(trial!.payment.paidAt) }) }}</span>
                     <span v-else-if="trial!.payment.deadlineAt" class="text-muted-color">{{ t('trial.bizPayment.deadline', { at: time.full(trial!.payment.deadlineAt) }) }}</span>
                 </p>
-                <p class="m-0 text-xs text-muted-color">{{ t(`trial.bizPayment.note.${trial!.payment.status}`) }}</p>
+                <p class="m-0 text-xs text-muted-color">{{ trial!.payment.timing === 'PREPAID' ? t(`trial.bizPayment.notePrepaid.${trial!.payment.status}`) : t(`trial.bizPayment.note.${trial!.payment.status}`) }}</p>
                 <div v-if="trial!.payment.bizApplicationId && trial!.payment.status !== 'NOT_REQUIRED'" class="flex flex-wrap gap-2">
                     <Button
                         v-if="trial!.payment.status === 'AWAITING_PAYMENT' && trial!.payment.payOnline"
@@ -250,8 +253,8 @@ watch(id, () => void load(), { immediate: true });
 const paymentKind = computed<'ok' | 'wait' | 'bad' | 'none'>(() => {
     const s = trial.value?.payment.status;
     if (s === 'PAID') return 'ok';
-    if (s === 'AWAITING_APPROVAL' || s === 'AWAITING_PAYMENT' || s === 'AWAITING_DEPOSIT') return 'wait';
-    return s === 'CANCELED' ? 'bad' : 'none';
+    if (s === 'AWAITING_QUOTE_REQUEST' || s === 'AWAITING_APPROVAL' || s === 'AWAITING_PAYMENT' || s === 'AWAITING_DEPOSIT') return 'wait';
+    return s === 'CANCELED' || s === 'EXPIRED' || s === 'REJECTED' ? 'bad' : 'none';
 });
 const paymentTone = computed(() =>
     paymentKind.value === 'ok'

@@ -13,7 +13,8 @@
           정지한 채 끝 날짜가 지났으면 다른 제목·문구(단추 없음) / 중단(`ADVERTISER_STOP`) = 「중단했어요」 + 환불 칸(`STOP_PRORATED` · 내역 「일할 − 중도 해지 수수료(n%) = 예상액」 · 기준 시각 — 서버 환불 줄 값 그대로) + [새로 신청], 승인 뒤 `CANCELED` 는 「광고주 요청으로 중단」.
           409 `BIZ_PAUSE_LIMIT` 는 알리고 다시 읽는다. 사업자 핫딜 글은 정지·중단하면 글이 숨겨지고(「게시된 글」 칸 문구) 노출 자리도 멈춘다.
         체험단 건(kind TRIAL — V242 「유료 결제 연결」): 운영자가 만든 건이라 [신청 취소]·[소재 바꾸기]·[취소·환불 요청]·[고쳐서 다시 신청]·[새로 신청]을 감춘다(서버도 409 `BIZ_APPLICATION_STATE_CHANGED`) —
-          대신 「운영팀에 문의」 한 줄. 신청 내용에 모집 카드(`trial` — 모집 이름 → `/business/trials/{trialId}` · 상태 · 상품 · 형태 · 보내는 쪽 · 뽑힌 인원 · 단위·단가 · 1명당 발송비 · 금액). 기간 = 모집 신청 기간. 결제는 다른 건과 같은 [결제하기].
+          대신 「운영팀에 문의」 한 줄. 신청 내용에 모집 카드(`trial` — 모집 이름 → `/business/trials/{trialId}` · 상태 · 상품 · 형태 · 보내는 쪽 · 결제 방식 · 모집 인원 · 뽑힌 인원 · 단위·단가 · 1명당 발송비 · 금액). 기간 = 모집 신청 기간. 결제는 다른 건과 같은 [결제하기].
+          선결제(V244 `trial.paymentTiming`): 「모집 인원 기준 금액 · 덜 모여도 차액 환불 없음」 안내, 심사·결제 끝 문구도 선결제용. 초안 모집은 광고주 모집 화면에 없어 이름을 링크로 걸지 않는다.
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
         성과 칸(`#performance` — 광고 성과 2026-11-02 — `ad-performance-contract.md`, `BusinessAdStats`): 노출 자리가 있는 건(광고 둘 · 핫딜 노출 · 노출 자리 있는 사업자 핫딜 글)이고 결제(입금)까지 마쳤으면
           시작 뒤(진행·정지·내림·끝남·시작 뒤 취소) 합계 3칸·날짜별 차트·멈춘 구간·자리별·버전별, 예약(시작 전)이면 「시작하면 여기에 하루 단위로 쌓여요」 한 줄, 그 밖은 칸 없음(`UtilAdStats.section`).
@@ -42,7 +43,7 @@
 
             <Message v-if="justPaid && app.status === 'SCHEDULED'" severity="success" :closable="false" data-testid="business-paid">
                 <p class="m-0 font-semibold">{{ t('business.detail.paidTitle') }}</p>
-                <p class="m-0 mt-1 text-sm">{{ trialKind ? t('business.trialApp.paidText') : t('business.detail.paidText', { date: time.serviceDate(app.startDate) }) }}</p>
+                <p class="m-0 mt-1 text-sm">{{ trialKind ? (trialPrepaid ? t('business.trialApp.paidTextPrepaid') : t('business.trialApp.paidText')) : t('business.detail.paidText', { date: time.serviceDate(app.startDate) }) }}</p>
             </Message>
 
             <!-- 상태별 본문 -->
@@ -50,7 +51,7 @@
                 <!-- 심사 중 -->
                 <template v-if="app.status === 'SUBMITTED'">
                     <h2 class="m-0 text-base font-semibold">{{ t('business.detail.reviewTitle') }}</h2>
-                    <p class="m-0 text-sm leading-relaxed text-muted-color">{{ trialKind ? t('business.trialApp.reviewText') : t('business.detail.reviewText') }}</p>
+                    <p class="m-0 text-sm leading-relaxed text-muted-color">{{ trialKind ? (trialPrepaid ? t('business.trialApp.reviewTextPrepaid') : t('business.trialApp.reviewText')) : t('business.detail.reviewText') }}</p>
                     <p v-if="!trialKind" class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('business.detail.creativeEditNote') }}</p>
                     <p v-if="trialKind" class="m-0 flex items-start gap-1.5 text-xs text-muted-color" data-testid="business-trial-no-cancel"><i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('business.trialApp.noSelfCancel') }}</p>
                     <div v-else class="flex flex-wrap gap-2">
@@ -375,7 +376,12 @@
                         {{ t('business.trialApp.title') }}
                         <PointShopTag tone="neutral">{{ t(`business.trialApp.statusValue.${trialApp.status}`) }}</PointShopTag>
                     </p>
-                    <NuxtLink :to="UtilTrial.bizDetailPath(trialApp.trialId)" class="text-sm font-medium text-primary hover:underline [overflow-wrap:anywhere]">{{ trialApp.title }}</NuxtLink>
+                    <NuxtLink v-if="trialApp.status !== 'DRAFT'" :to="UtilTrial.bizDetailPath(trialApp.trialId)" class="text-sm font-medium text-primary hover:underline [overflow-wrap:anywhere]">{{ trialApp.title }}</NuxtLink>
+                    <p v-else class="m-0 text-sm font-medium [overflow-wrap:anywhere]">{{ trialApp.title }}</p>
+                    <!-- 선결제(V244) — 모집 인원 기준 금액 · 덜 모여도 차액 환불 없음 -->
+                    <p v-if="trialPrepaid" class="m-0 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-100" data-testid="business-application-trial-prepaid">
+                        <i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('business.trialApp.prepaidNote', { n: trialApp.recruitCount }) }}
+                    </p>
                     <dl class="m-0 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
                         <dt class="text-muted-color">{{ t('business.trialApp.product') }}</dt>
                         <dd class="m-0 [overflow-wrap:anywhere]">{{ trialApp.productName }}</dd>
@@ -383,6 +389,10 @@
                         <dd class="m-0">{{ t(`business.trialApp.formValue.${trialApp.form}`) }}</dd>
                         <dt class="text-muted-color">{{ t('business.trialApp.shipper') }}</dt>
                         <dd class="m-0">{{ t(`business.trialApp.shipperValue.${trialApp.shipper}`) }}</dd>
+                        <dt class="text-muted-color">{{ t('business.trialApp.paymentTiming') }}</dt>
+                        <dd class="m-0">{{ t(`business.trialApp.paymentTimingValue.${trialApp.paymentTiming}`) }}</dd>
+                        <dt class="text-muted-color">{{ t('business.trialApp.recruitCount') }}</dt>
+                        <dd class="m-0 tabular-nums">{{ t('business.trialApp.selectedN', { n: trialApp.recruitCount }) }}</dd>
                         <dt class="text-muted-color">{{ t('business.trialApp.selected') }}</dt>
                         <dd class="m-0 tabular-nums">{{ trialApp.selectedCount === null ? t('business.trialApp.pending') : t('business.trialApp.selectedN', { n: trialApp.selectedCount }) }}</dd>
                         <dt class="text-muted-color">{{ t('business.trialApp.priceUnit') }}</dt>
@@ -394,7 +404,7 @@
                             <dd class="m-0 tabular-nums">{{ UtilBusinessMessages.won(t, trialApp.shippingFeePerPerson) }}</dd>
                         </template>
                         <dt class="text-muted-color">{{ t('business.trialApp.amount') }}</dt>
-                        <dd class="m-0 font-semibold tabular-nums">{{ trialApp.amount === null ? t('business.trialApp.pending') : UtilBusinessMessages.won(t, trialApp.amount) }}</dd>
+                        <dd class="m-0 font-semibold tabular-nums">{{ trialApp.amount === null ? (trialPrepaid ? t('business.trialApp.pendingQuote') : t('business.trialApp.pending')) : UtilBusinessMessages.won(t, trialApp.amount) }}</dd>
                     </dl>
                 </div>
 
@@ -590,6 +600,8 @@ const retryPath = computed(() => (app.value && UtilBusiness.isAd(app.value.kind)
 /** 체험단 건의 모집 요약(kind TRIAL — 아니면 null). 체험단 건은 사업자 취소·소재 변경·환불 요청·다시 신청 단추를 감춘다 */
 const trialKind = computed(() => Boolean(app.value && UtilBusiness.isTrial(app.value.kind)));
 const trialApp = computed(() => (trialKind.value ? (app.value?.trial ?? null) : null));
+/** 선결제 체험단 건(V244) — 모집 인원 기준 금액 · 결제가 끝나야 모집 공개 · 덜 모여도 차액 환불 없음 */
+const trialPrepaid = computed(() => trialApp.value?.paymentTiming === 'PREPAID');
 
 /* ── 신청 취소(결제 전) ── */
 async function cancel(): Promise<void> {

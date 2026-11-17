@@ -16,14 +16,44 @@ export type TrialDamageVerdict = 'NORMAL_WEAR' | 'COURIER' | 'MEMBER_FAULT' | 'I
 export type TrialPriceUnit = 'PER_RECRUIT' | 'PER_PERSON';
 /** 사진 종류 — 입고 · 발송 전 · 반납 · 파손 */
 export type TrialPhotoKind = 'STOCK' | 'PRE_SHIP' | 'RETURN' | 'DAMAGE';
-/** 고치기의 상태 바꾸기(서버 `TrialForm.action`) — 모집 열기(준비 → 모집 중) · 신청 마감(→ 뽑는 중) · 끝내기(진행 중 → 끝남) · 취소(뽑기 전). 있으면 칸은 바꾸지 않는다 */
-export type TrialAction = 'PUBLISH' | 'CLOSE_APPLY' | 'CLOSE' | 'CANCEL';
 /**
- * 광고 결제 상태(서버 `TrialViews.Payment.status` — V242 「유료 결제 연결」) — 뽑기 전(금액 미정) · 0원(결제 없음) · 운영자 승인 대기(광고 심사 큐) ·
- * 온라인 결제 대기 · 수동 입금 대기 · 결제 끝(예약) · 취소·반려·만료(신청 건이 닫힘)
+ * 고치기의 상태 바꾸기(서버 `TrialForm.action`) — 모집 열기(준비 → 모집 중) · 신청 마감(→ 뽑는 중) · 끝내기(진행 중 → 끝남) · 취소(뽑기 전) ·
+ * 결제 (다시) 요청(선결제 초안 — V244, `payment.requestAllowed` 일 때만). 있으면 칸은 바꾸지 않는다
  */
-export type TrialPaymentStatus = 'BEFORE_SELECTION' | 'NOT_REQUIRED' | 'AWAITING_APPROVAL' | 'AWAITING_PAYMENT' | 'AWAITING_DEPOSIT' | 'PAID' | 'CANCELED';
-export const TRIAL_PAYMENT_STATUSES: readonly TrialPaymentStatus[] = ['BEFORE_SELECTION', 'NOT_REQUIRED', 'AWAITING_APPROVAL', 'AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'PAID', 'CANCELED'];
+export type TrialAction = 'PUBLISH' | 'CLOSE_APPLY' | 'CLOSE' | 'CANCEL' | 'REQUEST_PAYMENT';
+/**
+ * 광고비 결제 때(서버 `TrialPaymentTiming` — V244 「유료 결제 연결」) — 선결제(기본: 모집 인원으로 견적 → 결제가 끝나야 모집 공개, 덜 모여도 차액 환불 없음) ·
+ * 뽑기 뒤 결제(뽑힌 인원으로 견적 → 결제가 끝나야 입고·발송)
+ */
+export type TrialPaymentTiming = 'PREPAID' | 'POSTPAID';
+export const TRIAL_PAYMENT_TIMINGS: readonly TrialPaymentTiming[] = ['PREPAID', 'POSTPAID'];
+/**
+ * 광고 결제 상태(서버 `TrialViews.Payment.status` — V242·V244 「유료 결제 연결」) — 후불 뽑기 전(금액 미정) · 선결제 견적 전(V244 전 초안) · 0원(결제 없음) ·
+ * 운영자 승인 대기(광고 심사 큐) · 온라인 결제 대기 · 수동 입금 대기 · 결제 끝(예약) · 취소(후불은 반려·만료도) · 선결제 결제 기한 만료 · 선결제 반려
+ */
+export type TrialPaymentStatus =
+    | 'BEFORE_SELECTION'
+    | 'AWAITING_QUOTE_REQUEST'
+    | 'NOT_REQUIRED'
+    | 'AWAITING_APPROVAL'
+    | 'AWAITING_PAYMENT'
+    | 'AWAITING_DEPOSIT'
+    | 'PAID'
+    | 'CANCELED'
+    | 'EXPIRED'
+    | 'REJECTED';
+export const TRIAL_PAYMENT_STATUSES: readonly TrialPaymentStatus[] = [
+    'BEFORE_SELECTION',
+    'AWAITING_QUOTE_REQUEST',
+    'NOT_REQUIRED',
+    'AWAITING_APPROVAL',
+    'AWAITING_PAYMENT',
+    'AWAITING_DEPOSIT',
+    'PAID',
+    'CANCELED',
+    'EXPIRED',
+    'REJECTED',
+];
 
 /** 이름 있는 조각(서버 `TrialViews.Ref`) */
 export interface TrialRef {
@@ -75,11 +105,13 @@ export interface AdminTrialRow {
     applyStartAt: string;
     applyEndAt: string;
     reviewBoard: TrialBoardRef;
-    /** 광고 상품 금액(뽑기 뒤 확정 — 전 null) */
+    /** 광고 상품 금액(선결제 = 저장 때 모집 인원으로 · 후불 = 뽑기 뒤 확정 — 그 전 null) */
     amount: number | null;
     createdAt: string;
     /** 광고 결제 상태(V242) */
     paymentStatus: TrialPaymentStatus;
+    /** 결제 때(V244 — 선결제·뽑기 뒤 결제) */
+    paymentTiming: TrialPaymentTiming;
 }
 
 /** 입고(서버 `TrialViews.Stock` — 운영자가 대신 보낼 때만). `keepUntil` = 입고 + 보관 일수 */
@@ -178,17 +210,23 @@ export interface AdminTrialCounts {
 }
 
 /**
- * 광고 결제(서버 `TrialViews.Payment` — V242 「유료 결제 연결」). 관리자·광고주 모집 상세가 같이 쓴다.
- *  - `required` 뽑기를 마쳤고 금액 > 0 — 결제가 끝나야 입고·발송(아니면 409 `TRIAL_PAYMENT_PENDING`)
+ * 광고 결제(서버 `TrialViews.Payment` — V242·V244 「유료 결제 연결」). 관리자·광고주 모집 상세가 같이 쓴다.
+ *  - `timing` 선결제(기본 — 결제가 끝나야 공개, 아니면 409 `TRIAL_PREPAY_REQUIRED`) · 뽑기 뒤 결제(결제가 끝나야 입고·발송)
+ *  - `required` 금액이 굳었고 > 0 — 선결제는 결제가 끝나야 공개, 후불은 결제가 끝나야 입고·발송(아니면 409 `TRIAL_PAYMENT_PENDING`)
  *  - `shippingAllowed` 입고·발송을 할 수 있나(결제 필요 없음 또는 결제 끝)
+ *  - `publishAllowed` (선결제) 모집을 열 수 있나 — 0원이거나 결제 끝. 후불은 늘 true
+ *  - `requestAllowed` (선결제·초안) 「결제 (다시) 요청」(`action: REQUEST_PAYMENT`)을 할 수 있나 — 견적 전 · 신청 건이 닫힘(만료·반려·취소)
  *  - `bizApplicationId` 광고 신청 건 — 관리자 광고 심사 `/ad-reviews?id=` · 광고주 결제 `/business/applications/{id}`
  *  - 금액은 승인 뒤엔 확정 금액, 그 전엔 뽑기 견적 · `method`·`deadlineAt` 은 승인 뒤만
  *  - `payOnline` 광고주가 사업자 센터에서 온라인 결제를 할 수 있다(온라인 결제 대기 · 기한 전 · 광고주 회원이 그 건의 주인)
  */
 export interface TrialPayment {
+    timing: TrialPaymentTiming;
     required: boolean;
     status: TrialPaymentStatus;
     shippingAllowed: boolean;
+    publishAllowed: boolean;
+    requestAllowed: boolean;
     bizApplicationId: string | null;
     bizApplicationNo: string | null;
     /** 신청 건 저장 상태(SUBMITTED·AWAITING_PAYMENT·… — 화면 보조) */
@@ -240,6 +278,8 @@ export interface AdminTrialDetail {
     updatedAt: string;
     /** 광고 결제 상태(V242) */
     payment: TrialPayment;
+    /** 결제 때(V244) */
+    paymentTiming: TrialPaymentTiming;
 }
 
 /**
@@ -265,6 +305,8 @@ export interface AdminTrialRequest {
     shipper: TrialShipper;
     description: string;
     imageKey: string | null;
+    /** 결제 때(V244) — 만들기에서 빠지면 선결제, 고치기에서 빠지면 그대로. 바꾸기는 초안·신청자 없을 때만(409 `TRIAL_STATE_INVALID`·`TRIAL_APPLICANTS_LOCKED`), 선결제를 마쳤으면 409 `TRIAL_PREPAID_LOCKED` */
+    paymentTiming?: TrialPaymentTiming;
     action?: TrialAction | null;
 }
 
@@ -278,13 +320,25 @@ export interface AdminTrialFormOptions {
     /** 사용기 기한 처음 값(설정) */
     defaultReviewDays: number;
     /**
-     * 받지 못한 고를 거리 — 광고주 목록(`ad.read`) · 게시판 목록(`board.read`) · 체험단 설정. 권한이 없거나(403) 실패하면 빈 후보·기본값으로 그리고 서랍이 안내한다
+     * 지금 요금표의 체험단(`TRIAL`) 줄 — 만들기 서랍의 예상 금액(서버는 만들 때 이 값을 모집에 사본으로 굳힌다). 못 받았으면(`ad.read` 없음 등) null.
+     * 고치기는 모집의 사본(`AdminTrialDetail.priceUnit`·`unitPrice`·`shippingFeePerPerson`)으로 센다
+     */
+    trialPrice: TrialPriceTerms | null;
+    /**
+     * 받지 못한 고를 거리 — 광고주 목록(`ad.read`) · 게시판 목록(`board.read`) · 체험단 설정 · 요금표(`ad.read`). 권한이 없거나(403) 실패하면 빈 후보·기본값으로 그리고 서랍이 안내한다
      */
     unavailable: TrialFormOptionSource[];
 }
 
+/** 체험단 요금 — 값 매기는 단위 · 단가 · 운영자가 대신 보낼 때 1명당 발송비(서버 `TrialTerms`) */
+export interface TrialPriceTerms {
+    priceUnit: TrialPriceUnit;
+    unitPrice: number;
+    shippingFeePerPerson: number;
+}
+
 /** 모집 서랍 고를 거리의 출처 */
-export type TrialFormOptionSource = 'advertisers' | 'boards' | 'settings';
+export type TrialFormOptionSource = 'advertisers' | 'boards' | 'settings' | 'prices';
 
 /** 신청자 숫자(서버 `TrialViews.ApplicantStats`) — 사용기 수 · 평균 추천 · 약속 지킨 비율 %(판정 없으면 null) · 판정된 줄 수 */
 export interface AdminTrialApplicantStats {

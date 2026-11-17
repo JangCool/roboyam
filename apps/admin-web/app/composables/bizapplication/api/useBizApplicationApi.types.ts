@@ -122,10 +122,13 @@ export type BizApplicationContent =
 export type BizTrialForm = 'GIVE' | 'LEND';
 export type BizTrialShipper = 'ADVERTISER' | 'OPERATOR';
 export type BizTrialPriceUnit = 'PER_RECRUIT' | 'PER_PERSON';
+/** 체험단 광고비 결제 때(서버 `TrialPaymentTiming` — V244) — 선결제(모집 인원 기준 · 결제가 끝나야 모집 공개 · 차액 환불 없음) · 뽑기 뒤 결제(뽑힌 인원 기준) */
+export type BizTrialPaymentTiming = 'PREPAID' | 'POSTPAID';
 
 /**
- * 체험단 건 내용(kind `TRIAL` — 서버 `BizApplicationAdminService.trialContent`, V242). 모집 상세 `/ads/trials/{trialId}`.
- * 금액 = 단가(건당이면 × 1, 인원당이면 × 뽑힌 인원) + 운영자가 대신 보내면 1명당 발송비 × 뽑힌 인원 — `amount` 는 확정 공급가(뽑기 뒤).
+ * 체험단 건 내용(kind `TRIAL` — 서버 `BizApplicationAdminService.trialContent`, V242·V244). 모집 상세 `/ads/trials/{trialId}`.
+ * 금액 = 단가(건당이면 × 1, 인원당이면 × 인원) + 운영자가 대신 보내면 1명당 발송비 × 인원 — 인원은 선결제면 모집 인원, 뽑기 뒤 결제면 뽑힌 인원.
+ * `amount` 는 굳힌 공급가(선결제 = 저장 때 · 후불 = 뽑기 뒤).
  */
 export interface BizTrialContent {
     type: 'TRIAL';
@@ -141,8 +144,14 @@ export interface BizTrialContent {
     priceUnit: BizTrialPriceUnit;
     unitPrice: number;
     shippingFeePerPerson: number;
-    /** 확정 공급가(뽑기 전 null) */
+    /** 굳힌 공급가(선결제 견적 전 · 후불 뽑기 전 null) */
     amount: number | null;
+    /** 결제 때(V244) */
+    paymentTiming: BizTrialPaymentTiming;
+    /** 모집 인원(선결제 견적의 인원) */
+    recruitCount: number;
+    /** 이 건이 모집의 지금 결제 건인가 — 「결제 다시 요청」으로 새 건이 열린 뒤의 예전 건이면 false */
+    currentPayment: boolean;
 }
 
 /** 견적 줄 단위 — 하루 · 건(핫딜 글 · 체험단 모집 건당) · 사람(체험단 인원당 · 대신 발송비) */

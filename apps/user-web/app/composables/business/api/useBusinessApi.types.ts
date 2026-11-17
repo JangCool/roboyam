@@ -380,8 +380,8 @@ export interface BizApplicationDetail extends BizApplicationSummary {
 }
 
 /**
- * 체험단 건의 모집 요약(서버 `BizMemberView.Trial`) — 광고주 모집 화면 `/business/trials/{trialId}`.
- * 금액 = 단가(건당 × 1 · 인원당 × 뽑힌 인원) + 운영자가 대신 보내면 1명당 발송비 × 뽑힌 인원(공급가)
+ * 체험단 건의 모집 요약(서버 `BizMemberView.Trial`) — 광고주 모집 화면 `/business/trials/{trialId}`(초안 모집은 그 화면에 없다 — 선결제 결제는 이 신청 건 화면에서).
+ * 금액 = 단가(건당 × 1 · 인원당 × 인원) + 운영자가 대신 보내면 1명당 발송비 × 인원(공급가) — 인원은 선결제면 모집 인원, 뽑기 뒤 결제면 뽑힌 인원
  */
 export interface BizApplicationTrial {
     trialId: string;
@@ -396,6 +396,10 @@ export interface BizApplicationTrial {
     unitPrice: number;
     shippingFeePerPerson: number;
     amount: number | null;
+    /** 결제 때(V244) — 선결제(모집 인원 기준 · 결제가 끝나야 모집 공개 · 덜 모여도 차액 환불 없음) · 뽑기 뒤 결제(뽑힌 인원 기준 · 결제가 끝나야 발송) */
+    paymentTiming: 'PREPAID' | 'POSTPAID';
+    /** 모집 인원 */
+    recruitCount: number;
 }
 
 /** 공개 환불 내역 한 줄 — 서버 `BizMemberView.RefundLine` */

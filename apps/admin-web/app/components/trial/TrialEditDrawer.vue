@@ -4,7 +4,11 @@
         칸: 광고주 · 제목 · 상품 이름 · 제품값 · 형태(제공형은 제품값이 설정 상한을 넘으면 막고 「대여형으로만」 안내) · 사용기 게시판(「체험단 사용기 받기」 켠 게시판) · 인원 · 리뷰어 몫(%) ·
           리뷰어 먼저 신청(금·은 시간 — 동은 모두와 함께) · 신청 시작(일반)·마감 · 사용기 기한·(대여형) 반납 기한 · 보내는 쪽(광고주 — 회원 동의 / 운영자가 대신) · 설명 · 대표 그림.
         만들면 준비(DRAFT)로 시작하고, 모집 열기·신청 마감·끝내기·취소는 모집 상세 머리의 단추(서버 `action`)다.
-        오른쪽(넓은 화면): 리뷰어 몫·일반 몫 인원, 먼저 신청 시각, 금액 안내(요금표 값으로 뽑기 뒤 확정).
+        결제 방식(V244 `paymentTiming`): 선결제(기본 — 모집 인원 기준 금액을 먼저 결제, 덜 모여도 차액 환불 없음, 결제가 끝나야 모집 열기) · 뽑기 뒤 결제(뽑힌 인원 기준).
+          초안이 아니거나 신청자가 있거나 선결제를 마쳤으면 잠근다(`UtilTrial.timingLock`). 선결제를 마쳤거나 연 뒤면 금액에 닿는 칸(광고주·상품 이름·제품값·형태·모집 인원·보내는 쪽)도 잠근다
+          (`UtilTrial.prepaidLocked` — 서버 409 `TRIAL_PREPAID_LOCKED`).
+        오른쪽(넓은 화면): 리뷰어 몫·일반 몫 인원, 먼저 신청 시각, 예상 금액(`UtilTrial.estimate` — 만들기는 요금표 체험단 줄 `options.trialPrice`, 고치기는 모집의 요금 사본.
+          요금표를 못 받으면(`ad.read` 없음) 안내만).
         검사는 `UtilTrial.problems`(서버 CHECK 와 같은 범위 — 판정은 서버). 서버 칸 오류(`400 fields.<칸>`)는 칸 아래 그대로. 서버를 부르지 않는다 — 값은 `save` 로 올린다.
     -->
     <Drawer :visible="open" position="right" :aria-labelledby="titleId" :style="{ width: '52rem', maxWidth: '100vw' }" @update:visible="(v: boolean) => emit('update:open', v)">
@@ -15,13 +19,15 @@
         <form v-if="options" :id="formId" class="grid min-w-0 gap-6 pb-4 lg:grid-cols-[minmax(0,1fr)_15rem]" novalidate @submit.prevent="submit">
             <div class="flex min-w-0 flex-col gap-4">
                 <!-- 고를 거리를 못 받았다(권한 없음 403 등) — 빈 후보·기본값으로 그린다 -->
-                <Message v-if="options.unavailable.length" severity="warn" variant="simple" size="small">
-                    <span v-for="src in options.unavailable" :key="src" class="block">{{ t(`trial.drawer.unavailable.${src}`) }}</span>
+                <Message v-if="unavailable.length" severity="warn" variant="simple" size="small">
+                    <span v-for="src in unavailable" :key="src" class="block">{{ t(`trial.drawer.unavailable.${src}`) }}</span>
                 </Message>
+                <!-- 선결제를 마쳤거나 모집을 연 뒤 — 금액에 닿는 칸 잠금(서버 409 TRIAL_PREPAID_LOCKED) -->
+                <Message v-if="amountLocked" severity="secondary" variant="simple" size="small" data-testid="trial-prepaid-locked">{{ t('trial.drawer.prepaidLocked') }}</Message>
                 <section class="grid gap-3 sm:grid-cols-2">
                     <LabeledField :label="t('trial.drawer.advertiser')" :error="errorOf('advertiserId')">
                         <template #default="{ id, describedBy, invalid }">
-                            <Select v-model="form.advertiserId" :input-id="id" :options="advertisers" option-label="name" option-value="id" filter class="w-full" :invalid="invalid" :aria-describedby="describedBy" />
+                            <Select v-model="form.advertiserId" :input-id="id" :options="advertisers" option-label="name" option-value="id" filter class="w-full" :disabled="amountLocked" :invalid="invalid" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
                     <LabeledField :label="t('trial.drawer.reviewBoard')" :help="t('trial.drawer.reviewBoardHelp')" :error="errorOf('reviewBoardId')">
@@ -36,13 +42,13 @@
                     </LabeledField>
                     <LabeledField :label="t('trial.drawer.productName')" :error="errorOf('productName')">
                         <template #default="{ id, describedBy, invalid }">
-                            <InputText :id="id" v-model="form.productName" :maxlength="UtilTrial.LIMITS.productNameMax" class="w-full" :invalid="invalid" :aria-describedby="describedBy" />
+                            <InputText :id="id" v-model="form.productName" :maxlength="UtilTrial.LIMITS.productNameMax" class="w-full" :disabled="amountLocked" :invalid="invalid" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
                     <LabeledField :label="t('trial.drawer.productPrice')" :error="errorOf('productPrice')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputGroup>
-                                <InputNumber v-model="form.productPrice" :input-id="id" :min="0" :max-fraction-digits="0" :allow-empty="false" fluid :invalid="invalid" :aria-describedby="describedBy" input-class="text-right tabular-nums" />
+                                <InputNumber v-model="form.productPrice" :input-id="id" :min="0" :max-fraction-digits="0" :allow-empty="false" fluid :disabled="amountLocked" :invalid="invalid" :aria-describedby="describedBy" input-class="text-right tabular-nums" />
                                 <InputGroupAddon>{{ t('trial.wonSuffix') }}</InputGroupAddon>
                             </InputGroup>
                         </template>
@@ -53,30 +59,43 @@
                 <section class="grid gap-3 sm:grid-cols-2">
                     <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0">
                         <legend class="mb-1 text-sm font-medium">{{ t('trial.drawer.form') }}</legend>
-                        <label class="flex cursor-pointer items-start gap-2 text-sm" :class="giveBlocked ? 'opacity-60' : ''">
-                            <RadioButton v-model="form.form" value="GIVE" :input-id="`${formId}-give`" name="trial-form" :disabled="giveBlocked" class="mt-0.5" />
+                        <label class="flex cursor-pointer items-start gap-2 text-sm" :class="giveBlocked || amountLocked ? 'opacity-60' : ''">
+                            <RadioButton v-model="form.form" value="GIVE" :input-id="`${formId}-give`" name="trial-form" :disabled="giveBlocked || amountLocked" class="mt-0.5" />
                             <span>{{ t('trial.form.GIVE') }}<span class="block text-xs text-muted-color">{{ t('trial.drawer.giveHelp', { limit: won(options.givePriceLimit) }) }}</span></span>
                         </label>
-                        <label class="flex cursor-pointer items-start gap-2 text-sm">
-                            <RadioButton v-model="form.form" value="LEND" :input-id="`${formId}-lend`" name="trial-form" class="mt-0.5" />
+                        <label class="flex cursor-pointer items-start gap-2 text-sm" :class="amountLocked ? 'opacity-60' : ''">
+                            <RadioButton v-model="form.form" value="LEND" :input-id="`${formId}-lend`" name="trial-form" :disabled="amountLocked" class="mt-0.5" />
                             <span>{{ t('trial.form.LEND') }}<span class="block text-xs text-muted-color">{{ t('trial.drawer.lendHelp') }}</span></span>
                         </label>
                         <small v-if="errorOf('form')" class="text-xs text-red-600 dark:text-red-400">{{ errorOf('form') }}</small>
                     </fieldset>
                     <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0">
                         <legend class="mb-1 text-sm font-medium">{{ t('trial.drawer.shipper') }}</legend>
-                        <label v-for="s in (['ADVERTISER', 'OPERATOR'] as const)" :key="s" class="flex cursor-pointer items-start gap-2 text-sm">
-                            <RadioButton v-model="form.shipper" :value="s" :input-id="`${formId}-${s}`" name="trial-shipper" class="mt-0.5" />
+                        <label v-for="s in (['ADVERTISER', 'OPERATOR'] as const)" :key="s" class="flex cursor-pointer items-start gap-2 text-sm" :class="amountLocked ? 'opacity-60' : ''">
+                            <RadioButton v-model="form.shipper" :value="s" :input-id="`${formId}-${s}`" name="trial-shipper" :disabled="amountLocked" class="mt-0.5" />
                             <span>{{ t(`trial.shipper.${s}`) }}<span class="block text-xs text-muted-color">{{ t(`trial.drawer.shipperHelp.${s}`) }}</span></span>
                         </label>
                     </fieldset>
                 </section>
 
+                <!-- 결제 방식(V244 — 선결제 기본) -->
+                <fieldset class="m-0 flex flex-col gap-1.5 border-0 p-0" data-testid="trial-payment-timing">
+                    <legend class="mb-1 text-sm font-medium">{{ t('trial.drawer.paymentTiming') }}</legend>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <label v-for="pt in TRIAL_PAYMENT_TIMINGS" :key="pt" class="flex cursor-pointer items-start gap-2 text-sm" :class="timingDisabled ? 'opacity-60' : ''">
+                            <RadioButton v-model="form.paymentTiming" :value="pt" :input-id="`${formId}-${pt}`" name="trial-payment-timing" :disabled="timingDisabled" class="mt-0.5" />
+                            <span>{{ t(`trial.paymentTiming.${pt}`) }}<span class="block text-xs text-muted-color">{{ t(`trial.drawer.paymentTimingHelp.${pt}`) }}</span></span>
+                        </label>
+                    </div>
+                    <small v-if="timingLockReason" class="text-xs text-muted-color">{{ t(`trial.drawer.timingLock.${timingLockReason}`) }}</small>
+                    <small v-if="errorOf('paymentTiming')" class="text-xs text-red-600 dark:text-red-400">{{ errorOf('paymentTiming') }}</small>
+                </fieldset>
+
                 <!-- 인원 · 리뷰어 -->
                 <section class="grid gap-3 sm:grid-cols-4">
                     <LabeledField :label="t('trial.drawer.recruitCount')" :error="errorOf('recruitCount')">
                         <template #default="{ id, describedBy, invalid }">
-                            <InputNumber v-model="form.recruitCount" :input-id="id" :min="1" :max="UtilTrial.LIMITS.recruitMax" :allow-empty="false" fluid :invalid="invalid" :aria-describedby="describedBy" />
+                            <InputNumber v-model="form.recruitCount" :input-id="id" :min="1" :max="UtilTrial.LIMITS.recruitMax" :allow-empty="false" fluid :disabled="amountLocked" :invalid="invalid" :aria-describedby="describedBy" />
                         </template>
                     </LabeledField>
                     <LabeledField :label="t('trial.drawer.reviewerShare')" :error="errorOf('reviewerShare')">
@@ -152,7 +171,16 @@
                 <p v-if="form.applyStartAt" class="m-0 text-xs text-muted-color">
                     {{ t('trial.drawer.earlyLine', { gold: time.full(earlyAt(form.reviewerGoldHours)), silver: time.full(earlyAt(form.reviewerSilverHours)) }) }}
                 </p>
-                <p class="m-0 border-t border-(--line) pt-2 text-[11px] text-muted-color">{{ t('trial.drawer.amountNote') }}</p>
+                <!-- 예상 금액(공급가) — 선결제는 모집 인원 기준으로 저장 때 굳는다 · 뽑기 뒤 결제는 뽑힌 인원 기준 -->
+                <div class="flex flex-col gap-1 border-t border-(--line) pt-2" data-testid="trial-estimate">
+                    <h4 class="m-0 text-xs font-medium text-muted-color">{{ t('trial.drawer.estimate') }}</h4>
+                    <template v-if="terms">
+                        <p class="m-0 text-sm font-semibold tabular-nums">{{ estimate === 0 ? t('trial.free') : won(estimate) }}</p>
+                        <p class="m-0 text-[11px] tabular-nums text-muted-color">{{ formulaText }}</p>
+                        <p class="m-0 text-[11px] text-muted-color">{{ t(`trial.drawer.estimateNote.${form.paymentTiming ?? 'PREPAID'}`) }}</p>
+                    </template>
+                    <p v-else class="m-0 text-[11px] text-muted-color">{{ t('trial.drawer.estimateUnavailable') }}</p>
+                </div>
             </aside>
         </form>
         <div v-else class="h-40 animate-pulse rounded-lg bg-surface-100 dark:bg-surface-800" role="status" :aria-label="t('common.loading')" />
@@ -167,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AdminTrialDetail, AdminTrialFormOptions, AdminTrialRequest } from '~/composables/trial/api/useTrialApi.types';
+import { TRIAL_PAYMENT_TIMINGS, type AdminTrialDetail, type AdminTrialFormOptions, type AdminTrialRequest, type TrialPriceTerms } from '~/composables/trial/api/useTrialApi.types';
 import UtilTrial from '~/utils/util-trial';
 import UtilTrialMessages from '~/utils/util-trial-messages';
 
@@ -275,6 +303,25 @@ function errorOf(field: keyof AdminTrialRequest): string {
     if (p === 'giveLimit') return t('trial.problem.giveLimit', { limit: won(giveLimit.value) });
     return tried.value ? t(`trial.problem.${p}`) : '';
 }
+
+/** 받지 못한 고를 거리 안내 — 요금표는 만들기에서만 쓴다(고치기는 모집의 요금 사본) */
+const unavailable = computed(() => (props.options?.unavailable ?? []).filter((src) => src !== 'prices' || !props.trial));
+
+/* ── 결제 방식 · 선결제 잠금(V244) ── */
+const timingLockReason = computed(() => UtilTrial.timingLock(props.trial));
+const timingDisabled = computed(() => timingLockReason.value !== null);
+const amountLocked = computed(() => UtilTrial.prepaidLocked(props.trial));
+/** 예상 금액의 요금 — 고치기는 모집의 사본, 만들기는 지금 요금표(못 받았으면 null) */
+const terms = computed<TrialPriceTerms | null>(() => (props.trial ? UtilTrial.termsOf(props.trial) : (props.options?.trialPrice ?? null)));
+/** 선결제·뽑기 뒤 결제 모두 모집 인원으로 센다(뽑기 뒤 결제는 「다 뽑으면」 금액) */
+const estimate = computed(() => (terms.value ? UtilTrial.estimate(terms.value, form.value.recruitCount, form.value.shipper) : 0));
+const formulaText = computed(() => {
+    const tm = terms.value;
+    if (!tm) return '';
+    const n = form.value.recruitCount;
+    const base = tm.priceUnit === 'PER_RECRUIT' ? t('trial.drawer.formula.perRecruit', { unit: won(tm.unitPrice) }) : t('trial.drawer.formula.perPerson', { unit: won(tm.unitPrice), n });
+    return form.value.shipper === 'OPERATOR' ? t('trial.drawer.formula.withShipping', { base, fee: won(tm.shippingFeePerPerson), n }) : base;
+});
 
 const split = computed(() => UtilTrial.split(form.value.recruitCount, form.value.reviewerShare));
 function earlyAt(hours: number): string {

@@ -16,17 +16,37 @@ import type {
     TrialStatus,
 } from '~/composables/trial/api/useTrialApi.types';
 
-/** 광고 결제 상태(서버 `TrialViews.Payment.status` — V242 「유료 결제 연결」) */
-export type BizTrialPaymentStatus = 'BEFORE_SELECTION' | 'NOT_REQUIRED' | 'AWAITING_APPROVAL' | 'AWAITING_PAYMENT' | 'AWAITING_DEPOSIT' | 'PAID' | 'CANCELED';
+/**
+ * 광고 결제 상태(서버 `TrialViews.Payment.status` — V242·V244 「유료 결제 연결」). 선결제만: 견적 전(`AWAITING_QUOTE_REQUEST`) · 결제 기한 만료(`EXPIRED`) · 반려(`REJECTED`)
+ * — 초안 모집은 광고주 화면에 없어 거의 보이지 않는다(공개 뒤 광고 쪽이 닫히면 모집이 취소된다)
+ */
+export type BizTrialPaymentStatus =
+    | 'BEFORE_SELECTION'
+    | 'AWAITING_QUOTE_REQUEST'
+    | 'NOT_REQUIRED'
+    | 'AWAITING_APPROVAL'
+    | 'AWAITING_PAYMENT'
+    | 'AWAITING_DEPOSIT'
+    | 'PAID'
+    | 'CANCELED'
+    | 'EXPIRED'
+    | 'REJECTED';
+
+/** 광고비 결제 때(서버 `TrialPaymentTiming` — V244) — 선결제(모집 인원 기준 · 결제가 끝나야 모집 공개 · 덜 모여도 차액 환불 없음) · 뽑기 뒤 결제(뽑힌 인원 기준) */
+export type BizTrialPaymentTiming = 'PREPAID' | 'POSTPAID';
 
 /**
  * 광고 결제(서버 `TrialViews.Payment`) — `shippingAllowed` false 면 송장을 넣을 수 없다(서버 409 `TRIAL_PAYMENT_PENDING`).
- * `payOnline` 이면 신청 건 화면(`/business/applications/{bizApplicationId}`)에서 온라인 결제. 금액은 승인 뒤 확정 금액, 그 전엔 뽑기 견적
+ * `payOnline` 이면 신청 건 화면(`/business/applications/{bizApplicationId}`)에서 온라인 결제. 금액은 승인 뒤 확정 금액, 그 전엔 견적(선결제 = 모집 인원 · 후불 = 뽑힌 인원).
+ * `publishAllowed`·`requestAllowed` 는 운영자 화면용(광고주 화면은 쓰지 않는다)
  */
 export interface BizTrialPayment {
+    timing: BizTrialPaymentTiming;
     required: boolean;
     status: BizTrialPaymentStatus;
     shippingAllowed: boolean;
+    publishAllowed: boolean;
+    requestAllowed: boolean;
     bizApplicationId: string | null;
     bizApplicationNo: string | null;
     bizStatus: string | null;
@@ -66,6 +86,8 @@ export interface BizTrialRow {
     createdAt: string;
     /** 광고 결제 상태(V242) */
     paymentStatus: BizTrialPaymentStatus;
+    /** 결제 때(V244) */
+    paymentTiming: BizTrialPaymentTiming;
 }
 
 /** 뽑힌 한 줄(서버 `TrialViews.Participant`) — 사진은 종류(`kind` PRE_SHIP · RETURN · …)로 가른다 */
@@ -144,6 +166,8 @@ export interface BizTrialDetail {
     damageReports: BizTrialDamageReport[];
     /** 광고 결제(V242) */
     payment: BizTrialPayment;
+    /** 결제 때(V244) */
+    paymentTiming: BizTrialPaymentTiming;
 }
 
 /** 신청자 숫자(서버 `TrialViews.ApplicantStats`) — 사용기 수 · 평균 추천 · 약속 지킨 비율 %(판정 없으면 null) · 판정된 줄 수 */

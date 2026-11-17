@@ -9,9 +9,12 @@
         탭 ③ 파손 신고 — 이 모집의 신고·이의·판정. 판정은 확인할 일(`/ads/trials/review?type=DAMAGE_REPORT`)에서 한다(사진 비교와 판정표).
         광고 결제(V242 「유료 결제 연결」 — 상세 `payment`): 요약 아래 구획 — 상태 Tag · 금액 · 결제 방식 · 기한 · 결제 시각 · 광고 신청 건 번호([광고 심사에서 열기] `/ad-reviews?id=`) · 상태 안내.
           결제가 끝나지 않았으면(`shippingAllowed` false) 입고·송장 단추를 막고 안내(서버도 409 `TRIAL_PAYMENT_PENDING` — 그 문구를 보이고 상세를 다시 읽는다).
+          결제 방식(V244 `paymentTiming`): 요약에 「결제 방식」, 구획 안내는 선결제·뽑기 뒤 결제마다 다르다. 선결제 초안에서 `publishAllowed` false 면 [모집 열기]를 막고
+          「결제가 끝나야 모집을 열 수 있어요」(광고 신청 건 링크 — 서버 409 `TRIAL_PREPAY_REQUIRED`). `requestAllowed` 면 [결제 다시 요청](`action: REQUEST_PAYMENT` — 견적 전이면 「결제 요청」).
+          선결제를 마쳤거나 연 뒤의 금액 칸 잠금은 서랍(409 `TRIAL_PREPAID_LOCKED` — 문구를 보이고 상세를 다시 읽는다).
         뽑힌 줄 운영자 취소(진행 중 · 아직 보낸 것 없음): 줄의 [취소] → 사유(1~200자, 회원에게 보임) → `POST …/participants/{id}/cancel`. 취소된 줄은 「운영자 취소」 + 시각·사유, 단계별 수에 취소 수.
           모집 취소는 진행 중에도 보인다(발송 전만 — 보냈으면 409 `TRIAL_SHIPPING_STARTED` 문구). 409 는 문구를 보이고 상세를 다시 읽는다.
-        권한: 화면·처리 `trial.manage` · 확인할 일 `trial.review`.
+        권한: 처리 단추 `trial.manage` 또는 `ad.manage`(서버 `AdminTrialController` 와 같다) · 확인할 일 `trial.review`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <NuxtLink :to="UtilTrial.PATHS.list" class="self-start text-xs font-semibold text-(--p-primary-color) hover:underline">{{ t('trial.backToList') }}</NuxtLink>
@@ -36,7 +39,8 @@
                             size="small"
                             :severity="a === 'CANCEL' ? 'danger' : undefined"
                             :variant="a === 'CANCEL' ? 'outlined' : undefined"
-                            :disabled="busy"
+                            :disabled="busy || (a === 'PUBLISH' && !detail.payment.publishAllowed)"
+                            :aria-describedby="a === 'PUBLISH' && !detail.payment.publishAllowed ? publishBlockedId : undefined"
                             @click="runAction(a)"
                         />
                     </template>
@@ -51,7 +55,11 @@
                 <div><dt class="text-[11px] text-muted-color">{{ t('trial.drawer.reviewBoard') }}</dt><dd class="m-0">{{ detail.reviewBoard.name }}</dd></div>
                 <div><dt class="text-[11px] text-muted-color">{{ t('trial.dueLabel') }}</dt><dd class="m-0">{{ detail.returnDays ? t('trial.dueBoth', { review: detail.reviewDays, ret: detail.returnDays }) : t('trial.dueReview', { review: detail.reviewDays }) }}</dd></div>
                 <div><dt class="text-[11px] text-muted-color">{{ t('trial.priceTerms') }}</dt><dd class="m-0 tabular-nums">{{ t(`trial.drawer.priceUnit.${detail.priceUnit}`) }} {{ won(detail.unitPrice) }}</dd></div>
-                <div><dt class="text-[11px] text-muted-color">{{ t('trial.col.amount') }}</dt><dd class="m-0 tabular-nums">{{ detail.amount === null ? t('trial.amountPending') : detail.amount === 0 ? t('trial.free') : won(detail.amount) }}</dd></div>
+                <div><dt class="text-[11px] text-muted-color">{{ t('trial.col.amount') }}</dt><dd class="m-0 tabular-nums">{{ detail.amount === null ? (prepaid ? t('trial.amountPendingPrepaid') : t('trial.amountPending')) : detail.amount === 0 ? t('trial.free') : won(detail.amount) }}</dd></div>
+                <div>
+                    <dt class="text-[11px] text-muted-color">{{ t('trial.drawer.paymentTiming') }}</dt>
+                    <dd class="m-0">{{ t(`trial.paymentTiming.${detail.paymentTiming}`) }}<span v-if="prepaid" class="block text-[11px] text-muted-color">{{ t('trial.prepaidShort') }}</span></dd>
+                </div>
                 <div class="col-span-2 sm:col-span-4">
                     <dt class="text-[11px] text-muted-color">{{ t('trial.countsLabel') }}</dt>
                     <dd class="m-0 tabular-nums text-[12px]">{{ t('trial.countsLine', { ...detail.counts }) }}</dd>
@@ -61,7 +69,10 @@
             <!-- 광고 결제(V242) -->
             <section class="flex flex-col gap-2 rounded-xl border bg-(--p-content-background) p-3 text-[13px]" :class="paymentBorder" :aria-labelledby="paymentTitleId" data-testid="trial-payment">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <h3 :id="paymentTitleId" class="m-0 text-sm font-semibold">{{ t('trial.payment.title') }}</h3>
+                    <h3 :id="paymentTitleId" class="m-0 flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+                        {{ t('trial.payment.title') }}
+                        <Tag :value="t(`trial.paymentTiming.${detail.payment.timing}`)" severity="secondary" class="text-[11px]!" />
+                    </h3>
                     <Tag :value="t(`trial.paymentStatus.${detail.payment.status}`)" :severity="UtilTrial.paymentSeverity(detail.payment.status)" />
                 </div>
                 <dl v-if="detail.payment.required || detail.payment.bizApplicationNo" class="m-0 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
@@ -91,7 +102,15 @@
                         </dd>
                     </div>
                 </dl>
-                <p class="m-0 text-[12px] text-muted-color">{{ t(`trial.payment.note.${detail.payment.status}`) }}</p>
+                <p class="m-0 text-[12px] text-muted-color">{{ paymentNote }}</p>
+                <!-- 선결제 초안 — 결제가 끝나야 모집 열기(서버 409 TRIAL_PREPAY_REQUIRED) -->
+                <Message v-if="detail.status === 'DRAFT' && !detail.payment.publishAllowed" :id="publishBlockedId" severity="warn" size="small" :closable="false" data-testid="trial-publish-blocked">
+                    {{ t('trial.payment.publishBlocked') }}
+                </Message>
+                <div v-if="canManage && detail.payment.requestAllowed" class="flex flex-wrap items-center gap-2">
+                    <Button type="button" :label="requestLabel" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" :disabled="busy" data-testid="trial-request-payment" @click="runAction('REQUEST_PAYMENT')" />
+                    <span class="text-[11px] text-muted-color">{{ t('trial.payment.requestHelp') }}</span>
+                </div>
             </section>
 
             <Tabs :value="tab" class="min-w-0" @update:value="(v: string | number) => setTab(String(v))">
@@ -163,7 +182,7 @@
             <section v-else-if="tab === 'shipping'" class="flex flex-col gap-3">
                 <Message v-if="detail.shipper === 'ADVERTISER'" severity="secondary" variant="simple" size="small">{{ t('trial.advertiserShips') }}</Message>
                 <!-- 유료 모집 — 광고 결제가 끝나야 입고·발송(서버 409 TRIAL_PAYMENT_PENDING) -->
-                <Message v-if="!detail.payment.shippingAllowed" severity="warn" size="small" :closable="false" data-testid="trial-shipping-blocked">{{ t('trial.payment.shippingBlocked') }} {{ t(`trial.payment.note.${detail.payment.status}`) }}</Message>
+                <Message v-if="!detail.payment.shippingAllowed" severity="warn" size="small" :closable="false" data-testid="trial-shipping-blocked">{{ t('trial.payment.shippingBlocked') }} {{ paymentNote }}</Message>
 
                 <!-- 입고(운영자가 대신) -->
                 <div v-if="detail.shipper === 'OPERATOR'" class="rounded-xl border border-(--line) bg-(--p-content-background) p-3">
@@ -406,11 +425,13 @@ const { can } = useAdminPermission();
 const { confirm } = useConfirmDialog();
 const { origin } = useUserWebOrigin();
 
-const canManage = computed(() => can('trial.manage'));
+/** 처리 단추(고치기·상태 바꾸기·뽑기·입고·발송·취소 …) — 서버 `AdminTrialController` 와 같게 `trial.manage` 또는 `ad.manage` */
+const canManage = computed(() => can('trial.manage') || can('ad.manage'));
 const canReadMember = computed(() => can('member.read'));
 /** 광고 심사 화면을 열 수 있나(`ad.read` — 메뉴 항목 권한) — 없으면 신청 건 번호만 */
 const canReadAd = computed(() => can('ad.read'));
 const paymentTitleId = useId();
+const publishBlockedId = useId();
 /** 반납 받음 — 서버 `confirmReturn`: 운영자는 보내는 쪽과 상관없이, 발송한 줄이면(받음을 안 눌렀으면 서버가 받음으로 채운다). 처리 권한 `trial.manage`·`ad.manage` 만(점검 D12 — trial.review 는 볼 수만) */
 const canMarkReturned = computed(() => can('trial.manage') || can('ad.manage'));
 /** 운영자 배송지 평문 보기(점검 D4 — `trial.address.reveal`) */
@@ -426,6 +447,16 @@ const state = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 const busy = ref(false);
 const won = (n: number) => UtilTrialMessages.won(t, n, locale.value);
+/** 선결제 모집인가(V244) */
+const prepaid = computed(() => detail.value?.paymentTiming === 'PREPAID');
+/** 결제 상태 안내 — 선결제·뽑기 뒤 결제마다 문구가 다르다 */
+const paymentNote = computed(() => {
+    const p = detail.value?.payment;
+    if (!p) return '';
+    return p.timing === 'PREPAID' ? t(`trial.payment.notePrepaid.${p.status}`) : t(`trial.payment.note.${p.status}`);
+});
+/** 견적 전이면 「결제 요청」, 신청 건이 닫혔으면 「결제 다시 요청」 */
+const requestLabel = computed(() => (detail.value?.payment.status === 'AWAITING_QUOTE_REQUEST' ? t('trial.actionStatus.REQUEST_PAYMENT_FIRST') : t('trial.actionStatus.REQUEST_PAYMENT')));
 /** 결제 구획 테두리 — 결제 대기 계열은 주황, 취소는 빨강 */
 const paymentBorder = computed(() => {
     const sev = detail.value ? UtilTrial.paymentSeverity(detail.value.payment.status) : 'secondary';
@@ -433,7 +464,17 @@ const paymentBorder = computed(() => {
 });
 
 /** 409 중 상세를 다시 읽어야 하는 것 — 결제 전 입고·발송 · 발송 시작돼 취소 불가 · 이미 취소한 줄 · 상태 바뀜 */
-const RELOAD_CODES = ['TRIAL_PAYMENT_PENDING', 'TRIAL_SHIPPING_STARTED', 'TRIAL_PARTICIPANT_CANCELLED', 'TRIAL_STATE_INVALID', 'TRIAL_NOT_RETURNED', 'TRIAL_APPLICANTS_LOCKED'];
+const RELOAD_CODES = [
+    'TRIAL_PAYMENT_PENDING',
+    'TRIAL_SHIPPING_STARTED',
+    'TRIAL_PARTICIPANT_CANCELLED',
+    'TRIAL_STATE_INVALID',
+    'TRIAL_NOT_RETURNED',
+    'TRIAL_APPLICANTS_LOCKED',
+    // 선결제(V244) — 결제 전 공개 · 결제 뒤 금액 칸 바꾸기
+    'TRIAL_PREPAY_REQUIRED',
+    'TRIAL_PREPAID_LOCKED',
+];
 function reloadOn409(error: { status: number; code: string }): void {
     if (error.status === 409 && RELOAD_CODES.includes(error.code)) void load();
 }
@@ -455,12 +496,13 @@ async function runAction(action: TrialAction): Promise<void> {
     if (!d || busy.value) return;
     // 진행 중 모집 취소는 결제(광고 신청 건)도 함께 — 결제 뒤면 전액 환불 안내
     const message = action === 'CANCEL' && d.status === 'RUNNING' ? t('trial.cancelRunningConfirm') : t(`trial.actionConfirm.${action}`);
-    const ok = await confirm({ title: t(`trial.actionStatus.${action}`), message, confirmLabel: t(`trial.actionStatus.${action}`), ...(action === 'CANCEL' ? { tone: 'danger' as const } : {}) });
+    const label = action === 'REQUEST_PAYMENT' ? requestLabel.value : t(`trial.actionStatus.${action}`);
+    const ok = await confirm({ title: label, message, confirmLabel: label, ...(action === 'CANCEL' ? { tone: 'danger' as const } : {}) });
     if (!ok) return;
     busy.value = true;
     try {
         detail.value = await api.update(d.id, { ...UtilTrial.formOf(d), action });
-        toast.success(t('trial.actionStatusDone', { action: t(`trial.actionStatus.${action}`) }));
+        toast.success(t('trial.actionStatusDone', { action: label }));
     } catch (e) {
         const error = errorOf(e);
         toast.error(error.message, 8000);
@@ -481,8 +523,14 @@ const selectable = computed(() => canManage.value && !!detail.value && (detail.v
 const picked = computed(() => UtilTrial.countPicked(applications.value, new Set(selection.value.map((a) => a.id))));
 
 async function loadApps(): Promise<void> {
-    appsLoading.value = true;
     appsError.value = '';
+    // 신청자 목록은 trial.manage·ad.manage 만 읽는다 — 확인 담당(trial.review)만 가진 운영자는 부르지 않고 빈 표로 둔다
+    if (!canManage.value) {
+        applications.value = [];
+        appsLoading.value = false;
+        return;
+    }
+    appsLoading.value = true;
     try {
         const page = await api.applications(id.value);
         applications.value = page.items;
@@ -570,6 +618,8 @@ async function save(body: AdminTrialRequest, trialId: string | null): Promise<vo
         const error = errorOf(e);
         if (error.fields && Object.keys(error.fields).length) saveFieldErrors.value = { ...error.fields };
         else saveError.value = error.message;
+        // 선결제를 마쳤다(409 TRIAL_PREPAID_LOCKED) 등 — 서버 문구는 서랍에 두고 상세(잠금 상태)를 다시 읽는다
+        reloadOn409(error);
     } finally {
         saving.value = false;
     }

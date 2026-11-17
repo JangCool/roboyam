@@ -40,7 +40,8 @@
                 <dt class="text-muted-color">{{ t('bizApplication.trial.title') }}</dt>
                 <dd class="m-0 [overflow-wrap:anywhere]">
                     <NuxtLink :to="UtilTrial.detailPath(trialContent.trialId)" class="text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ trialContent.trialTitle }}</NuxtLink>
-                    <span class="text-[11px] text-muted-color"> · {{ t(`bizApplication.trial.statusValue.${trialContent.trialStatus}`) }}</span>
+                    <span class="text-[11px] text-muted-color"> · {{ t(`bizApplication.trial.statusValue.${trialContent.trialStatus}`) }} · {{ t(`bizApplication.trial.paymentTimingValue.${trialContent.paymentTiming}`) }}</span>
+                    <Tag v-if="trialContent.currentPayment === false" :value="t('bizApplication.trial.notCurrent')" severity="warn" class="ml-1 text-[11px]!" />
                 </dd>
             </template>
             <dt class="text-muted-color">{{ trialContent ? t('bizApplication.trial.periodLabel') : detail.kind === 'HOTDEAL_POST' ? t('bizApplication.dealPeriod') : t('bizApplication.periodLabel') }}</dt>
@@ -216,7 +217,7 @@
         <!-- 심사 대기 -->
         <section v-if="detail.status === 'SUBMITTED'" class="flex flex-col gap-3">
             <!-- 체험단 건은 기간 노출 상품이 아니라(기간 = 모집 신청 기간) 시작 지남·자리 경고가 없다 -->
-            <Message v-if="trialContent" severity="secondary" :closable="false"><span class="text-[13px]">{{ t('bizApplication.trial.amountLocked') }}</span></Message>
+            <Message v-if="trialContent" severity="secondary" :closable="false"><span class="text-[13px]">{{ trialContent.paymentTiming === 'PREPAID' ? t('bizApplication.trial.amountLockedPrepaid') : t('bizApplication.trial.amountLocked') }}</span></Message>
             <Message v-else-if="UtilBizApplication.started(detail.period, now)" severity="warn" :closable="false"><span class="text-[13px]">{{ t('bizApplication.startPassedNote') }}</span></Message>
             <Message v-if="detail.adType && !trialContent && detail.remainingSlots <= 0" severity="error" :closable="false"><span class="text-[13px]">{{ t('bizApplication.noSlotNote') }}</span></Message>
             <fieldset class="m-0 flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2.5" :disabled="!canManage || busy">

@@ -1,7 +1,7 @@
 <template>
     <!--
         광고 › 체험단(`/ads/trials?status=&q=`, trial-group-contract 「관리자 화면」·「구현 결정」 10). 위에 두 탭(모집 · 확인할 일 — `TrialAdminTabs`).
-        거르기: 상태(전체 + 6 — 서버 `status`) · 찾기(제목·광고주 — 받은 목록 안에서). 한 줄(서버 `TrialRow`): 상태 · 제목(→ 모집 상세) · 상품·사용기 게시판 · 광고주 · 형태 · 보내는 쪽 · 신청 / 인원(뽑은 인원) · 신청 기간 · 금액(뽑기 뒤 확정) · 광고 결제 상태(`paymentStatus` — V242).
+        거르기: 상태(전체 + 6 — 서버 `status`) · 찾기(제목·광고주 — 받은 목록 안에서). 한 줄(서버 `TrialRow`): 상태 · 제목(→ 모집 상세) · 상품·사용기 게시판 · 광고주 · 형태 · 보내는 쪽 · 신청 / 인원(뽑은 인원) · 신청 기간 · 금액(선결제 = 저장 때 · 후불 = 뽑기 뒤 확정) · 광고 결제 상태(`paymentStatus` — V242) + 결제 방식(`paymentTiming` — V244).
         [모집 만들기] → 서랍(`TrialEditDrawer`). 저장하면 상세로 간다. 권한: 화면·만들기 `trial.manage`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -59,7 +59,10 @@
                     <template #body="{ data }"><span class="text-[12px] tabular-nums">{{ data.amount === null ? '—' : data.amount === 0 ? t('trial.free') : won(data.amount) }}</span></template>
                 </Column>
                 <Column :header="t('trial.col.payment')" style="min-width: 6rem">
-                    <template #body="{ data }"><Tag v-if="data.paymentStatus" :value="t(`trial.paymentStatus.${data.paymentStatus}`)" :severity="UtilTrial.paymentSeverity(data.paymentStatus)" class="text-[11px]!" /></template>
+                    <template #body="{ data }">
+                        <Tag v-if="data.paymentStatus" :value="t(`trial.paymentStatus.${data.paymentStatus}`)" :severity="UtilTrial.paymentSeverity(data.paymentStatus)" class="text-[11px]!" />
+                        <span v-if="data.paymentTiming" class="block text-[11px] text-muted-color">{{ t(`trial.paymentTiming.${data.paymentTiming}`) }}</span>
+                    </template>
                 </Column>
             </DataTable>
         </div>
@@ -84,7 +87,8 @@ const errorOf = useApiErrorOf();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
 
-const canManage = computed(() => can('trial.manage'));
+/** 만들기 — 서버 `POST /api/admin/trials` 와 같게 `trial.manage` 또는 `ad.manage` */
+const canManage = computed(() => can('trial.manage') || can('ad.manage'));
 const status = computed(() => (typeof route.query.status === 'string' && (UtilTrial.STATUSES as readonly string[]).includes(route.query.status) ? route.query.status : ALL));
 const q = ref(typeof route.query.q === 'string' ? route.query.q : '');
 const statusOptions = computed(() => [{ value: ALL, label: t('trial.allStatus') }, ...UtilTrial.STATUSES.map((s) => ({ value: s as string, label: t(`trial.status.${s}`) }))]);

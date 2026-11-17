@@ -46,7 +46,7 @@
                 <!-- 체험단 — 견적 줄(상품 · 대신 발송비)과 잠긴 금액 -->
                 <template v-if="trial">
                     <p v-for="line in quote.lines ?? []" :key="line.product" class="m-0 text-xs text-muted-color tabular-nums">{{ t('bizApplication.quoteLine', { product: t(`bizApplication.product.${line.product}`), price: won(line.unitPrice), units: line.units, unit: t(`bizApplication.unit.${line.unit}`), supply: won(line.supply) }) }}</p>
-                    <p class="m-0 text-xs text-muted-color">{{ t('bizApplication.trial.amountLocked') }}</p>
+                    <p class="m-0 text-xs text-muted-color">{{ prepaidTrial ? t('bizApplication.trial.amountLockedPrepaid') : t('bizApplication.trial.amountLocked') }}</p>
                 </template>
                 <p v-else class="m-0 text-xs text-muted-color tabular-nums">{{ t(quote.unit === 'DAY' ? 'bizApplication.quoteDay' : 'bizApplication.quotePost', { price: won(quote.unitPrice), units: quote.units, supply: won(quote.supply) }) }}</p>
                 <LabeledField :label="t('bizApplication.supply')" :error="supplyError">
@@ -133,6 +133,8 @@ const submitted = ref(false);
 
 /** 체험단 건(kind TRIAL) — 금액 잠금 · 기간·자리 검사 없음 · 기한 비워도 됨 */
 const trial = computed(() => props.detail.kind === 'TRIAL');
+/** 선결제 체험단 건(V244) — 모집 인원 기준 견적 · 차액 환불 없음 */
+const prepaidTrial = computed(() => props.detail.content.type === 'TRIAL' && props.detail.content.paymentTiming === 'PREPAID');
 /** 운영자 등록 건 — 수동 결제만(체험단 건은 운영자가 만든 건이어도 온라인 결제를 고를 수 있다 — 서버 `approveTrial`) */
 const operator = computed(() => props.detail.source === 'OPERATOR' && !trial.value);
 /** 자기 승인(내가 등록한 건) — 허용이면 메모 필수, 막는 설정이면 승인 불가 */
