@@ -4,6 +4,7 @@
     {
       "key": "review-01",
       "title": "한 달 써 본 노이즈캔슬링 무선 이어폰 후기",
+      "purchaseSource": "SELF",
       "prefix": "전자기기",
       "tags": ["이어폰"],
       "paragraphs": [
@@ -26,6 +27,7 @@
     {
       "key": "review-02",
       "title": "『로봇과 함께 사는 법』 읽고 남기는 짧은 후기",
+      "purchaseSource": "BORROWED",
       "prefix": "도서",
       "tags": ["책", "로봇"],
       "paragraphs": [
@@ -42,6 +44,7 @@
     {
       "key": "review-03",
       "title": "교육용 휴머노이드 키트 조립 2주 사용기",
+      "purchaseSource": "SELF",
       "prefix": "로봇·키트",
       "tags": ["휴머노이드", "로봇"],
       "paragraphs": [
@@ -73,6 +76,7 @@
     {
       "key": "review-04",
       "title": "AI 코딩 어시스턴트 3개월 써 본 솔직 후기",
+      "purchaseSource": "SELF",
       "prefix": "AI 서비스·SW",
       "tags": ["AI", "코딩"],
       "paragraphs": [
@@ -93,6 +97,7 @@
     {
       "key": "review-05",
       "title": "회사 근처 24시 국밥집 한 달 출석 후기",
+      "purchaseSource": "SELF",
       "prefix": "음식·맛집",
       "tags": ["맛집"],
       "paragraphs": [
@@ -112,6 +117,7 @@
     {
       "key": "review-06",
       "title": "무선 청소기에서 로봇청소기로 넘어간 2주 후기",
+      "purchaseSource": "SELF",
       "prefix": "생활용품",
       "tags": ["로봇청소기"],
       "paragraphs": [
@@ -134,6 +140,7 @@
     {
       "key": "review-07",
       "title": "스위치 2 반년 써 본 직장인 게이머 후기",
+      "purchaseSource": "SELF",
       "prefix": "게임",
       "tags": ["닌텐도", "게임"],
       "paragraphs": [
@@ -155,6 +162,7 @@
     {
       "key": "review-08",
       "title": "한 달 써 본 폴더블폰, 바 형태로 다시 못 돌아갈 듯",
+      "purchaseSource": "SELF",
       "prefix": "전자기기",
       "tags": ["폴더블폰", "스마트폰"],
       "paragraphs": [
@@ -187,6 +195,7 @@
     {
       "key": "review-09",
       "title": "드라마 「야간 정비소」 완주 후기 (스포 없음)",
+      "purchaseSource": "SELF",
       "prefix": "영화·드라마·애니",
       "tags": ["드라마"],
       "paragraphs": [
@@ -204,6 +213,7 @@
     {
       "key": "review-10",
       "title": "전기차로 처음 맞는 겨울, 한 달 체감 후기",
+      "purchaseSource": "SELF",
       "prefix": "자동차",
       "tags": ["전기차"],
       "paragraphs": [
@@ -227,6 +237,7 @@
     {
       "key": "review-11",
       "title": "책상 위 로봇팔 키트 한 달 갖고 논 후기",
+      "purchaseSource": "SELF",
       "prefix": "로봇·키트",
       "tags": ["로봇팔", "로봇"],
       "paragraphs": [
@@ -251,6 +262,7 @@
     {
       "key": "review-12",
       "title": "AI 음성 녹음기 한 달 써 보니 회의록이 사라졌다",
+      "purchaseSource": "SPONSORED",
       "prefix": "AI 서비스·SW",
       "tags": ["AI", "회의록"],
       "paragraphs": [
@@ -280,6 +292,7 @@
     {
       "key": "review-13",
       "title": "『처음 만나는 강화학습』 3주 완독 후기",
+      "purchaseSource": "SELF",
       "prefix": "도서",
       "tags": ["책", "강화학습"],
       "paragraphs": [
@@ -297,6 +310,7 @@
     {
       "key": "review-14",
       "title": "3만 원대 무선 충전 거치대 2주 사용기",
+      "purchaseSource": "SELF",
       "prefix": "생활용품",
       "tags": ["무선충전"],
       "paragraphs": [
@@ -313,6 +327,7 @@
     {
       "key": "review-15",
       "title": "한 달 써 본 저소음 기계식 키보드 후기",
+      "purchaseSource": "SELF",
       "prefix": "전자기기",
       "tags": ["키보드"],
       "paragraphs": [
@@ -336,6 +351,7 @@
     {
       "key": "review-16",
       "title": "성수동 디저트 카페 두 군데 비교 후기",
+      "purchaseSource": "SELF",
       "prefix": "음식·맛집",
       "tags": ["카페", "맛집"],
       "paragraphs": [
@@ -358,6 +374,7 @@
     {
       "key": "review-17",
       "title": "한 달 같이 산 가정용 로봇 펫 솔직 후기",
+      "purchaseSource": "BORROWED",
       "prefix": "로봇·키트",
       "tags": ["로봇펫", "로봇"],
       "paragraphs": [
@@ -386,6 +403,7 @@
     {
       "key": "review-18",
       "title": "인디 게임 「작은 등대의 밤」 엔딩 본 후기",
+      "purchaseSource": "SELF",
       "prefix": "게임",
       "tags": ["인디게임", "게임"],
       "paragraphs": [
@@ -400,6 +418,7 @@
     {
       "key": "review-19",
       "title": "블랙박스 2채널로 교체하고 한 달 후기",
+      "purchaseSource": "SELF",
       "prefix": "자동차",
       "tags": ["블랙박스"],
       "paragraphs": [
@@ -421,6 +440,7 @@
     {
       "key": "review-20",
       "title": "온수매트에서 전기요로 바꾼 겨울 첫 주 후기",
+      "purchaseSource": "SELF",
       "prefix": "생활용품",
       "tags": ["겨울"],
       "paragraphs": [
@@ -442,6 +462,7 @@
     {
       "key": "review-21",
       "title": "캠핑 의자 세 개 써 보고 정착한 후기",
+      "purchaseSource": "SELF",
       "prefix": "기타",
       "tags": ["캠핑"],
       "paragraphs": [
@@ -464,6 +485,7 @@
     {
       "key": "review-22",
       "title": "스마트워치 수면 측정 두 달 써 보고 생활이 바뀐 점",
+      "purchaseSource": "SELF",
       "prefix": "전자기기",
       "tags": ["스마트워치"],
       "paragraphs": [
@@ -493,6 +515,7 @@
     {
       "key": "review-23",
       "title": "극장판 「달의 뒷면 우편국」 보고 온 후기",
+      "purchaseSource": "SELF",
       "prefix": "영화·드라마·애니",
       "tags": ["애니메이션"],
       "paragraphs": [
@@ -509,6 +532,7 @@
     {
       "key": "review-24",
       "title": "AI 사진 정리 앱 2주 써 본 후기 (사진 3만 장 정리기)",
+      "purchaseSource": "SPONSORED",
       "prefix": "AI 서비스·SW",
       "tags": ["AI", "사진정리"],
       "paragraphs": [
@@ -528,6 +552,7 @@
     {
       "key": "review-25",
       "title": "보온 텀블러 1년 써 본 짧은 후기",
+      "purchaseSource": "SELF",
       "prefix": "기타",
       "tags": ["텀블러"],
       "paragraphs": [

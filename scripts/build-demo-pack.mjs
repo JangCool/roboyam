@@ -16,7 +16,7 @@
  *
  * 팩 형식: manifest.json(형식·구성·만든 시각·마이그레이션 번호·운영자 ID·파일 목록·표별 행 수) + data.json.gz(TablePack — 표마다 칸 형식·열쇠·행) + files/<저장 키>.
  *   - 표는 FK 차례(부모 먼저)로, 행은 기본 키 차례로. bigint·numeric 칸은 글자로(18자리 ID 가 JSON 숫자로 끝자리를 잃지 않게).
- *   - 방식: 기본 UPSERT. FULL_TABLES(마이그레이션이 설치 시각으로 ID 를 매기는 시드 표 — 로보티콘·포인트 상점 상품)는 표 전체를 REPLACE —
+ *   - 방식: 기본 UPSERT. FULL_TABLES(마이그레이션이 설치 시각으로 ID 를 매기는 시드 표 — 로보티콘·포인트 상점 상품·기본 칭호)는 표 전체를 REPLACE —
  *     설치마다 시드 ID 가 달라 팩의 행(로보티콘 받기·댓글 :emo-ID:)이 가리키는 ID 를 맞추려고 팩의 시드로 갈아 끼운다.
  *   - 빼는 것: 설치 때 정한 값(installation·site_settings·mail/social 설정), 운영자 계정·역할(만든 DB 의 운영자 ID 는 설치한 곳의 루트로 바뀐다), 감사·세션·배치·분석 기록,
  *     구조 표(구조 스냅숏이 넣는다 — 바뀌었으면 경고).
@@ -54,8 +54,8 @@ const DATA_KEY = process.env.BUILD_DATA_KEY
     ?? readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'server', 'shared', 'src', 'main', 'resources', 'irobit-shared-local.yml'), 'utf8')
         .match(/key:\s*\$\{IROBIT_DATA_KEY:([^}]+)\}/)?.[1];
 
-/** 표 전체를 갈아 끼우는 시드 표(마이그레이션이 설치 시각 Snowflake 로 ID 를 매긴다 — V86·V142·V157) */
-const FULL_TABLES = ['emoticon_images', 'emoticons', 'emoticon_packs', 'emoticon_pack_revisions', 'emoticon_revision_items', 'point_shop_items'];
+/** 표 전체를 갈아 끼우는 시드 표(마이그레이션이 설치 시각 Snowflake 로 ID 를 매긴다 — V86·V142·V157 · 기본 칭호 7개 V240 — 회원 칭호·대표 칭호가 칭호 ID 를 가리킨다) */
+const FULL_TABLES = ['emoticon_images', 'emoticons', 'emoticon_packs', 'emoticon_pack_revisions', 'emoticon_revision_items', 'point_shop_items', 'titles'];
 /** 서로 가리키는 표에서 나중에 채울 칸(차례를 정할 때 이 FK 는 보지 않는다) — 사업자 신원 → 등록증(등록증이 신원을 가리키고 「붙임」 CHECK 가 그 칸을 요구한다) */
 const LATE = ['business_profiles.certificate_id'];
 /** 담지 않는 표(이름 그대로 또는 앞부분) */

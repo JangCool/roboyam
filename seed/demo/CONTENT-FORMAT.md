@@ -12,6 +12,7 @@
       "title": "제목(2~60자)",
       "prefix": "생성형AI·LLM",         // 그 게시판 말머리 이름 그대로(없으면 생략)
       "tags": ["AI", "프롬프트"],       // 선택: 글 태그(최대 5개, 1~20자 — post-tags-contract). 「태그 쓰기」를 켠 게시판만 저장된다
+      "purchaseSource": "SELF",        // 「구입 경로 받기」 게시판(사용기 review — 꼭 고름)만: SELF·SPONSORED·BORROWED(체험단 TRIAL 은 원고에 없다 — 데모 팩 패치 0002)
       "paragraphs": ["문단", "문단"],   // 평문. 로더가 <p> 로 감싼다. 빈 문자열 금지
       "images": [                      // 선택, 0~3장. 로더가 자리표시 이미지를 그려 본문 맨 앞(또는 imageAt 위치)에 넣는다
         { "kind": "photo", "caption": "이미지 안에 쓸 짧은 글(20자 안)", "scene": "무엇이 보이는지 한 줄" }

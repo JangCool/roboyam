@@ -562,7 +562,9 @@ async function writePost(plan, psql, { path, boardSlug }) {
         if (id) imageIds.push(id);
     }
     const prefix = post.prefix ? plan.board.prefixes?.find((p) => p.name === post.prefix) : null;
-    const body = { boardSlug, prefixId: prefix?.id ?? null, title: post.title.slice(0, 100), contentFormat: 'HTML', content: postHtml(post, imageIds), adult: post.adult === true, ...(Array.isArray(post.tags) && post.tags.length ? { tags: post.tags } : {}) };
+    const body = { boardSlug, prefixId: prefix?.id ?? null, title: post.title.slice(0, 100), contentFormat: 'HTML', content: postHtml(post, imageIds), adult: post.adult === true, ...(Array.isArray(post.tags) && post.tags.length ? { tags: post.tags } : {}),
+        // 구입 경로(V241) — 사용기 게시판은 꼭 고른다(REQUIRED). 원고 review.json 의 purchaseSource(SELF·SPONSORED·BORROWED)
+        ...(post.purchaseSource ? { purchaseSource: post.purchaseSource } : {}) };
     if (post.secret === true) body.secret = true; // 비밀글(게시판 비밀글 OPTIONAL·ALWAYS — 버그 신고)
     if (post.deal) {
         body.deal = {
