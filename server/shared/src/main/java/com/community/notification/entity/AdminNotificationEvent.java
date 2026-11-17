@@ -201,6 +201,8 @@ public enum AdminNotificationEvent {
     HOTDEAL_BUSINESS_REVIEW(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals?view=ALL&deal={postId}").collapse(86400)),
     /** 체험단 운영자 입고 뒤 보관 기한(기본 60일)이 됐는데 광고주 반송이 없다(trial-group-contract 「운영자가 대신 보낼 때」 5) — 착불 반송 안내. 수신은 체험단 처리 권한, 하루 배치 trial-daily */
     TRIAL_STOCK_KEEP_DUE(spec(BIZ_AD, WARNING).holders(Permission.TRIAL_MANAGE).link("/ads/trials?id={id}")),
+    /** 운영자 입고 수량이 뽑힌 인원보다 적다(점검 결정 D10 — 입고 기록 때, 광고주 회원 알림 TRIAL_STOCK_SHORT 와 함께 — 문구 대상 코드가 회원 알림과 겹치지 않게 이름을 달리한다) */
+    TRIAL_STOCK_SHORTAGE(spec(BIZ_AD, WARNING).holders(Permission.TRIAL_MANAGE).link("/ads/trials?id={id}")),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());
 

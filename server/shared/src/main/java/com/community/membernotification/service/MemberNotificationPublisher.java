@@ -742,6 +742,13 @@ public class MemberNotificationPublisher {
      * 누르면 내 칭호. 지급 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 지급을 깨지 않는다).
      */
     public int titleGranted(long userId, String titleKey, String label, String tier) {
+        return titleGranted(userId, titleKey, label, null, tier);
+    }
+
+    /**
+     * {@link #titleGranted(long, String, String, String)} + 영어 표시 이름({@code labelEn} — 점검 D14: 덧붙임에 함께 남겨 알림 목록이 보는 사람 언어로 고른다, 영어 이름이 없는 칭호면 null).
+     */
+    public int titleGranted(long userId, String titleKey, String label, String labelEn, String tier) {
         return isolated.run("member-notification:title-granted", () -> {
             EventSwitch on = switchOf(MemberNotificationType.TITLE_GRANTED, userId);
             if (!on.delivers() || !writer.receivable(userId)) {
@@ -753,6 +760,9 @@ public class MemberNotificationPublisher {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("titleKey", titleKey);
                 payload.put("label", name);
+                if (labelEn != null && !labelEn.isBlank()) {
+                    payload.put("labelEn", cut(labelEn, SNAPSHOT_MAX));
+                }
                 if (tier != null) {
                     payload.put("tier", tier);
                 }

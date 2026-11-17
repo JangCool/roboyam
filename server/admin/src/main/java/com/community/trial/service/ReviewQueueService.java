@@ -123,9 +123,35 @@ public class ReviewQueueService {
         items.sort("PENDING".equals(status) ? order : order.reversed());
         Map<String, Integer> pending = new LinkedHashMap<>();
         for (String t : allowed) {
-            pending.put(t, items(t, true, now).size());
+            pending.put(t, pendingCount(t, now)); // 종류마다 센 질의 한 번(점검 L8 — 목록을 다시 읽지 않는다)
         }
         return new Page(items, pending);
+    }
+
+    /** 종류마다 대기 수 — 질의 한 번(목록 조건과 같다) */
+    private int pendingCount(String type, Instant now) {
+        long n = switch (type) {
+            case "TITLE_APPLICATION" -> {
+                com.community.title.entity.QTitleApplicationEntity a = com.community.title.entity.QTitleApplicationEntity.titleApplicationEntity;
+                yield nz(query.select(a.id.count()).from(a).where(a.status.eq(TitleApplicationStatus.PENDING)).fetchOne());
+            }
+            case "PURCHASE_PROOF" -> {
+                com.community.trial.entity.QPurchaseProofEntity p = com.community.trial.entity.QPurchaseProofEntity.purchaseProofEntity;
+                yield nz(query.select(p.id.count()).from(p).where(p.status.eq(com.community.trial.entity.PurchaseProofStatus.PENDING)).fetchOne());
+            }
+            case "RETURN_CHECK" -> trialQueries.countReturnChecksPending(now);
+            case "DAMAGE_REPORT" -> nz(query.select(D.id.count()).from(D).where(D.status.in(TrialDamageStatus.OBJECTED, TrialDamageStatus.AWAITING)).fetchOne());
+            case "SPONSOR_HIDDEN" -> {
+                com.community.trial.entity.QTrialSponsorReviewEntity r = com.community.trial.entity.QTrialSponsorReviewEntity.trialSponsorReviewEntity;
+                yield nz(query.select(r.postId.count()).from(r).where(r.status.eq(com.community.trial.entity.SponsorReviewStatus.PENDING)).fetchOne());
+            }
+            default -> 0;
+        };
+        return (int) Math.min(Integer.MAX_VALUE, n);
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0 : value;
     }
 
     private static boolean can(AdminActor actor, String type) {

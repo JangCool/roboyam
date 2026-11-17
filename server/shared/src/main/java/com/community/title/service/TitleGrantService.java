@@ -161,7 +161,7 @@ public class TitleGrantService {
         } catch (DuplicateKeyException e) {
             throw TitleException.alreadyGranted();
         }
-        notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, p), tier == null ? null : tier.name());
+        notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, p), TitleLabels.labelEn(title, p), tier == null ? null : tier.name());
         return row;
     }
 
@@ -214,7 +214,7 @@ public class TitleGrantService {
                 return false;
             }
             existing.raiseTier(tier, now);
-            notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, ""), tier.name());
+            notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, ""), TitleLabels.labelEn(title, ""), tier.name());
             return true;
         }
         try {
@@ -241,10 +241,36 @@ public class TitleGrantService {
             return null;
         }
         row.raiseTier(tier, now());
-        notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, ""), tier.name());
+        notices.titleGranted(userId, title.getTitleKey(), TitleLabels.label(title, ""), TitleLabels.labelEn(title, ""), tier.name());
         return tier;
     }
 
+
+    /**
+     * 단계 칭호를 가진 회원의 단계를 센 수에 맞게 <b>다시 정한다</b>(올리면 알림, 낮추면 조용히 — 점검 L4: 체험단 사용기를 지워 약속 지킴이 줄었다). 칭호가 없거나 꺼졌으면 아무것도 하지 않는다.
+     * 부르는 쪽 트랜잭션에 참여한다. 바뀐 단계(아니면 지금 그대로 — 단계 전이면 null).
+     */
+    @Transactional
+    public TitleTier recalcTierIfHeld(String key, long userId, long count) {
+        TitleEntity title = titles.findByTitleKey(key).filter(TitleEntity::isEnabled).filter(TitleEntity::isTiered).orElse(null);
+        if (title == null) {
+            return null;
+        }
+        MemberTitleEntity row = memberTitles.findByUserIdAndTitleIdAndPeriodAndRevokedAtIsNull(userId, title.getId(), "").orElse(null);
+        if (row == null) {
+            return null;
+        }
+        TitleTier tier = title.tierFor(count);
+        int have = row.getTier() == null ? -1 : row.getTier().ordinal();
+        int next = tier == null ? -1 : tier.ordinal();
+        if (next > have) {
+            return raiseTierIfHeld(key, userId, count);
+        }
+        if (next < have) {
+            row.lowerTier(tier, now());
+        }
+        return row.getTier();
+    }
     /**
      * 시스템 회수(V241 — 체험단 미반납·고의 파손·사용기 기한 넘김 두 번, trial-group-contract) — 그 칭호의 살아 있는 줄을 회수 사유 코드와 함께 회수한다(운영자 없음 = revoked_by NULL).
      * 없으면 아무것도 하지 않는다. 회수했으면 true.

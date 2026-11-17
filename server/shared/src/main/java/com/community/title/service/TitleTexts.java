@@ -31,6 +31,20 @@ public class TitleTexts {
         this.settings = settings;
     }
 
+
+    /** 시스템 회수 사유 코드(체험단 — V241). 운영자가 적은 글이 아니라 코드로 남는다 */
+    private static final java.util.Set<String> SYSTEM_REVOKE_CODES = java.util.Set.of(com.community.restriction.entity.RestrictionAutoRule.TRIAL_UNRETURNED,
+            com.community.restriction.entity.RestrictionAutoRule.TRIAL_REVIEW_LATE, com.community.restriction.entity.RestrictionAutoRule.TRIAL_DAMAGE_INTENTIONAL);
+
+    /**
+     * 회수 사유를 보일 글로(점검 L2) — 시스템 회수(운영자 없음)는 저장된 코드 대신 요청 언어의 번들 문구({@code title.revoke.system.<코드>}), 운영자 회수는 적은 글 그대로.
+     */
+    public String revokeReason(Long revokedBy, String stored) {
+        if (revokedBy == null && stored != null && SYSTEM_REVOKE_CODES.contains(stored)) {
+            return messages.get(new MessageRef("title.revoke.system." + stored), messages.locale());
+        }
+        return stored;
+    }
     /** 조건 한 줄 */
     public String condition(TitleCondition c) {
         BoardCatalogSnapshot s = catalog.snapshot();

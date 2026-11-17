@@ -92,6 +92,21 @@ public class TrialParticipantEntity {
         this.reviewPostedAt = now;
     }
 
+    /**
+     * 사용기 글을 글쓴이가 지웠다(점검 L4) — 연결을 끊고, 지킴으로 판정했던 줄은 판정을 되돌린다(다시 기한 안에 쓰면 지킴, 기한이 지나면 하루 배치가 기한 넘김으로 판정).
+     * 기한 넘김·미반납으로 이미 「안 지킴」인 줄은 그대로. 되돌렸으면 true.
+     */
+    public boolean unlinkReview() {
+        this.reviewPostId = null;
+        this.reviewPostedAt = null;
+        if (Boolean.TRUE.equals(kept)) {
+            this.kept = null;
+            this.keptAt = null;
+            return true;
+        }
+        return false;
+    }
+
     public void confirmReturn(TrialActorType by, long actorId, Instant now) {
         this.returnedAt = now;
         this.returnedByType = by;

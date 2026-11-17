@@ -92,7 +92,9 @@ public final class DataKeyColumns {
             EncryptedColumn.ofBytes("business-certificate-file", "business_documents", "id", "content", BusinessPii.CERTIFICATE, "BUSINESS_DOCUMENT"),
             EncryptedColumn.ofBytes("biz-contract-file", "biz_contract_files", "id", "content", BizApplicationReviewService.CONTRACT, "BIZ_CONTRACT_FILE"),
             // 사용기 구매 인증 사진(V241 — 확인 뒤 보관 일수가 지나 파기하면 NULL)
-            EncryptedColumn.ofBytes("trial-purchase-proof", "purchase_proofs", "id", "content", TrialPii.PROOF, "PURCHASE_PROOF"));
+            EncryptedColumn.ofBytes("trial-purchase-proof", "purchase_proofs", "id", "content", TrialPii.PROOF, "PURCHASE_PROOF"),
+            // 체험단 입고·발송 전·반납·파손 사진(V243 — 보관 기한 뒤 파기하면 NULL)
+            EncryptedColumn.ofBytes("trial-photo", "trial_photos", "id", "content", TrialPii.PHOTO, "TRIAL_PHOTO"));
 
     public static final List<EncryptedColumn> ALL = all();
 

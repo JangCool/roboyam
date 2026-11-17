@@ -203,6 +203,8 @@ public enum Permission {
     TRIAL_SETTINGS("trial.settings", AD_PROMO, CONFIG, true),
     /** 확인할 일 — 구매 인증 승인·거절 · 반납 확인 · 파손 판정 · 협찬 숨김 신고 확인 */
     TRIAL_REVIEW("trial.review", AD_PROMO, MANAGE, true),
+    /** 체험단 운영자 주소 평문 열람(점검 결정 D4) — 사유 5~200자 · 열람 기록 · 화면은 10분 뒤 다시 가린다. 역할 부여는 V243(commerce.address.reveal 또는 trial.manage 가진 역할) */
+    TRIAL_ADDRESS_REVEAL("trial.address.reveal", AD_PROMO, SENSITIVE, true),
     OPERATOR_READ("operator.read", OPERATOR_ROLE, READ, true),
     ROLE_READ("role.read", OPERATOR_ROLE, READ, true),
     OPERATOR_MANAGE("operator.manage", OPERATOR_ROLE, MANAGE, true),

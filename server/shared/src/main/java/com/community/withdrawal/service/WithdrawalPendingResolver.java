@@ -59,6 +59,10 @@ public class WithdrawalPendingResolver {
         for (WithdrawalQueries.ShopRefund s : queries.pendingShopRefunds(userId)) {
             out.add(new WithdrawalPending(WithdrawalPendingCode.POINT_SHOP_REFUND, s.itemName(), "/me/items", Long.toString(s.id()), null));
         }
+        // 대여형 체험단 반납 전(점검 D8 — 공구 진행 중 주문처럼 끝나야 완료) — 반납 받거나 미반납이 확정되면 풀린다
+        for (WithdrawalQueries.TrialReturn r : queries.trialReturnsOpen(userId)) {
+            out.add(new WithdrawalPending(WithdrawalPendingCode.TRIAL_RETURN, r.title(), "/me/trials", Long.toString(r.participantId()), null));
+        }
         return out;
     }
 

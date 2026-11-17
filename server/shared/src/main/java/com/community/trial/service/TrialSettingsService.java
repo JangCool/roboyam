@@ -29,7 +29,7 @@ public class TrialSettingsService {
     /** 저장 요청 — 빠진 칸(null)은 지금 값 그대로 */
     public record Request(Long givePriceLimit, String disclosureText, String sponsorDisclosureText, Integer returnRemindFirstDays, Integer returnRemindSecondDays,
                           Integer unreturnedDays, Integer reviewDays, Integer lateBanDays, Integer lateRevokeStrikes, Integer proofBonusPoints, Integer proofPhotoDays,
-                          Integer stockKeepDays) {
+                          Integer stockKeepDays, Integer photoKeepDays) {
     }
 
     private final TrialSettingRepository settings;
@@ -51,12 +51,13 @@ public class TrialSettingsService {
     public Values update(long operatorId, String ip, Request body) {
         TrialSettingEntity row = settings.findWithLockById(TrialSettingEntity.ID).orElseThrow(() -> new IllegalStateException("trial_settings 행이 없다"));
         Values now = row.values();
-        Request b = body == null ? new Request(null, null, null, null, null, null, null, null, null, null, null, null) : body;
+        Request b = body == null ? new Request(null, null, null, null, null, null, null, null, null, null, null, null, null) : body;
         Values next = new Values(b.givePriceLimit() == null ? now.givePriceLimit() : b.givePriceLimit(), text(b.disclosureText(), now.disclosureText()),
                 text(b.sponsorDisclosureText(), now.sponsorDisclosureText()), or(b.returnRemindFirstDays(), now.returnRemindFirstDays()),
                 or(b.returnRemindSecondDays(), now.returnRemindSecondDays()), or(b.unreturnedDays(), now.unreturnedDays()), or(b.reviewDays(), now.reviewDays()),
                 or(b.lateBanDays(), now.lateBanDays()), or(b.lateRevokeStrikes(), now.lateRevokeStrikes()), or(b.proofBonusPoints(), now.proofBonusPoints()),
-                or(b.proofPhotoDays(), now.proofPhotoDays()), or(b.stockKeepDays(), now.stockKeepDays()));
+                or(b.proofPhotoDays(), now.proofPhotoDays()), or(b.stockKeepDays(), now.stockKeepDays()),
+                or(b.photoKeepDays(), now.photoKeepDays()));
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         range(fields, "givePriceLimit", next.givePriceLimit(), 0, 100_000_000);
         length(fields, "disclosureText", next.disclosureText());
@@ -70,6 +71,7 @@ public class TrialSettingsService {
         range(fields, "proofBonusPoints", next.proofBonusPoints(), 0, 10_000);
         range(fields, "proofPhotoDays", next.proofPhotoDays(), 1, 365);
         range(fields, "stockKeepDays", next.stockKeepDays(), 1, 365);
+        range(fields, "photoKeepDays", next.photoKeepDays(), 1, 365);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -87,6 +89,7 @@ public class TrialSettingsService {
         diff(before, after, "proofBonusPoints", now.proofBonusPoints(), next.proofBonusPoints());
         diff(before, after, "proofPhotoDays", now.proofPhotoDays(), next.proofPhotoDays());
         diff(before, after, "stockKeepDays", now.stockKeepDays(), next.stockKeepDays());
+        diff(before, after, "photoKeepDays", now.photoKeepDays(), next.photoKeepDays());
         if (before.isEmpty()) {
             return now;
         }

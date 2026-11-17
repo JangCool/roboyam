@@ -74,6 +74,8 @@ public final class AuditRetention {
             AuditActions.MEMBER_VIEW,
             // 체험단 개인정보 제공(광고주에게 이름·연락처·주소)·구매 인증 비공개 사진 열람(trial-group-contract 「구현 결정」 14)
             AuditActions.TRIAL_PII_PROVIDE, AuditActions.PURCHASE_PROOF_VIEW,
+            // 체험단 운영자 주소 평문 열람(점검 D4 — 사유·열람 기록)
+            AuditActions.TRIAL_ADDRESS_REVEAL,
             AuditActions.WITHDRAWN_CONTACT_REVEAL,
             // 익명 글·댓글 작성자 열람(anonymous-board-contract 정책 10) — 봉인된 신원을 연 일
             AuditActions.ANONYMOUS_AUTHOR_REVEAL,

@@ -108,6 +108,8 @@ class TrialApiTest extends CommerceApiTestBase {
                         + "VALUES (?, ?, 'APPROVED', false, ?, 'x', ?, '4321', ?, ?, ?, '06236', 'x', 'v1', 'v1', now(), now(), now(), now())",
                 profile, advertiserUser, "체험상사" + profile % 100000, String.format("%064x", profile), cipher.encrypt(BusinessPii.OWNER, "대표"),
                 cipher.encrypt(BusinessPii.PHONE, "0212345678"), cipher.encrypt(BusinessPii.EMAIL, "a@test.local"));
+        // SQL 로 남김: 사업자 서비스 줄(광고 승인) — 광고주 화면 자격(점검 D5)은 신원 승인 + 광고 서비스 승인이다
+        jdbc.update("INSERT INTO business_services (id, profile_id, service, status, updated_at) VALUES (?, ?, 'AD', 'APPROVED', now())", ids.nextId(), profile);
         advertiser = ids.nextId();
         tx.executeWithoutResult(s -> advertisers.insert(new AdAdvertiserStore.NewAdvertiser(advertiser, "광고주" + advertiser % 1_000_000, profile, null, null, null, null,
                 null, null, null, operator, Instant.now())));
@@ -586,7 +588,8 @@ class TrialApiTest extends CommerceApiTestBase {
         assertThatThrownBy(() -> trials.ship(op, Long.toString(participant(t, m2)), new TrialViews.ShipmentRequest("CJ", "2", null)))
                 .satisfies(e -> assertThat(code(e)).isEqualTo("TRIAL_NO_STOCK")); // 입고 1개 — 두 번째는 모자란다
         TrialViews.TrialDetail detail = trials.detail(Long.toString(t), op);
-        assertThat(detail.participants().get(0).recipient()).isEqualTo("홍길동"); // 운영자는 운영자가 보내는 모집의 주소를 본다
+        assertThat(detail.participants().get(0).recipient()).isEqualTo("홍*동"); // 운영자는 운영자가 보내는 모집의 주소를 가린 값으로 본다(점검 D4 — 평문은 주소 보기)
+        assertThat(detail.participants().get(0).addressMasked()).isTrue();
         assertThat(detail.stock().photos()).hasSize(1);
     }
 
@@ -601,9 +604,13 @@ class TrialApiTest extends CommerceApiTestBase {
         long t = jdbc.queryForObject("SELECT trial_id FROM trial_participants WHERE id = ?", Long.class, p);
         TrialService.Actor adv = TrialService.Actor.advertiser(advertiserUser, advertiser, "ip");
         trials.ship(adv, Long.toString(p), new TrialViews.ShipmentRequest("우체국", "77", List.of(upload(adv, t, "PRE_SHIP"))));
+        String damagePhoto = upload(adv, t, "DAMAGE");
+        assertThatThrownBy(() -> trials.reportDamage(adv, Long.toString(p), new TrialViews.DamageRequest("액정 깨짐", List.of(damagePhoto))))
+                .satisfies(e -> assertThat(code(e)).isEqualTo("TRIAL_NOT_RETURNED")); // 파손 신고는 반납 받은 뒤(점검 L7)
+        trials.confirmReturn(adv, Long.toString(p), new TrialViews.PhotosRequest(List.of(upload(adv, t, "RETURN"))));
         assertThatThrownBy(() -> trials.reportDamage(adv, Long.toString(p), new TrialViews.DamageRequest("액정 깨짐", List.of())))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("photoIds"));
-        String report = trials.reportDamage(adv, Long.toString(p), new TrialViews.DamageRequest("액정 깨짐", List.of(upload(adv, t, "DAMAGE")))).id();
+        String report = trials.reportDamage(adv, Long.toString(p), new TrialViews.DamageRequest("액정 깨짐", List.of(damagePhoto))).id();
         assertThat(notices(m, "TRIAL_DAMAGE_REPORTED")).isEqualTo(1);
         assertThatThrownBy(() -> trials.decideDamage(operator, "ip", report, new TrialViews.DecideRequest("MEMBER_FAULT", null)))
                 .satisfies(e -> assertThat(code(e)).isEqualTo("TRIAL_DAMAGE_OBJECTION_OPEN"));
@@ -730,6 +737,7 @@ class TrialApiTest extends CommerceApiTestBase {
         long p = selected(m, "LEND", "ADVERTISER");
         long t = jdbc.queryForObject("SELECT trial_id FROM trial_participants WHERE id = ?", Long.class, p);
         trials.ship(adv, Long.toString(p), new TrialViews.ShipmentRequest("우체국", "3", List.of(upload(adv, t, "PRE_SHIP"))));
+        trials.confirmReturn(adv, Long.toString(p), new TrialViews.PhotosRequest(List.of(upload(adv, t, "RETURN")))); // 파손 신고는 반납 받은 뒤(점검 L7)
         String report = trials.reportDamage(adv, Long.toString(p), new TrialViews.DamageRequest("긁힘", List.of(upload(adv, t, "DAMAGE")))).id();
         String loose = upload(adv, t, "RETURN");
 

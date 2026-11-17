@@ -10,6 +10,7 @@ package com.community.withdrawal.entity;
  *   <li>{@link #POINT_SHOP_REFUND} 심사 중 포인트샵 환불 신청(PENDING)</li>
  *   <li>{@link #BIZ_APPLICATION} 「기다리기」를 고른 진행 중 광고·핫딜 신청 건</li>
  *   <li>{@link #DELIVERED_RETURN_WINDOW} 「반품 기한까지 기다리기」를 고른 배송완료 7일 안 주문</li>
+ *   <li>{@link #TRIAL_RETURN} 대여형 체험단 제품을 받았거나 보냈는데 아직 반납(또는 미반납 확정) 전 — 점검 D8, 공구 진행 중 주문과 같은 방식</li>
  * </ul>
  */
 public enum WithdrawalPendingCode {
@@ -19,5 +20,6 @@ public enum WithdrawalPendingCode {
     POINT_CHARGE_REFUND,
     POINT_SHOP_REFUND,
     BIZ_APPLICATION,
-    DELIVERED_RETURN_WINDOW
+    DELIVERED_RETURN_WINDOW,
+    TRIAL_RETURN
 }

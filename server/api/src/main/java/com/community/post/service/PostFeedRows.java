@@ -52,9 +52,11 @@ public class PostFeedRows {
 
     private final PostDebateRepository debateRows;
     private final DebateQueries debateQueries;
+    private final com.community.trial.service.TrialPostLinker purchases;
 
     public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups, DealReader deals, PostThumbnails thumbnails,
-                        PostDebateRepository debateRows, DebateQueries debateQueries) {
+                        PostDebateRepository debateRows, DebateQueries debateQueries, com.community.trial.service.TrialPostLinker purchases) {
+        this.purchases = purchases;
         this.debateRows = debateRows;
         this.debateQueries = debateQueries;
         this.thumbnails = thumbnails;
@@ -79,13 +81,15 @@ public class PostFeedRows {
         Map<Long, PostGroupView> groupRefs = groupRefs(rows);
         Map<Long, PostDealView> dealRows = dealRows(rows, s, now, viewerId);
         Map<Long, PostFeedDebateView> debates = debates(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
+        // 구입 경로·구매 인증 칩(점검 D11 — 게시판 목록과 같은 칸, 질의 두 번). 숨긴 줄은 뺀다
+        Map<Long, com.community.trial.service.TrialPostLinker.ListInfo> purchaseInfo = purchases.forList(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
         List<PostFeedRowView> out = new ArrayList<>(rows.size());
         for (PostRowData r : rows) {
             EffectiveBoard b = s.board(r.boardId()).filter(EffectiveBoard::active).orElse(null);
             if (b == null) {
                 continue;
             }
-            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs, false),
+            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs, false, purchaseInfo.get(r.id())),
                     new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId()),
                     debates.get(r.id())));
         }
@@ -215,7 +219,9 @@ public class PostFeedRows {
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
         Map<Long, String> thumbs = thumbnails.of(rows.stream().filter(r -> !r.hiddenAt(now) && !sealed.contains(r.id())).map(PostRowData::id).toList());
-        return rows.stream().map(r -> row(r, b, s, members, now, lens, sealed.contains(r.id()) ? Set.of() : withPoll, null, thumbs, sealed.contains(r.id()))).toList();
+        Map<Long, com.community.trial.service.TrialPostLinker.ListInfo> purchaseInfo = purchases.forList(rows.stream().filter(r -> !r.hiddenAt(now)).map(PostRowData::id).toList());
+        return rows.stream().map(r -> row(r, b, s, members, now, lens, sealed.contains(r.id()) ? Set.of() : withPoll, null, thumbs, sealed.contains(r.id()),
+                purchaseInfo.get(r.id()))).toList();
     }
 
     /**
@@ -223,7 +229,7 @@ public class PostFeedRows {
      * ({@code PostRepositoryQDSL#feedVisible}) — 비밀글 줄은 회원 작성글을 본인이 볼 때만 오므로 내용 칸을 그대로 싣는다.
      */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs, boolean sealed) {
+                            Set<Long> withPoll, PostDealView deal, Map<Long, String> thumbs, boolean sealed, com.community.trial.service.TrialPostLinker.ListInfo purchase) {
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
         PostAuthorView author = authors.ofPost(r.id(), r.authorId(), r.guestName(), r.authorIp(), r.anonymousPost(), members, s).withMemo(lens.memoOf(r.authorId()));
@@ -231,6 +237,7 @@ public class PostFeedRows {
                 hidden ? 0 : r.commentCount(), !bare && Boolean.TRUE.equals(r.hasImage()), bare ? null : thumbs.get(r.id()), hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !bare && withPoll.contains(r.id()), bare ? null : deal, r.secretPost(),
-                hidden ? null : PostProcessStatus.effective(b, r.processStatus()), null);
+                hidden ? null : PostProcessStatus.effective(b, r.processStatus()), null, hidden || purchase == null ? null : purchase.source(),
+                !hidden && purchase != null && purchase.proofApproved());
     }
 }

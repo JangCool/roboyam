@@ -39,6 +39,8 @@ public class ReportCaseEntity {
     public static final String ACTION_DEAL_END = "DEAL_END";
     /** 조치: 제재만(대상은 그대로 두고 작성자만 제재 — member-sanction-contract 결정 4, V136). 요청의 조치는 NONE */
     public static final String ACTION_SANCTION_ONLY = "SANCTION_ONLY";
+    /** 조치: 협찬 표시 붙임(V243 점검 D2 — 체험단 「확인할 일」의 협찬 숨김 확인에서 닫은 사건. 글의 구입 경로가 협찬으로 고정된다, 대상은 숨기지 않는다) */
+    public static final String ACTION_SPONSOR_LABEL = "SPONSOR_LABEL";
     /** 무시 */
     public static final String ACTION_DISMISS = "DISMISS";
 

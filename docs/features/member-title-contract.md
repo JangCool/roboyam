@@ -77,3 +77,9 @@
 - **관리자 모양**(admin-web 타입에 맞춤): 칭호 줄·저장 본문은 `TitleSpec` 칸 그대로 + `key`·`builtin`·`holders`·`boardName`·`howTo`·조건 `label`. `PUT /api/admin/titles`(본문 `key`)와 `PUT /api/admin/titles/{key}` 둘 다. 만들 때 `key` 는 선택(비우면 `t…` 발급). 저장하면 자동 칭호는 그 칭호만 배치 「지금 실행」(본문 `retroactive:false` 면 안 함). 받은 줄 = `{ grantId, title:{key,label,labelEn,icon,tier,chip}, member:{id,nickname,memberNo}, period|null, source, grantedAt, grantedBy(이름), grantedByKind, reason, revokedAt, revokedBy(이름), revokeReason, active, honorary }`. 신청 목록 `{ items:[{ id, title, member, status, conditions:[{type,label,met}], boardName, reason, reapplyAt, createdAt, reviewedAt, reviewedBy, reviewedByKind }] }`. 이달의 작가 후보 `candidates:[{ member, avatarUrl, awarded, posts }]`, `awarded` = 받은 줄. 회원 상세 `titles`(받은 줄, 회수 포함)와 `GET /api/admin/members/{id}/titles`. 글 관리 목록·상세 줄 `monthlyCandidate`(이번 달 후보로 넣은 글). 설정에 `reapplyDays`(1~365, 기본 30)·응답 `honoraryGranted`(기준을 내려 바로 준 수).
 - **공개 모양**: 계약 7 그대로 + `labelEn`. `representative` 는 고른 칭호만(기본이면 null). `PUT /api/me/titles/representative` 는 바뀐 내 칭호 전체를 돌려준다. 게시판 매니저 목록 `{ items:[{ id, title, member:{id,nickname,avatarUrl}, status, conditions, reason, reapplyAt, createdAt, reviewedAt, canReview }] }`.
 - **규칙**: 자동 판정은 운영자가 회수한 칭호를 다시 주지 않는다. 회원 상태 SUSPENDED·BANNED 면 작성자 줄·명예의 전당·남이 보는 프로필에서 칭호를 숨긴다. 휴면 = 고른 칭호의 휴면 숨김이 켜졌고 6개월 동안 글·댓글이 없음. 리뷰어의 「구매 인증 1편」은 구매 인증 기능이 생길 때 조건에 더한다(지금은 등급 + 사용기 3편).
+
+## 점검 고치기 (서버 2026-11-17 — 체험단 점검 결정 D14·L1·L2)
+- `GET /api/me/titles/unseen` → 축하 창에 띄울 받은 칭호만 `[{ key, label, labelEn, icon, tier, chip, ratio }]`(없으면 빈 목록, 가벼운 API) — 닫으면 `POST /api/me/titles/seen`.
+- 내 칭호 신청 줄 `applications[]` 에 `labelEn`.
+- 칭호 받음 알림(`TITLE_GRANTED`) 덧붙임에 `labelEn` — 알림 목록은 요청 언어가 영어면 영어 이름으로 문구를 만든다.
+- 리뷰어 신청 승인은 그때 센 체험단 약속 지킴의 단계로 준다(못 미치면 단계 전). 시스템 회수(체험단) 사유는 관리자 응답에서 번들 문구(`title.revoke.system.<코드>`).

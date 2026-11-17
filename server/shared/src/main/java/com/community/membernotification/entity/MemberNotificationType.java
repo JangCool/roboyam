@@ -205,6 +205,8 @@ public enum MemberNotificationType {
     TRIAL_DAMAGE_DECIDED("system"),
     /** 뽑힌 체험단이 운영자 취소(발송 전 — 뽑힌 줄 취소·모집 취소)로 없어졌다(V242 — 사유는 {@code note}) */
     TRIAL_CANCELLED_BY_OPERATOR("system"),
+    /** 운영자 입고 수량이 뽑힌 인원보다 적다(V243 — 광고주 회원에게, 받은 수·뽑힌 수는 {@code note}) — 누르면 사업자 센터 체험단 */
+    TRIAL_STOCK_SHORT("system"),
     /** 구매 인증 승인(보너스는 {@code note}) — 누르면 그 글 */
     PURCHASE_PROOF_APPROVED("system"),
     /** 구매 인증 거절(사유는 {@code note}) — 누르면 그 글 */

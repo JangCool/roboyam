@@ -37,7 +37,11 @@ public final class TrialViews {
         }
     }
 
-    public record Photo(String id, String kind, String url, Instant createdAt) {
+    /**
+     * 체험단 사진(V243 — 비공개) — {@code url} 은 보는 쪽 권한 API(관리자 {@code /api/admin/trials/photos/{id}} · 광고주 {@code /api/business/trials/photos/{id}} ·
+     * 회원 {@code /api/me/trials/photos/{id}} — 바이트·{@code Cache-Control: no-store}). 보관 기한이 지나 지운 사진은 {@code purged} true · {@code url} null.
+     */
+    public record Photo(String id, String kind, String url, Instant createdAt, boolean purged) {
     }
 
     /** 신청자 줄 숫자 — 사용기 수(사용기 게시판 글) · 평균 추천 · 약속 지킨 비율(판정된 줄 중 지킨 % — 판정 없으면 null) */
@@ -95,13 +99,27 @@ public final class TrialViews {
 
     /**
      * 뽑힌 한 줄(관리자·광고주). 받는 분·연락처·주소는 볼 수 있을 때만(운영자 = 운영자가 보내는 모집 · 광고주 = 광고주가 보내는 모집 + 제공 동의, 또는 과실·미반납으로 이름·연락처를 넘긴 뒤)
-     * 채우고 그 밖·파기 뒤 null({@code addressPurged}).
+     * 채우고 그 밖·파기 뒤 null({@code addressPurged}). 운영자 응답은 <b>가린 값</b>({@code addressMasked} true — 받는 분 {@code 홍*동} · 연락처 {@code 010-****-5678} · 주소 앞 두 어절,
+     * 상세 주소·메모 null)이고 평문은 {@code POST /api/admin/trials/participants/{id}/address/reveal} 로만(점검 D4). 광고주 응답은 동의 범위 평문({@code addressMasked} false).
      */
     public record Participant(String id, String applicationId, Member member, String quota, String recipient, String phone, String postcode, String address1,
                               String address2, String memo, boolean addressPurged, String carrier, String trackingNo, Instant shippedAt, String shippedBy,
                               Instant receivedAt, String receivedBy, Ref reviewPost, Instant reviewDueAt, Instant returnDueAt, Instant returnedAt, Boolean kept,
                               Instant reviewLateAt, Instant unreturnedAt, Instant contactProvidedAt, List<Photo> photos, Instant cancelledAt,
-                              String cancelReason) {
+                              String cancelReason, boolean addressMasked) {
+    }
+
+    /** 주소 보기 본문(운영자 — 사유 5~200자) */
+    public record RevealRequest(String reason) {
+    }
+
+    /** 운영자에게 보인 주소 평문과 화면이 다시 가릴 시각({@code hideAt} = 지금 + 10분) */
+    public record RevealedAddress(String recipient, String phone, String postcode, String address1, String address2, String memo, Instant hideAt) {
+
+        @Override
+        public String toString() {
+            return "RevealedAddress[가림]";
+        }
     }
 
     public record DamageReport(String id, String participantId, Member member, String reporterType, String description, String status, Instant objectionDueAt,
@@ -147,7 +165,17 @@ public final class TrialViews {
     public record ApplicantPage(int recruitCount, int reviewerSlots, int generalSlots, List<Applicant> items) {
     }
 
+    /** 올린 그림 — 모집 대표 그림은 공개 저장소 {@code key}·{@code url}, 체험단 사진(V243 — 비공개)은 {@code key} null · {@code url} = 올린 쪽 권한 API */
     public record Uploaded(String id, String kind, String key, String url) {
+    }
+
+    /** 사진 바이트(복호화한 JPEG) — 권한 API 가 {@code no-store} 로 내보낸다 */
+    public record PhotoBytes(byte[] bytes, String contentType) {
+
+        @Override
+        public String toString() {
+            return "PhotoBytes[가림]";
+        }
     }
 
     // ── 공개 ───────────────────────────────────────────────────────────────

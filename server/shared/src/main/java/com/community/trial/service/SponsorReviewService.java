@@ -27,8 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 협찬 숨김 신고 확인(trial-group-contract 「협찬 숨김」·「구현 결정」 6·7) — 신고 사유 {@code SPONSOR_HIDDEN} 이 들어오면 글마다 확인 줄을 대기로 두고(신고 트랜잭션 안), 운영자가
- * 확인하면 글의 구입 경로를 SPONSORED 로 바꿔 협찬 표시를 강제로 붙인다(체험단 연결 글은 이미 표시가 있어 그대로). 무시하면 그대로. 감사 기록.
- * 제재는 운영자가 회원 제재 화면에서 따로 건다(이 확인이 제재를 걸지 않는다 — 가정).
+ * 확인하면 글의 구입 경로를 SPONSORED 로 바꿔 협찬 표시를 강제로 붙인다(체험단 연결 글은 이미 표시가 있어 그대로 — 글쓴이는 고치기로 되돌릴 수 없다, 점검 D2). 무시하면 그대로. 감사 기록.
+ * 확인에 곁들인 회원 제재·그 글의 신고 사건 함께 닫기는 관리자 서버 {@code SponsorHiddenActionService}, 신고 관리에서 사건을 닫으면 {@link #closeFromReport}.
  */
 @Service
 public class SponsorReviewService {
@@ -89,6 +89,40 @@ public class SponsorReviewService {
         TrialSponsorReviewEntity row = lockPending(postIdText);
         row.decide(SponsorReviewStatus.DISMISSED, operatorId, clean(note), now());
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.SPONSOR_HIDDEN_DISMISS, AuditResult.SUCCESS).target("POST", Long.toString(row.getPostId())));
+    }
+
+    /**
+     * 신고 관리에서 그 글의 신고 사건을 닫았다(점검 D2 — 사건 처리 트랜잭션 안) — 대기 확인 줄이 있으면 함께 닫는다: {@code confirmed}(사유 코드 SPONSOR_HIDDEN 으로 조치)면 협찬으로 바꾸고
+     * 확인, 아니면(무시·다른 사유 조치) 무시. 대기 줄이 없으면 아무것도 하지 않는다. 감사 덧붙임에 사건 ID. 닫았으면 true.
+     */
+    @Transactional
+    public boolean closeFromReport(long postId, boolean confirmed, long operatorId, String ip, long reportCaseId) {
+        TrialSponsorReviewEntity row = reviews.findWithLockByPostId(postId).filter(r -> r.getStatus() == SponsorReviewStatus.PENDING).orElse(null);
+        if (row == null) {
+            return false;
+        }
+        Instant now = now();
+        if (!confirmed) {
+            row.decide(SponsorReviewStatus.DISMISSED, operatorId, null, now);
+            audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.SPONSOR_HIDDEN_DISMISS, AuditResult.SUCCESS).target("POST", Long.toString(postId))
+                    .with("reportCaseId", Long.toString(reportCaseId)));
+            return true;
+        }
+        PostEntity post = posts.findWithLockById(postId).orElse(null);
+        String before = post == null ? null : post.getPurchaseSource();
+        if (post != null && post.getTrialParticipantId() == null) {
+            post.changePurchaseSource(PurchaseSource.SPONSORED.name());
+        }
+        row.decide(SponsorReviewStatus.CONFIRMED, operatorId, null, now);
+        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.SPONSOR_HIDDEN_CONFIRM, AuditResult.SUCCESS).target("POST", Long.toString(postId))
+                .with("from", before == null ? "NONE" : before).with("to", post == null || post.getPurchaseSource() == null ? "NONE" : post.getPurchaseSource())
+                .with("reportCaseId", Long.toString(reportCaseId)));
+        return true;
+    }
+
+    /** 협찬 숨김 확인할 일의 글 ID(글자 → 숫자, 틀리면 404 {@code SPONSOR_REVIEW_NOT_FOUND}) */
+    public static long postId(String postIdText) {
+        return TrialService.id(postIdText, TrialException::sponsorReviewNotFound);
     }
 
     private TrialSponsorReviewEntity lockPending(String postIdText) {

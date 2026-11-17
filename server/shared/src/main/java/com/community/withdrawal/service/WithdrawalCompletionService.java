@@ -101,11 +101,14 @@ public class WithdrawalCompletionService {
     private final WithdrawalProperties properties;
     private final Clock clock;
     private final AnalyticsMemberMarks analyticsMarks;
+    private final com.community.trial.service.PurchaseProofService purchaseProofs;
 
     public WithdrawalCompletionService(WithdrawalQueries queries, WithdrawalEraseStore erase, MemberWithdrawalStore withdrawals, WithdrawalGroupHandler groupHandler,
                                        WithdrawalRejoinPolicy rejoinPolicy, PointService points, BusinessWithdrawal business, DealWithdrawal deals, EmoticonCreatorWithdrawal emoticons,
                                        IdentityWithdrawalRecorder identities, WithdrawnContactStore contacts, AuditLogService audit, WithdrawalMailSender mail,
-                                       ImageStorage storage, WithdrawalProperties properties, ObjectProvider<Clock> clocks, AnalyticsMemberMarks analyticsMarks) {
+                                       ImageStorage storage, WithdrawalProperties properties, ObjectProvider<Clock> clocks, AnalyticsMemberMarks analyticsMarks,
+                                       com.community.trial.service.PurchaseProofService purchaseProofs) {
+        this.purchaseProofs = purchaseProofs;
         this.analyticsMarks = analyticsMarks;
         this.queries = queries;
         this.erase = erase;
@@ -194,6 +197,8 @@ public class WithdrawalCompletionService {
         erase.deleteOwnRows(userId);
         int clearedIps = erase.clearOldAuthorIps(userId, AUTHOR_IP_DAYS, now);
         int masked = erase.maskParticipations(userId, now);
+        int trialAddresses = erase.purgeTrialAddresses(userId, now); // 체험단 신청 배송지 사본 즉시 파기(점검 D8)
+        int proofPhotos = purchaseProofs.eraseForWithdrawal(userId); // 구매 인증 사진 파기 · 대기 인증 자동 반려(점검 D8·M4-4)
         int visitMarks = analyticsMarks.deleteMember(userId);
 
         // 5. 익명화·세션·기록
@@ -214,6 +219,8 @@ public class WithdrawalCompletionService {
         detail.put("waitedPending", request.pendingCount());
         detail.put("revokedItems", revokedItems);
         detail.put("leftGroups", leftGroups);
+        detail.put("trialAddressesPurged", trialAddresses);
+        detail.put("purchaseProofsPurged", proofPhotos);
         detail.put("endedDeals", dealResult.endedDeals());
         detail.put("stoppedEmoticonPacks", emoticonResult.stoppedPacks());
         detail.put("closedEmoticonReviews", emoticonResult.closedReviews());

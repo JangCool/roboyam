@@ -14,6 +14,8 @@ public final class TrialPii {
     public static final DataPurpose ADDRESS2 = DataPurpose.of("trial.address.line2");
     public static final DataPurpose MEMO = DataPurpose.of("trial.address.memo");
     public static final DataPurpose PROOF = DataPurpose.of("trial.purchase-proof");
+    /** 입고·발송 전·반납·파손 사진(V243 — 비공개 바이트 암호문) */
+    public static final DataPurpose PHOTO = DataPurpose.of("trial.photo");
 
     private TrialPii() {
     }

@@ -9,9 +9,6 @@ import com.community.board.entity.BoardStaffEntity;
 import com.community.board.entity.BoardStaffId;
 import com.community.board.repository.master.BoardStaffRepository;
 import com.community.board.service.BoardCatalog;
-import com.community.media.service.ExifOrientation;
-import com.community.media.service.ImageCodec;
-import com.community.media.service.ImageFormat;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.point.service.PointService;
@@ -31,7 +28,6 @@ import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import java.awt.image.BufferedImage;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -59,8 +55,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PurchaseProofService {
 
-    public static final long MAX_BYTES = 10L * 1024 * 1024;
-    public static final int LONG_SIDE = 2000;
+    public static final long MAX_BYTES = TrialPhotoCodec.MAX_BYTES;
+    public static final int LONG_SIDE = TrialPhotoCodec.LONG_SIDE;
     private static final QPurchaseProofEntity PP = QPurchaseProofEntity.purchaseProofEntity;
 
     /** 확인하는 사람 — 운영자 또는 게시판 매니저(회원) */
@@ -97,7 +93,7 @@ public class PurchaseProofService {
     private final PointService points;
     private final MemberNotificationPublisher notices;
     private final AuditLogService audit;
-    private final ImageCodec codec;
+    private final TrialPhotoCodec photoCodec;
     private final DataCipher cipher;
     private final JPAQueryFactory query;
     private final Messages messages;
@@ -105,7 +101,7 @@ public class PurchaseProofService {
     private final Clock clock;
 
     public PurchaseProofService(PurchaseProofRepository proofs, PostRepository posts, BoardCatalog catalog, BoardStaffRepository staff, TrialSettingsService settings,
-                                TrialViewer viewer, PointService points, MemberNotificationPublisher notices, AuditLogService audit, ImageCodec codec, DataCipher cipher,
+                                TrialViewer viewer, PointService points, MemberNotificationPublisher notices, AuditLogService audit, TrialPhotoCodec photoCodec, DataCipher cipher,
                                 JPAQueryFactory query, Messages messages, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
         this.proofs = proofs;
         this.posts = posts;
@@ -116,7 +112,7 @@ public class PurchaseProofService {
         this.points = points;
         this.notices = notices;
         this.audit = audit;
-        this.codec = codec;
+        this.photoCodec = photoCodec;
         this.cipher = cipher;
         this.query = query;
         this.messages = messages;
@@ -143,7 +139,7 @@ public class PurchaseProofService {
         if (last != null && last.getStatus() != PurchaseProofStatus.REJECTED) {
             throw TrialException.proofExists();
         }
-        byte[] jpeg = reencode(data);
+        byte[] jpeg = photoCodec.jpeg(data); // 다시 인코딩(JPEG — EXIF·위치 정보가 빠진다, 긴 변 2000px) — 틀리면 400 fields.file
         PurchaseProofEntity proof = PurchaseProofEntity.submit(ids.nextId(), post.getId(), b.id(), userId, cipher.encryptBytes(TrialPii.PROOF, jpeg), "image/jpeg", now());
         try {
             proofs.persist(proof);
@@ -154,40 +150,19 @@ public class PurchaseProofService {
         return new TrialViews.ProofResult(Long.toString(proof.getId()), proof.getStatus().name());
     }
 
-    /** 다시 인코딩(JPEG — EXIF·위치 정보가 빠진다, 긴 변 2000px) — 틀리면 400 {@code fields.file} */
-    private byte[] reencode(byte[] data) {
-        if (data == null || data.length == 0) {
-            throw ValidationException.of("file", new MessageRef("trial.proof.file.required"));
-        }
-        if (data.length > MAX_BYTES) {
-            throw ValidationException.of("file", new MessageRef("trial.proof.file.tooLarge", "10"));
-        }
-        ImageFormat format = ImageFormat.sniff(data);
-        if (format == null || format == ImageFormat.GIF) {
-            throw ValidationException.of("file", new MessageRef("trial.proof.file.format"));
-        }
-        BufferedImage image;
-        try {
-            image = codec.limited(() -> ExifOrientation.apply(codec.decode(data, format), format == ImageFormat.JPEG ? ExifOrientation.read(data) : 1));
-        } catch (RuntimeException e) {
-            throw ValidationException.of("file", new MessageRef("trial.proof.file.unreadable"));
-        }
-        int longest = Math.max(image.getWidth(), image.getHeight());
-        if (longest > LONG_SIDE) {
-            double scale = (double) LONG_SIDE / longest;
-            image = ImageCodec.resize(image, Math.max(1, (int) Math.round(image.getWidth() * scale)), Math.max(1, (int) Math.round(image.getHeight() * scale)));
-        }
-        return ImageCodec.jpeg(image, 0.88f);
-    }
 
     // ── 확인 ─────────────────────────────────────────────────────────────
 
+    /** 승인 — 지운 글(작성자·운영자 삭제, 삭제 예약 포함)의 인증은 승인할 수 없다(409 {@code PURCHASE_PROOF_POST_DELETED} — 점검 L3, 대기 줄은 삭제 때·하루 배치가 자동 반려한다) */
     @Transactional
     public void approve(Reviewer reviewer, String idText) {
         PurchaseProofEntity proof = lockForReview(reviewer, idText);
         Instant now = now();
-        proof.approve(reviewer.operatorId(), reviewer.memberId(), now);
         PostEntity post = posts.findById(proof.getPostId()).orElse(null);
+        if (post == null || post.getDeletedAt() != null || post.getDeleteScheduledAt() != null) {
+            throw TrialException.proofPostDeleted();
+        }
+        proof.approve(reviewer.operatorId(), reviewer.memberId(), now);
         int bonus = settings.current().proofBonusPoints();
         long given = points.purchaseProofReward(proof.getUserId(), proof.getPostId(), bonus);
         notices.trial(proof.getUserId(), MemberNotificationType.PURCHASE_PROOF_APPROVED, post == null ? "" : post.getTitle(),
@@ -299,12 +274,60 @@ public class PurchaseProofService {
                 .toList();
     }
 
-    /** 파기(하루 배치) — 확인 뒤 보관 일수가 지난 사진 */
+    /** 파기(하루 배치) — 확인 뒤 보관 일수가 지난 사진 한 묶음(200건). 배치는 묶음이 꽉 차면 다시 부른다(M4-4 — 하루 상한 없이 끝까지) */
     @Transactional
     public int purgeDue(Instant before) {
         int n = 0;
         Instant now = now();
         for (PurchaseProofEntity p : proofs.findTop200ByStatusNotAndPurgedAtIsNullAndReviewedAtBefore(PurchaseProofStatus.PENDING, before)) {
+            p.purge(now);
+            n++;
+        }
+        return n;
+    }
+
+    // ── 자동 반려·파기(점검 L3·M4-4·D8) ─────────────────────────────────────
+
+    /**
+     * 글이 지워졌다(작성자 삭제 — 같은 트랜잭션) — 그 글의 대기 인증을 자동 반려하고 사진을 지운다(사유 = 번들 {@code trial.proof.autoReject.postDeleted}, 확인자 없음).
+     * 승인·반려된 인증은 그대로(승인 칩·보너스는 글과 함께 사라지고 사진은 보관 일수 뒤 파기). 반려한 수.
+     */
+    @Transactional
+    public int onPostDeleted(long postId) {
+        Instant now = now();
+        String reason = messages.get(new MessageRef("trial.proof.autoReject.postDeleted"));
+        int n = 0;
+        for (PurchaseProofEntity p : query.selectFrom(PP).where(PP.postId.eq(postId), PP.status.eq(PurchaseProofStatus.PENDING)).fetch()) {
+            p.rejectBySystem(reason, now);
+            p.purge(now);
+            n++;
+        }
+        return n;
+    }
+
+    /** 하루 배치 — 운영자가 지웠거나(작성자 삭제는 그때 처리) 삭제 예약 시각이 지난 글의 대기 인증 한 묶음(200건)을 자동 반려·파기한다. 반려한 수 */
+    @Transactional
+    public int rejectForDeletedPosts(Instant now) {
+        com.community.post.entity.QPostEntity post = com.community.post.entity.QPostEntity.postEntity;
+        List<Long> postIds = query.select(PP.postId).from(PP).join(post).on(post.id.eq(PP.postId))
+                .where(PP.status.eq(PurchaseProofStatus.PENDING), post.deletedAt.isNotNull().or(post.deleteScheduledAt.loe(now))).limit(200).fetch();
+        int n = 0;
+        for (Long postId : new java.util.LinkedHashSet<>(postIds)) {
+            n += onPostDeleted(postId);
+        }
+        return n;
+    }
+
+    /** 회원 탈퇴 완료(같은 트랜잭션 — 점검 D8) — 대기 인증은 자동 반려, 그 회원의 모든 인증 사진을 지운다(줄·상태는 남는다). 지운 수 */
+    @Transactional
+    public int eraseForWithdrawal(long userId) {
+        Instant now = now();
+        String reason = messages.get(new MessageRef("trial.proof.autoReject.withdrawn"));
+        int n = 0;
+        for (PurchaseProofEntity p : query.selectFrom(PP).where(PP.userId.eq(userId), PP.purgedAt.isNull()).fetch()) {
+            if (p.pending()) {
+                p.rejectBySystem(reason, now);
+            }
             p.purge(now);
             n++;
         }

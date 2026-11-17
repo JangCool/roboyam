@@ -266,11 +266,11 @@ public class TrialMemberService {
     }
 
     private TrialViews.MyParticipation participation(TrialEntity t, TrialParticipantEntity p, Instant now) {
-        List<TrialPhotoEntity> attached = photos.findByTrialIdAndAttachedAtIsNotNullOrderByIdAsc(t.getId());
+        List<TrialQueries.PhotoMeta> attached = queries.attachedPhotos(t.getId());
         List<TrialViews.MyDamage> ds = damages.findByParticipantIdOrderByCreatedAtDesc(p.getId()).stream().map(d -> new TrialViews.MyDamage(Long.toString(d.getId()),
                 d.getDescription(), d.getStatus().name(), d.getObjectionDueAt(), d.getStatus() == TrialDamageStatus.REPORTED && now.isBefore(d.getObjectionDueAt()),
                 d.getObjection(), d.getVerdict() == null ? null : d.getVerdict().name(), d.getDecisionNote(),
-                viewer.photos(attached.stream().filter(x -> d.getId().equals(x.getDamageReportId())).toList()), d.getCreatedAt())).toList();
+                viewer.photos(attached.stream().filter(x -> d.getId().equals(x.damageReportId())).toList(), TrialViewer.Audience.MEMBER), d.getCreatedAt())).toList();
         boolean canWrite = !p.cancelled() && p.getReviewPostId() == null && p.getUnreturnedAt() == null
                 && (t.getStatus() == TrialStatus.RUNNING || t.getStatus() == TrialStatus.CLOSED);
         return new TrialViews.MyParticipation(Long.toString(p.getId()), p.getCarrier(), p.getTrackingNo(), p.getShippedAt(), p.getReceivedAt(), p.getReceivedBy(),
@@ -329,6 +329,20 @@ public class TrialMemberService {
         }
         d.object(text, now);
         p.getId(); // 내 줄인지 위에서 확인했다
+    }
+
+    /** 내 파손 신고 사진 보기(점검 D3 — {@code GET /api/me/trials/photos/{id}}) — 내 뽑힌 줄의 파손 신고에 붙은 사진만(그 밖 404), 지운 사진 410 */
+    @Transactional(readOnly = true)
+    public TrialViews.PhotoBytes photo(long userId, String photoIdText) {
+        TrialPhotoEntity p = photos.findById(TrialService.id(photoIdText, TrialException::photoNotFound)).orElseThrow(TrialException::photoNotFound);
+        if (p.getDamageReportId() == null || p.getParticipantId() == null
+                || participants.findById(p.getParticipantId()).filter(x -> x.getUserId() == userId).isEmpty()) {
+            throw TrialException.photoNotFound();
+        }
+        if (p.purged()) {
+            throw TrialException.photoPurged();
+        }
+        return new TrialViews.PhotoBytes(cipher.decryptBytes(TrialPii.PHOTO, p.getContent()), p.getContentType());
     }
 
     /** 이 회원이 체험단 신청을 막혀 있나(화면 안내) — 막혔으면 예외 */

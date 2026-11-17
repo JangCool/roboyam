@@ -309,7 +309,7 @@ public class MemberNotificationService {
                 link = "/me/points";
             }
             case TRIAL_SELECTED, TRIAL_NOT_SELECTED, TRIAL_SHIPPED, TRIAL_REVIEW_DUE, TRIAL_RETURN_DUE, TRIAL_UNRETURNED, TRIAL_DAMAGE_REPORTED, TRIAL_DAMAGE_DECIDED,
-                 TRIAL_CANCELLED_BY_OPERATOR,
+                 TRIAL_CANCELLED_BY_OPERATOR, TRIAL_STOCK_SHORT,
                  PURCHASE_PROOF_APPROVED, PURCHASE_PROOF_REJECTED -> {
                 // 체험단·구매 인증(V241) — 알릴 때 제목 · 본문 한 줄. 누르면 발행 때 정한 곳(내 체험단 또는 그 글)
                 facts = MemberNotificationMessages.Facts.trial(type, payload.get("title") instanceof String t ? t : null,
@@ -317,8 +317,10 @@ public class MemberNotificationService {
                 link = payload.get("path") instanceof String p && p.startsWith("/") ? p : "/me/trials";
             }
             case TITLE_GRANTED -> {
-                // 칭호를 받음(V240) — 알릴 때 표시 이름 · 단계. 누르면 내 칭호
-                facts = MemberNotificationMessages.Facts.titleGranted(payload.get("label") instanceof String n ? n : null,
+                // 칭호를 받음(V240) — 알릴 때 표시 이름(보는 사람 언어가 영어이고 영어 이름을 남겼으면 그것 — 점검 D14) · 단계. 누르면 내 칭호
+                String titleName = "en".equals(locale.getLanguage()) && payload.get("labelEn") instanceof String en && !en.isBlank() ? en
+                        : payload.get("label") instanceof String n ? n : null;
+                facts = MemberNotificationMessages.Facts.titleGranted(titleName,
                         payload.get("tier") instanceof String t && !t.isBlank() ? t : null);
                 link = "/me/titles";
             }

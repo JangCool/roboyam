@@ -289,6 +289,8 @@ public final class AuditActions {
     public static final String TRIAL_CANCEL = "TRIAL_CANCEL";
     /** 뽑힌 줄 운영자 취소(발송 전 — 대상 TRIAL, 덧붙임: 뽑힌 줄·사유·남은 인원·다시 셈한 금액 또는 결제 뒤 그대로) — V242 */
     public static final String TRIAL_PARTICIPANT_CANCEL = "TRIAL_PARTICIPANT_CANCEL";
+    /** 운영자 주소 평문 열람(점검 D4 — 대상 TRIAL, 덧붙임: 뽑힌 줄·회원·사유, 평문 없음) — 개인정보 보관 분류 */
+    public static final String TRIAL_ADDRESS_REVEAL = "TRIAL_ADDRESS_REVEAL";
     /** 구매 인증 승인·거절(대상 POST — 게시판 매니저 확인은 회원이 행위자) · 비공개 사진 열람 */
     public static final String PURCHASE_PROOF_APPROVE = "PURCHASE_PROOF_APPROVE";
     public static final String PURCHASE_PROOF_REJECT = "PURCHASE_PROOF_REJECT";

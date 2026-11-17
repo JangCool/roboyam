@@ -34,8 +34,8 @@ public record MyTitlesView(RepresentativeView representative, boolean hidden, Li
     public record ConditionView(String type, String label, boolean met, Long current, Long target) {
     }
 
-    /** 내 신청 하나 — {@code status} PENDING·APPROVED·REJECTED, 거절이면 {@code reason}·{@code reapplyAt} */
-    public record ApplicationView(String id, String key, String label, String status, String reason, Instant reapplyAt, Instant createdAt) {
+    /** 내 신청 하나 — {@code status} PENDING·APPROVED·REJECTED, 거절이면 {@code reason}·{@code reapplyAt}. {@code labelEn} 칭호 영어 이름(없으면 null — 점검 D14) */
+    public record ApplicationView(String id, String key, String label, String labelEn, String status, String reason, Instant reapplyAt, Instant createdAt) {
     }
 
     /** 축하 창 하나 — {@code ratio} 그 칭호 보유 비율 0~1 */

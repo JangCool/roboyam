@@ -41,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
  *       {@code { verdict, note }} — 409 {@code TRIAL_DAMAGE_OBJECTION_OPEN}·{@code TRIAL_DAMAGE_DECIDED}</li>
  *   <li>구매 인증: {@code GET /api/admin/purchase-proofs/{id}/photo} · {@code POST /api/admin/purchase-proofs/{id}/approve|reject} {@code { reason }} → 204</li>
  *   <li>{@code GET·PUT /api/admin/trials/settings}</li>
+ *   <li>사진(V243 — 비공개): {@code GET /api/admin/trials/photos/{id}} 바이트 · 주소 보기 {@code POST /api/admin/trials/participants/{id}/address/reveal}({@code trial.address.reveal})</li>
  * </ul>
  */
 @RestController
@@ -146,7 +147,7 @@ public class AdminTrialController {
         return noStore(trials.cancelParticipant(actor.operatorId(), actor.ip(), id, body));
     }
 
-    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
+    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE}) // 반납 받음은 처리 권한만(점검 D12 — trial.review 는 볼 수만 있다)
     @PostMapping("/api/admin/trials/participants/{id}/returned")
     public ResponseEntity<Void> returned(@PathVariable String id, @RequestBody(required = false) TrialViews.PhotosRequest body, AdminActor actor) {
         trials.confirmReturn(TrialService.Actor.operator(actor.operatorId(), actor.ip()), id, body);
@@ -165,6 +166,25 @@ public class AdminTrialController {
     public ResponseEntity<ApiResponse<TrialViews.DamageReport>> damage(@PathVariable String id, @RequestBody(required = false) TrialViews.DamageRequest body,
                                                                        AdminActor actor) {
         return created(trials.reportDamage(TrialService.Actor.operator(actor.operatorId(), actor.ip()), id, body));
+    }
+
+    /** 사진 보기(V243 — 비공개) → 바이트 · {@code no-store} · 404 {@code TRIAL_PHOTO_NOT_FOUND} · 410 {@code TRIAL_PHOTO_PURGED} */
+    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
+    @GetMapping("/api/admin/trials/photos/{id}")
+    public ResponseEntity<byte[]> photoBytes(@PathVariable String id, AdminActor actor) {
+        TrialViews.PhotoBytes photo = trials.photo(TrialService.Actor.operator(actor.operatorId(), actor.ip()), id);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(MediaType.parseMediaType(photo.contentType())).body(photo.bytes());
+    }
+
+    /**
+     * 주소 보기(점검 D4) {@code { reason 5~200 }} → {@code { recipient, phone, postcode, address1, address2, memo, hideAt }}(화면은 {@code hideAt} 에 다시 가린다) — 열람 기록·감사 뒤.
+     * 400 {@code fields.reason} · 409 {@code TRIAL_WRONG_SHIPPER}(광고주가 보내는 모집) · 410 {@code TRIAL_ADDRESS_PURGED}
+     */
+    @RequirePermission(Permission.TRIAL_ADDRESS_REVEAL)
+    @PostMapping("/api/admin/trials/participants/{id}/address/reveal")
+    public ResponseEntity<ApiResponse<TrialViews.RevealedAddress>> revealAddress(@PathVariable String id, @RequestBody(required = false) TrialViews.RevealRequest body,
+                                                                               AdminActor actor) {
+        return noStore(trials.revealAddress(actor.operatorId(), actor.ip(), id, body));
     }
 
     @RequirePermission(Permission.TRIAL_REVIEW)

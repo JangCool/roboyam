@@ -161,8 +161,29 @@ public class TrialViewer {
         return names;
     }
 
-    public List<TrialViews.Photo> photos(List<TrialPhotoEntity> rows) {
-        return rows.stream().map(p -> new TrialViews.Photo(Long.toString(p.getId()), p.getKind().name(), images.url(p.getImageKey()), p.getCreatedAt())).toList();
+    /** 사진을 보는 쪽 — 권한 API 앞머리(V243 — 체험단 사진은 비공개) */
+    public enum Audience {
+        ADMIN("/api/admin/trials/photos/"), BUSINESS("/api/business/trials/photos/"), MEMBER("/api/me/trials/photos/");
+
+        private final String base;
+
+        Audience(String base) {
+            this.base = base;
+        }
+
+        public String url(long photoId) {
+            return base + photoId;
+        }
+
+        public static Audience of(TrialActorType viewer) {
+            return viewer == TrialActorType.OPERATOR ? ADMIN : BUSINESS;
+        }
+    }
+
+    /** 사진 줄 — 주소는 보는 쪽 권한 API, 지운 사진은 주소 없이 {@code purged} */
+    public List<TrialViews.Photo> photos(List<TrialQueries.PhotoMeta> rows, Audience audience) {
+        return rows.stream().map(p -> new TrialViews.Photo(Long.toString(p.id()), p.kind().name(), p.purged() ? null : audience.url(p.id()), p.createdAt(),
+                p.purged())).toList();
     }
 
     /** 신청 동의 항목 — 보내는 쪽·형태로 정해진다(계약 「신청」·「대여형 파손」) */
@@ -214,19 +235,20 @@ public class TrialViewer {
         Map<Long, TrialApplicationEntity> appById = new HashMap<>();
         apps.forEach(a -> appById.put(a.getId(), a));
         List<TrialParticipantEntity> people = participants.findByTrialIdOrderByIdAsc(t.getId());
-        List<TrialPhotoEntity> allPhotos = photos.findByTrialIdAndAttachedAtIsNotNullOrderByIdAsc(t.getId());
-        Map<Long, List<TrialPhotoEntity>> photosByParticipant = new HashMap<>();
-        Map<Long, List<TrialPhotoEntity>> photosByDamage = new HashMap<>();
-        List<TrialPhotoEntity> stockPhotos = new ArrayList<>();
-        for (TrialPhotoEntity p : allPhotos) {
-            if (p.getKind() == TrialPhotoKind.STOCK) {
+        List<TrialQueries.PhotoMeta> allPhotos = queries.attachedPhotos(t.getId()); // 바이트 없이 메타만
+        Map<Long, List<TrialQueries.PhotoMeta>> photosByParticipant = new HashMap<>();
+        Map<Long, List<TrialQueries.PhotoMeta>> photosByDamage = new HashMap<>();
+        List<TrialQueries.PhotoMeta> stockPhotos = new ArrayList<>();
+        for (TrialQueries.PhotoMeta p : allPhotos) {
+            if (p.kind() == TrialPhotoKind.STOCK) {
                 stockPhotos.add(p);
-            } else if (p.getDamageReportId() != null) {
-                photosByDamage.computeIfAbsent(p.getDamageReportId(), k -> new ArrayList<>()).add(p);
-            } else if (p.getParticipantId() != null) {
-                photosByParticipant.computeIfAbsent(p.getParticipantId(), k -> new ArrayList<>()).add(p);
+            } else if (p.damageReportId() != null) {
+                photosByDamage.computeIfAbsent(p.damageReportId(), k -> new ArrayList<>()).add(p);
+            } else if (p.participantId() != null) {
+                photosByParticipant.computeIfAbsent(p.participantId(), k -> new ArrayList<>()).add(p);
             }
         }
+        Audience audience = Audience.of(viewer);
         Set<Long> userIds = new HashSet<>();
         people.forEach(p -> userIds.add(p.getUserId()));
         Map<Long, TrialViews.Member> who = members(userIds, viewer == TrialActorType.OPERATOR);
@@ -239,14 +261,14 @@ public class TrialViewer {
         }
         List<TrialViews.DamageReport> damageRows = damages.findByTrialIdOrderByCreatedAtDesc(t.getId()).stream().map(d -> {
             TrialParticipantEntity p = people.stream().filter(x -> x.getId().equals(d.getParticipantId())).findFirst().orElse(null);
-            return damage(d, p == null ? null : who.get(p.getUserId()), photosByDamage.getOrDefault(d.getId(), List.of()));
+            return damage(d, p == null ? null : who.get(p.getUserId()), photosByDamage.getOrDefault(d.getId(), List.of()), audience);
         }).toList();
         TrialViews.Stock stock = null;
         TrialStockReceiptEntity receipt = stocks.findByTrialId(t.getId()).orElse(null);
         if (receipt != null) {
             stock = new TrialViews.Stock(receipt.getQuantity(), receipt.getNote(), receipt.getReceivedAt(),
                     receipt.getReceivedAt().plus(Duration.ofDays(settings.current().stockKeepDays())), receipt.getReturnCarrier(), receipt.getReturnTrackingNo(),
-                    receipt.getReturnShippedAt(), photos(stockPhotos));
+                    receipt.getReturnShippedAt(), photos(stockPhotos, audience));
         }
         long cancelled = people.stream().filter(TrialParticipantEntity::cancelled).count();
         TrialViews.Counts counts = new TrialViews.Counts(apps.stream().filter(TrialApplicationEntity::live).count(), people.size() - cancelled,
@@ -265,29 +287,44 @@ public class TrialViewer {
     }
 
     private TrialViews.Participant participant(TrialEntity t, TrialParticipantEntity p, TrialApplicationEntity a, TrialViews.Member member, Map<Long, String> postTitles,
-                                               List<TrialPhotoEntity> ownPhotos, TrialActorType viewer) {
+                                               List<TrialQueries.PhotoMeta> ownPhotos, TrialActorType viewer) {
         boolean purged = a == null || a.getAddressPurgedAt() != null;
         boolean full = !purged && (viewer == TrialActorType.OPERATOR ? t.operatorShips() : t.getShipper() == TrialShipper.ADVERTISER);
         boolean contactOnly = !purged && !full && viewer == TrialActorType.ADVERTISER && p.getContactProvidedAt() != null;
+        // 운영자는 가린 값만(점검 D4 — 평문은 「주소 보기」 사유·열람 기록 뒤) · 광고주는 동의 범위 평문(볼 때 개인정보 제공 감사 기록)
+        boolean masked = full && viewer == TrialActorType.OPERATOR;
         String recipient = full || contactOnly ? open(TrialPii.RECIPIENT, a.getRecipientEnc()) : null;
         String phone = full || contactOnly ? open(TrialPii.PHONE, a.getPhoneEnc()) : null;
+        String address1 = full ? open(TrialPii.ADDRESS1, a.getAddress1Enc()) : null;
+        String address2 = full && !masked ? open(TrialPii.ADDRESS2, a.getAddress2Enc()) : null;
+        String memo = full && !masked ? open(TrialPii.MEMO, a.getMemoEnc()) : null;
+        if (masked) {
+            recipient = com.community.groupbuy.service.AddressRevealService.maskName(recipient);
+            phone = com.community.groupbuy.service.AddressRevealService.maskPhone(phone);
+            address1 = com.community.groupbuy.service.AddressRevealService.maskAddress(address1);
+        }
         return new TrialViews.Participant(Long.toString(p.getId()), Long.toString(p.getApplicationId()), member, p.getQuota().name(), recipient, phone,
-                full ? a.getPostcode() : null, full ? open(TrialPii.ADDRESS1, a.getAddress1Enc()) : null, full ? open(TrialPii.ADDRESS2, a.getAddress2Enc()) : null,
-                full ? open(TrialPii.MEMO, a.getMemoEnc()) : null, purged, p.getCarrier(), p.getTrackingNo(), p.getShippedAt(),
+                full ? a.getPostcode() : null, address1, address2, memo, purged, p.getCarrier(), p.getTrackingNo(), p.getShippedAt(),
                 p.getShippedByType() == null ? null : p.getShippedByType().name(), p.getReceivedAt(), p.getReceivedBy(),
                 p.getReviewPostId() == null ? null : new TrialViews.Ref(Long.toString(p.getReviewPostId()), postTitles.get(p.getReviewPostId())), p.getReviewDueAt(),
-                p.getReturnDueAt(), p.getReturnedAt(), p.getKept(), p.getReviewLateAt(), p.getUnreturnedAt(), p.getContactProvidedAt(), photos(ownPhotos),
-                p.getCancelledAt(), p.getCancelReason());
+                p.getReturnDueAt(), p.getReturnedAt(), p.getKept(), p.getReviewLateAt(), p.getUnreturnedAt(), p.getContactProvidedAt(),
+                photos(ownPhotos, Audience.of(viewer)), p.getCancelledAt(), p.getCancelReason(), masked);
+    }
+
+    /** 주소 평문(운영자 「주소 보기」 — 부르는 쪽이 권한·사유·열람 기록을 먼저 남긴다) */
+    public TrialViews.RevealedAddress reveal(TrialApplicationEntity a, Instant hideAt) {
+        return new TrialViews.RevealedAddress(open(TrialPii.RECIPIENT, a.getRecipientEnc()), open(TrialPii.PHONE, a.getPhoneEnc()), a.getPostcode(),
+                open(TrialPii.ADDRESS1, a.getAddress1Enc()), open(TrialPii.ADDRESS2, a.getAddress2Enc()), open(TrialPii.MEMO, a.getMemoEnc()), hideAt);
     }
 
     private String open(DataPurpose purpose, String enc) {
         return enc == null ? null : cipher.decrypt(purpose, enc);
     }
 
-    public TrialViews.DamageReport damage(TrialDamageReportEntity d, TrialViews.Member member, List<TrialPhotoEntity> own) {
+    public TrialViews.DamageReport damage(TrialDamageReportEntity d, TrialViews.Member member, List<TrialQueries.PhotoMeta> own, Audience audience) {
         return new TrialViews.DamageReport(Long.toString(d.getId()), Long.toString(d.getParticipantId()), member, d.getReporterType().name(), d.getDescription(),
                 d.getStatus().name(), d.getObjectionDueAt(), d.getObjection(), d.getObjectedAt(), d.getVerdict() == null ? null : d.getVerdict().name(), d.getDecisionNote(),
-                d.getDecidedAt(), photos(own), d.getCreatedAt());
+                d.getDecidedAt(), photos(own, audience), d.getCreatedAt());
     }
 
     /** 신청자 목록(관리자 뽑기 · 광고주 추천) — 회원번호는 관리자({@code viewer} OPERATOR)에게만 */

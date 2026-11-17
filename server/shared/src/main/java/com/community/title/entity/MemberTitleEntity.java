@@ -66,6 +66,12 @@ public class MemberTitleEntity {
         this.seenAt = null;
     }
 
+    /** 단계를 낮춘다(체험단 약속 지킴 판정을 되돌림 — 점검 L4). 알림·축하 창 없이 — {@code null} 이면 단계 전 */
+    public void lowerTier(TitleTier next, Instant now) {
+        this.tier = next;
+        this.tierChangedAt = now;
+    }
+
     /** 축하 창을 닫았다 */
     public void markSeen(Instant now) {
         if (seenAt == null) {

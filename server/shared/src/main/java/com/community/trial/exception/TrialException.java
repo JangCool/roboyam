@@ -170,4 +170,41 @@ public class TrialException extends CommonException {
     public static TrialException sponsorReviewClosed() {
         return new TrialException(HttpStatus.CONFLICT, "SPONSOR_REVIEW_CLOSED");
     }
+
+    // ── 점검 고치기(V243) ──────────────────────────────────────────────────
+
+    /** 409 — 지운 글의 구매 인증은 승인할 수 없다(점검 L3 — 대기 줄은 자동 반려된다) */
+    public static TrialException proofPostDeleted() {
+        return new TrialException(HttpStatus.CONFLICT, "PURCHASE_PROOF_POST_DELETED");
+    }
+
+    /** 404 — 없는 체험단 사진(볼 수 없는 사진도 같다) */
+    public static TrialException photoNotFound() {
+        return new TrialException(HttpStatus.NOT_FOUND, "TRIAL_PHOTO_NOT_FOUND");
+    }
+
+    /** 410 — 보관 기한이 지나 체험단 사진을 지웠다 */
+    public static TrialException photoPurged() {
+        return new TrialException(HttpStatus.GONE, "TRIAL_PHOTO_PURGED");
+    }
+
+    /** 410 — 주소 사본을 이미 파기했다(주소 보기 불가) */
+    public static TrialException addressPurged() {
+        return new TrialException(HttpStatus.GONE, "TRIAL_ADDRESS_PURGED");
+    }
+
+    /** 403 — 광고주 화면: 사업자 승인이 아니거나 광고 서비스가 정지됐거나 광고주가 보관됐다(점검 D5) */
+    public static TrialException advertiserBlocked() {
+        return new TrialException(HttpStatus.FORBIDDEN, "TRIAL_ADVERTISER_BLOCKED");
+    }
+
+    /** 409 — 신청자가 있어 광고주·형태·보내는 쪽을 바꾸거나 제품값을 올릴 수 없다(점검 D6 — 제품값 내리기는 된다) */
+    public static TrialException applicantsLocked() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_APPLICANTS_LOCKED");
+    }
+
+    /** 409 — 아직 반납 받지 않았다(파손 신고는 대여형 반납 받은 뒤 — 점검 L7) */
+    public static TrialException notReturned() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_NOT_RETURNED");
+    }
 }

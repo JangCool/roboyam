@@ -588,6 +588,7 @@ public class PostWriteService {
             if (locked.getAuthorId() != null) {
                 // 본인 삭제(예약 삭제도 요청 시점에) — 받은 글 포인트·추천 보너스를 0P 까지 회수한다. 본인이 지운 것이라 알림은 없다
                 points.revokeContent(locked.getAuthorId(), PointService.REF_POST, locked.getId());
+                purchases.onAuthorDelete(locked); // 대기 구매 인증 자동 반려 · 체험단 사용기 연결 끊고 약속 판정 되돌림(V243 점검 L3·L4)
             }
             return result;
         });

@@ -123,12 +123,15 @@ public class ReportCaseActionService {
     private final DealModeration dealModeration;
     private final MemberSanctionService sanctions;
     private final AdminSanctionService sanctionAdmin;
+    private final com.community.trial.service.SponsorReviewService sponsorReviews;
 
     public ReportCaseActionService(ReportCaseRepository cases, AdminReportRepositoryQDSL caseQueries, ReportRepositoryQDSL reports, ReportCaseLog caseLog,
                                    PostRepository posts, CommentRepository comments, PostCounterQueries counters, AdminPostModerationService postModeration,
                                    PostModerationLog moderation, PointService points, MemberNotificationPublisher memberNotices, BoardCatalog catalog,
                                    AuditLogService audit, PlatformTransactionManager txManager, GroupAdminService groupAdmin, HotdealAdminQueryService hotdeals,
-                                   DealModeration dealModeration, MemberSanctionService sanctions, AdminSanctionService sanctionAdmin) {
+                                   DealModeration dealModeration, MemberSanctionService sanctions, AdminSanctionService sanctionAdmin,
+                                   com.community.trial.service.SponsorReviewService sponsorReviews) {
+        this.sponsorReviews = sponsorReviews;
         this.sanctions = sanctions;
         this.sanctionAdmin = sanctionAdmin;
         this.groupAdmin = groupAdmin;
@@ -252,6 +255,10 @@ public class ReportCaseActionService {
         String stored = sanctionOnly ? ReportCaseEntity.ACTION_SANCTION_ONLY : action;
 
         c.resolve(stored, reasonCode, note, actor.operatorId(), now);
+        // 그 글의 협찬 숨김 확인 줄도 함께 닫는다(점검 D2) — 사유 코드 SPONSOR_HIDDEN 으로 조치했으면 협찬으로 고정, 다른 사유면 무시(대기 줄이 없으면 아무것도 안 한다)
+        if (ReportEntity.POST.equals(c.getTargetType())) {
+            sponsorReviews.closeFromReport(c.getTargetId(), ReportReasons.SPONSOR_HIDDEN.equals(reasonCode), actor.operatorId(), actor.ip(), c.getId());
+        }
         String snapshot = snapshotOf(c);
         reports.markCase(c.getId(), ReportEntity.ACCEPTED, now, actor.operatorId());
         Map<String, Object> detail = closeDetail(stored, reasonCode, note, false);
@@ -460,6 +467,9 @@ public class ReportCaseActionService {
         BoardReportValues policy = catalog.snapshot().report();
         boolean restored = restoreAutoHidden(actor, c, note, now);
         c.dismiss(reasonCode, note, falseReport, actor.operatorId(), now);
+        if (ReportEntity.POST.equals(c.getTargetType())) {
+            sponsorReviews.closeFromReport(c.getTargetId(), false, actor.operatorId(), actor.ip(), c.getId()); // 협찬 숨김 확인 줄도 「문제 없음」으로(점검 D2)
+        }
         String snapshot = snapshotOf(c);
         reports.markCase(c.getId(), falseReport ? ReportEntity.REJECTED : ReportEntity.DISMISSED, now, actor.operatorId());
         Map<String, Object> detail = closeDetail(ReportCaseEntity.ACTION_DISMISS, reasonCode, note, falseReport);
@@ -529,6 +539,66 @@ public class ReportCaseActionService {
         auditDetail.putAll(targetFacts(c));
         record(actor, AuditActions.REPORT_REOPEN, Long.toString(c.getId()), auditDetail);
         log.info("신고 다시 열기 caseId={} by operatorId={}", c.getId(), actor.operatorId());
+    }
+
+    // ── 협찬 숨김 확인할 일(점검 D2 — 체험단 「확인할 일」 → 신고 사건) ─────────────────────────────
+
+    /**
+     * 그 글의 열린 신고 사건을 잠근다(협찬 숨김 확인·무시보다 먼저 — 신고 처리와 같은 잠금 차례: 사건 → 확인 줄 → 글). 사건의 신고가 모두 협찬 숨김이면 그 사건, 없거나 다른 사유가 섞였으면 null
+     * (섞인 사건은 신고 관리에서 따로 처리한다 — 그때 확인 줄은 이미 닫혀 있어 그대로).
+     */
+    public ReportCaseEntity lockSponsorCase(long postId) {
+        ReportCaseEntity c = cases.findWithLockByTargetTypeAndTargetIdAndStatusIn(ReportEntity.POST, postId, ReportCaseEntity.OPEN).orElse(null);
+        if (c == null) {
+            return null;
+        }
+        List<ReportEntity> rows = reports.ofCase(c.getId());
+        return !rows.isEmpty() && rows.stream().allMatch(r -> ReportReasons.SPONSOR_HIDDEN.equals(r.getReason())) ? c : null;
+    }
+
+    /**
+     * 협찬 숨김 확인({@code confirmed})·무시 뒤 — 잠근 사건이 있으면 닫고(확인 = 조치 {@code SPONSOR_LABEL}·신고 ACCEPTED · 무시 = DISMISSED, 사유 코드 SPONSOR_HIDDEN, 신고자 결과 알림·사건 기록·
+     * 감사 {@code REPORT_RESOLVE}·{@code REPORT_DISMISS}), 확인에 곁들인 {@code sanction}(신고 처리의 {@code SanctionWithReportRequest} 와 같은 모양)이 있으면 같은 트랜잭션에서 글쓴이에게
+     * 회원 제재를 준다(익명 글이면 봉인 제재, 사유가 없으면 처리 글 — 둘 다 없으면 400 {@code fields.sanction.reason}). 제재 줄(없으면 null).
+     */
+    public SanctionLineView finishSponsorReview(AdminActor actor, ReportCaseEntity c, long postId, boolean confirmed, String note, SanctionWithReportRequest sanction) {
+        Instant now = Instant.now();
+        MemberSanctionStore.SanctionRow issued = null;
+        if (confirmed && sanction != null) {
+            PostEntity post = posts.findById(postId).orElseThrow(SanctionTargetNotFoundException::new);
+            if (post.getAuthorId() == null) {
+                throw new SanctionTargetNotFoundException();
+            }
+            SanctionIssue.SealedSource sealed = post.isAnonymous() ? new SanctionIssue.SealedSource(postId, null) : null;
+            issued = sanctions.issue(new SanctionIssue(post.getAuthorId(), sanction.kind(), sanction.reason() == null ? note : sanction.reason(),
+                    Boolean.TRUE.equals(sanction.skipStep()), sanction.confirmNickname(), c == null ? null : c.getId(), "sanction.", sealed),
+                    sanctionAdmin.operator(actor, c == null ? "POST" : TARGET, Long.toString(c == null ? postId : c.getId())));
+        }
+        if (c == null) {
+            return issued == null ? null : SanctionViews.line(issued, sanctions.now());
+        }
+        BoardReportValues policy = catalog.snapshot().report();
+        String stored = confirmed ? ReportCaseEntity.ACTION_SPONSOR_LABEL : ReportCaseEntity.ACTION_DISMISS;
+        if (confirmed) {
+            c.resolve(stored, ReportReasons.SPONSOR_HIDDEN, note, actor.operatorId(), now);
+        } else {
+            c.dismiss(ReportReasons.SPONSOR_HIDDEN, note, false, actor.operatorId(), now);
+        }
+        String snapshot = snapshotOf(c);
+        reports.markCase(c.getId(), confirmed ? ReportEntity.ACCEPTED : ReportEntity.DISMISSED, now, actor.operatorId());
+        Map<String, Object> detail = closeDetail(stored, ReportReasons.SPONSOR_HIDDEN, note, false);
+        detail.put("sponsorReview", true);
+        if (issued != null) {
+            detail.put("sanctionId", Long.toString(issued.id()));
+            detail.put("sanctionNo", issued.no());
+            detail.put("sanctionKind", issued.kind().name());
+        }
+        caseLog.operator(c.getId(), confirmed ? ReportEventEntity.RESOLVED : ReportEventEntity.DISMISSED, actor.operatorId(), detail, now);
+        notifyReporters(c, snapshot, confirmed ? MemberNotificationMessages.REPORT_ACTIONED : MemberNotificationMessages.REPORT_NO_VIOLATION, policy);
+        Map<String, Object> auditDetail = new LinkedHashMap<>(detail);
+        auditDetail.putAll(targetFacts(c));
+        record(actor, confirmed ? AuditActions.REPORT_RESOLVE : AuditActions.REPORT_DISMISS, Long.toString(c.getId()), auditDetail);
+        return issued == null ? null : SanctionViews.line(issued, sanctions.now());
     }
 
     // ── 안쪽 ──────────────────────────────────────────────────────────────
@@ -611,9 +681,13 @@ public class ReportCaseActionService {
 
     /**
      * 사유 코드가 사건의 대상 종류 체계인가 — 소모임 사건은 소모임 사유, 글·댓글 사건은 글·댓글 사유, 핫딜 글 사건은 핫딜 사유({@code DEAL_FALSE_PRICE}·{@code DEAL_HIDDEN_AD})까지
-     * (아니면 400 {@code fields.reasonCode})
+     * (아니면 400 {@code fields.reasonCode}). 협찬 숨김({@code SPONSOR_HIDDEN})은 그 사유 신고가 든 글 사건에서 고를 수 있다(점검 D2 — 그 사유로 조치하면 확인할 일 줄도 협찬으로 확인된다).
      */
-    private static void requireReasonFor(ReportCaseEntity c, String reasonCode, boolean dealPost) {
+    private void requireReasonFor(ReportCaseEntity c, String reasonCode, boolean dealPost) {
+        if (ReportReasons.SPONSOR_HIDDEN.equals(reasonCode) && ReportEntity.POST.equals(c.getTargetType())
+                && reports.ofCase(c.getId()).stream().anyMatch(r -> ReportReasons.SPONSOR_HIDDEN.equals(r.getReason()))) {
+            return;
+        }
         if (!ReportReasons.forCase(c.getTargetType(), dealPost).contains(reasonCode)) {
             throw ValidationException.of("reasonCode", new MessageRef("report.admin.reasonCode.invalid"));
         }

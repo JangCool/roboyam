@@ -250,6 +250,20 @@ public class WithdrawalQueries extends IrobitRepositoryQDSL {
                 .orderBy(ORDER.id.asc()).fetch().stream().map(WithdrawalQueries::order).toList();
     }
 
+    /** 반납 전 대여형 체험단 한 줄(점검 D8 — 탈퇴 남은 일) */
+    public record TrialReturn(long participantId, long trialId, String title) {
+    }
+
+    /** 대여형 체험단 중 보냈는데(송장) 아직 반납·미반납 확정이 없고 취소하지 않은 내 뽑힌 줄 — 끝나야 탈퇴가 완료된다 */
+    public List<TrialReturn> trialReturnsOpen(long userId) {
+        com.community.trial.entity.QTrialParticipantEntity p = com.community.trial.entity.QTrialParticipantEntity.trialParticipantEntity;
+        com.community.trial.entity.QTrialEntity t = com.community.trial.entity.QTrialEntity.trialEntity;
+        return query.select(p.id, t.id, t.title).from(p).join(t).on(t.id.eq(p.trialId))
+                .where(p.userId.eq(userId), t.form.eq(com.community.trial.entity.TrialForm.LEND), p.shippedAt.isNotNull(), p.returnedAt.isNull(), p.unreturnedAt.isNull(),
+                        p.cancelledAt.isNull())
+                .orderBy(p.id.asc()).fetch().stream().map(r -> new TrialReturn(r.get(p.id), r.get(t.id), r.get(t.title))).toList();
+    }
+
     /** 배송완료 뒤 {@code days} 일(단순 변심 반품 기한) 안의 주문 */
     public List<Order> deliveredWithin(long userId, int days, Instant now) {
         return query.select(ORDER.id, ORDER.orderNo, ORDER.status, ORDER.deliveredAt).from(ORDER)

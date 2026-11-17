@@ -450,7 +450,7 @@ public class MemberNotificationMessages {
                     : messages.get(new MessageRef("member.notification.TITLE_GRANTED.tier." + facts.result()), locale));
             // 체험단(V241) — 모집 제목 · 본문 한 줄 / 구매 인증 — 글 제목 · 본문 한 줄
             case TRIAL_SELECTED, TRIAL_NOT_SELECTED, TRIAL_SHIPPED, TRIAL_REVIEW_DUE, TRIAL_RETURN_DUE, TRIAL_UNRETURNED, TRIAL_DAMAGE_REPORTED, TRIAL_DAMAGE_DECIDED,
-                 TRIAL_CANCELLED_BY_OPERATOR ->
+                 TRIAL_CANCELLED_BY_OPERATOR, TRIAL_STOCK_SHORT ->
                     builder.variable("trialTitle", nz(facts.snapshot())).variable("note", nz(facts.note()));
             case PURCHASE_PROOF_APPROVED, PURCHASE_PROOF_REJECTED -> builder.variable("postTitle", nz(facts.snapshot())).variable("note", nz(facts.note()));
             case POST_STATUS_CHANGED -> builder.variable("boardName", nz(facts.snapshot()))

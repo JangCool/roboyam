@@ -179,6 +179,16 @@ public class WithdrawalEraseStore extends IrobitRepositoryQDSL {
                 .execute());
     }
 
+
+    /**
+     * 체험단 신청 배송지 사본(점검 D8 — 공구 주문 배송지와 같은 규칙) — 탈퇴 완료 때 기간과 무관하게 즉시 파기(암호문 NULL · {@code address_purged_at}). 신청·뽑힌 줄은 남는다. 바뀐 줄 수.
+     * 대여형 반납 전 참가 중이면 탈퇴가 남은 일({@code TRIAL_RETURN})로 기다리므로 여기 올 때는 보낼·돌려받을 물건이 없다.
+     */
+    public int purgeTrialAddresses(long userId, Instant now) {
+        com.community.trial.entity.QTrialApplicationEntity a = com.community.trial.entity.QTrialApplicationEntity.trialApplicationEntity;
+        return rows(query.update(a).setNull(a.recipientEnc).setNull(a.phoneEnc).setNull(a.postcode).setNull(a.address1Enc).setNull(a.address2Enc).setNull(a.memoEnc)
+                .set(a.addressPurgedAt, now).where(a.userId.eq(userId), a.addressPurgedAt.isNull()).execute());
+    }
     /**
      * 포인트샵 아이템 소멸 — 가진·쓴 아이템을 회수(REVOKED). 구매 기록은 남는다. 대기 신청에 예약된 올리기 변경권은 예약을 푼다(V157 — 예약은 가진 장에만).
      *

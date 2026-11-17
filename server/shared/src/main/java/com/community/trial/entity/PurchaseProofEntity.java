@@ -68,6 +68,15 @@ public class PurchaseProofEntity {
         this.purgedAt = now;
     }
 
+    /** 시스템 반려(글 삭제·탈퇴 — 점검 L3·D8) — 확인자 없음, 사유는 부르는 쪽이 번들 문구로 */
+    public void rejectBySystem(String reason, Instant now) {
+        this.status = PurchaseProofStatus.REJECTED;
+        this.rejectReason = reason;
+        this.reviewedBy = null;
+        this.reviewedByMember = null;
+        this.reviewedAt = now;
+    }
+
     public boolean pending() {
         return status == PurchaseProofStatus.PENDING;
     }

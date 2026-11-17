@@ -107,13 +107,13 @@ public class AdminTitleViews {
         return grant(row, l, honorary == null ? null : grant(honorary, l, null));
     }
 
-    private static AdminTitleGrantView grant(MemberTitleEntity r, Lookup l, AdminTitleGrantView honorary) {
+    private AdminTitleGrantView grant(MemberTitleEntity r, Lookup l, AdminTitleGrantView honorary) {
         TitleEntity t = l.titles().get(r.getTitleId());
         String by = r.getGrantedBy() != null ? l.operator(r.getGrantedBy()) : r.getGrantedByMember() != null ? l.nicknames().get(r.getGrantedByMember()) : null;
         String byKind = r.getGrantedBy() != null ? "OPERATOR" : r.getGrantedByMember() != null ? "BOARD_MANAGER" : null;
         return new AdminTitleGrantView(Long.toString(r.getId()), t == null ? null : TitleDisplayService.badge(t, r.getPeriod(), r.getTier()), l.member(r.getUserId()),
                 r.getPeriod() == null || r.getPeriod().isEmpty() ? null : r.getPeriod(), r.getSource().name(), r.getGrantedAt(), by, byKind, r.getGrantReason(), r.getRevokedAt(),
-                l.operator(r.getRevokedBy()), r.getRevokedReason(), r.isActive(), honorary);
+                l.operator(r.getRevokedBy()), texts.revokeReason(r.getRevokedBy(), r.getRevokedReason()), r.isActive(), honorary); // 시스템 회수는 번들 문구(점검 L2)
     }
 
     public List<AdminTitleApplicationView> applications(List<TitleApplicationEntity> rows) {

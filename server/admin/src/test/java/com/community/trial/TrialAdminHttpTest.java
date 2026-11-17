@@ -181,7 +181,7 @@ class TrialAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(JsonPath.<List<String>>read(proofs, "$.data.items[?(@.id == '" + proof + "')].member.memberNo")).containsExactly(Long.toString(author));
 
         mvc.perform(withCsrf(post("/api/admin/review-queue/sponsor-hidden/" + postId + "/confirm"), manager).content("{\"note\":\"업체 제공\"}"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").doesNotExist()); // 제재를 곁들이지 않았으면 data null(점검 D2)
         assertThat(jdbc.queryForObject("SELECT purchase_source FROM posts WHERE id = ?", String.class, postId)).isEqualTo("SPONSORED");
         String done = mvc.perform(get("/api/admin/review-queue?type=SPONSOR_HIDDEN&status=DONE").cookie(manager)).andReturn().getResponse().getContentAsString();
         assertThat(JsonPath.<List<String>>read(done, "$.data.items[?(@.id == '" + postId + "')].status")).containsExactly("CONFIRMED");

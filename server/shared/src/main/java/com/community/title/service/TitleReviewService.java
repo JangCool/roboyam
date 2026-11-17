@@ -83,7 +83,9 @@ public class TitleReviewService {
         grants.requireReceivable(app.getUserId());
         Instant now = grants.now();
         String cleaned = clean(note);
-        grants.insert(title, app.getUserId(), null, "", TitleSource.APPLICATION, app.getId(), reviewer.operatorId(), reviewer.memberId(), cleaned, now);
+        // 단계 칭호(리뷰어 = 체험단 약속 지킴 3·10·30)는 승인 때 이미 센 수의 단계로 준다 — 못 미치면 단계 전(점검 L1)
+        com.community.title.entity.TitleTier tier = title.isTiered() ? title.tierFor(eligibility.metric(title, app.getUserId())) : null;
+        grants.insert(title, app.getUserId(), tier, "", TitleSource.APPLICATION, app.getId(), reviewer.operatorId(), reviewer.memberId(), cleaned, now);
         app.approve(reviewer.operatorId(), reviewer.memberId(), cleaned, now);
         audit.record(event(reviewer, AuditActions.TITLE_APPLICATION_APPROVE, app, title, cleaned));
         return app;

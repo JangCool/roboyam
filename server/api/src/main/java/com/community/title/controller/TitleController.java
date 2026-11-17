@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code GET /api/me/titles} — 내 칭호(로그인 401) · {@code PUT /api/me/titles/representative} {@code { key | null, hidden }} → 바뀐 내 칭호 · 409 {@code TITLE_NOT_OWNED}</li>
  *   <li>{@code POST /api/me/titles/{key}/applications} → 201 신청 · 404 {@code TITLE_NOT_FOUND} · 409 {@code TITLE_NOT_APPLICABLE}·{@code TITLE_MEMBER_EXCLUDED}·
  *       {@code TITLE_ALREADY_GRANTED}·{@code TITLE_APPLICATION_PENDING}·{@code TITLE_REAPPLY_TOO_SOON}·{@code TITLE_CONDITIONS_UNMET}</li>
- *   <li>{@code POST /api/me/titles/seen} → 204 — 축하 창을 닫았다(지금 보지 않은 받은 칭호 전부)</li>
+ *   <li>{@code GET /api/me/titles/unseen} → 축하 창에 띄울 받은 칭호만(가벼운 API — 점검 D14) · {@code POST /api/me/titles/seen} → 204 — 축하 창을 닫았다(지금 보지 않은 받은 칭호 전부)</li>
  * </ul>
  * 모든 응답 {@code Cache-Control: no-store}(내 값·보유자 수가 바뀐다).
  */
@@ -58,6 +58,12 @@ public class TitleController {
     @GetMapping("/api/me/titles")
     public ResponseEntity<ApiResponse<MyTitlesView>> mine(Authentication authentication) {
         return noStore(myTitles.mine(userId(authentication)));
+    }
+
+    /** 축하 창용 가벼운 목록(점검 D14) — 보지 않은 받은 칭호 {@code [{ key, label, labelEn, icon, tier, chip, ratio }]}(없으면 빈 목록) */
+    @GetMapping("/api/me/titles/unseen")
+    public ResponseEntity<ApiResponse<List<MyTitlesView.UnseenView>>> unseen(Authentication authentication) {
+        return noStore(myTitles.unseen(userId(authentication)));
     }
 
     @PutMapping("/api/me/titles/representative")

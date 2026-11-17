@@ -85,6 +85,11 @@ public class TrialPromiseService {
         titles.raiseTierIfHeld(BuiltinTitles.REVIEWER, userId, participants.countByUserIdAndKeptTrue(userId));
     }
 
+    /** 약속 지킨 횟수가 줄었다(사용기 글을 지워 판정을 되돌림 — 점검 L4) — 리뷰어 단계를 지킨 횟수에 맞게 다시 정한다(낮출 수 있다) */
+    public void recalcReviewer(long userId) {
+        titles.recalcTierIfHeld(BuiltinTitles.REVIEWER, userId, participants.countByUserIdAndKeptTrue(userId));
+    }
+
     /** 사용기 기한 넘김(배치) */
     @Transactional
     public void reviewLate(TrialParticipantEntity p, TrialEntity t, TrialSettingEntity.Values settings, Instant now) {

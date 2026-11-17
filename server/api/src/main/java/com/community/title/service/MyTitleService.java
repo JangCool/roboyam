@@ -91,21 +91,43 @@ public class MyTitleService {
             }
         }
 
-        Map<Long, Long> holders = queries.holders();
-        long base = queries.memberBase();
-        List<MyTitlesView.UnseenView> unseen = rows.stream().filter(r -> r.getSeenAt() == null).map(r -> {
-            TitleEntity t = enabled.get(r.getTitleId());
-            return new MyTitlesView.UnseenView(t.getTitleKey(), TitleLabels.label(t, r.getPeriod()), TitleLabels.labelEn(t, r.getPeriod()), t.getIcon(),
-                    r.getTier() == null ? null : r.getTier().name(), t.getChip(), PublicTitleService.ratio(holders.getOrDefault(t.getId(), 0L), base));
-        }).toList();
+        List<MyTitlesView.UnseenView> unseen = unseenOf(rows, enabled);
 
         Map<Long, TitleEntity> all = new java.util.HashMap<>();
         titles.findAll().forEach(t -> all.put(t.getId(), t));
         List<MyTitlesView.ApplicationView> apps = applications.findTop50ByUserIdOrderByCreatedAtDescIdDesc(userId).stream().filter(a -> all.containsKey(a.getTitleId()))
-                .map(a -> new MyTitlesView.ApplicationView(Long.toString(a.getId()), all.get(a.getTitleId()).getTitleKey(), all.get(a.getTitleId()).getName(), a.getStatus().name(),
+                .map(a -> new MyTitlesView.ApplicationView(Long.toString(a.getId()), all.get(a.getTitleId()).getTitleKey(), all.get(a.getTitleId()).getName(),
+                        all.get(a.getTitleId()).getNameEn(), a.getStatus().name(),
                         a.getReason(), a.getReapplyAt(), a.getCreatedAt())).toList();
 
         return new MyTitlesView(chosen == null ? null : new MyTitlesView.RepresentativeView(chosen), pref != null && pref.isHidden(), owned, progress, applicable, apps, unseen);
+    }
+
+    /**
+     * 축하 창에 띄울 받은 칭호만(점검 D14 — {@code GET /api/me/titles/unseen}, 화면이 접속 때마다 부르는 가벼운 API) — 살아 있는·켜진 칭호 중 {@code seen_at} 이 빈 줄. 없으면 빈 목록이고
+     * 보유 비율 질의도 하지 않는다. 닫으면 {@code POST /api/me/titles/seen}.
+     */
+    public List<MyTitlesView.UnseenView> unseen(long userId) {
+        List<MemberTitleEntity> fresh = memberTitles.findByUserIdAndRevokedAtIsNull(userId).stream().filter(r -> r.getSeenAt() == null).toList();
+        if (fresh.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, TitleEntity> enabled = display.enabledTitles();
+        return unseenOf(fresh.stream().filter(r -> enabled.containsKey(r.getTitleId())).toList(), enabled);
+    }
+
+    private List<MyTitlesView.UnseenView> unseenOf(List<MemberTitleEntity> rows, Map<Long, TitleEntity> enabled) {
+        List<MemberTitleEntity> fresh = rows.stream().filter(r -> r.getSeenAt() == null).toList();
+        if (fresh.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Long> holders = queries.holders();
+        long base = queries.memberBase();
+        return fresh.stream().map(r -> {
+            TitleEntity t = enabled.get(r.getTitleId());
+            return new MyTitlesView.UnseenView(t.getTitleKey(), TitleLabels.label(t, r.getPeriod()), TitleLabels.labelEn(t, r.getPeriod()), t.getIcon(),
+                    r.getTier() == null ? null : r.getTier().name(), t.getChip(), PublicTitleService.ratio(holders.getOrDefault(t.getId(), 0L), base));
+        }).toList();
     }
 
     /** 자동 칭호의 다음 목표 — 다 받았으면 빈 값 */
@@ -214,7 +236,8 @@ public class MyTitleService {
         } catch (DuplicateKeyException e) {
             throw TitleException.applicationPending();
         }
-        return new MyTitlesView.ApplicationView(Long.toString(app.getId()), t.getTitleKey(), t.getName(), app.getStatus().name(), null, null, app.getCreatedAt());
+        return new MyTitlesView.ApplicationView(Long.toString(app.getId()), t.getTitleKey(), t.getName(), t.getNameEn(), app.getStatus().name(), null, null,
+                app.getCreatedAt());
     }
 
     @Transactional

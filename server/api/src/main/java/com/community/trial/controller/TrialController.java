@@ -35,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>{@code GET /api/me/trials} → 내 신청·뽑힘(받음 버튼·쓰러 가기·반납 안내·이의 제기) · {@code GET /api/me/trials/writable?board=} → 「뽑힌 체험단 사용기로 쓰기」 후보</li>
  *   <li>{@code POST /api/me/trials/participants/{id}/received} → 204 · 409 {@code TRIAL_NOT_SHIPPED}·{@code TRIAL_ALREADY_RECEIVED}</li>
  *   <li>{@code POST /api/me/trials/damage-reports/{id}/objection} {@code { text }} → 204 · 409 {@code TRIAL_OBJECTION_CLOSED}</li>
+ *   <li>{@code GET /api/me/trials/photos/{id}} → 내 파손 신고 사진 바이트(V243 — 비공개, no-store) · 404 {@code TRIAL_PHOTO_NOT_FOUND} · 410 {@code TRIAL_PHOTO_PURGED}</li>
  *   <li>{@code POST /api/posts/{id}/purchase-proof}(multipart {@code file}) → 201 {@code { id, status }} · 409 {@code PURCHASE_PROOF_NOT_ALLOWED}·{@code PURCHASE_PROOF_EXISTS} ·
  *       400 {@code fields.file}</li>
  * </ul>
@@ -93,6 +94,17 @@ public class TrialController {
     public ResponseEntity<Void> objection(@PathVariable String id, @RequestBody(required = false) TrialViews.ObjectionRequest body, Authentication authentication) {
         trials.objection(userId(authentication), id, body);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 내 파손 신고 사진(점검 D3 — 비공개) → 바이트 · {@code no-store} · 404 {@code TRIAL_PHOTO_NOT_FOUND} · 410 {@code TRIAL_PHOTO_PURGED} */
+    @GetMapping("/api/me/trials/photos/{id}")
+    public ResponseEntity<byte[]> photo(@PathVariable String id, Authentication authentication) {
+        return photoResponse(trials.photo(userId(authentication), id));
+    }
+
+    static ResponseEntity<byte[]> photoResponse(TrialViews.PhotoBytes photo) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(org.springframework.http.MediaType.parseMediaType(photo.contentType()))
+                .body(photo.bytes());
     }
 
     @PostMapping("/api/posts/{id}/purchase-proof")

@@ -125,12 +125,18 @@ public class TrialService {
     private final SnowflakeIdGenerator ids;
     private final Clock clock;
     private final TrialPayments payments;
+    private final TrialPhotoCodec photoCodec;
+    private final com.community.zconfiguration.crypto.DataCipher cipher;
+    private final com.community.trial.repository.master.TrialAddressViewRepository addressViews;
+    private final com.community.notification.service.NotificationPublisher operatorNotices;
 
     public TrialService(TrialRepository trials, TrialApplicationRepository applications, TrialParticipantRepository participants, TrialStockReceiptRepository stocks,
                         TrialPhotoRepository photos, TrialDamageReportRepository damages, TrialQueries queries, TrialSettingsService settings,
                         TrialPromiseService promise, TrialViewer viewer, BizApplicationStore bizApplications, BizPriceRuleStore prices, AdAdvertiserStore advertisers,
                         BoardCatalog catalog, GroupBuyImageUploader images, MemberNotificationPublisher notices, AuditLogService audit, Messages messages,
-                        SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks, TrialPayments payments) {
+                        SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks, TrialPayments payments, TrialPhotoCodec photoCodec,
+                        com.community.zconfiguration.crypto.DataCipher cipher, com.community.trial.repository.master.TrialAddressViewRepository addressViews,
+                        com.community.notification.service.NotificationPublisher operatorNotices) {
         this.trials = trials;
         this.applications = applications;
         this.participants = participants;
@@ -152,6 +158,10 @@ public class TrialService {
         this.ids = ids;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
         this.payments = payments;
+        this.photoCodec = photoCodec;
+        this.cipher = cipher;
+        this.addressViews = addressViews;
+        this.operatorNotices = operatorNotices;
     }
 
     public Instant now() {
@@ -242,8 +252,10 @@ public class TrialService {
             }
             TrialEntity.Fields f = fields(body, t);
             boolean anyApplication = applications.countByTrialIdAndStatusNot(t.getId(), TrialApplicationStatus.CANCELLED) > 0;
-            if (anyApplication && (f.form() != t.getForm() || f.shipper() != t.getShipper())) {
-                throw TrialException.stateInvalid(); // 신청 동의 항목이 형태·보내는 쪽으로 정해진다
+            // 신청자가 있으면: 동의 항목이 형태·보내는 쪽으로 정해지고, 회원은 그 광고주·그 제품값(청구 한도)에 동의하고 신청했다 — 바꾸거나 올리면 409(내리기는 된다 — 점검 D6)
+            if (anyApplication && (f.form() != t.getForm() || f.shipper() != t.getShipper() || f.advertiserId() != t.getAdvertiserId()
+                    || f.productPrice() > t.getProductPrice())) {
+                throw TrialException.applicantsLocked();
             }
             t.edit(f, now);
             bizApplications.retitleTrial(t.getBizApplicationId(), f.title(), f.applyStartAt(), f.applyEndAt(), now);
@@ -455,18 +467,49 @@ public class TrialService {
 
     // ── 사진 ─────────────────────────────────────────────────────────────
 
-    /** 사진 올리기(처리에 붙기 전) — 광고주는 발송 전·반납·파손만 */
+    /**
+     * 사진 올리기(처리에 붙기 전) — 광고주는 발송 전·반납·파손만. 비공개(점검 D3): 다시 인코딩한 JPEG(EXIF·위치 정보 빠짐)의 암호문만 DB 에 두고, 주소는 올린 쪽 권한 API
+     * ({@code key} null).
+     */
     @Transactional
     public TrialViews.Uploaded uploadPhoto(Actor actor, String trialIdText, String kindRaw, byte[] data) {
+        cipher.requireConfigured();
         TrialEntity t = visible(trialIdText, actor);
         TrialPhotoKind kind = TrialPhotoKind.parse(kindRaw).orElseThrow(() -> ValidationException.of("kind", new MessageRef("trial.value.invalid")));
         if (!actor.operator() && kind == TrialPhotoKind.STOCK) {
             throw ValidationException.of("kind", new MessageRef("trial.value.invalid"));
         }
-        GroupBuyImageUploader.Uploaded up = images.upload("trial", data);
-        TrialPhotoEntity p = TrialPhotoEntity.upload(ids.nextId(), t.getId(), kind, up.key(), actor.type(), actor.id(), now());
+        byte[] jpeg = photoCodec.jpeg(data);
+        TrialPhotoEntity p = TrialPhotoEntity.upload(ids.nextId(), t.getId(), kind, cipher.encryptBytes(TrialPii.PHOTO, jpeg), TrialPhotoCodec.CONTENT_TYPE, actor.type(),
+                actor.id(), now());
         photos.persist(p);
-        return new TrialViews.Uploaded(Long.toString(p.getId()), kind.name(), up.key(), up.url());
+        return new TrialViews.Uploaded(Long.toString(p.getId()), kind.name(), null, TrialViewer.Audience.of(actor.type()).url(p.getId()));
+    }
+
+    /**
+     * 사진 보기(권한 API — 점검 D3) — 운영자는 모든 사진, 광고주는 자기 모집(초안 빼고)의 붙은 사진과 자기가 올린 붙기 전 사진만(그 밖 404 {@code TRIAL_PHOTO_NOT_FOUND}).
+     * 지운 사진 410 {@code TRIAL_PHOTO_PURGED}.
+     */
+    @Transactional(readOnly = true)
+    public TrialViews.PhotoBytes photo(Actor actor, String photoIdText) {
+        TrialPhotoEntity p = photos.findById(id(photoIdText, TrialException::photoNotFound)).orElseThrow(TrialException::photoNotFound);
+        if (!actor.operator()) {
+            TrialEntity t = trials.findById(p.getTrialId()).orElseThrow(TrialException::photoNotFound);
+            boolean own = t.getAdvertiserId().equals(actor.advertiserId()) && t.getStatus() != TrialStatus.DRAFT;
+            boolean mine = p.getUploadedByType() == TrialActorType.ADVERTISER && p.getUploadedBy() == actor.id();
+            if (!own || (p.getAttachedAt() == null && !mine)) {
+                throw TrialException.photoNotFound();
+            }
+        }
+        return bytesOf(p);
+    }
+
+    /** 사진 바이트 — 지웠으면 410 */
+    TrialViews.PhotoBytes bytesOf(TrialPhotoEntity p) {
+        if (p.purged()) {
+            throw TrialException.photoPurged();
+        }
+        return new TrialViews.PhotoBytes(cipher.decryptBytes(TrialPii.PHOTO, p.getContent()), p.getContentType());
     }
 
     /** 모집 대표 그림 올리기(운영자) — 키를 모집 만들기·고치기의 {@code imageKey} 로 */
@@ -530,9 +573,29 @@ public class TrialService {
             receipt.change(quantity, note, operatorId, now);
         }
         attach.forEach(p -> p.attach(null, null, now));
+        int selected = t.getSelectedCount() == null ? 0 : t.getSelectedCount();
+        if (quantity < selected) {
+            stockShort(t, quantity, selected);
+        }
         audit.record(actor.event(AuditActions.TRIAL_STOCK_RECEIVE).target("TRIAL", Long.toString(t.getId())).with("quantity", quantity).with("photos", attach.size())
-                .with("selected", t.getSelectedCount() == null ? 0 : t.getSelectedCount()));
+                .with("selected", selected));
         return viewer.detail(t, TrialActorType.OPERATOR, now);
+    }
+
+    /**
+     * 입고 부족(점검 D10 — 계약 「운영자가 대신 보낼 때」 1) — 받은 수량이 뽑힌 인원(취소 뺀)보다 적으면 광고주 회원(사업자 신원의 회원 — 없으면 건너뜀)에게 {@code TRIAL_STOCK_SHORT},
+     * 운영자에게 관리자 알림 {@code TRIAL_STOCK_SHORTAGE}(같은 모집은 한 묶음). 입고를 고칠 때마다 다시 본다.
+     */
+    private void stockShort(TrialEntity t, int quantity, int selected) {
+        String note = messages.get(new MessageRef("trial.notice.stockShort", String.valueOf(quantity), String.valueOf(selected)));
+        Long member = payments.advertiserMember(t.getAdvertiserId());
+        if (member != null) {
+            notices.trial(member, MemberNotificationType.TRIAL_STOCK_SHORT, t.getTitle(), note, "/business/trials/" + t.getId());
+        }
+        String trialId = Long.toString(t.getId());
+        operatorNotices.publish(com.community.notification.entity.AdminNotificationEvent.TRIAL_STOCK_SHORTAGE,
+                com.community.notification.dto.NotificationContext.empty().dedupe(trialId + ":" + quantity).link("id", trialId)
+                        .args(t.getTitle(), String.valueOf(quantity), String.valueOf(selected)));
     }
 
     /**
@@ -570,8 +633,8 @@ public class TrialService {
             }
         }
         // 광고주가 보내면 발송 전 사진 필수(없으면 발송 처리 안 됨) — 이미 붙은 발송 전 사진이 있으면 고칠 때는 새 사진이 없어도 된다
-        boolean hasPreShip = photos.findByTrialIdAndAttachedAtIsNotNullOrderByIdAsc(t.getId()).stream()
-                .anyMatch(x -> x.getKind() == TrialPhotoKind.PRE_SHIP && p.getId().equals(x.getParticipantId()));
+        boolean hasPreShip = queries.attachedPhotos(t.getId()).stream()
+                .anyMatch(x -> x.kind() == TrialPhotoKind.PRE_SHIP && p.getId().equals(x.participantId()));
         List<TrialPhotoEntity> attach = loosePhotos(t, body == null ? null : body.photoIds(), TrialPhotoKind.PRE_SHIP, actor, !actor.operator() && !hasPreShip);
         Instant now = now();
         p.ship(carrier, tracking, actor.type(), actor.id(), now);
@@ -669,12 +732,15 @@ public class TrialService {
                 .with("photos", attach.size()));
     }
 
-    /** 광고주에게 돌려보내기(운영자가 보내는 모집) — 반송 송장 */
+    /** 광고주에게 돌려보내기(운영자가 보내는 모집) — 반송 송장. 진행 중·끝난 모집만(그 밖 409 {@code TRIAL_STATE_INVALID} — 점검 L7) */
     @Transactional
     public TrialViews.TrialDetail returnShipment(long operatorId, String ip, String idText, TrialViews.ShipmentRequest body) {
         TrialEntity t = trials.findWithLockById(id(idText, TrialException::notFound)).orElseThrow(TrialException::notFound);
         if (!t.operatorShips()) {
             throw TrialException.wrongShipper();
+        }
+        if (t.getStatus() != TrialStatus.RUNNING && t.getStatus() != TrialStatus.CLOSED) {
+            throw TrialException.stateInvalid();
         }
         TrialStockReceiptEntity receipt = stocks.findByTrialId(t.getId()).orElseThrow(TrialException::noStock);
         String carrier = text(body == null ? null : body.carrier(), 30, "carrier", null);
@@ -688,7 +754,10 @@ public class TrialService {
 
     // ── 파손 ─────────────────────────────────────────────────────────────
 
-    /** 파손 신고(대여형) — 운영자 또는 광고주(광고주가 보내는 모집), 사진 필수. 회원 알림(7일 안 이의) */
+    /**
+     * 파손 신고(대여형 — 반납 받은 뒤만, 아니면 409 {@code TRIAL_NOT_RETURNED} — 점검 L7. 제공형은 회원 것이 되고 운영자 발송의 입고 사진 단계 파손은 광고주 책임이라 신고 대상이 아니다) —
+     * 운영자 또는 광고주(광고주가 보내는 모집), 사진 필수. 회원 알림(7일 안 이의)
+     */
     @Transactional
     public TrialViews.DamageReport reportDamage(Actor actor, String participantIdText, TrialViews.DamageRequest body) {
         TrialParticipantEntity p = participants.findWithLockById(id(participantIdText, TrialException::participantNotFound))
@@ -704,6 +773,9 @@ public class TrialService {
         if (!p.shipped()) {
             throw TrialException.notShipped();
         }
+        if (!p.returned()) {
+            throw TrialException.notReturned(); // 사진 비교(보내기 전 ↔ 반납받은 뒤)가 기준 — 반납 받은 뒤 신고한다
+        }
         String description = text(body == null ? null : body.description(), 1000, "description", null);
         List<TrialPhotoEntity> attach = loosePhotos(t, body == null ? null : body.photoIds(), TrialPhotoKind.DAMAGE, actor, true);
         Instant now = now();
@@ -715,7 +787,8 @@ public class TrialService {
                 messages.get(new MessageRef("trial.notice.damageReported", String.valueOf(OBJECTION_DAYS))), "/me/trials");
         audit.record(actor.event(AuditActions.TRIAL_DAMAGE_REPORT).target("TRIAL", Long.toString(t.getId())).with("participantId", Long.toString(p.getId()))
                 .with("damageReportId", Long.toString(d.getId())).with("photos", attach.size()));
-        return viewer.damage(d, viewer.member(p.getUserId(), actor.operator()), attach);
+        return viewer.damage(d, viewer.member(p.getUserId(), actor.operator()), attach.stream().map(TrialQueries.PhotoMeta::of).toList(),
+                TrialViewer.Audience.of(actor.type()));
     }
 
     /** 파손 판정(운영자) — 회원이 이의했거나 이의 기한이 지난 뒤만(아니면 409 {@code TRIAL_DAMAGE_OBJECTION_OPEN}) */
@@ -744,9 +817,38 @@ public class TrialService {
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.TRIAL_DAMAGE_DECIDE, AuditResult.SUCCESS).target("TRIAL", Long.toString(t.getId()))
                 .with("damageReportId", Long.toString(d.getId())).with("participantId", Long.toString(p.getId())).with("verdict", verdict.name())
                 .with("chargeLimit", t.getProductPrice()));
-        List<TrialPhotoEntity> own = photos.findByTrialIdAndAttachedAtIsNotNullOrderByIdAsc(t.getId()).stream().filter(x -> d.getId().equals(x.getDamageReportId()))
+        List<TrialQueries.PhotoMeta> own = queries.attachedPhotos(t.getId()).stream().filter(x -> d.getId().equals(x.damageReportId()))
                 .toList();
-        return viewer.damage(d, viewer.member(p.getUserId(), true), own);
+        return viewer.damage(d, viewer.member(p.getUserId(), true), own, TrialViewer.Audience.ADMIN);
+    }
+
+    // ── 운영자 주소 보기(점검 D4) ───────────────────────────────────────────
+
+    /** 주소를 다시 가리기까지(분) — 화면이 이 시각에 가린다(공동구매 배송지 열람과 같은 10분) */
+    public static final int REVEAL_MINUTES = 10;
+
+    /**
+     * 주소 보기({@code POST /api/admin/trials/participants/{id}/address/reveal} {@code { reason }} — 권한 {@code trial.address.reveal}) — 운영자가 보내는 모집의 뽑힌 줄만
+     * (아니면 409 {@code TRIAL_WRONG_SHIPPER}), 사유 5~200자(400 {@code fields.reason}), 파기한 주소 410 {@code TRIAL_ADDRESS_PURGED}. 열람 기록({@code trial_address_views})·
+     * 감사 {@code TRIAL_ADDRESS_REVEAL}(개인정보 분류 — 덧붙임에 사유·뽑힌 줄, 주소 평문은 싣지 않는다)을 같은 트랜잭션에 남긴 뒤 평문과 다시 가릴 시각.
+     */
+    @Transactional
+    public TrialViews.RevealedAddress revealAddress(long operatorId, String ip, String participantIdText, TrialViews.RevealRequest body) {
+        String reason = com.community.groupbuy.service.GroupBuyAudit.reason(body == null ? null : body.reason());
+        TrialParticipantEntity p = participants.findById(id(participantIdText, TrialException::participantNotFound)).orElseThrow(TrialException::participantNotFound);
+        TrialEntity t = trials.findById(p.getTrialId()).orElseThrow(TrialException::notFound);
+        if (!t.operatorShips()) {
+            throw TrialException.wrongShipper(); // 광고주가 보내는 모집의 주소는 운영자에게 보이지 않는다(광고주 동의 범위)
+        }
+        TrialApplicationEntity a = applications.findById(p.getApplicationId()).orElseThrow(TrialException::participantNotFound);
+        if (a.getAddressPurgedAt() != null || a.getRecipientEnc() == null) {
+            throw TrialException.addressPurged();
+        }
+        Instant now = now();
+        addressViews.persist(com.community.trial.entity.TrialAddressViewEntity.of(ids.nextId(), t.getId(), p.getId(), operatorId, reason, now));
+        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.TRIAL_ADDRESS_REVEAL, AuditResult.SUCCESS).target("TRIAL", Long.toString(t.getId()))
+                .with("participantId", Long.toString(p.getId())).with("memberId", Long.toString(p.getUserId())).with("reason", reason));
+        return viewer.reveal(a, now.plus(Duration.ofMinutes(REVEAL_MINUTES)));
     }
 
     // ── 안쪽 ─────────────────────────────────────────────────────────────

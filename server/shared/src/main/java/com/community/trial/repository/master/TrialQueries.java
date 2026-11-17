@@ -6,6 +6,8 @@ import com.community.trial.entity.QTrialApplicationEntity;
 import com.community.trial.entity.QTrialEntity;
 import com.community.trial.entity.QTrialParticipantEntity;
 import com.community.trial.entity.QTrialStockReceiptEntity;
+import com.community.trial.entity.QTrialDamageReportEntity;
+import com.community.trial.entity.QTrialPhotoEntity;
 import com.community.trial.entity.TrialApplicationStatus;
 import com.community.trial.entity.TrialEntity;
 import com.community.trial.entity.TrialForm;
@@ -113,6 +115,22 @@ public class TrialQueries extends IrobitRepositoryQDSL {
                 .orderBy(POST.createdAt.asc(), POST.id.asc()).fetch();
     }
 
+
+    /** 붙은 사진 한 줄의 메타(바이트 없이 — 상세·내 체험단 응답이 사진 바이트를 메모리에 올리지 않게, V243) */
+    public record PhotoMeta(long id, com.community.trial.entity.TrialPhotoKind kind, Long participantId, Long damageReportId, Instant createdAt, boolean purged) {
+
+        public static PhotoMeta of(com.community.trial.entity.TrialPhotoEntity p) {
+            return new PhotoMeta(p.getId(), p.getKind(), p.getParticipantId(), p.getDamageReportId(), p.getCreatedAt(), p.purged());
+        }
+    }
+
+    /** 모집의 붙은 사진 메타(ID 차례) */
+    public List<PhotoMeta> attachedPhotos(long trialId) {
+        QTrialPhotoEntity PH = QTrialPhotoEntity.trialPhotoEntity;
+        return query.select(PH.id, PH.kind, PH.participantId, PH.damageReportId, PH.createdAt, PH.purgedAt).from(PH).where(PH.trialId.eq(trialId), PH.attachedAt.isNotNull())
+                .orderBy(PH.id.asc()).fetch().stream().map(r -> new PhotoMeta(r.get(PH.id), r.get(PH.kind), r.get(PH.participantId), r.get(PH.damageReportId),
+                        r.get(PH.createdAt), r.get(PH.purgedAt) != null)).toList();
+    }
     // ── 하루 배치 후보 ──────────────────────────────────────────────────────
 
     /** 신청 마감이 지난 모집 중(RECRUITING) */
@@ -131,11 +149,17 @@ public class TrialQueries extends IrobitRepositoryQDSL {
                 .orderBy(P.id.asc()).limit(1000).fetch();
     }
 
-    /** 대여형에서 받았는데 반납·미반납 확정이 없는 줄(반납 독촉·미반납 판정 대상) */
-    public List<TrialParticipantEntity> returnOpen() {
+    /**
+     * 반납 독촉·미반납 판정을 할 때가 된 줄 한 쪽(M4-3 — 때가 된 것만 질의에서 거르고 ID 커서로 끝까지): 대여형에서 받았는데 반납·미반납 확정이 없고, 첫 독촉 전이면 기한 + 첫 독촉 일수,
+     * 두 번째 독촉 전이면 기한 + 두 번째 일수, 아니면 기한 + 미반납 일수가 지났다. {@code afterId} 보다 큰 ID 차례.
+     */
+    public List<TrialParticipantEntity> returnOpen(Instant now, int firstDays, int secondDays, int unreturnedDays, long afterId, int limit) {
+        BooleanExpression due = P.returnRemindFirstAt.isNull().and(P.returnDueAt.loe(now.minus(java.time.Duration.ofDays(firstDays))))
+                .or(P.returnRemindSecondAt.isNull().and(P.returnDueAt.loe(now.minus(java.time.Duration.ofDays(secondDays)))))
+                .or(P.returnDueAt.loe(now.minus(java.time.Duration.ofDays(unreturnedDays))));
         return query.selectFrom(P).join(T).on(T.id.eq(P.trialId))
-                .where(T.form.eq(TrialForm.LEND), P.receivedAt.isNotNull(), P.returnedAt.isNull(), P.unreturnedAt.isNull(), P.returnDueAt.isNotNull())
-                .orderBy(P.id.asc()).limit(1000).fetch();
+                .where(T.form.eq(TrialForm.LEND), P.receivedAt.isNotNull(), P.returnedAt.isNull(), P.unreturnedAt.isNull(), P.returnDueAt.isNotNull(), due, P.id.gt(afterId))
+                .orderBy(P.id.asc()).limit(limit).fetch();
     }
 
     /** 입고 보관 기한이 된(반송·알림 전) 입고 줄 */
@@ -143,10 +167,29 @@ public class TrialQueries extends IrobitRepositoryQDSL {
         return query.selectFrom(S).where(S.receivedAt.loe(receivedBefore), S.returnShippedAt.isNull(), S.keepNotifiedAt.isNull()).limit(500).fetch();
     }
 
-    /** 주소 사본이 남은 신청 중 파기를 따져 볼 줄 — 신청 대기(모집 진행 중)가 아닌 것, 또는 모집이 취소·끝난 것 */
-    public List<TrialApplicationEntity> purgeCandidates() {
+    /**
+     * 주소 사본이 남은 신청 중 파기를 따져 볼 줄 한 쪽(ID 만 — M4-3: 아직 때가 안 된 줄이 앞을 막지 않게 ID 커서로 끝까지) — 신청 대기(모집 진행 중)가 아닌 것, 또는 모집이 취소·끝난 것.
+     * {@code afterId} 보다 큰 ID 차례.
+     */
+    public List<Long> purgeCandidates(long afterId, int limit) {
         BooleanExpression trialDone = JPAExpressions.selectOne().from(T).where(T.id.eq(A.trialId), T.status.in(TrialStatus.CANCELLED, TrialStatus.CLOSED)).exists();
-        return query.selectFrom(A).where(A.addressPurgedAt.isNull(), A.status.ne(TrialApplicationStatus.APPLIED).or(trialDone)).orderBy(A.id.asc()).limit(1000).fetch();
+        return query.select(A.id).from(A).where(A.addressPurgedAt.isNull(), A.status.ne(TrialApplicationStatus.APPLIED).or(trialDone), A.id.gt(afterId))
+                .orderBy(A.id.asc()).limit(limit).fetch();
+    }
+
+    /**
+     * 보관 기한이 지난 체험단 사진 한 쪽(점검 D3 — ID 차례, {@code afterId} 커서): 붙은 사진 중 아직 지우지 않았고, 모집이 끝났거나(CLOSED — 끝난 때) 취소됐는데(취소한 때) 그때가
+     * {@code cutoff} 이전이고, 그 모집에 판정 안 된 파손 신고가 없으며 판정한 파손 신고도 판정 때가 {@code cutoff} 이전인 것.
+     */
+    public List<Long> photoPurgeCandidates(Instant cutoff, long afterId, int limit) {
+        QTrialPhotoEntity PH = QTrialPhotoEntity.trialPhotoEntity;
+        QTrialDamageReportEntity D = QTrialDamageReportEntity.trialDamageReportEntity;
+        BooleanExpression ended = JPAExpressions.selectOne().from(T).where(T.id.eq(PH.trialId),
+                T.status.eq(TrialStatus.CLOSED).and(T.closedAt.loe(cutoff)).or(T.status.eq(TrialStatus.CANCELLED).and(T.cancelledAt.loe(cutoff)))).exists();
+        BooleanExpression damageOpen = JPAExpressions.selectOne().from(D).where(D.trialId.eq(PH.trialId),
+                D.status.ne(com.community.trial.entity.TrialDamageStatus.DECIDED).or(D.decidedAt.gt(cutoff))).exists();
+        return query.select(PH.id).from(PH).where(PH.purgedAt.isNull(), PH.attachedAt.isNotNull(), ended, damageOpen.not(), PH.id.gt(afterId)).orderBy(PH.id.asc())
+                .limit(limit).fetch();
     }
 
     /** 진행 중인 모집 중 모든 뽑힌 줄이 판정(약속 지킴 여부)된 모집 — 자동으로 끝낸다. 운영자가 취소한 줄(V242 — 끝내 보내지 않는 줄)은 판정에서 뺀다 */
@@ -196,6 +239,14 @@ public class TrialQueries extends IrobitRepositoryQDSL {
                     .orderBy(P.returnDueAt.asc(), P.id.asc()).limit(limit).fetch();
         }
         return query.selectFrom(P).where(lend, P.returnedAt.isNotNull().or(P.unreturnedAt.isNotNull())).orderBy(P.id.desc()).limit(limit).fetch();
+    }
+
+    /** 반납 확인 대기 수(확인할 일 대기 수 — 질의 한 번, 점검 L8) — {@link #returnChecks} 대기와 같은 조건 */
+    public long countReturnChecksPending(Instant now) {
+        BooleanExpression lend = JPAExpressions.selectOne().from(T).where(T.id.eq(P.trialId), T.form.eq(TrialForm.LEND)).exists();
+        Long n = query.select(P.id.count()).from(P).where(lend, P.receivedAt.isNotNull(), P.returnedAt.isNull(), P.unreturnedAt.isNull(), P.returnDueAt.loe(now))
+                .fetchOne();
+        return n == null ? 0 : n;
     }
 
     private static long nz(Long value) {

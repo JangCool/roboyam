@@ -65,11 +65,14 @@ public class TrialPostLinker {
         }
     }
 
-    /** 글 응답의 구입 경로 — {@code proof} NONE · PENDING · APPROVED, {@code disclosure} 표시 상자(체험단·협찬이면) */
-    public record PurchaseView(String source, String proof, String disclosure) {
+    /**
+     * 글 응답의 구입 경로 — {@code proof} NONE · PENDING · APPROVED(구입 경로가 「내 돈으로 샀어요」일 때만 — 점검 L3), {@code disclosure} 표시 상자(체험단·협찬이면),
+     * {@code locked} 글쓴이가 구입 경로를 바꿀 수 없다(체험단 연결 글 · 운영자가 협찬 숨김을 확인해 협찬으로 고정한 글 — 점검 D2).
+     */
+    public record PurchaseView(String source, String proof, String disclosure, boolean locked) {
     }
 
-    /** 목록 줄의 구입 경로 · 구매 인증 승인 */
+    /** 목록 줄의 구입 경로 · 구매 인증 승인(구입 경로가 SELF 일 때만) */
     public record ListInfo(String source, boolean proofApproved) {
     }
 
@@ -87,10 +90,15 @@ public class TrialPostLinker {
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate separate;
+    private final com.community.trial.repository.master.TrialSponsorReviewRepository sponsorReviews;
+    private final PurchaseProofService proofService;
 
     public TrialPostLinker(TrialParticipantRepository participants, TrialRepository trials, PurchaseProofRepository proofs, TrialPromiseService promise,
                            TrialSettingsService settings, TrialViewer viewer, BoardPrefixRepository prefixes, BoardCatalog catalog, JPAQueryFactory query,
-                           Messages messages, SnowflakeIdGenerator ids, PlatformTransactionManager transactions) {
+                           Messages messages, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
+                           com.community.trial.repository.master.TrialSponsorReviewRepository sponsorReviews, PurchaseProofService proofService) {
+        this.sponsorReviews = sponsorReviews;
+        this.proofService = proofService;
         this.participants = participants;
         this.trials = trials;
         this.proofs = proofs;
@@ -125,10 +133,21 @@ public class TrialPostLinker {
         return d;
     }
 
-    /** 고치기 — 연결 글은 TRIAL 고정(그대로). 칸이 없으면(null) 그대로 · 값이면 바꾸기 */
+    /**
+     * 고치기 — 연결 글은 TRIAL 고정(그대로). 운영자가 협찬 숨김을 확인해 협찬으로 바꾼 글은 SPONSORED 고정 — 다른 값을 보내면 400 {@code fields.purchaseSource}(점검 D2).
+     * 칸이 없으면(null) 그대로 · 값이면 바꾸기
+     */
     public Decision checkForUpdate(EffectiveBoard b, PostEntity post, String sourceRaw, Long chosenPrefixId, Map<String, MessageRef> fields) {
         if (post.getTrialParticipantId() != null) {
             return new Decision(PurchaseSource.TRIAL.name(), post.getTrialParticipantId());
+        }
+        if (sponsorLocked(post)) {
+            if (sourceRaw != null && !PurchaseSource.SPONSORED.name().equalsIgnoreCase(sourceRaw.strip())) {
+                fields.put("purchaseSource", new MessageRef("trial.purchase.sponsorLocked"));
+            }
+            Decision locked = new Decision(PurchaseSource.SPONSORED.name(), null);
+            guardPrefix(b, chosenPrefixId, locked, fields);
+            return locked;
         }
         Decision d = new Decision(post.getPurchaseSource(), null);
         if (sourceRaw != null && b.purchaseSourceAccepted()) {
@@ -248,16 +267,43 @@ public class TrialPostLinker {
         }
     }
 
+    /** 운영자가 협찬 숨김을 확인해 협찬으로 고정한 글인가(확인 줄 CONFIRMED · 지금 구입 경로 SPONSORED — 점검 D2) */
+    public boolean sponsorLocked(PostEntity post) {
+        return PurchaseSource.SPONSORED.name().equals(post.getPurchaseSource())
+                && sponsorReviews.findById(post.getId()).filter(r -> r.getStatus() == com.community.trial.entity.SponsorReviewStatus.CONFIRMED).isPresent();
+    }
+
+    /**
+     * 글쓴이가 글을 지웠다(지우기 트랜잭션 안 — 예약 삭제도 요청 때) — 대기 구매 인증 자동 반려·사진 파기(점검 L3·M4-4) · 체험단 사용기면 연결을 끊고 「지킴」 판정을 되돌려 리뷰어 단계를 다시 정한다
+     * (점검 L4 — 기한 안에 다시 쓰면 지킴, 기한이 지나면 하루 배치가 기한 넘김으로 판정).
+     */
+    public void onAuthorDelete(PostEntity post) {
+        proofService.onPostDeleted(post.getId());
+        if (post.getTrialParticipantId() == null) {
+            return;
+        }
+        TrialParticipantEntity p = participants.findWithLockById(post.getTrialParticipantId()).orElse(null);
+        if (p == null || !post.getId().equals(p.getReviewPostId())) {
+            return;
+        }
+        boolean reverted = p.unlinkReview();
+        participants.flush();
+        if (reverted) {
+            promise.recalcReviewer(p.getUserId());
+        }
+    }
+
     // ── 글 응답·목록 ──────────────────────────────────────────────────────
 
-    /** 글 응답 {@code purchase} — 구입 경로도 구매 인증도 없으면 null */
+    /** 글 응답 {@code purchase} — 구입 경로도 구매 인증도 없으면 null. 구매 인증 상태는 구입 경로가 「내 돈으로 샀어요」일 때만(바꾸면 칩을 숨긴다 — 포인트는 회수하지 않는다, 점검 L3) */
     public PurchaseView view(PostEntity post) {
         PurchaseProofEntity proof = proofs.findFirstByPostIdOrderByCreatedAtDescIdDesc(post.getId()).orElse(null);
-        String proofStatus = proof == null || proof.getStatus() == PurchaseProofStatus.REJECTED ? "NONE" : proof.getStatus().name();
+        boolean self = PurchaseSource.SELF.name().equals(post.getPurchaseSource());
+        String proofStatus = !self || proof == null || proof.getStatus() == PurchaseProofStatus.REJECTED ? "NONE" : proof.getStatus().name();
         if (post.getPurchaseSource() == null && "NONE".equals(proofStatus)) {
             return null;
         }
-        return new PurchaseView(post.getPurchaseSource(), proofStatus, disclosure(post));
+        return new PurchaseView(post.getPurchaseSource(), proofStatus, disclosure(post), post.getTrialParticipantId() != null || sponsorLocked(post));
     }
 
     /** 표시 상자 문구 — 체험단: 설정 문구의 {광고주}·{제공/대여} 를 채운다 · 협찬: 협찬 문구 · 그 밖 null */
@@ -276,7 +322,7 @@ public class TrialPostLinker {
         return settings.current().disclosureText().replace("{광고주}", viewer.advertiserName(t.getAdvertiserId())).replace("{제공/대여}", kind);
     }
 
-    /** 목록 줄 — 글 묶음의 구입 경로·구매 인증 승인(질의 두 번) */
+    /** 목록 줄 — 글 묶음의 구입 경로·구매 인증 승인(질의 두 번 — 게시판 목록·섞인 목록 모두). 구매 인증 칩은 구입 경로가 SELF 일 때만(점검 L3) */
     public Map<Long, ListInfo> forList(Collection<Long> postIds) {
         Map<Long, ListInfo> out = new HashMap<>();
         if (postIds.isEmpty()) {
@@ -289,18 +335,20 @@ public class TrialPostLinker {
         }
         Set<Long> approved = new HashSet<>(query.select(PP.postId).from(PP).where(PP.postId.in(postIds), PP.status.eq(PurchaseProofStatus.APPROVED)).fetch());
         for (Long id : postIds) {
-            out.put(id, new ListInfo(sources.get(id), approved.contains(id)));
+            String source = sources.get(id);
+            out.put(id, new ListInfo(source, approved.contains(id) && PurchaseSource.SELF.name().equals(source)));
         }
         return out;
     }
 
-    /** 목록 거르기 조건 — PROOF(구매 인증 승인 글만) · NO_TRIAL(체험단 빼고), 그 밖·null 은 null(거르지 않음) */
+    /** 목록 거르기 조건 — PROOF(구매 인증 승인 + 구입 경로 SELF 글만) · NO_TRIAL(체험단 빼고), 그 밖·null 은 null(거르지 않음) */
     public static BooleanExpression filter(com.community.post.entity.QPostEntity post, String purchase) {
         if (purchase == null) {
             return null;
         }
         return switch (purchase.strip().toUpperCase(java.util.Locale.ROOT)) {
-            case FILTER_PROOF -> JPAExpressions.selectOne().from(PP).where(PP.postId.eq(post.id), PP.status.eq(PurchaseProofStatus.APPROVED)).exists();
+            case FILTER_PROOF -> post.purchaseSource.eq(PurchaseSource.SELF.name())
+                    .and(JPAExpressions.selectOne().from(PP).where(PP.postId.eq(post.id), PP.status.eq(PurchaseProofStatus.APPROVED)).exists());
             case FILTER_NO_TRIAL -> post.purchaseSource.isNull().or(post.purchaseSource.ne(PurchaseSource.TRIAL.name()));
             default -> null;
         };

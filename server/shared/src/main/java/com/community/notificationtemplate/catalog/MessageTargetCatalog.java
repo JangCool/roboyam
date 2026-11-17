@@ -282,6 +282,8 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.TRIAL_DAMAGE_DECIDED.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
         out.add(member(MemberEvent.TRIAL_CANCELLED_BY_OPERATOR, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
                 new InAppText("member.notification.TRIAL_CANCELLED_BY_OPERATOR.title", null, "{{note}}", List.of("trialTitle")), "/me/trials", List.of()));
+        out.add(member(MemberEvent.TRIAL_STOCK_SHORT, List.of(MessageVariable.of("trialTitle", "trialTitle"), MessageVariable.of("note", "trialNote")),
+                new InAppText("member.notification.TRIAL_STOCK_SHORT.title", null, "{{note}}", List.of("trialTitle")), "/business/trials", List.of()));
         out.add(member(MemberEvent.PURCHASE_PROOF_APPROVED, List.of(MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("note", "trialNote")),
                 new InAppText("member.notification.PURCHASE_PROOF_APPROVED.title", null, "{{note}}", List.of("postTitle")), "/boards/review/123", List.of()));
         out.add(member(MemberEvent.PURCHASE_PROOF_REJECTED, List.of(MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("note", "trialNote")),

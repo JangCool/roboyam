@@ -33,7 +33,8 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>{@code POST /api/business/trials/participants/{id}/returned} {@code { photoIds }} → 204(반납 사진 필수)</li>
  *   <li>{@code POST /api/business/trials/participants/{id}/damage-reports} {@code { description, photoIds }} → 201 파손 신고</li>
  * </ul>
- * 보내는 쪽이 운영자인 모집의 발송·반납·파손은 409 {@code TRIAL_WRONG_SHIPPER}.
+ * 보내는 쪽이 운영자인 모집의 발송·반납·파손은 409 {@code TRIAL_WRONG_SHIPPER}. 사진은 비공개(V243) — {@code GET /api/business/trials/photos/{id}} 바이트(올리기 응답 {@code url} 이 이 주소, {@code key} null).
+ * 사업자 승인·광고 서비스 승인·광고주 보관 아님이 아니면 403 {@code TRIAL_ADVERTISER_BLOCKED}(점검 D5).
  */
 @RestController
 @RequestMapping("/api/business/trials")
@@ -74,6 +75,12 @@ public class BusinessTrialController {
             data = null;
         }
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(business.uploadPhoto(userId, id, kind, data)));
+    }
+
+    /** 사진 보기(V243 — 비공개) → 바이트 · {@code no-store} — 자기 모집의 붙은 사진 · 자기가 올린 붙기 전 사진(그 밖 404 {@code TRIAL_PHOTO_NOT_FOUND}) · 410 {@code TRIAL_PHOTO_PURGED} */
+    @GetMapping("/photos/{id}")
+    public ResponseEntity<byte[]> photoBytes(@PathVariable String id, Authentication authentication) {
+        return TrialController.photoResponse(business.photo(TrialController.userId(authentication), id));
     }
 
     @PutMapping("/participants/{id}/shipment")

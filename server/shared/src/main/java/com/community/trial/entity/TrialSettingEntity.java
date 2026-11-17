@@ -26,20 +26,22 @@ public class TrialSettingEntity {
     private int proofBonusPoints;
     private int proofPhotoDays;
     private int stockKeepDays;
+    private int photoKeepDays;
     private Instant updatedAt;
     private Long updatedBy;
 
     protected TrialSettingEntity() {
     }
 
-    /** 설정 값 묶음(읽기·저장) */
+    /** 설정 값 묶음(읽기·저장) — {@code photoKeepDays} 모집이 끝나거나 취소된 뒤(열린 파손 신고가 있으면 판정 뒤) 체험단 사진 보관 일수(V243) */
     public record Values(long givePriceLimit, String disclosureText, String sponsorDisclosureText, int returnRemindFirstDays, int returnRemindSecondDays,
-                         int unreturnedDays, int reviewDays, int lateBanDays, int lateRevokeStrikes, int proofBonusPoints, int proofPhotoDays, int stockKeepDays) {
+                         int unreturnedDays, int reviewDays, int lateBanDays, int lateRevokeStrikes, int proofBonusPoints, int proofPhotoDays, int stockKeepDays,
+                         int photoKeepDays) {
     }
 
     public Values values() {
         return new Values(givePriceLimit, disclosureText, sponsorDisclosureText, returnRemindFirstDays, returnRemindSecondDays, unreturnedDays, reviewDays, lateBanDays,
-                lateRevokeStrikes, proofBonusPoints, proofPhotoDays, stockKeepDays);
+                lateRevokeStrikes, proofBonusPoints, proofPhotoDays, stockKeepDays, photoKeepDays);
     }
 
     public void change(Values v, long operatorId, Instant now) {
@@ -55,6 +57,7 @@ public class TrialSettingEntity {
         this.proofBonusPoints = v.proofBonusPoints();
         this.proofPhotoDays = v.proofPhotoDays();
         this.stockKeepDays = v.stockKeepDays();
+        this.photoKeepDays = v.photoKeepDays();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }
