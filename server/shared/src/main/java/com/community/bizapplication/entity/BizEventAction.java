@@ -69,7 +69,14 @@ public enum BizEventAction {
     /** 인쇄본 폐기 — note = 폐기 사유 */
     PAPER_DISPOSED(false),
     /** 접수 기록 잘못 기록(줄 긋기) — note = 사유 */
-    PAPER_VOIDED(false);
+    PAPER_VOIDED(false),
+    // ── 체험단 건(kind TRIAL — V242, trial-group-contract 「유료 결제 연결」) ──
+    /** 뽑기로 견적을 굳혔다 — note = 합계(원). 금액 > 0 이면 광고 심사 큐에 승인 대기로 나타난다 */
+    TRIAL_QUOTED(true),
+    /** 결제 전 뽑힌 줄 취소로 견적을 다시 셌다(승인 뒤 결제 전이었으면 다시 심사 대기) — note = 새 합계(원) */
+    TRIAL_REQUOTED(true),
+    /** 결제를 마친 모집이 끝났다(상태는 예약 그대로 · 닫은 시각) */
+    TRIAL_CLOSED(true);
 
     private final boolean publicVisible;
 

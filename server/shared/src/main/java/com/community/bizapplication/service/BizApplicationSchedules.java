@@ -40,6 +40,7 @@ public class BizApplicationSchedules {
         ops.move(app, Action.EXPIRE, now);
         ops.event(id, BizEventAction.EXPIRED, BizActorType.SYSTEM, null, null, now);
         ops.notices().member(app, BizApplicationNotices.Kind.EXPIRED, app.approved().total(), null);
+        ops.trialClosed(app, "PAYMENT_EXPIRED", null); // 체험단 건이면 모집도 취소(결제 없이는 발송할 수 없다)
         return true;
     }
 

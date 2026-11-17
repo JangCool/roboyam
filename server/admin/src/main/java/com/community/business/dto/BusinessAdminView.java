@@ -49,7 +49,8 @@ public final class BusinessAdminView {
                               String suspendedByName, Impact impact) {
     }
 
-    public record Impact(int awaitingPayment, int scheduled, int running) {
+    /** 정지 영향 — 광고·핫딜 신청 건(체험단 건 빼고) + 체험단 따로: {@code trialRecruiting} 모집 전 단계(정지·탈퇴면 취소) · {@code trialRunning} 진행 중(그대로 진행) — V242 */
+    public record Impact(int awaitingPayment, int scheduled, int running, int trialRecruiting, int trialRunning) {
     }
 
     public record Rejection(String code, String text) {

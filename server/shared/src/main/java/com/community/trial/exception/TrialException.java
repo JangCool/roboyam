@@ -91,6 +91,21 @@ public class TrialException extends CommonException {
         return new TrialException(HttpStatus.CONFLICT, "TRIAL_WRONG_SHIPPER");
     }
 
+    /** 409 — 유료 체험단의 광고 결제가 끝나기(예약 SCHEDULED) 전에는 입고·발송을 할 수 없다(trial-group-contract 「유료 결제 연결」 — 0원이면 막지 않는다) */
+    public static TrialException paymentPending() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_PAYMENT_PENDING");
+    }
+
+    /** 409 — 취소한 뽑힌 줄이다(발송·받음·사용기 연결을 할 수 없다) */
+    public static TrialException participantCancelled() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_PARTICIPANT_CANCELLED");
+    }
+
+    /** 409 — 이미 보냈거나(송장·받음·사용기 연결) 진행이 시작돼 취소할 수 없다 — 모집 취소·뽑힌 줄 취소는 발송 전에만 */
+    public static TrialException shippingStarted() {
+        return new TrialException(HttpStatus.CONFLICT, "TRIAL_SHIPPING_STARTED");
+    }
+
     /** 409 — 입고 전에는 운영자 발송을 할 수 없다 */
     public static TrialException noStock() {
         return new TrialException(HttpStatus.CONFLICT, "TRIAL_NO_STOCK");

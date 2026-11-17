@@ -315,14 +315,14 @@ public class DashboardGadgetStore extends IrobitRepositoryQDSL {
     }
 
     /**
-     * 범위 {@code [from, to)} 안에 시작하거나 끝나는 예약된 광고 건(SCHEDULED — ix_ba_scheduled(start_at, end_at) 부분 인덱스). 핫딜 글 게시 건은 광고가 아니라 뺀다.
+     * 범위 {@code [from, to)} 안에 시작하거나 끝나는 예약된 광고 건(SCHEDULED — ix_ba_scheduled(start_at, end_at) 부분 인덱스). 핫딜 글 게시 건·체험단 건(기간 = 신청 기간 — V242)은 광고 예약이 아니라 뺀다.
      * 건마다 대표 상품 = 핫딜 게시가 아닌 상품 줄 중 이름이 가장 앞선 것(상관 서브쿼리 {@code min(product)} — 예전 {@code LEFT JOIN LATERAL … ORDER BY product LIMIT 1} 과 같은 값, 없으면 null).
      */
     public List<AdBooking> adBookings(Instant from, Instant to) {
         JPQLQuery<BizProduct> product = JPAExpressions.select(AD_ITEM.product.min()).from(AD_ITEM)
                 .where(AD_ITEM.applicationId.eq(AD_APP.id), AD_ITEM.product.ne(BizProduct.HOTDEAL_POST));
         return query.select(AD_APP.id, AD_APP.title, product, AD_APP.startAt, AD_APP.endAt).from(AD_APP)
-                .where(AD_APP.status.eq(BizApplicationStatus.SCHEDULED), AD_APP.kind.ne(BizApplicationKind.HOTDEAL_POST),
+                .where(AD_APP.status.eq(BizApplicationStatus.SCHEDULED), AD_APP.kind.notIn(BizApplicationKind.HOTDEAL_POST, BizApplicationKind.TRIAL),
                         AD_APP.startAt.goe(from).and(AD_APP.startAt.lt(to)).or(AD_APP.endAt.goe(from).and(AD_APP.endAt.lt(to))))
                 .fetch().stream().map(t -> {
                     BizProduct p = t.get(product);

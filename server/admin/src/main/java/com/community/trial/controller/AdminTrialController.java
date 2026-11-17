@@ -138,6 +138,14 @@ public class AdminTrialController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 뽑힌 줄 운영자 취소(발송 전에만 — V242 D9) {@code { reason }} → 모집 상세(결제 전이면 금액 다시 셈) */
+    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE})
+    @PostMapping("/api/admin/trials/participants/{id}/cancel")
+    public ResponseEntity<ApiResponse<TrialViews.TrialDetail>> cancelParticipant(@PathVariable String id, @RequestBody(required = false) TrialViews.ReasonRequest body,
+                                                                                 AdminActor actor) {
+        return noStore(trials.cancelParticipant(actor.operatorId(), actor.ip(), id, body));
+    }
+
     @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
     @PostMapping("/api/admin/trials/participants/{id}/returned")
     public ResponseEntity<Void> returned(@PathVariable String id, @RequestBody(required = false) TrialViews.PhotosRequest body, AdminActor actor) {

@@ -138,6 +138,7 @@ public enum MemberEvent {
     TRIAL_UNRETURNED(NotificationArea.MEMBER, MemberNotificationType.TRIAL_UNRETURNED, MemberEventLockReason.ACTION, null),
     TRIAL_DAMAGE_REPORTED(NotificationArea.MEMBER, MemberNotificationType.TRIAL_DAMAGE_REPORTED, MemberEventLockReason.ACTION, null),
     TRIAL_DAMAGE_DECIDED(NotificationArea.MEMBER, MemberNotificationType.TRIAL_DAMAGE_DECIDED, MemberEventLockReason.ACTION, null),
+    TRIAL_CANCELLED_BY_OPERATOR(NotificationArea.MEMBER, MemberNotificationType.TRIAL_CANCELLED_BY_OPERATOR, MemberEventLockReason.ACTION, null),
     PURCHASE_PROOF_APPROVED(NotificationArea.MEMBER, MemberNotificationType.PURCHASE_PROOF_APPROVED, MemberEventLockReason.ACTION, null),
     PURCHASE_PROOF_REJECTED(NotificationArea.MEMBER, MemberNotificationType.PURCHASE_PROOF_REJECTED, MemberEventLockReason.ACTION, null);
 

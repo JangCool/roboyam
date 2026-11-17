@@ -56,11 +56,14 @@ public class BizApplicationOps {
     private final BizApplicationNotices notices;
     private final AuditLogService audit;
     private final ObjectProvider<BizHotdealPosting> hotdeals;
+    /** 체험단 고리 — 구현(체험단 쪽)이 이 클래스를 쓰므로 늦게 꺼낸다(순환 의존 끊기) */
+    private final ObjectProvider<BizTrialLink> trials;
     private final SnowflakeIdGenerator ids;
     private final Clock clock;
 
     public BizApplicationOps(BizApplicationStore store, BizRefundStore refunds, ObjectProvider<PaymentOrderService> payments, PaymentCancelService cancels, BizApplicationNotices notices,
-                             AuditLogService audit, ObjectProvider<BizHotdealPosting> hotdeals, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+                             AuditLogService audit, ObjectProvider<BizHotdealPosting> hotdeals, ObjectProvider<BizTrialLink> trials, SnowflakeIdGenerator ids,
+                             ObjectProvider<Clock> clocks) {
         this.store = store;
         this.refunds = refunds;
         this.payments = payments;
@@ -68,8 +71,24 @@ public class BizApplicationOps {
         this.notices = notices;
         this.audit = audit;
         this.hotdeals = hotdeals;
+        this.trials = trials;
         this.ids = ids;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
+    }
+
+    /** 체험단 고리(없으면 아무것도 하지 않는 고리) */
+    public BizTrialLink trials() {
+        return trials.getIfAvailable(() -> BizTrialLink.NONE);
+    }
+
+    /**
+     * 광고 쪽에서 체험단 건을 닫았다(만료·반려·운영자 취소·환불 승인) — 모집이 열려 있으면 취소한다(trial-group-contract 「유료 결제 연결」). 체험단 건이 아니면 아무것도 하지 않는다.
+     * 신청 건 행을 잠근 뒤 부른다(잠금 차례: 신청 건 → 모집).
+     */
+    public void trialClosed(AppRow app, String reason, Long operatorId) {
+        if (app.kind() == com.community.bizapplication.entity.BizApplicationKind.TRIAL) {
+            trials().bizClosed(app.id(), reason, operatorId);
+        }
     }
 
     public Instant now() {

@@ -73,9 +73,11 @@ class DashboardAdGadgetStoreJpaTest {
             long hotdealPost = scheduled(BizApplicationKind.HOTDEAL_POST, from.plusSeconds(60), to.plusSeconds(3_600), BizProduct.HOTDEAL_POST);
             long outside = scheduled(BizApplicationKind.AD_BANNER, Instant.parse("2093-01-10T00:00:00Z"), Instant.parse("2093-03-10T00:00:00Z"), BizProduct.WIDE_BANNER);
             long startsAtEnd = scheduled(BizApplicationKind.AD_BANNER, to, to.plusSeconds(3_600), BizProduct.WIDE_BANNER);
+            // 체험단 건(V242 — 기간 = 신청 기간, 광고 예약이 아니다)은 결제를 마쳐 예약이어도 광고 예약 수에 섞이지 않는다
+            long trial = scheduled(BizApplicationKind.TRIAL, from.plusSeconds(120), to.minusSeconds(120), BizProduct.TRIAL);
 
             List<AdBooking> rows = store.adBookings(from, to);
-            assertThat(rows).extracting(AdBooking::id).contains(banner, endsInside).doesNotContain(hotdealPost, outside, startsAtEnd);
+            assertThat(rows).extracting(AdBooking::id).contains(banner, endsInside).doesNotContain(hotdealPost, outside, startsAtEnd, trial);
             AdBooking b = rows.stream().filter(r -> r.id() == banner).findFirst().orElseThrow();
             assertThat(b.product()).isEqualTo("STRIP_BANNER");
             assertThat(b.title()).isEqualTo("광고 " + banner);

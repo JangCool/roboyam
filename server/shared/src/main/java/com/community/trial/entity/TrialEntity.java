@@ -123,6 +123,15 @@ public class TrialEntity {
         this.updatedAt = now;
     }
 
+    /** 뽑힌 줄 운영자 취소 뒤(V242 — D9) — 뽑힌 수는 늘 다시 세고, 금액은 결제 전일 때만 바꾼다({@code amount} null 이면 그대로) */
+    public void recount(int count, Long confirmedAmount, Instant now) {
+        this.selectedCount = count;
+        if (confirmedAmount != null) {
+            this.amount = confirmedAmount;
+        }
+        this.updatedAt = now;
+    }
+
     public boolean lend() {
         return form == TrialForm.LEND;
     }

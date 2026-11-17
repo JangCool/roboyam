@@ -309,6 +309,7 @@ public class MemberNotificationService {
                 link = "/me/points";
             }
             case TRIAL_SELECTED, TRIAL_NOT_SELECTED, TRIAL_SHIPPED, TRIAL_REVIEW_DUE, TRIAL_RETURN_DUE, TRIAL_UNRETURNED, TRIAL_DAMAGE_REPORTED, TRIAL_DAMAGE_DECIDED,
+                 TRIAL_CANCELLED_BY_OPERATOR,
                  PURCHASE_PROOF_APPROVED, PURCHASE_PROOF_REJECTED -> {
                 // 체험단·구매 인증(V241) — 알릴 때 제목 · 본문 한 줄. 누르면 발행 때 정한 곳(내 체험단 또는 그 글)
                 facts = MemberNotificationMessages.Facts.trial(type, payload.get("title") instanceof String t ? t : null,

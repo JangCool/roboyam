@@ -194,16 +194,20 @@ public class BizApplicationStore extends IrobitRepositoryQDSL {
                 .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL)).execute();
     }
 
-    /** 체험단 모집 건의 금액 확정(뽑기 뒤 — 견적 칸에 굳힌다. 0원이면 0) */
-    public void quoteTrial(long id, Amount quote, Instant now) {
-        query.update(A).set(A.quoteSupply, quote.supply()).set(A.quoteVat, quote.vat()).set(A.quoteTotal, quote.total()).set(A.updatedAt, now)
-                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL)).execute();
+    /**
+     * 체험단 모집 건의 금액 확정(뽑기 뒤 — 견적 칸에 굳힌다. 0원이면 0) · 광고주 회원(온라인 결제·사업자 알림 — 금액이 0 이면 null). 심사 대기에서만(승인 뒤에는 금액을 바꾸지 않는다 —
+     * 결제 전 다시 셈은 부르는 쪽이 먼저 심사 대기로 되돌린다).
+     */
+    public boolean quoteTrial(long id, Amount quote, Long userId, Instant now) {
+        return bump(query.update(A).set(A.quoteSupply, quote.supply()).set(A.quoteVat, quote.vat()).set(A.quoteTotal, quote.total()).set(A.userId, userId), now)
+                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL), A.status.eq(BizApplicationStatus.SUBMITTED)).execute() == 1;
     }
 
-    /** 체험단 모집 취소 — 건도 취소(심사 대기에서만) */
-    public void cancelTrial(long id, Instant now) {
-        query.update(A).set(A.status, BizApplicationStatus.CANCELED).set(A.closedAt, now).set(A.updatedAt, now)
-                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL), A.status.eq(BizApplicationStatus.SUBMITTED)).execute();
+    /** 결제를 마친 체험단 건 — 모집이 끝났다(닫은 시각만 찍는다 · 상태는 예약 그대로 — 관리자 큐 「종료」·사업자 묶음 「끝남」). 이미 찍혔으면 그대로 */
+    public boolean markTrialClosed(long id, Instant now) {
+        return bump(query.update(A).set(A.closedAt, now), now)
+                .where(A.id.eq(id), A.kind.eq(BizApplicationKind.TRIAL), A.status.in(BizApplicationStatus.SCHEDULED, BizApplicationStatus.TAKEN_DOWN), A.closedAt.isNull())
+                .execute() == 1;
     }
 
     /**
@@ -259,14 +263,21 @@ public class BizApplicationStore extends IrobitRepositoryQDSL {
      */
     public List<AppRow> forAdmin(BizDomain domain, BizApplicationKind kind, String q) {
         List<BooleanExpression> where = new ArrayList<>();
-        where.add(A.kind.in(domain.kinds()));
+        where.add(domain == BizDomain.AD ? A.kind.in(domain.kinds()).or(paidTrial()) : A.kind.in(domain.kinds()));
         if (kind != null) {
-            where.add(A.kind.eq(kind));
+            where.add(kind == BizApplicationKind.TRIAL ? paidTrial() : A.kind.eq(kind));
         }
         if (q != null && !q.isBlank()) {
             where.add(search(q));
         }
         return rows(query.select(APP).from(A).where(where.toArray(BooleanExpression[]::new)).orderBy(A.createdAt.desc(), A.id.desc()).limit(2000).fetch());
+    }
+
+    /**
+     * 광고 심사 큐에 보이는 체험단 건 — 뽑기로 견적이 굳었고 금액 &gt; 0(trial-group-contract 「유료 결제 연결」). 뽑기 전(견적 0)·0원 체험단은 결제 흐름 밖이라 큐·건수에 섞이지 않는다
+     */
+    public static BooleanExpression paidTrial() {
+        return A.kind.eq(BizApplicationKind.TRIAL).and(A.quoteTotal.gt(0L));
     }
 
     /** 번호·상호·광고주·제목 부분 일치(예전과 같은 {@code ILIKE … ESCAPE '\'} — {@link Ilike}, 와일드카드 글자는 글자 그대로). 광고 일정표 장부도 쓴다(기본 별칭 신청 건) */
@@ -424,15 +435,16 @@ public class BizApplicationStore extends IrobitRepositoryQDSL {
                 A.paymentDueNotifiedAt.isNull(), A.id.gt(afterId));
     }
 
-    /** 시작이 {@code until} 안인 예약(아직 알리지 않음) */
+    /** 시작이 {@code until} 안인 예약(아직 알리지 않음) — 체험단 건은 기간 노출 상품이 아니라 뺀다(기간 = 신청 기간) */
     public List<AppRow> startingSoon(Instant now, Instant until, long afterId, int limit) {
-        return keyset(limit, A.status.eq(BizApplicationStatus.SCHEDULED), A.startAt.gt(now), A.startAt.loe(until), A.startNotifiedAt.isNull(), A.id.gt(afterId));
+        return keyset(limit, A.status.eq(BizApplicationStatus.SCHEDULED), A.kind.ne(BizApplicationKind.TRIAL), A.startAt.gt(now), A.startAt.loe(until),
+                A.startNotifiedAt.isNull(), A.id.gt(afterId));
     }
 
-    /** 끝이 {@code until} 안인 진행 중 예약(아직 알리지 않음) */
+    /** 끝이 {@code until} 안인 진행 중 예약(아직 알리지 않음) — 체험단 건은 뺀다 */
     public List<AppRow> endingSoon(Instant now, Instant until, long afterId, int limit) {
-        return keyset(limit, A.status.eq(BizApplicationStatus.SCHEDULED), A.startAt.loe(now), A.endAt.gt(now), A.endAt.loe(until), A.endNotifiedAt.isNull(),
-                A.id.gt(afterId));
+        return keyset(limit, A.status.eq(BizApplicationStatus.SCHEDULED), A.kind.ne(BizApplicationKind.TRIAL), A.startAt.loe(now), A.endAt.gt(now), A.endAt.loe(until),
+                A.endNotifiedAt.isNull(), A.id.gt(afterId));
     }
 
     // ── 자리·금액 줄 ────────────────────────────────────────────────────────

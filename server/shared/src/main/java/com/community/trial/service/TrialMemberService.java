@@ -271,10 +271,11 @@ public class TrialMemberService {
                 d.getDescription(), d.getStatus().name(), d.getObjectionDueAt(), d.getStatus() == TrialDamageStatus.REPORTED && now.isBefore(d.getObjectionDueAt()),
                 d.getObjection(), d.getVerdict() == null ? null : d.getVerdict().name(), d.getDecisionNote(),
                 viewer.photos(attached.stream().filter(x -> d.getId().equals(x.getDamageReportId())).toList()), d.getCreatedAt())).toList();
-        boolean canWrite = p.getReviewPostId() == null && p.getUnreturnedAt() == null && (t.getStatus() == TrialStatus.RUNNING || t.getStatus() == TrialStatus.CLOSED);
+        boolean canWrite = !p.cancelled() && p.getReviewPostId() == null && p.getUnreturnedAt() == null
+                && (t.getStatus() == TrialStatus.RUNNING || t.getStatus() == TrialStatus.CLOSED);
         return new TrialViews.MyParticipation(Long.toString(p.getId()), p.getCarrier(), p.getTrackingNo(), p.getShippedAt(), p.getReceivedAt(), p.getReceivedBy(),
                 p.shipped() && !p.received(), p.getReviewDueAt(), p.getReviewPostId() == null ? null : Long.toString(p.getReviewPostId()), canWrite,
-                viewer.board(t.getReviewBoardId()), p.getReturnDueAt(), p.getReturnedAt(), p.getKept(), p.getUnreturnedAt(), ds);
+                viewer.board(t.getReviewBoardId()), p.getReturnDueAt(), p.getReturnedAt(), p.getKept(), p.getUnreturnedAt(), ds, p.getCancelledAt());
     }
 
     /** 글쓰기 「뽑힌 체험단 사용기로 쓰기」 후보 — 연결 전 줄(게시판 slug 를 주면 그 게시판 것만) */
@@ -282,7 +283,7 @@ public class TrialMemberService {
     public List<TrialViews.Writable> writable(long userId, String boardSlug) {
         List<TrialViews.Writable> out = new ArrayList<>();
         for (TrialParticipantEntity p : participants.findByUserIdOrderByCreatedAtDesc(userId)) {
-            if (p.getReviewPostId() != null || p.getUnreturnedAt() != null) {
+            if (p.cancelled() || p.getReviewPostId() != null || p.getUnreturnedAt() != null) {
                 continue;
             }
             TrialEntity t = trials.findById(p.getTrialId()).orElse(null);

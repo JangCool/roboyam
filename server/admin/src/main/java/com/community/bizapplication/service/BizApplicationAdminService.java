@@ -53,9 +53,12 @@ public class BizApplicationAdminService {
     private final BizApplicationProperties props;
     private final com.community.bizapplication.service.BizDealPostReader dealPosts;
     private final BizPauseService pauses;
+    private final org.springframework.beans.factory.ObjectProvider<BizTrialLink> trials;
 
     public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages, AccessDeniedRecorder denied,
-                                      BizApplicationProperties props, com.community.bizapplication.service.BizDealPostReader dealPosts, BizPauseService pauses) {
+                                      BizApplicationProperties props, com.community.bizapplication.service.BizDealPostReader dealPosts, BizPauseService pauses,
+                                      org.springframework.beans.factory.ObjectProvider<BizTrialLink> trials) {
+        this.trials = trials;
         this.pauses = pauses;
         this.props = props;
         this.dealPosts = dealPosts;
@@ -242,13 +245,20 @@ public class BizApplicationAdminService {
         require(actor, flowApp(id).kind().domain().managePermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
     }
 
-    /** 심사 흐름을 타는 건 — 체험단 모집 건(kind TRIAL)은 체험단 화면이 다루므로 여기서는 없는 건(404)으로 본다(trial-group-contract 「구현 결정」 1) */
+    /**
+     * 심사 흐름을 타는 건 — 체험단 모집 건(kind TRIAL)은 뽑기로 견적이 굳었고 금액 &gt; 0 일 때만(유료 결제 연결 — 승인·결제·환불을 여기서 한다). 뽑기 전·0원 체험단 건은 결제 흐름 밖이라
+     * 없는 건(404)으로 본다(trial-group-contract 「유료 결제 연결」).
+     */
     private AppRow flowApp(long id) {
         AppRow app = reader.app(id);
-        if (!app.kind().reviewFlow()) {
+        if (!app.kind().reviewFlow() && !(app.kind() == BizApplicationKind.TRIAL && app.quote().total() > 0)) {
             throw BizApplicationException.notFound();
         }
         return app;
+    }
+
+    private BizTrialLink trialLink() {
+        return trials.getIfAvailable(() -> BizTrialLink.NONE);
     }
 
     private void require(AdminActor actor, Permission permission, String targetType, String targetId) {
@@ -307,9 +317,11 @@ public class BizApplicationAdminService {
                 e.note())).toList();
         String policy = a.adPolicyVersion() == null ? null : messages.get(new MessageRef("bizapp.admin.policyVersion", a.adPolicyVersion(), a.refundPolicyVersion()));
         String applicant = s.applicantName();
+        BizTrialLink.TrialInfo trial = a.kind() == BizApplicationKind.TRIAL ? trialLink().info(a.id()).orElse(null) : null;
+        Map<String, Object> content = trial != null ? trialContent(trial) : content(a, s.creative() == null ? Map.of() : s.creative().content());
         return new BizAdminView.Detail(row.id(), row.no(), row.kind(), row.adType(), row.status(), row.business(), row.submittedAt(), row.period(), row.preferredMethod(),
                 row.total(), row.deadlineAt(), row.hasRefundRequest(), a.source().name(), row.takedownCause(), applicant,
-                content(a, s.creative() == null ? Map.of() : s.creative().content()), a.operatorMemo(), quote(s.items(), a.quote()), remaining, limit, approval, online,
+                content, a.operatorMemo(), quote(s.items(), a.quote(), trial), remaining, limit, approval, online,
                 contracts, deposit, refund, rejection, takedown, policy, history, a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name(),
                 dealPosts.view(a, s.items(), s.creative()), BizAdminView.Pause.of(pauses.info(a, s.items())),
                 BizAdminView.RefundSummary.of(reader.refundSummary(a, s.deposit())));
@@ -366,13 +378,49 @@ public class BizApplicationAdminService {
         return out;
     }
 
+    /**
+     * 체험단 건 내용(kind TRIAL — trial-group-contract 「유료 결제 연결」): {@code type} TRIAL · {@code trialId} · {@code trialTitle} · {@code trialStatus} · {@code productName} · {@code form}
+     * GIVE·LEND · {@code shipper} ADVERTISER·OPERATOR · {@code selectedCount} 뽑힌 인원 · {@code priceUnit} PER_RECRUIT·PER_PERSON · {@code unitPrice} 단가 ·
+     * {@code shippingFeePerPerson} 1명당 발송비 · {@code amount} 확정 공급가(뽑기 뒤)
+     */
+    private static Map<String, Object> trialContent(BizTrialLink.TrialInfo t) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("type", BizApplicationKind.TRIAL.name());
+        out.put("trialId", Long.toString(t.trialId()));
+        out.put("trialTitle", t.title());
+        out.put("trialStatus", t.status());
+        out.put("productName", t.productName());
+        out.put("form", t.form());
+        out.put("shipper", t.shipper());
+        out.put("selectedCount", t.selectedCount());
+        out.put("priceUnit", t.priceUnit());
+        out.put("unitPrice", t.unitPrice());
+        out.put("shippingFeePerPerson", t.shippingFeePerPerson());
+        out.put("amount", t.amount());
+        return out;
+    }
+
+    /** 줄 단위 — 하루(광고·노출) · 건(핫딜 글 · 체험단 모집 건당) · 사람(체험단 인원당 · 대신 발송비) */
+    private static String unit(BizProduct product, BizTrialLink.TrialInfo trial) {
+        return switch (product) {
+            case HOTDEAL_POST -> "POST";
+            case TRIAL -> trial != null && com.community.bizapplication.repository.master.BizPriceRuleStore.TrialTerms.PER_RECRUIT.equals(trial.priceUnit()) ? "POST" : "PERSON";
+            case TRIAL_SHIPPING -> "PERSON";
+            default -> "DAY";
+        };
+    }
+
     private static BizAdminView.Quote quote(List<ItemRow> items, Amount total) {
+        return quote(items, total, null);
+    }
+
+    private static BizAdminView.Quote quote(List<ItemRow> items, Amount total, BizTrialLink.TrialInfo trial) {
         BizProduct capacity = BizApplicationReader.capacityProduct(items);
         ItemRow main = items.stream().filter(i -> i.product() == capacity).findFirst().orElse(items.isEmpty() ? null : items.get(0));
-        List<BizAdminView.QuoteLine> lines = items.stream().map(i -> new BizAdminView.QuoteLine(i.product().name(), i.product() == BizProduct.HOTDEAL_POST ? "POST" : "DAY",
-                i.unitPrice(), i.units(), i.supply())).toList();
-        return new BizAdminView.Quote(main == null ? 0 : main.unitPrice(), main == null ? 0 : main.units(),
-                main == null || main.product() == BizProduct.HOTDEAL_POST ? "POST" : "DAY", total.supply(), total.vat(), total.total(), lines);
+        List<BizAdminView.QuoteLine> lines = items.stream().map(i -> new BizAdminView.QuoteLine(i.product().name(), unit(i.product(), trial), i.unitPrice(), i.units(),
+                i.supply())).toList();
+        return new BizAdminView.Quote(main == null ? 0 : main.unitPrice(), main == null ? 0 : main.units(), main == null ? "POST" : unit(main.product(), trial),
+                total.supply(), total.vat(), total.total(), lines);
     }
 
     /** 운영자 등록 건의 등록자(사업자 신청 건은 null) */

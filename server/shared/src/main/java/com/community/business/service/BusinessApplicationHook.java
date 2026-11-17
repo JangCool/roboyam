@@ -11,14 +11,27 @@ import com.community.business.entity.BusinessServiceKind;
  */
 public interface BusinessApplicationHook {
 
-    /** 정지하면 영향받는 건수(H2) */
-    record SuspendImpact(int awaitingPayment, int scheduled, int running) {
-        public static final SuspendImpact ZERO = new SuspendImpact(0, 0, 0);
+    /**
+     * 정지하면 영향받는 건수(H2). 앞 셋은 광고·핫딜 신청 건(체험단 건 빼고), 체험단은 따로 — {@code trialRecruiting} 모집 전 단계(준비·모집 중·뽑는 중 — 정지·탈퇴면 취소) ·
+     * {@code trialRunning} 진행 중(그대로 진행) 모집 수(trial-group-contract 「유료 결제 연결」 — 점검 결정 D7).
+     */
+    record SuspendImpact(int awaitingPayment, int scheduled, int running, int trialRecruiting, int trialRunning) {
+        public static final SuspendImpact ZERO = new SuspendImpact(0, 0, 0, 0, 0);
+
+        /** 체험단 없는 영향(옛 부르는 쪽·시험) */
+        public SuspendImpact(int awaitingPayment, int scheduled, int running) {
+            this(awaitingPayment, scheduled, running, 0, 0);
+        }
     }
 
-    /** 서비스 카드의 건수 — 진행·예약 중 · 심사·결제 대기 */
-    record ServiceCounts(int liveCount, int pendingCount) {
-        public static final ServiceCounts ZERO = new ServiceCounts(0, 0);
+    /** 서비스 카드의 건수 — 진행·예약 중 · 심사·결제 대기(체험단 건 빼고) · 체험단 모집 전 단계·진행 중(광고 서비스만) */
+    record ServiceCounts(int liveCount, int pendingCount, int trialRecruiting, int trialRunning) {
+        public static final ServiceCounts ZERO = new ServiceCounts(0, 0, 0, 0);
+
+        /** 체험단 없는 건수(옛 부르는 쪽·시험) */
+        public ServiceCounts(int liveCount, int pendingCount) {
+            this(liveCount, pendingCount, 0, 0);
+        }
     }
 
     /** 탈퇴 판정(F8) — 진행 중 건이 있으면 막는다(「남은 기간 포기」 동의로 풀 수 있음) */

@@ -285,6 +285,10 @@ public final class AuditActions {
     public static final String TRIAL_PII_PROVIDE = "TRIAL_PII_PROVIDE";
     /** 체험단 설정 저장(대상 TRIAL_SETTINGS) */
     public static final String TRIAL_SETTINGS_UPDATE = "TRIAL_SETTINGS_UPDATE";
+    /** 체험단 모집 취소가 광고 신청 건(결제)과 함께 움직였다 — 광고 쪽 만료·반려·취소·환불 · 사업자 정지·탈퇴(대상 TRIAL, 덧붙임: 까닭·신청 건 상태·환불액) — V242 */
+    public static final String TRIAL_CANCEL = "TRIAL_CANCEL";
+    /** 뽑힌 줄 운영자 취소(발송 전 — 대상 TRIAL, 덧붙임: 뽑힌 줄·사유·남은 인원·다시 셈한 금액 또는 결제 뒤 그대로) — V242 */
+    public static final String TRIAL_PARTICIPANT_CANCEL = "TRIAL_PARTICIPANT_CANCEL";
     /** 구매 인증 승인·거절(대상 POST — 게시판 매니저 확인은 회원이 행위자) · 비공개 사진 열람 */
     public static final String PURCHASE_PROOF_APPROVE = "PURCHASE_PROOF_APPROVE";
     public static final String PURCHASE_PROOF_REJECT = "PURCHASE_PROOF_REJECT";

@@ -65,21 +65,26 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
 
     @Override
     public SuspendImpact impact(long profileId) {
-        return impact(profileId, a -> true);
+        return impact(profileId, a -> true, true);
     }
 
     @Override
     public SuspendImpact impact(long profileId, BusinessServiceKind service) {
-        return impact(profileId, a -> a.kind().service() == service);
+        return impact(profileId, a -> a.kind().service() == service, service == BusinessServiceKind.AD);
     }
 
-    private SuspendImpact impact(long profileId, Predicate<AppRow> scope) {
+    /** 체험단 건(kind TRIAL)은 광고 건 셈·처리에서 빼고 따로 센다·처리한다(체험단 고리 — trial-group-contract 「유료 결제 연결」 D7) */
+    private static boolean notTrial(AppRow a) {
+        return a.kind() != BizApplicationKind.TRIAL;
+    }
+
+    private SuspendImpact impact(long profileId, Predicate<AppRow> scope, boolean trials) {
         Instant now = ops.now();
-        int pending = (int) store.byProfile(profileId, PENDING).stream().filter(scope).count();
+        int pending = (int) store.byProfile(profileId, PENDING).stream().filter(BizApplicationHookImpl::notTrial).filter(scope).count();
         int scheduled = 0;
         int running = 0;
         for (AppRow app : store.byProfile(profileId, EnumSet.of(BizApplicationStatus.SCHEDULED))) {
-            if (!scope.test(app)) {
+            if (!notTrial(app) || !scope.test(app)) {
                 continue;
             }
             switch (BizPhase.of(app.startAt(), app.endAt(), now)) {
@@ -89,28 +94,35 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
                 }
             }
         }
-        return new SuspendImpact(pending, scheduled, running);
+        BizTrialLink.TrialCounts t = trials ? ops.trials().counts(profileId) : BizTrialLink.TrialCounts.ZERO;
+        return new SuspendImpact(pending, scheduled, running, t.recruiting(), t.running());
     }
 
     @Override
     public ServiceCounts counts(long profileId, BusinessServiceKind service) {
         Instant now = ops.now();
-        int live = (int) store.byProfile(profileId, LIVE).stream().filter(a -> a.kind().service() == service).filter(a -> a.endAt().isAfter(now)).count();
-        int pending = (int) store.byProfile(profileId, PENDING).stream().filter(a -> a.kind().service() == service).count();
-        return new ServiceCounts(live, pending);
+        int live = (int) store.byProfile(profileId, LIVE).stream().filter(BizApplicationHookImpl::notTrial).filter(a -> a.kind().service() == service)
+                .filter(a -> a.endAt().isAfter(now)).count();
+        int pending = (int) store.byProfile(profileId, PENDING).stream().filter(BizApplicationHookImpl::notTrial).filter(a -> a.kind().service() == service).count();
+        BizTrialLink.TrialCounts t = service == BusinessServiceKind.AD ? ops.trials().counts(profileId) : BizTrialLink.TrialCounts.ZERO;
+        return new ServiceCounts(live, pending, t.recruiting(), t.running());
     }
 
     @Override
     public void onSuspended(long profileId, BusinessSuspendPlan plan, long operatorId) {
-        suspend(profileId, a -> true, plan, operatorId);
+        suspend(profileId, BizApplicationHookImpl::notTrial, plan, operatorId);
+        ops.trials().businessEnded(profileId, "SUSPENDED", operatorId);
     }
 
     @Override
     public void onServiceSuspended(long profileId, BusinessServiceKind service, BusinessSuspendPlan plan, long operatorId) {
-        suspend(profileId, a -> a.kind().service() == service, plan, operatorId);
+        suspend(profileId, a -> notTrial(a) && a.kind().service() == service, plan, operatorId);
+        if (service == BusinessServiceKind.AD) {
+            ops.trials().businessEnded(profileId, "SUSPENDED", operatorId); // 체험단은 광고 서비스 — 모집 전 단계만 취소, 진행 중은 그대로(D7)
+        }
     }
 
-    /** 정지 처리 — {@code scope} 안의 건만(신원 정지 = 모두 · 서비스만 정지 = 그 서비스 건) */
+    /** 정지 처리 — {@code scope} 안의 건만(신원 정지 = 모두 · 서비스만 정지 = 그 서비스 건). 체험단 건은 부르는 쪽이 빼고 체험단 고리가 따로 다룬다 */
     private void suspend(long profileId, Predicate<AppRow> scope, BusinessSuspendPlan plan, long operatorId) {
         Instant now = ops.now();
         if (plan.pending() == BusinessSuspendPlan.Pending.CANCEL) {
@@ -171,12 +183,12 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
         // 서비스만 정지된 서비스의 건은 그대로 — 그 서비스 해제가 되돌린다(business-contract 2026-11-02)
         Set<BusinessServiceKind> alone = services.findByProfileId(profileId).stream().filter(BusinessServiceEntity::suspendedAlone)
                 .map(BusinessServiceEntity::getService).collect(Collectors.toSet());
-        restore(profileId, a -> !alone.contains(a.kind().service()), restore, operatorId);
+        restore(profileId, a -> notTrial(a) && !alone.contains(a.kind().service()), restore, operatorId);
     }
 
     @Override
     public void onServiceResumed(long profileId, BusinessServiceKind service, BusinessSuspendPlan.Restore restore, long operatorId) {
-        restore(profileId, a -> a.kind().service() == service, restore, operatorId);
+        restore(profileId, a -> notTrial(a) && a.kind().service() == service, restore, operatorId);
     }
 
     /** 해제 처리 — 정지로 내린 건 중 {@code scope} 안의 것만 */
@@ -232,7 +244,7 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
     @Override
     public WithdrawalCheck withdrawalCheck(long profileId) {
         Instant now = ops.now();
-        int running = (int) store.byProfile(profileId, LIVE).stream().filter(a -> running(a, now)).count();
+        int running = (int) store.byProfile(profileId, LIVE).stream().filter(BizApplicationHookImpl::notTrial).filter(a -> running(a, now)).count();
         return new WithdrawalCheck(running > 0, running);
     }
 
@@ -248,12 +260,19 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
     public void onWithdrawn(long profileId, boolean forfeitRunning) {
         Instant now = ops.now();
         for (AppRow seen : store.byProfile(profileId, PENDING)) {
+            if (!notTrial(seen)) {
+                continue; // 체험단 건은 아래 체험단 고리가(모집 전 단계만 취소 — 진행 중 모집은 그대로)
+            }
             AppRow app = ops.closePaymentsThenLock(seen.id(), null, "BIZ_WITHDRAWN");
             if (PENDING.contains(app.status())) {
                 ops.cancelBeforePayment(app, Action.SYSTEM_CANCEL, BizActorType.SYSTEM, null, "WITHDRAWN", now);
             }
         }
+        ops.trials().businessEnded(profileId, "WITHDRAWN", null);
         for (AppRow seen : store.byProfile(profileId, LIVE)) {
+            if (!notTrial(seen)) {
+                continue;
+            }
             AppRow app = store.lock(seen.id()).orElseThrow();
             if (!LIVE.contains(app.status())) {
                 continue;

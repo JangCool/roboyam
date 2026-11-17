@@ -75,11 +75,12 @@ public class TrialViewer {
     private final GroupBuyImageUploader images;
     private final DataCipher cipher;
     private final OperatorRepository operators;
+    private final TrialPayments payments;
 
     public TrialViewer(TrialApplicationRepository applications, TrialParticipantRepository participants, TrialStockReceiptRepository stocks, TrialPhotoRepository photos,
                        TrialDamageReportRepository damages, TrialQueries queries, TrialSettingsService settings, AdAdvertiserStore advertisers,
                        BizApplicationStore bizApplications, BoardCatalog catalog, ProfileRepository profiles, ShopDecorationResolver decorations, PostRepository posts,
-                       GroupBuyImageUploader images, DataCipher cipher, OperatorRepository operators) {
+                       GroupBuyImageUploader images, DataCipher cipher, OperatorRepository operators, TrialPayments payments) {
         this.applications = applications;
         this.participants = participants;
         this.stocks = stocks;
@@ -96,6 +97,7 @@ public class TrialViewer {
         this.images = images;
         this.cipher = cipher;
         this.operators = operators;
+        this.payments = payments;
     }
 
     // ── 조각 ────────────────────────────────────────────────────────────
@@ -191,10 +193,17 @@ public class TrialViewer {
 
     // ── 관리자 ──────────────────────────────────────────────────────────
 
-    public TrialViews.TrialRow row(TrialEntity t, long applicants) {
+    /** 모집 목록 — 결제 상태(상세 {@code payment.status} 와 같은 값)는 신청 건을 한 번에 읽어 채운다 */
+    public List<TrialViews.TrialRow> rows(List<TrialEntity> list, Map<Long, Long> applicants, Instant now) {
+        Map<Long, BizApplicationStore.AppRow> apps = new HashMap<>();
+        bizApplications.findAll(list.stream().map(TrialEntity::getBizApplicationId).toList()).forEach(a -> apps.put(a.id(), a));
+        return list.stream().map(t -> row(t, applicants.getOrDefault(t.getId(), 0L), payments.status(t, apps.get(t.getBizApplicationId()), now))).toList();
+    }
+
+    public TrialViews.TrialRow row(TrialEntity t, long applicants, String paymentStatus) {
         return new TrialViews.TrialRow(Long.toString(t.getId()), t.getTitle(), t.getProductName(), t.getForm().name(), t.getShipper().name(), t.getStatus().name(),
                 new TrialViews.Ref(Long.toString(t.getAdvertiserId()), advertiserName(t.getAdvertiserId())), t.getRecruitCount(), t.getReviewerShare(), applicants,
-                t.getSelectedCount(), t.getApplyStartAt(), t.getApplyEndAt(), board(t.getReviewBoardId()), t.getAmount(), t.getCreatedAt());
+                t.getSelectedCount(), t.getApplyStartAt(), t.getApplyEndAt(), board(t.getReviewBoardId()), t.getAmount(), t.getCreatedAt(), paymentStatus);
     }
 
     /**
@@ -239,17 +248,20 @@ public class TrialViewer {
                     receipt.getReceivedAt().plus(Duration.ofDays(settings.current().stockKeepDays())), receipt.getReturnCarrier(), receipt.getReturnTrackingNo(),
                     receipt.getReturnShippedAt(), photos(stockPhotos));
         }
-        TrialViews.Counts counts = new TrialViews.Counts(apps.stream().filter(TrialApplicationEntity::live).count(), people.size(),
+        long cancelled = people.stream().filter(TrialParticipantEntity::cancelled).count();
+        TrialViews.Counts counts = new TrialViews.Counts(apps.stream().filter(TrialApplicationEntity::live).count(), people.size() - cancelled,
                 people.stream().filter(TrialParticipantEntity::shipped).count(), people.stream().filter(TrialParticipantEntity::received).count(),
                 people.stream().filter(p -> p.getReviewPostId() != null).count(), people.stream().filter(TrialParticipantEntity::returned).count(),
-                people.stream().filter(p -> Boolean.TRUE.equals(p.getKept())).count(), people.stream().filter(p -> p.getUnreturnedAt() != null).count());
-        String applicationNo = bizApplications.find(t.getBizApplicationId()).map(BizApplicationStore.AppRow::no).orElse(null);
+                people.stream().filter(p -> Boolean.TRUE.equals(p.getKept())).count(), people.stream().filter(p -> p.getUnreturnedAt() != null).count(), cancelled);
+        BizApplicationStore.AppRow bizApp = bizApplications.find(t.getBizApplicationId()).orElse(null);
+        String applicationNo = bizApp == null ? null : bizApp.no();
         return new TrialViews.TrialDetail(Long.toString(t.getId()), t.getTitle(), t.getProductName(), t.getProductPrice(), t.getForm().name(), t.getShipper().name(),
                 t.getStatus().name(), new TrialViews.Ref(Long.toString(t.getAdvertiserId()), advertiserName(t.getAdvertiserId())),
                 new TrialViews.Ref(Long.toString(t.getBizApplicationId()), applicationNo), board(t.getReviewBoardId()), t.getRecruitCount(), t.getReviewerShare(),
                 t.reviewerSlots(), t.getReviewerGoldHours(), t.getReviewerSilverHours(), t.getApplyStartAt(), t.getApplyEndAt(), t.getReviewDays(), t.getReturnDays(),
                 t.getDescription(), t.getImageKey(), imageUrl(t.getImageKey()), t.getPriceUnit(), t.getUnitPrice(), t.getShippingFeePerPerson(), t.getSelectedCount(),
-                t.getAmount(), counts, viewer == TrialActorType.OPERATOR || t.operatorShips() ? stock : null, rows, damageRows, t.getCreatedAt(), t.getUpdatedAt());
+                t.getAmount(), counts, viewer == TrialActorType.OPERATOR || t.operatorShips() ? stock : null, rows, damageRows, t.getCreatedAt(), t.getUpdatedAt(),
+                payments.view(t, bizApp, now));
     }
 
     private TrialViews.Participant participant(TrialEntity t, TrialParticipantEntity p, TrialApplicationEntity a, TrialViews.Member member, Map<Long, String> postTitles,
@@ -264,7 +276,8 @@ public class TrialViewer {
                 full ? open(TrialPii.MEMO, a.getMemoEnc()) : null, purged, p.getCarrier(), p.getTrackingNo(), p.getShippedAt(),
                 p.getShippedByType() == null ? null : p.getShippedByType().name(), p.getReceivedAt(), p.getReceivedBy(),
                 p.getReviewPostId() == null ? null : new TrialViews.Ref(Long.toString(p.getReviewPostId()), postTitles.get(p.getReviewPostId())), p.getReviewDueAt(),
-                p.getReturnDueAt(), p.getReturnedAt(), p.getKept(), p.getReviewLateAt(), p.getUnreturnedAt(), p.getContactProvidedAt(), photos(ownPhotos));
+                p.getReturnDueAt(), p.getReturnedAt(), p.getKept(), p.getReviewLateAt(), p.getUnreturnedAt(), p.getContactProvidedAt(), photos(ownPhotos),
+                p.getCancelledAt(), p.getCancelReason());
     }
 
     private String open(DataPurpose purpose, String enc) {

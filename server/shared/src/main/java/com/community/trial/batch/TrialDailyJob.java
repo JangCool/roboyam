@@ -30,6 +30,7 @@ import com.community.trial.repository.master.TrialQueries;
 import com.community.trial.repository.master.TrialRepository;
 import com.community.trial.repository.master.TrialStockReceiptRepository;
 import com.community.trial.service.PurchaseProofService;
+import com.community.trial.service.TrialPayments;
 import com.community.trial.service.TrialPromiseService;
 import com.community.trial.service.TrialSettingsService;
 import com.community.zconfiguration.message.MessageRef;
@@ -91,11 +92,12 @@ public class TrialDailyJob implements BatchJob {
     private final Messages messages;
     private final Clock clock;
     private final TransactionTemplate tx;
+    private final TrialPayments payments;
 
     public TrialDailyJob(TrialRepository trials, TrialApplicationRepository applications, TrialParticipantRepository participants, TrialDamageReportRepository damages,
                          TrialStockReceiptRepository stocks, TrialPhotoRepository photos, TrialQueries queries, TrialSettingsService settings, TrialPromiseService promise,
                          PurchaseProofService proofs, MemberNotificationPublisher notices, NotificationPublisher operators, ImageStorage storage, Messages messages,
-                         ObjectProvider<Clock> clocks, PlatformTransactionManager transactions) {
+                         ObjectProvider<Clock> clocks, PlatformTransactionManager transactions, TrialPayments payments) {
         this.trials = trials;
         this.applications = applications;
         this.participants = participants;
@@ -112,6 +114,7 @@ public class TrialDailyJob implements BatchJob {
         this.messages = messages;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
         this.tx = new TransactionTemplate(transactions);
+        this.payments = payments;
     }
 
     @Override
@@ -238,8 +241,13 @@ public class TrialDailyJob implements BatchJob {
             }
         }
 
-        int closed = each(queries.runningAllJudged(), failed, id -> trials.findWithLockById(id).filter(t -> t.getStatus() == TrialStatus.RUNNING)
-                .ifPresent(t -> t.changeStatus(TrialStatus.CLOSED, now)));
+        // 모든 줄이 판정된 진행 중 모집 → 끝남. 광고 신청 건도 함께 정리한다(L5 — 결제 끝 건은 닫은 시각) — 열린 결제 → 신청 건 → 모집 차례로 잠근다
+        int closed = each(queries.runningAllJudged(), failed, id -> {
+            TrialPayments.Locked l = payments.lockFor(id, "TRIAL_CLOSED");
+            if (l.trial().getStatus() == TrialStatus.RUNNING) {
+                payments.close(l.trial(), l.app(), null, now);
+            }
+        });
 
         return new Summary(closedApply, autoReceived, reviewLate, reminded[0], unreturned, damageAwaiting, proofsPurged, stockNotified, addressesPurged, photosCleaned, closed,
                 failed[0]);
@@ -262,6 +270,9 @@ public class TrialDailyJob implements BatchJob {
         TrialParticipantEntity p = participants.findByApplicationId(a.getId()).orElse(null);
         if (p == null) {
             return t.getStatus() == TrialStatus.CLOSED;
+        }
+        if (p.cancelled() || (t.getStatus() == TrialStatus.CLOSED && !p.shipped())) {
+            return true; // 운영자가 취소한 줄 · 끝내 보내지 않고 모집이 끝난 줄(V242 — D9)
         }
         if (p.getContactProvidedAt() != null) {
             return !now.isBefore(p.getContactProvidedAt().plus(Duration.ofDays(PROVIDED_PURGE_DAYS)));

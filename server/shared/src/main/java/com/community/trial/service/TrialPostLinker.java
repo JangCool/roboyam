@@ -167,7 +167,7 @@ public class TrialPostLinker {
 
     private boolean linkable(long participantId, long authorId, EffectiveBoard b) {
         TrialParticipantEntity p = participants.findById(participantId).orElse(null);
-        if (p == null || p.getUserId() != authorId || p.getReviewPostId() != null || p.getUnreturnedAt() != null) {
+        if (p == null || p.cancelled() || p.getUserId() != authorId || p.getReviewPostId() != null || p.getUnreturnedAt() != null) {
             return false;
         }
         TrialEntity t = trials.findById(p.getTrialId()).orElse(null);
@@ -230,7 +230,7 @@ public class TrialPostLinker {
             return;
         }
         TrialParticipantEntity p = participants.findWithLockById(d.participantId()).orElseThrow(TrialException::participantNotFound);
-        if (p.getReviewPostId() != null) {
+        if (p.getReviewPostId() != null || p.cancelled()) { // 그사이 운영자가 줄을 취소했으면 잇지 않는다
             throw com.community.zconfiguration.exception.ValidationException.of("trialParticipantId", new MessageRef("trial.post.link.invalid"));
         }
         TrialEntity t = trials.findById(p.getTrialId()).orElseThrow(TrialException::notFound);

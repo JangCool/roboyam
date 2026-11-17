@@ -20,7 +20,9 @@ public enum BizProduct {
     HOTDEAL_CATEGORY("CATEGORY_TOP"),
     HOTDEAL_POST(null),
     /** 체험단 — 모집 하나가 광고 신청 건(kind TRIAL) 한 건(shared V241, trial-group-contract 「구현 결정」 1). 값 매기는 단위(모집 건당·인원당)·1명당 발송비는 요금표·가격 기간표의 따로 칸 */
-    TRIAL(null);
+    TRIAL(null),
+    /** 체험단 대신 발송비 줄(shared V242 — 1명당 발송비 × 뽑힌 인원). 금액 원천은 TRIAL 요금표·가격 기간표의 1명당 발송비이고 이 행은 받기 꺼짐·단가 0 인 품목 자리일 뿐이다 */
+    TRIAL_SHIPPING(null);
 
     private final String publicName;
 
@@ -62,6 +64,11 @@ public enum BizProduct {
 
     public boolean adProduct() {
         return banner() || this == TEXT_LINE;
+    }
+
+    /** 체험단 품목(상품 줄 · 발송비 줄) — 자리(한도)·기간 노출 상품이 아니다 */
+    public boolean trial() {
+        return this == TRIAL || this == TRIAL_SHIPPING;
     }
 
     public boolean placement() {

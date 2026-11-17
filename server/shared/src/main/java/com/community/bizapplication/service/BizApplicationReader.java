@@ -133,12 +133,21 @@ public class BizApplicationReader {
 
     /** 자리를 차지하는 상품(한도가 있는 줄) — 핫딜 게시만이면 null */
     public static BizProduct capacityProduct(List<ItemRow> items) {
-        return items.stream().map(ItemRow::product).filter(p -> p != BizProduct.HOTDEAL_POST).findFirst().orElse(null);
+        return items.stream().map(ItemRow::product).filter(p -> p != BizProduct.HOTDEAL_POST && !p.trial()).findFirst().orElse(null);
     }
 
-    /** 예약의 시각 단계 — 예약이 아니면 null */
+    /**
+     * 예약의 시각 단계 — 예약이 아니면 null. 체험단 건(기간 = 신청 기간, 노출 상품이 아니다)은 시각이 아니라 모집이 끝났는지로 본다 — 결제 뒤 모집이 진행 중이면 RUNNING,
+     * 모집이 끝나 닫은 시각이 찍혔으면 ENDED(trial-group-contract 「유료 결제 연결」).
+     */
     public static BizPhase phase(AppRow app, Instant now) {
-        return app.status() == BizApplicationStatus.SCHEDULED ? BizPhase.of(app.startAt(), app.endAt(), now) : null;
+        if (app.status() != BizApplicationStatus.SCHEDULED) {
+            return null;
+        }
+        if (app.kind() == com.community.bizapplication.entity.BizApplicationKind.TRIAL) {
+            return app.closedAt() == null ? BizPhase.RUNNING : BizPhase.ENDED;
+        }
+        return BizPhase.of(app.startAt(), app.endAt(), now);
     }
 
     /** 관리자 화면의 보이는 상태 — 예약은 시각으로 SCHEDULED·RUNNING·ENDED */

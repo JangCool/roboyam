@@ -8,7 +8,10 @@ public enum BizApplicationKind {
     AD_TEXT_LINE(BusinessServiceKind.AD),
     HOTDEAL_POST(BusinessServiceKind.HOTDEAL),
     HOTDEAL_PLACEMENT(BusinessServiceKind.HOTDEAL),
-    /** 체험단 모집(shared V241 — trial-group-contract 「구현 결정」 1) — 운영자 등록 건으로 SUBMITTED 에 머물고 광고 심사 큐·장부에는 보이지 않는다({@link BizDomain#kinds()} 가 뺀다). 금액은 뽑기를 마친 뒤 확정 */
+    /**
+     * 체험단 모집(shared V241 — trial-group-contract 「구현 결정」 1) — 운영자 등록 건. 금액은 뽑기를 마친 뒤 확정하고, 금액 &gt; 0 이면 광고 심사 큐에 승인 대기로 나와 승인·결제를 탄다
+     * (V242 「유료 결제 연결」 — {@code BizApplicationStore.paidTrial}). {@link BizDomain#kinds()}(장부·노출 종류)에는 넣지 않는다.
+     */
     TRIAL(BusinessServiceKind.AD);
 
     private final BusinessServiceKind service;

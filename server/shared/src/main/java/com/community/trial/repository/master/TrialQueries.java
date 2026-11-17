@@ -1,5 +1,6 @@
 package com.community.trial.repository.master;
 
+import com.community.ad.entity.QAdAdvertiserEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.trial.entity.QTrialApplicationEntity;
 import com.community.trial.entity.QTrialEntity;
@@ -148,11 +149,41 @@ public class TrialQueries extends IrobitRepositoryQDSL {
         return query.selectFrom(A).where(A.addressPurgedAt.isNull(), A.status.ne(TrialApplicationStatus.APPLIED).or(trialDone)).orderBy(A.id.asc()).limit(1000).fetch();
     }
 
-    /** 진행 중인 모집 중 모든 뽑힌 줄이 판정(약속 지킴 여부)된 모집 — 자동으로 끝낸다 */
+    /** 진행 중인 모집 중 모든 뽑힌 줄이 판정(약속 지킴 여부)된 모집 — 자동으로 끝낸다. 운영자가 취소한 줄(V242 — 끝내 보내지 않는 줄)은 판정에서 뺀다 */
     public List<Long> runningAllJudged() {
-        BooleanExpression open = JPAExpressions.selectOne().from(P).where(P.trialId.eq(T.id), P.kept.isNull()).exists();
-        BooleanExpression any = JPAExpressions.selectOne().from(P).where(P.trialId.eq(T.id)).exists();
+        BooleanExpression open = JPAExpressions.selectOne().from(P).where(P.trialId.eq(T.id), P.cancelledAt.isNull(), P.kept.isNull()).exists();
+        BooleanExpression any = JPAExpressions.selectOne().from(P).where(P.trialId.eq(T.id), P.cancelledAt.isNull()).exists();
         return query.select(T.id).from(T).where(T.status.eq(TrialStatus.RUNNING), any, open.not()).fetch();
+    }
+
+    // ── 결제 연결(V242 — trial-group-contract 「유료 결제 연결」) ─────────────────────
+
+    /** 모집의 광고 신청 건 ID(엔티티를 영속성 문맥에 올리지 않는 칸 읽기 — 신청 건 행을 먼저 잠그려고) */
+    public java.util.Optional<Long> bizApplicationIdOf(long trialId) {
+        return java.util.Optional.ofNullable(query.select(T.bizApplicationId).from(T).where(T.id.eq(trialId)).fetchFirst());
+    }
+
+    /** 뽑힌 줄의 모집 ID(칸 읽기) */
+    public java.util.Optional<Long> trialIdOfParticipant(long participantId) {
+        return java.util.Optional.ofNullable(query.select(P.trialId).from(P).where(P.id.eq(participantId)).fetchFirst());
+    }
+
+    /** 신청 건 ID → 모집 ID(칸 읽기) */
+    public java.util.Optional<Long> trialIdOfBizApplication(long bizApplicationId) {
+        return java.util.Optional.ofNullable(query.select(T.id).from(T).where(T.bizApplicationId.eq(bizApplicationId)).fetchFirst());
+    }
+
+    /** 사업자 신원에 지금 이어진 광고주의 모집(그 상태들만) — ID 차례 */
+    public List<Long> byBusinessProfile(long businessProfileId, Collection<TrialStatus> statuses) {
+        QAdAdvertiserEntity adv = QAdAdvertiserEntity.adAdvertiserEntity;
+        return query.select(T.id).from(T).join(adv).on(adv.id.eq(T.advertiserId))
+                .where(adv.businessProfileId.eq(businessProfileId), T.status.in(statuses)).orderBy(T.id.asc()).fetch();
+    }
+
+    /** 취소하지 않은 뽑힌 줄 중 무엇이든 시작된 줄(송장·받음·사용기 연결)이 있나 */
+    public boolean anyStarted(long trialId) {
+        return query.selectOne().from(P).where(P.trialId.eq(trialId), P.cancelledAt.isNull(),
+                P.shippedAt.isNotNull().or(P.receivedAt.isNotNull()).or(P.reviewPostId.isNotNull())).fetchFirst() != null;
     }
 
     // ── 확인할 일 ───────────────────────────────────────────────────────────

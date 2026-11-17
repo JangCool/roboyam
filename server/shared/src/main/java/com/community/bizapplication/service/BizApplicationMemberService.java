@@ -297,6 +297,7 @@ public class BizApplicationMemberService {
     /** 결제 전 취소 — 심사 대기·결제 대기·입금 대기(입금 기록 전). 입금 기록이 있으면 409 */
     public void cancel(long userId, long id) {
         tx.executeWithoutResult(status -> {
+            notTrial(id, userId);
             AppRow app = ops.closePaymentsThenLock(id, userId, "BIZ_MEMBER_CANCEL");
             BizTransitions.require(Action.MEMBER_CANCEL, app.status());
             if (app.status() == BizApplicationStatus.AWAITING_DEPOSIT && store.deposit(id).isPresent()) {
@@ -315,6 +316,7 @@ public class BizApplicationMemberService {
     public void changeCreative(long userId, long id, BizCreativeRequest body) {
         BizCreativeRequest b = body == null ? new BizCreativeRequest(null, null, null, null, null, null) : body;
         tx.executeWithoutResult(status -> {
+            notTrial(id, userId);
             AppRow app = ops.closePaymentsThenLock(id, userId, "BIZ_CREATIVE_CHANGE");
             BizTransitions.require(Action.CREATIVE_CHANGE, app.status());
             if (app.status() == BizApplicationStatus.AWAITING_DEPOSIT && store.deposit(id).isPresent()) {
@@ -428,6 +430,7 @@ public class BizApplicationMemberService {
         String reason = f.text("reason", reasonText, 300);
         f.throwIfAny();
         tx.executeWithoutResult(status -> {
+            notTrial(id, userId);
             AppRow app = store.lockOwned(id, userId).orElseThrow(BizApplicationException::notFound);
             Instant now = ops.now();
             BizPhase phase = app.status() == BizApplicationStatus.SCHEDULED ? BizPhase.of(app.startAt(), app.endAt(), now) : null;
@@ -443,6 +446,16 @@ public class BizApplicationMemberService {
             ops.cancelWithFullRefund(app, BizActorType.SYSTEM, null, reason, now);
             ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, paid, null);
         });
+    }
+
+    /**
+     * 체험단 건(kind TRIAL)은 광고주가 결제만 한다 — 취소·소재 바꾸기·환불 요청은 운영자가 모집 화면·광고 심사에서 처리한다(409 {@code BIZ_APPLICATION_STATE_CHANGED}, 열린 결제도 건드리지
+     * 않는다). 남의 건은 404 를 부르는 쪽이 낸다.
+     */
+    private void notTrial(long id, long userId) {
+        if (store.findOwned(id, userId).filter(a -> a.kind() == BizApplicationKind.TRIAL).isPresent()) {
+            throw BizApplicationException.stateChanged();
+        }
     }
 
     /** 정책 동의(H4) + 환불 규정 버전(V127) — 형식이 맞는데 지금 버전이 아니면 400 {@code fields.agreedRefundPolicyVersion}(화면은 「새로 고침해 주세요」) */

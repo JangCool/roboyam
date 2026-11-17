@@ -56,10 +56,13 @@ public class MyBizApplicationService {
     private final BizPauseService pauses;
     private final BusinessProfileRepository profiles;
     private final BusinessPii pii;
+    private final org.springframework.beans.factory.ObjectProvider<com.community.bizapplication.service.BizTrialLink> trials;
 
     public MyBizApplicationService(BizApplicationMemberService members, BizApplicationReader reader, BizApplicationProperties props, Messages messages,
                                    BizDealContent dealForm, BizDealPostReader dealPosts, BizDealEndService dealEnds, BizPauseService pauses,
-                                   BusinessProfileRepository profiles, BusinessPii pii) {
+                                   BusinessProfileRepository profiles, BusinessPii pii,
+                                   org.springframework.beans.factory.ObjectProvider<com.community.bizapplication.service.BizTrialLink> trials) {
+        this.trials = trials;
         this.pauses = pauses;
         this.profiles = profiles;
         this.pii = pii;
@@ -228,7 +231,17 @@ public class MyBizApplicationService {
                 sum.paymentMethod(), sum.amount(), sum.amountConfirmed(), sum.paymentDueAt(), sum.depositDueAt(), sum.submittedAt(), sum.refundRequested(),
                 sum.takedownCause(), amount(a.quote()), a.approved() == null ? null : amount(a.approved()), a.adjustReason(), creative, deal,
                 a.rejectCode() == null ? null : a.rejectCode().name(), a.rejectText(), a.takedownText(), deposit, refund, history,
-                dealPosts.view(a, s.items(), s.creative()), pause, refundLines(a.id()), refundTotals(a, s));
+                dealPosts.view(a, s.items(), s.creative()), pause, refundLines(a.id()), refundTotals(a, s), trial(a));
+    }
+
+    /** 체험단 건이면 모집 요약(V242) */
+    private BizMemberView.Trial trial(AppRow a) {
+        if (a.kind() != BizApplicationKind.TRIAL) {
+            return null;
+        }
+        return trials.getIfAvailable(() -> com.community.bizapplication.service.BizTrialLink.NONE).info(a.id())
+                .map(t -> new BizMemberView.Trial(Long.toString(t.trialId()), t.title(), t.status(), t.productName(), t.form(), t.shipper(), t.selectedCount(),
+                        t.priceUnit(), t.unitPrice(), t.shippingFeePerPerson(), t.amount())).orElse(null);
     }
 
     /** 환불 내역(오래된 차례) — 종류·상태·금액·시각만(사유·운영자 메모 없음) */

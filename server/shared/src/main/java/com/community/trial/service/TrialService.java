@@ -124,12 +124,13 @@ public class TrialService {
     private final Messages messages;
     private final SnowflakeIdGenerator ids;
     private final Clock clock;
+    private final TrialPayments payments;
 
     public TrialService(TrialRepository trials, TrialApplicationRepository applications, TrialParticipantRepository participants, TrialStockReceiptRepository stocks,
                         TrialPhotoRepository photos, TrialDamageReportRepository damages, TrialQueries queries, TrialSettingsService settings,
                         TrialPromiseService promise, TrialViewer viewer, BizApplicationStore bizApplications, BizPriceRuleStore prices, AdAdvertiserStore advertisers,
                         BoardCatalog catalog, GroupBuyImageUploader images, MemberNotificationPublisher notices, AuditLogService audit, Messages messages,
-                        SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+                        SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks, TrialPayments payments) {
         this.trials = trials;
         this.applications = applications;
         this.participants = participants;
@@ -150,6 +151,7 @@ public class TrialService {
         this.messages = messages;
         this.ids = ids;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
+        this.payments = payments;
     }
 
     public Instant now() {
@@ -164,7 +166,7 @@ public class TrialService {
                 .orElseThrow(() -> ValidationException.of("status", new MessageRef("trial.value.invalid")));
         List<TrialEntity> rows = queries.list(status);
         Map<Long, Long> counts = queries.applicantCounts(rows.stream().map(TrialEntity::getId).toList());
-        return rows.stream().map(t -> viewer.row(t, counts.getOrDefault(t.getId(), 0L))).toList();
+        return viewer.rows(rows, counts, now());
     }
 
     /** 광고주의 모집 목록(초안 빼고) */
@@ -172,7 +174,7 @@ public class TrialService {
     public List<TrialViews.TrialRow> listOf(long advertiserId) {
         List<TrialEntity> rows = queries.byAdvertiser(advertiserId);
         Map<Long, Long> counts = queries.applicantCounts(rows.stream().map(TrialEntity::getId).toList());
-        return rows.stream().map(t -> viewer.row(t, counts.getOrDefault(t.getId(), 0L))).toList();
+        return viewer.rows(rows, counts, now());
     }
 
     @Transactional(readOnly = true)
@@ -225,12 +227,15 @@ public class TrialService {
      */
     @Transactional
     public TrialViews.TrialDetail update(long operatorId, String ip, String idText, TrialViews.TrialForm body) {
-        TrialEntity t = trials.findWithLockById(id(idText, TrialException::notFound)).orElseThrow(TrialException::notFound);
-        Instant now = now();
+        long trialId = id(idText, TrialException::notFound);
         String action = body == null || body.action() == null ? null : body.action().strip().toUpperCase(java.util.Locale.ROOT);
+        // 끝내기·취소는 광고 신청 건(결제)도 함께 움직인다 — 열린 결제 → 신청 건 → 모집 차례로 잠근다(광고 쪽 처리와 같은 차례)
+        TrialPayments.Locked locked = "CANCEL".equals(action) || "CLOSE".equals(action) ? payments.lockFor(trialId, "TRIAL_" + action) : null;
+        TrialEntity t = locked != null ? locked.trial() : trials.findWithLockById(trialId).orElseThrow(TrialException::notFound);
+        Instant now = now();
         Map<String, Object> before = snapshot(t);
         if (action != null && !action.isEmpty()) {
-            transition(t, action, operatorId, now);
+            transition(t, action, operatorId, now, locked == null ? null : locked.app());
         } else {
             if (t.getStatus() != TrialStatus.DRAFT && t.getStatus() != TrialStatus.RECRUITING && t.getStatus() != TrialStatus.SELECTING) {
                 throw TrialException.stateInvalid();
@@ -259,7 +264,7 @@ public class TrialService {
         return viewer.detail(t, TrialActorType.OPERATOR, now);
     }
 
-    private void transition(TrialEntity t, String action, long operatorId, Instant now) {
+    private void transition(TrialEntity t, String action, long operatorId, Instant now, BizApplicationStore.AppRow app) {
         TrialStatus s = t.getStatus();
         switch (action) {
             case "PUBLISH" -> {
@@ -278,22 +283,10 @@ public class TrialService {
                 if (s != TrialStatus.RUNNING) {
                     throw TrialException.stateInvalid();
                 }
-                t.changeStatus(TrialStatus.CLOSED, now);
+                payments.close(t, app, operatorId, now); // L5 — 결제 전 건 정리 · 결제 끝 건 닫은 시각 · 보내지 않은 줄 주소 파기
             }
-            case "CANCEL" -> {
-                if (s != TrialStatus.DRAFT && s != TrialStatus.RECRUITING && s != TrialStatus.SELECTING) {
-                    throw TrialException.stateInvalid();
-                }
-                t.changeStatus(TrialStatus.CANCELLED, now);
-                bizApplications.cancelTrial(t.getBizApplicationId(), now);
-                for (TrialApplicationEntity a : applications.findByTrialIdOrderByCreatedAtAscIdAsc(t.getId())) {
-                    if (a.getStatus() == TrialApplicationStatus.APPLIED) {
-                        a.notSelect(now);
-                        notices.trial(a.getUserId(), MemberNotificationType.TRIAL_NOT_SELECTED, t.getTitle(),
-                                messages.get(new MessageRef("trial.notice.cancelled")), "/me/trials");
-                    }
-                }
-            }
+            // 취소 — 뽑기 전이면 그대로, 진행 중이면 발송 전에만(결제 전 = 신청 건 취소 · 결제 뒤 = 전액 환불). 발송이 있었으면 409 TRIAL_SHIPPING_STARTED
+            case "CANCEL" -> payments.cancel(t, app, "TRIAL_CANCELLED", operatorId, false, now);
             default -> throw ValidationException.of("action", new MessageRef("trial.value.invalid"));
         }
     }
@@ -432,14 +425,10 @@ public class TrialService {
                 notices.trial(a.getUserId(), MemberNotificationType.TRIAL_NOT_SELECTED, t.getTitle(), null, "/me/trials");
             }
         }
-        TrialTerms terms = new TrialTerms(t.getPriceUnit(), t.getUnitPrice(), t.getShippingFeePerPerson(), true);
-        long amount = terms.amount(slot.size(), t.operatorShips());
+        long amount = TrialPayments.amountOf(t, slot.size());
         t.select(slot.size(), amount, operatorId, now);
-        BizPricing.Amount quote = BizPricing.amountOf(amount);
-        bizApplications.quoteTrial(t.getBizApplicationId(), quote, now);
-        int units = TrialTerms.PER_RECRUIT.equals(t.getPriceUnit()) ? 1 : Math.max(1, slot.size());
-        bizApplications.replaceItems(t.getBizApplicationId(), List.of(new BizApplicationStore.ItemRow(ids.nextId(), t.getBizApplicationId(), BizProduct.TRIAL,
-                t.getUnitPrice(), units, t.getUnitPrice() * units, t.getApplyStartAt(), t.getApplyEndAt())), now);
+        // 견적을 신청 건에 굳힌다(상품 줄 + 대신 발송비 줄) — 금액 > 0 이면 광고 심사 큐 「승인 대기」(승인 → 결제가 끝나야 입고·발송), 0원이면 결제 흐름 밖
+        BizPricing.Amount quote = payments.quote(t, slot.size(), amount, operatorId, false, now);
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.TRIAL_SELECT, AuditResult.SUCCESS).target("TRIAL", Long.toString(t.getId()))
                 .with("selected", slot.keySet().stream().map(String::valueOf).toList()).with("reviewer", reviewerUsed).with("general", generalUsed)
                 .with("priceUnit", t.getPriceUnit()).with("unitPrice", t.getUnitPrice()).with("shippingFeePerPerson", t.getShippingFeePerPerson())
@@ -523,6 +512,7 @@ public class TrialService {
         if (t.getStatus() != TrialStatus.RUNNING) {
             throw TrialException.stateInvalid();
         }
+        payments.requirePaid(t); // 유료면 광고 결제가 끝나야 입고(409 TRIAL_PAYMENT_PENDING)
         int quantity = body == null || body.quantity() == null ? 0 : body.quantity();
         if (quantity < 1 || quantity > 10_000) {
             throw ValidationException.of("quantity", new MessageRef("trial.range", "1", "10000"));
@@ -550,9 +540,11 @@ public class TrialService {
      */
     @Transactional
     public void ship(Actor actor, String participantIdText, TrialViews.ShipmentRequest body) {
-        TrialParticipantEntity p = participants.findWithLockById(id(participantIdText, TrialException::participantNotFound))
-                .orElseThrow(TrialException::participantNotFound);
-        TrialEntity t = trials.findWithLockById(p.getTrialId()).orElseThrow(TrialException::notFound);
+        long participantId = id(participantIdText, TrialException::participantNotFound);
+        // 모집 행 → 뽑힌 줄 차례로 잠근다(모집 취소·뽑힌 줄 취소와 같은 차례 — 서로 기다리다 막히지 않게)
+        long trialId = queries.trialIdOfParticipant(participantId).orElseThrow(TrialException::participantNotFound);
+        TrialEntity t = trials.findWithLockById(trialId).orElseThrow(TrialException::notFound);
+        TrialParticipantEntity p = participants.findWithLockById(participantId).orElseThrow(TrialException::participantNotFound);
         ownerOrNotFound(t, actor);
         if (actor.operator() != t.operatorShips()) {
             throw TrialException.wrongShipper();
@@ -560,6 +552,10 @@ public class TrialService {
         if (t.getStatus() != TrialStatus.RUNNING) {
             throw TrialException.stateInvalid();
         }
+        if (p.cancelled()) {
+            throw TrialException.participantCancelled();
+        }
+        payments.requirePaid(t); // 유료면 광고 결제가 끝나야 발송(운영자·광고주 모두 — 409 TRIAL_PAYMENT_PENDING)
         if (p.received()) {
             throw TrialException.alreadyReceived();
         }
@@ -585,6 +581,61 @@ public class TrialService {
         }
         audit.record(actor.event(AuditActions.TRIAL_SHIP).target("TRIAL", Long.toString(t.getId())).with("participantId", Long.toString(p.getId()))
                 .with("carrier", carrier).with("photos", attach.size()).with("first", first));
+    }
+
+    /**
+     * 뽑힌 줄 운영자 취소(점검 결정 D9 — {@code POST /api/admin/trials/participants/{id}/cancel} {@code { reason }}) — 진행 중 모집에서 아직 아무것도 시작되지 않은 줄만(송장·받음·사용기 연결이
+     * 있으면 409 {@code TRIAL_SHIPPING_STARTED}, 이미 취소했으면 409 {@code TRIAL_PARTICIPANT_CANCELLED}, 모집이 진행 중이 아니면 409 {@code TRIAL_STATE_INVALID}). 사유 1~200자(400 {@code fields.reason}).
+     * <ul>
+     *   <li>주소 사본 바로 파기 · 회원 알림 {@code TRIAL_CANCELLED_BY_OPERATOR}(사유 한 줄).</li>
+     *   <li>뽑힌 수는 늘 다시 센다. 금액은 <b>결제 전</b>(신청 건 심사 대기 · 입금 기록 없는 결제·입금 대기)일 때만 다시 센다 — 승인 뒤 결제 전이면 열린 결제를 닫고 심사 대기로 되돌려 다시 승인받는다.
+     *       결제 뒤(예약 · 입금 기록 있음)면 금액 그대로(돌려줄 몫은 운영자가 광고 심사의 추가 환불로).</li>
+     *   <li>감사 {@code TRIAL_PARTICIPANT_CANCEL}(돈 — 5년).</li>
+     * </ul>
+     */
+    @Transactional
+    public TrialViews.TrialDetail cancelParticipant(long operatorId, String ip, String participantIdText, TrialViews.ReasonRequest body) {
+        long participantId = id(participantIdText, TrialException::participantNotFound);
+        String reason = body == null || body.reason() == null ? "" : body.reason().strip();
+        if (reason.isEmpty() || reason.length() > 200) {
+            throw ValidationException.of("reason", new MessageRef("trial.cancel.reason"));
+        }
+        long trialId = queries.trialIdOfParticipant(participantId).orElseThrow(TrialException::participantNotFound);
+        TrialPayments.Locked locked = payments.lockFor(trialId, "TRIAL_PARTICIPANT_CANCEL");
+        TrialEntity t = locked.trial();
+        BizApplicationStore.AppRow app = locked.app();
+        TrialParticipantEntity p = participants.findWithLockById(participantId).orElseThrow(TrialException::participantNotFound);
+        if (t.getStatus() != TrialStatus.RUNNING) {
+            throw TrialException.stateInvalid();
+        }
+        if (p.cancelled()) {
+            throw TrialException.participantCancelled();
+        }
+        if (p.started()) {
+            throw TrialException.shippingStarted();
+        }
+        Instant now = now();
+        p.cancel(operatorId, reason, now);
+        applications.findWithLockById(p.getApplicationId()).ifPresent(a -> a.purgeAddress(now));
+        notices.trial(p.getUserId(), MemberNotificationType.TRIAL_CANCELLED_BY_OPERATOR, t.getTitle(),
+                messages.get(new MessageRef("trial.notice.participantCancelled", reason)), "/me/trials");
+        int count = (int) participants.findByTrialIdOrderByIdAsc(t.getId()).stream().filter(x -> !x.cancelled()).count();
+        boolean beforePayment = app.status() == com.community.bizapplication.entity.BizApplicationStatus.SUBMITTED
+                || (com.community.bizapplication.entity.BizApplicationStatus.AWAITING.contains(app.status()) && bizApplications.deposit(app.id()).isEmpty());
+        Long newAmount = null;
+        if (beforePayment) {
+            newAmount = TrialPayments.amountOf(t, count);
+            if (app.status() != com.community.bizapplication.entity.BizApplicationStatus.SUBMITTED
+                    && !bizApplications.backToReview(app.id(), app.status(), app.title(), now)) { // 승인 스냅샷·결제 기한을 비운다(열린 결제는 잠글 때 닫았다)
+                throw TrialException.stateInvalid();
+            }
+            payments.quote(t, count, newAmount, operatorId, true, now);
+        }
+        t.recount(count, newAmount, now);
+        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.TRIAL_PARTICIPANT_CANCEL, AuditResult.SUCCESS).target("TRIAL", Long.toString(t.getId()))
+                .with("participantId", Long.toString(p.getId())).with("reason", reason).with("selected", count).with("bizStatus", app.status().name())
+                .with("requoted", beforePayment).with("amount", t.getAmount()));
+        return viewer.detail(t, TrialActorType.OPERATOR, now);
     }
 
     /** 반납 받음(대여형) — 운영자 또는 광고주(광고주가 보내는 모집), 반납 사진 필수. 약속을 다 지켰으면 판정·리뷰어 단계 */

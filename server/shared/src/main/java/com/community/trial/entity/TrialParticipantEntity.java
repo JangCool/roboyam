@@ -48,6 +48,10 @@ public class TrialParticipantEntity {
     private Instant returnRemindSecondAt;
     private Instant unreturnedAt;
     private Instant contactProvidedAt;
+    /** 운영자 취소(V242 — 발송 전에만, 점검 결정 D9) */
+    private Instant cancelledAt;
+    private Long cancelledBy;
+    private String cancelReason;
     private Instant createdAt;
 
     protected TrialParticipantEntity() {
@@ -120,6 +124,34 @@ public class TrialParticipantEntity {
         if (contactProvidedAt == null) {
             this.contactProvidedAt = now;
         }
+    }
+
+    /** 운영자 취소(발송 전 — 부르는 쪽이 본다) · 모집 취소({@code by} 없음 가능). 사유는 1~200자 */
+    public void cancel(Long by, String reason, Instant now) {
+        this.cancelledAt = now;
+        this.cancelledBy = by;
+        this.cancelReason = reason;
+    }
+
+    public boolean cancelled() {
+        return cancelledAt != null;
+    }
+
+    /** 이 줄로 무엇이든 시작됐나(송장·받음·사용기 연결) — 운영자 취소·결제 뒤 자동 전액 환불을 막는다 */
+    public boolean started() {
+        return shippedAt != null || receivedAt != null || reviewPostId != null;
+    }
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public Long getCancelledBy() {
+        return cancelledBy;
+    }
+
+    public String getCancelReason() {
+        return cancelReason;
     }
 
     public boolean shipped() {

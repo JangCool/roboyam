@@ -362,9 +362,14 @@ class TrialApiTest extends CommerceApiTestBase {
 
         assertThat(jdbc.queryForList("SELECT quota FROM trial_participants WHERE trial_id = ? ORDER BY quota", String.class, t)).containsExactly("GENERAL", "REVIEWER");
         Map<String, Object> amount = jdbc.queryForMap("SELECT t.status, t.selected_count, t.amount, b.quote_supply, b.quote_vat, b.quote_total, i.units FROM trials t "
-                + "JOIN biz_applications b ON b.id = t.biz_application_id JOIN biz_application_items i ON i.application_id = b.id WHERE t.id = ?", t);
+                + "JOIN biz_applications b ON b.id = t.biz_application_id JOIN biz_application_items i ON i.application_id = b.id AND i.product = 'TRIAL' WHERE t.id = ?", t);
         assertThat(amount).containsEntry("status", "RUNNING").containsEntry("selected_count", 2).containsEntry("amount", 106000L).containsEntry("quote_supply", 106000L)
                 .containsEntry("quote_vat", 10600L).containsEntry("quote_total", 116600L).containsEntry("units", 2);
+        // 대신 발송비는 따로 품목 줄(V242 TRIAL_SHIPPING — 3,000 × 2명) · 줄 합 = 견적 공급가
+        assertThat(jdbc.queryForMap("SELECT i.unit_price, i.units, i.supply FROM trials t JOIN biz_application_items i ON i.application_id = t.biz_application_id "
+                + "WHERE t.id = ? AND i.product = 'TRIAL_SHIPPING'", t)).containsEntry("unit_price", 3000L).containsEntry("units", 2).containsEntry("supply", 6000L);
+        assertThat(jdbc.queryForObject("SELECT sum(i.supply) FROM trials t JOIN biz_application_items i ON i.application_id = t.biz_application_id WHERE t.id = ?", Long.class, t))
+                .isEqualTo(106000L);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM trial_applications WHERE trial_id = ? AND status = 'NOT_SELECTED' AND address_purged_at IS NOT NULL", Integer.class, t))
                 .isEqualTo(2); // 안 뽑힌 신청의 주소는 바로 파기
         assertThat(notices(r1, "TRIAL_SELECTED")).isEqualTo(1);

@@ -5,6 +5,7 @@ import com.community.bizapplication.dto.BizContractFile;
 import com.community.bizapplication.dto.BizOperator;
 import com.community.bizapplication.dto.BizUpload;
 import com.community.bizapplication.entity.BizActorType;
+import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizEventAction;
 import com.community.bizapplication.entity.BizPaymentMethod;
@@ -128,6 +129,10 @@ public class BizApplicationReviewService {
      */
     public void approve(BizOperator actor, long id, String methodText, Long supply, String adjustReasonText, String deadlineText, String startText, String endText,
                         String selfMemoText) {
+        if (store.find(id).filter(a -> a.kind() == BizApplicationKind.TRIAL).isPresent()) {
+            approveTrial(actor, id, methodText, supply, deadlineText, selfMemoText);
+            return;
+        }
         BizFields f = BizFields.start();
         BizPaymentMethod method = f.oneOf("method", methodText, BizPaymentMethod::valueOf);
         if (supply == null || supply < 1) {
@@ -206,6 +211,66 @@ public class BizApplicationReviewService {
         });
     }
 
+    /**
+     * 체험단 건 승인(trial-group-contract 「유료 결제 연결」 — 점검 결정 D1). 심사 대기 + 뽑기로 견적이 굳었고 금액 &gt; 0 인 건만(아니면 409 {@code BIZ_APPLICATION_STATE_CHANGED}).
+     * <ul>
+     *   <li><b>금액은 뽑기 때 굳힌 견적 그대로</b> — 요금표로 다시 셈하지 않고 줄도 바꾸지 않는다. 본문 {@code supply} 는 비우거나 견적 공급가와 같아야 한다(다르면 400 {@code fields.supply}).</li>
+     *   <li>기간 검사·자리 한도·일할 계산 없음(기간 노출 상품이 아니다 — 기간 칸은 신청 기간 그대로).</li>
+     *   <li>결제 기한: 보내면 지금 뒤(400 {@code fields.deadlineAt}), 비우면 온라인 = 승인 + {@code irobit.biz.payment-hours}(72시간) · 수동 = 승인 + {@code irobit.biz.deposit-days}(7일).</li>
+     *   <li>온라인은 광고주 회원(사업자 신원)이 있어야 한다(없으면 400 {@code fields.method}) · 운영 주체가 팔 수 없는 단계면 409 {@code BIZ_OPERATOR_STAGE}(기존 규칙). 자기 승인 규칙은 운영자 등록 건과 같다.</li>
+     * </ul>
+     */
+    private void approveTrial(BizOperator actor, long id, String methodText, Long supply, String deadlineText, String selfMemoText) {
+        BizFields f = BizFields.start();
+        BizPaymentMethod method = f.oneOf("method", methodText, BizPaymentMethod::valueOf);
+        Instant deadlineInput = BizFields.strip(deadlineText) == null ? null : f.instant("deadlineAt", deadlineText);
+        Instant now = ops.now();
+        if (deadlineInput != null && !deadlineInput.isAfter(now)) {
+            f.add("deadlineAt", "bizapp.deadline.past");
+        }
+        f.throwIfAny();
+        tx.executeWithoutResult(status -> {
+            AppRow app = store.lock(id).orElseThrow(BizApplicationException::notFound);
+            BizApplicationStatus to = BizTransitions.require(method == BizPaymentMethod.ONLINE ? Action.APPROVE_ONLINE : Action.APPROVE_MANUAL, app.status());
+            if (app.quote().total() <= 0) {
+                throw BizApplicationException.stateChanged(); // 뽑기 전이거나 0원 — 결제 흐름 밖
+            }
+            if (supply != null && supply != app.quote().supply()) {
+                throw com.community.zconfiguration.exception.ValidationException.of("supply", new com.community.zconfiguration.message.MessageRef("bizapp.trial.amountFixed"));
+            }
+            if (method == BizPaymentMethod.ONLINE && app.userId() == null) {
+                throw com.community.zconfiguration.exception.ValidationException.of("method", new com.community.zconfiguration.message.MessageRef("bizapp.trial.onlineNeedsMember"));
+            }
+            if (method == BizPaymentMethod.ONLINE && !commerce.operatorCanSell()) {
+                throw BizApplicationException.operatorStage();
+            }
+            boolean self = selfApproval(app, actor);
+            String selfMemo = self ? selfApprovalMemo(props.selfApproval(), selfMemoText) : null;
+            Instant deadline = deadlineInput != null ? deadlineInput
+                    : method == BizPaymentMethod.ONLINE ? now.plus(java.time.Duration.ofHours(props.paymentHours())) : now.plus(java.time.Duration.ofDays(props.depositDays()));
+            Amount fixed = app.quote();
+            if (!store.approve(id, to, app.startAt(), app.endAt(), fixed, fixed, null, method, deadline, actor.operatorId(), now)) {
+                throw BizApplicationException.stateChanged();
+            }
+            ops.event(id, method == BizPaymentMethod.ONLINE ? BizEventAction.APPROVED_ONLINE : BizEventAction.APPROVED_MANUAL, BizActorType.OPERATOR, actor.operatorId(),
+                    self ? "SELF_APPROVED · " + selfMemo : null, now);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("method", method.name());
+            detail.put("supply", fixed.supply());
+            detail.put("total", fixed.total());
+            detail.put("deadlineAt", deadline.toString());
+            detail.put("trial", true);
+            if (self) {
+                detail.put("selfApproved", true);
+                detail.put("selfApprovalMemo", selfMemo);
+            }
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_APPROVE, app, detail);
+            AppRow after = store.find(id).orElseThrow();
+            ops.notices().member(after, method == BizPaymentMethod.ONLINE ? BizApplicationNotices.Kind.APPROVED : BizApplicationNotices.Kind.MANUAL, fixed.total(),
+                    ServiceTime.dateOf(deadline).toString());
+        });
+    }
+
     /** 반려 — 심사 대기만(결제 전이라 환불 없음). 사유 코드 + 글 1~200자 */
     public void reject(BizOperator actor, long id, String codeText, String textValue) {
         BizFields f = BizFields.start();
@@ -222,6 +287,7 @@ public class BizApplicationReviewService {
             ops.event(id, BizEventAction.REJECTED, BizActorType.OPERATOR, actor.operatorId(), code.name(), now);
             ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REJECT, app, Map.of("code", code.name(), "text", text));
             ops.notices().member(app, BizApplicationNotices.Kind.REJECTED, 0, text);
+            ops.trialClosed(app, "REJECTED", actor.operatorId()); // 체험단 건이면 모집도 취소(결제 없이는 발송할 수 없다)
         });
     }
 
@@ -487,7 +553,10 @@ public class BizApplicationReviewService {
             if (app.status() == BizApplicationStatus.SCHEDULED) {
                 // 사업자 핫딜 글을 시작 시각에 올리지 못한 건(POST_FAILED)은 시작 뒤에도 전액 환불(biz-hotdeal-contract 규칙 10)
                 boolean postFailed = dealPosts.find(id).filter(r -> !r.posted()).isPresent();
-                if ((!postFailed && BizPhase.of(app.startAt(), app.endAt(), now) != BizPhase.UPCOMING) || refunds.lockOpen(id).isPresent()) {
+                // 체험단 건(기간 노출 상품이 아니다)의 「시작 전」 = 발송 전 · 모집이 아직 열려 있다(끝난 모집·발송이 있었으면 운영자 추가 환불로 — trial-group-contract 「유료 결제 연결」)
+                boolean beforeStart = app.kind() == BizApplicationKind.TRIAL ? app.closedAt() == null && !ops.trials().shippingStarted(id)
+                        : postFailed || BizPhase.of(app.startAt(), app.endAt(), now) == BizPhase.UPCOMING;
+                if (!beforeStart || refunds.lockOpen(id).isPresent()) {
                     throw BizApplicationException.stateChanged();
                 }
                 refunded = ops.paidAmount(app);
@@ -498,6 +567,7 @@ public class BizApplicationReviewService {
             }
             ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CANCEL, app, Map.of("from", app.status().name(), "reason", reason, "refund", refunded));
             ops.notices().member(app, BizApplicationNotices.Kind.CANCELED, refunded, reason);
+            ops.trialClosed(app, "BIZ_CANCELED", actor.operatorId());
         });
     }
 
@@ -536,6 +606,7 @@ public class BizApplicationReviewService {
                     Map.of("refundId", Long.toString(open.id()), "amount", amount, "proposed", open.proposedAmount(), "reason", reason));
             ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, amount, null);
             ops.closedAfterSchedule(app);
+            ops.trialClosed(app, "REFUNDED", actor.operatorId());
         });
     }
 

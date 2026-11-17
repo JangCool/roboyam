@@ -85,7 +85,7 @@ public final class TrialViews {
     /** 모집 목록 한 줄 */
     public record TrialRow(String id, String title, String productName, String form, String shipper, String status, Ref advertiser, int recruitCount,
                            int reviewerShare, long applicantCount, Integer selectedCount, Instant applyStartAt, Instant applyEndAt, BoardRef reviewBoard, Long amount,
-                           Instant createdAt) {
+                           Instant createdAt, String paymentStatus) {
     }
 
     /** 입고·발송 탭의 입고 칸(운영자가 대신 보낼 때만) — {@code keepUntil} 보관 기한(입고 + 설정 일수) */
@@ -100,23 +100,42 @@ public final class TrialViews {
     public record Participant(String id, String applicationId, Member member, String quota, String recipient, String phone, String postcode, String address1,
                               String address2, String memo, boolean addressPurged, String carrier, String trackingNo, Instant shippedAt, String shippedBy,
                               Instant receivedAt, String receivedBy, Ref reviewPost, Instant reviewDueAt, Instant returnDueAt, Instant returnedAt, Boolean kept,
-                              Instant reviewLateAt, Instant unreturnedAt, Instant contactProvidedAt, List<Photo> photos) {
+                              Instant reviewLateAt, Instant unreturnedAt, Instant contactProvidedAt, List<Photo> photos, Instant cancelledAt,
+                              String cancelReason) {
     }
 
     public record DamageReport(String id, String participantId, Member member, String reporterType, String description, String status, Instant objectionDueAt,
                                String objection, Instant objectedAt, String verdict, String decisionNote, Instant decidedAt, List<Photo> photos, Instant createdAt) {
     }
 
-    /** 단계별 수 */
-    public record Counts(long applied, long selected, long shipped, long received, long reviewed, long returned, long kept, long unreturned) {
+    /** 단계별 수 — {@code selected} 는 취소하지 않은 뽑힌 줄, {@code cancelled} 는 운영자가 취소한 뽑힌 줄(V242) */
+    public record Counts(long applied, long selected, long shipped, long received, long reviewed, long returned, long kept, long unreturned, long cancelled) {
     }
 
-    /** 모집 상세(관리자) — 금액은 뽑기 뒤 확정({@code amount}), 그 전에는 null */
+    /**
+     * 광고 결제 상태(trial-group-contract 「유료 결제 연결」 — 관리자·광고주 모집 상세). {@code status}:
+     * {@code BEFORE_SELECTION} 뽑기 전(금액 미정) · {@code NOT_REQUIRED} 0원(결제 없음) · {@code AWAITING_APPROVAL} 운영자 승인 대기(광고 심사 큐) ·
+     * {@code AWAITING_PAYMENT} 온라인 결제 대기 · {@code AWAITING_DEPOSIT} 수동 입금 대기 · {@code PAID} 결제 끝(예약) · {@code CANCELED} 취소·반려·만료(신청 건이 닫혔다).
+     *
+     * @param required         뽑기를 마쳤고 금액 &gt; 0 — 결제가 끝나야 입고·발송할 수 있다
+     * @param shippingAllowed  입고·발송을 할 수 있나(결제 필요 없음 또는 결제 끝)
+     * @param bizApplicationId 광고 신청 건 ID — 관리자 광고 심사 {@code /ad-reviews?id=} · 광고주 결제 {@code /business/applications/{id}}
+     * @param bizStatus        신청 건 저장 상태(SUBMITTED·AWAITING_PAYMENT·… — 화면 보조)
+     * @param supply           공급가 · {@code vat} 부가세 · {@code total} 합계(승인 뒤엔 확정 금액, 그 전엔 뽑기 견적)
+     * @param method           결제 방식(승인 뒤 ONLINE·MANUAL, 그 전 null)
+     * @param deadlineAt       결제·입금 기한(승인 뒤, 그 전 null)
+     * @param payOnline        광고주가 사업자 센터에서 온라인 결제를 할 수 있다(온라인 결제 대기 · 기한 전 · 광고주 회원이 그 건의 주인)
+     */
+    public record Payment(boolean required, String status, boolean shippingAllowed, String bizApplicationId, String bizApplicationNo, String bizStatus, long supply,
+                          long vat, long total, String method, Instant deadlineAt, Instant paidAt, boolean payOnline) {
+    }
+
+    /** 모집 상세(관리자) — 금액은 뽑기 뒤 확정({@code amount}), 그 전에는 null. {@code payment} 광고 결제 상태(V242) */
     public record TrialDetail(String id, String title, String productName, long productPrice, String form, String shipper, String status, Ref advertiser,
                               Ref bizApplication, BoardRef reviewBoard, int recruitCount, int reviewerShare, int reviewerSlots, int reviewerGoldHours,
                               int reviewerSilverHours, Instant applyStartAt, Instant applyEndAt, int reviewDays, Integer returnDays, String description, String imageKey,
                               String imageUrl, String priceUnit, long unitPrice, long shippingFeePerPerson, Integer selectedCount, Long amount, Counts counts, Stock stock,
-                              List<Participant> participants, List<DamageReport> damageReports, Instant createdAt, Instant updatedAt) {
+                              List<Participant> participants, List<DamageReport> damageReports, Instant createdAt, Instant updatedAt, Payment payment) {
     }
 
     /** 신청자 한 줄(관리자 뽑기 · 광고주 추천) — 리뷰어 단계 · 몫 · 숫자 · 추천 */
@@ -175,7 +194,7 @@ public final class TrialViews {
      */
     public record MyParticipation(String id, String carrier, String trackingNo, Instant shippedAt, Instant receivedAt, String receivedBy, boolean canReceive,
                                   Instant reviewDueAt, String reviewPostId, boolean canWrite, BoardRef writeBoard, Instant returnDueAt, Instant returnedAt, Boolean kept,
-                                  Instant unreturnedAt, List<MyDamage> damageReports) {
+                                  Instant unreturnedAt, List<MyDamage> damageReports, Instant cancelledAt) {
     }
 
     public record MyTrial(String applicationId, String applicationStatus, String quota, Instant appliedAt, boolean canCancel, TrialCard trial,

@@ -485,7 +485,7 @@ public class BusinessAdminService {
             BusinessApplicationHook.SuspendImpact si = hook.impact(id, s.getService());
             return new BusinessAdminView.ServiceCard(s.getService().name(), s.getStatus().name(), c.liveCount(), c.pendingCount(),
                     s.getSuspendCode() == null ? null : s.getSuspendCode().name(), s.getSuspendText(), s.getSuspendedAt(), operatorName(s.getSuspendedBy()),
-                    new BusinessAdminView.Impact(si.awaitingPayment(), si.scheduled(), si.running()));
+                    new BusinessAdminView.Impact(si.awaitingPayment(), si.scheduled(), si.running(), si.trialRecruiting(), si.trialRunning()));
         }).toList();
         BusinessApplicationHook.SuspendImpact impact = hook.impact(id);
         BusinessAdminView.Rejection rejection = p.getStatus() == BusinessStatus.REJECTED && p.getRejectCode() != null
@@ -497,7 +497,8 @@ public class BusinessAdminService {
         return new BusinessAdminView.Detail(Long.toString(id), p.getCompanyName(), BusinessFields.maskBizNo(p.getBizNoLast4()), p.getStatus().name(), p.isReReview(),
                 serviceRows(rows), new BusinessAdminView.Applicant(Long.toString(p.getUserId()), nickname), p.getSubmittedAt(),
                 ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, p.getOpenedOn(), cert, cards,
-                new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running()), rejection, suspension, history,
+                new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running(), impact.trialRecruiting(), impact.trialRunning()), rejection,
+                suspension, history,
                 p.getCertificateDelivery().name(), receipt.received(p));
     }
 

@@ -64,12 +64,21 @@ public final class BizMemberView {
     /**
      * @param refunds      환불 줄 전부(오래된 차례 — 중단 환불·추가 환불 등). {@code refund} 는 그중 가장 최근 줄
      * @param refundTotals 결제액·승인된 환불 합(결제 전이면 null)
+     * @param trial        체험단 건(kind TRIAL)이면 그 모집 요약, 아니면 null(V242 — 유료 결제 연결)
      */
     public record Detail(String id, String kind, String title, String adType, String placement, String startDate, String endDate, String status, String phase,
                          String paymentMethod, Amount amount, boolean amountConfirmed, Instant paymentDueAt, Instant depositDueAt, Instant submittedAt,
                          boolean refundRequested, String takedownCause, Amount estimate, Amount confirmed, String adjustReason, Creative creative, BizDealInfo deal,
                          String rejectCode, String rejectReason, String takedownReason, Deposit deposit, Refund refund, List<History> history,
-                         BizDealPostView post, Pause pause, List<RefundLine> refunds, RefundTotals refundTotals) {
+                         BizDealPostView post, Pause pause, List<RefundLine> refunds, RefundTotals refundTotals, Trial trial) {
+    }
+
+    /**
+     * 체험단 건의 모집 요약 — {@code status} 모집 상태(DRAFT·RECRUITING·SELECTING·RUNNING·CLOSED·CANCELLED) · {@code priceUnit} PER_RECRUIT(모집 건당)·PER_PERSON(1명당) ·
+     * {@code shipper} ADVERTISER·OPERATOR(운영자가 대신 보내면 1명당 발송비가 더해진다) · {@code selectedCount} 뽑힌 인원 · {@code amount} 확정 공급가(원). 광고주 모집 화면 {@code /business/trials/{trialId}}
+     */
+    public record Trial(String trialId, String title, String status, String productName, String form, String shipper, Integer selectedCount, String priceUnit,
+                        long unitPrice, long shippingFeePerPerson, Long amount) {
     }
 
     /**
