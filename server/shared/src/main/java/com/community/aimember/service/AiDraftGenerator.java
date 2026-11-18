@@ -115,11 +115,13 @@ public class AiDraftGenerator {
     private final AiModelCatalog models;
     private final AiPromptSettings prompts;
     private final AiNewsSources news;
+    private final AiNewsArticleReader articles;
 
     public AiDraftGenerator(AiMemberProfileRepository accounts, AiMemberSettingsRepository settings, AiDraftRepository drafts, AiMemberQueries queries,
                             AiProviderKeys keys, AiMemberProperties properties, AiLlmClient llm, AiDraftPublisher publisher, BoardCatalog catalog,
                             GroupRepository groups, GroupMemberRepository groupMembers, SnowflakeIdGenerator ids, PlatformTransactionManager txManager,
-                            AiModelCatalog models, AiPromptSettings prompts, AiNewsSources news) {
+                            AiModelCatalog models, AiPromptSettings prompts, AiNewsSources news, AiNewsArticleReader articles) {
+        this.articles = articles;
         this.models = models;
         this.prompts = prompts;
         this.news = news;
@@ -402,11 +404,19 @@ public class AiDraftGenerator {
 
     /** 인용 블록에 넣을 소재 글 — 제목 · 요약 · 출처(수집 항목) / 제목 · 본문 · 「사이트 회원 글」(회원 뉴스 글). 원문 링크는 넣지 않는다(서버가 따로 붙인다) */
     public static String materialText(AiNewsSources.Material m) {
+        return materialText(m, null);
+    }
+
+    /** {@link #materialText(AiNewsSources.Material)} + 원문 본문 발췌(수집 항목의 원문을 읽었을 때 — {@link AiNewsArticleReader}, 2026-11-18) */
+    public static String materialText(AiNewsSources.Material m, String articleText) {
         StringBuilder s = new StringBuilder("제목: ").append(m.title() == null ? "" : m.title()).append('\n');
         s.append("요약: ").append(m.summary() == null || m.summary().isBlank() ? "(요약 없음 — 제목만 근거로 짧게 쓴다)" : m.summary()).append('\n');
         s.append("출처: ").append(m.collected() ? (m.sourceName() == null ? "" : m.sourceName()) : "이 사이트 회원이 올린 뉴스 글");
         if (m.publishedAt() != null) {
             s.append('\n').append("발행: ").append(m.publishedAt().atZone(ServiceTime.ZONE).toLocalDate());
+        }
+        if (articleText != null && !articleText.isBlank()) {
+            s.append('\n').append("본문 발췌(원문 기사 — 요약할 자료):\n").append(articleText.strip());
         }
         return s.toString();
     }
@@ -551,7 +561,14 @@ public class AiDraftGenerator {
         }
         AiVoice voice = a.getVoice();
         AiPromptConfig.Mood mood = voice.animal() ? null : AiPrompts.pickMood(config, ThreadLocalRandom.current()); // 동물 소리 계정은 분위기를 넣지 않는다
-        AiPrompts.Prompt prompt = AiPrompts.compose(config, a, a.getPartnerId() != null, task.place(), mood, task.ask());
+        // 수집 항목 뉴스 글 — 원문 기사를 읽어 본문 발췌를 자료에 더한다(2026-11-18, 트랜잭션 밖 — 못 읽으면 요약만으로). 기사 사진은 가져오지 않는다
+        AiNewsArticleReader.Article article = task.news() != null && task.news().collected() && !voice.animal()
+                ? articles.read(task.news().link()) : AiNewsArticleReader.Article.EMPTY;
+        AiPrompts.Ask ask = task.ask();
+        if (article.text() != null && ask.kind() == AiPrompts.Kind.NEWS) {
+            ask = AiPrompts.Ask.news(new AiPrompts.Quote("뉴스 소재", materialText(task.news(), article.text())), ask.recentTitles(), ask.news());
+        }
+        AiPrompts.Prompt prompt = AiPrompts.compose(config, a, a.getPartnerId() != null, task.place(), mood, ask);
         AiLlmRequest request = new AiLlmRequest(provider, model, prompt.system(), prompt.user(), properties.maxOutputTokens());
         Long sourcePostId = task.target().sourcePostId();
         try {

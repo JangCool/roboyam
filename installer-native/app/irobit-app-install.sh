@@ -42,7 +42,7 @@
 #       --origin-cert FILE     Cloudflare Origin CA 인증서(PEM)   --origin-key FILE  그 개인 키
 #       --api-xmx SIZE         api 힙 (기본: 메모리에 맞춰 — 2GB 서버: admin 같이 768m / api 만 1024m)
 #       --admin-xmx SIZE       admin 힙 (기본: 2GB 서버 384m)
-#       --api-pool N           api DB_POOL_SIZE (기본 20)   --admin-pool N  ADMIN 풀 (기본 5)
+#       --api-pool N           api DB_POOL_SIZE (기본 20)   --admin-pool N  ADMIN 풀 (기본 20)
 #       --swap SIZE            스왑 파일 크기(예 2G). 이미 있으면 건드리지 않는다
 #       --no-caddy             Caddy 를 설치·설정하지 않는다
 #       --cf-ips-file FILE     Cloudflare IP 대역을 인터넷 대신 이 파일(줄마다 CIDR)에서 읽는다
@@ -95,7 +95,7 @@ ORIGIN_KEY=""
 API_XMX=""
 ADMIN_XMX=""
 API_POOL=20
-ADMIN_POOL=5
+ADMIN_POOL=20   # 배치 스레드마다 잠금 연결 + 일 연결 두 개를 쓴다(배치 4 + @Scheduled 워커 5 + 요청) — 5 면 매시 00·30분에 바닥나 배치가 실패했다(2026-11-18)
 SWAP_SIZE=""
 WITH_CADDY=1
 CF_IPS_FILE=""
