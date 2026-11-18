@@ -773,6 +773,7 @@ async function seedAiMembers(members, admin) {
         const r = await admin.request('POST', '/api/admin/ai-members', {
             nickname: a.nickname, avatarId: avatarOk(a.avatarId) ? a.avatarId : null, provider: a.provider, model, persona: a.persona, bio: a.bio, relation: null,
             windows: a.windows, voice: a.voice ?? 'NORMAL', boards, groups: [group.id],
+            dailyPostMax: a.dailyPostMax ?? null, newsRatio: a.newsRatio ?? null, extraPrompt: a.extraPrompt ?? null, // 계정별 값(V223·V228) — AI 기자 등
         });
         if (!ok(r)) {
             failed(`AI 회원 ${a.nickname}`, r);

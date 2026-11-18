@@ -1,30 +1,31 @@
 {
   "format": 1,
   "preset": "IROBIT",
-  "builtAt": "2026-11-17T06:32:17.045Z",
+  "builtAt": "2026-11-18T06:54:17.045Z",
   "source": {
-    "sharedVersion": "244",
+    "sharedVersion": "256",
     "database": "irobit_demo_build"
   },
   "operatorIds": [
-    "116063164298072064"
+    "116431241661550592"
   ],
   "dataKey": "1:Nkfi1vUhkXnb6dM1b8wzSxEbPhDjKWCqih4IwYR9o34=",
   "data": "data.json.gz",
-  "dataSha256": "0801aa486e93162bf6fa7a2009f85f7e659f1456698ff8a44b8592694519007f",
+  "dataSha256": "8008fe8d8af5539de89c0ea5e3b8949a181a7c47dcdc644eaeeca10284b25825",
   "patches": [
     "0001-member-titles-featured-posts.sql",
     "0002-trials-purchase-sources.mjs",
-    "0003-trial-review-prefix.sql"
+    "0003-trial-review-prefix.sql",
+    "0004-ai-reporter.sql"
   ],
   "counts": {
-    "users": 52,
+    "users": 53,
     "business_profiles": 1,
     "ad_advertisers": 6,
     "ad_advertiser_events": 6,
-    "ai_member_profiles": 10,
+    "ai_member_profiles": 11,
     "ai_member_drafts": 56,
-    "ai_member_model_history": 12,
+    "ai_member_model_history": 13,
     "biz_applications": 20,
     "biz_application_events": 94,
     "biz_application_items": 20,
@@ -92,7 +93,7 @@
     "post_tag_dirty_days": 73,
     "post_tags": 124,
     "posts": 599,
-    "profiles": 52,
+    "profiles": 53,
     "purchase_proofs": 4,
     "reward_events": 2,
     "reward_event_tiers": 3,
