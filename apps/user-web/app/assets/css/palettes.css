@@ -30,6 +30,8 @@
         /* 로고 그림도 로고 줄과 같은 짝(옅은 바 = 밝은 바탕용 · 진한 바 = 어두운 바탕용 — main.css 「로고 그림 고르기」) */
         --nav-logo-light: var(--topbar-logo-light, block);
         --nav-logo-dark: var(--topbar-logo-dark, none);
+        /* 바 아래 선 — 색 바(남색·파랑·살구 …)면 바와 같은 색(흰 바용 머리카락 선이 색 바 아래에 연한 줄로 떠 「파란 띠 두 줄」처럼 보였다, 사용자 2026-11-18), 색 없는 테마면 흰 바처럼 머리카락 선 */
+        border-color: var(--topbar-bg, var(--hairline));
     }
 }
 
