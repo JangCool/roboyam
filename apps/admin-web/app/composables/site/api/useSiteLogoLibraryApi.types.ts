@@ -20,8 +20,8 @@ export interface SiteLogoBundle {
     logos: SiteLogoSet;
     /** 로고에 사이트 이름이 들어 있음 — 켜면 공개 헤더가 로고 옆 이름 글자를 붙이지 않는다 */
     nameInLogo: boolean;
-    /** 기본 제공 묶음의 벌 — `CHARACTER`(캐릭터 로고 계열·기념일의 귀여운 버전) · `WORDMARK`(글자 로고 계열·일반 버전). 올린 묶음은 null */
-    style?: SiteLogoStyle | null;
+    /** 묶음의 유형(벌) — `CHARACTER`(캐릭터 로고 계열·기념일의 귀여운 버전) · `WORDMARK`(글자 로고 계열·일반 버전). 올린 묶음은 운영자가 고른 값(응답에 없으면 API 컴포저블이 `CHARACTER` 로 채운다) */
+    style: SiteLogoStyle;
     /**
      * 기념일 로고 묶음이면 그날의 키(`newyear`·`samil` …) — 같은 키의 두 묶음(캐릭터 벌·글자 벌)이 짝이다. 기본 로고·올린 묶음은 null.
      * 기념일 규칙이 이런 묶음을 가리키면 실제로는 「기념일 로고 유형」(`SiteLogoRules.holidayStyle`)에 맞는 짝이 보인다(`UtilSiteLogoRule.matchStyle` — 서버 `SiteLogoResolver.matchStyle`).
@@ -83,11 +83,11 @@ export interface SiteLogoLibraryResponse {
 }
 
 /**
- * 서버가 준 그대로의 보관함 응답 — `rules.holidayStyle` 이 없을 수 있다(옛 서버 jar).
- * API 컴포저블이 `SiteLogoLibraryResponse`(늘 `rules.holidayStyle` 이 있다 — 없으면 `AUTO`)로 맞춘다.
+ * 서버가 준 그대로의 보관함 응답 — `rules.holidayStyle`·묶음의 `style` 이 없을 수 있다(옛 서버 jar).
+ * API 컴포저블이 `SiteLogoLibraryResponse`(늘 `rules.holidayStyle` 이 있다 — 없으면 `AUTO`, 묶음 `style` 은 없으면 `CHARACTER`)로 맞춘다.
  */
 export interface SiteLogoLibraryRawResponse {
-    bundles: SiteLogoBundle[];
+    bundles: (Omit<SiteLogoBundle, 'style'> & { style?: string | null })[];
     rules: Omit<SiteLogoRules, 'holidayStyle'> & { holidayStyle?: string | null };
 }
 
@@ -104,6 +104,8 @@ export type SiteLogoCellRequest = { fileId: string } | { svgSource: string } | '
 export interface SiteLogoBundleRequest {
     name: string;
     nameInLogo: boolean;
+    /** 유형 — 이 로고를 기본·성별 로고로 쓰면 기념일에 같은 유형의 기념일 로고가 보인다. 칸 오류 `fields.style` */
+    style: SiteLogoStyle;
     cells: Record<SiteLogoVariant, SiteLogoCellRequest>;
 }
 
@@ -112,6 +114,7 @@ export interface SiteLogoBundleInput {
     /** 1~30자 */
     name: string;
     nameInLogo: boolean;
+    style: SiteLogoStyle;
     cells: Record<SiteLogoVariant, SiteLogoCellInput>;
 }
 

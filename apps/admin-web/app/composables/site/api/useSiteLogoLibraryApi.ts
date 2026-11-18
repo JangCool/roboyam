@@ -14,7 +14,7 @@ import UtilSiteLogo from '~/utils/util-site-logo';
  * 로고 보관함 + 보이기 규칙 API — 서버 주소 문자열(`/api/admin/site/logo-library…`)이 있는 유일한 곳이다. 상태는 없다.
  * 서버 `SiteLogoLibraryController`·`SiteLogoLibraryService`(`docs/features/site-logo-library-contract.md` 「서버 구현 2026-11-18」). 응답은 모두 `SiteLogoLibraryResponse`(묶음 목록 + 규칙 전체):
  *   - `GET  /api/admin/site/logo-library`  (`site.read`)
- *   - `POST /api/admin/site/logo-library/bundles` `{ name, nameInLogo, cells: { koLight: {fileId}|{svgSource}|"KEEP"|null, … } }`  (`site.manage`)
+ *   - `POST /api/admin/site/logo-library/bundles` `{ name, nameInLogo, style: "CHARACTER"|"WORDMARK"(칸 오류 `fields.style`), cells: { koLight: {fileId}|{svgSource}|"KEEP"|null, … } }`  (`site.manage`)
  *       그림 파일은 먼저 `POST /api/admin/files`(purpose=SITE_LOGO — `useFileApi`)로 올려 받은 `fileId` 를 칸에 넣는다. 만들기에서 `"KEEP"` 은 빈 칸이다.
  *   - `PUT  /api/admin/site/logo-library/bundles/{id}` 같은 본문(`"KEEP"` = 지금 그대로, null = 비움) · 404 `SITE_LOGO_BUNDLE_NOT_FOUND` · 기본 제공 묶음이면 409 `SITE_LOGO_BUNDLE_NOT_EDITABLE`  (`site.manage`)
  *   - `PUT  /api/admin/site/logo-library/rules` `SiteLogoRules`(기본 로고·기념일 줄 차례대로·성별·기념일 로고 유형 `holidayStyle`)  (`site.manage`)
@@ -34,7 +34,9 @@ const PATH = {
 function normalize(res: SiteLogoLibraryRawResponse): SiteLogoLibraryResponse {
     const value = res.rules.holidayStyle;
     const holidayStyle: SiteLogoHolidayStyle = value === 'CHARACTER' || value === 'WORDMARK' ? value : 'AUTO';
-    return { bundles: res.bundles, rules: { ...res.rules, holidayStyle } };
+    // 묶음 유형이 없으면(옛 서버의 올린 묶음) 캐릭터 로고로 본다
+    const bundles = res.bundles.map((bundle) => ({ ...bundle, style: bundle.style === 'WORDMARK' ? ('WORDMARK' as const) : ('CHARACTER' as const) }));
+    return { bundles, rules: { ...res.rules, holidayStyle } };
 }
 
 export function useSiteLogoLibraryApi() {
@@ -64,7 +66,7 @@ export function useSiteLogoLibraryApi() {
                 cells[variant] = { svgSource: cell.svgSource };
             }
         }
-        return { name: input.name, nameInLogo: input.nameInLogo, cells: cells as SiteLogoBundleRequest['cells'] };
+        return { name: input.name, nameInLogo: input.nameInLogo, style: input.style, cells: cells as SiteLogoBundleRequest['cells'] };
     }
 
     return {

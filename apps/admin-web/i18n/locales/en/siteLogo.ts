@@ -33,6 +33,8 @@ export default {
     uploadedEmpty: 'No uploaded logos yet. Add one with "Upload new logo".',
     daysStyleAria: 'Special-day logo style to view',
     badgeInUse: 'In use',
+    styleCharacter: 'Character',
+    styleWordmark: 'Wordmark',
     bundleSearch: 'Search by logo name',
 
     // Upload / edit dialog
@@ -48,6 +50,8 @@ export default {
     cellsRequired: 'Upload at least one slot.',
     svgUse: 'Use for this slot',
     nameInLogoHelp: 'When on, the site name text is not shown next to the logo in the public header while this logo is displayed.',
+    bundleStyleLabel: 'Style',
+    bundleStyleHelp: 'If this logo is used as the default or a gender logo, special days show the special-day logo of the same style.',
     bundleCreated: 'Logo added to the library',
     bundleSaved: 'Logo updated',
 
