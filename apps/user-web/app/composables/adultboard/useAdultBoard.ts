@@ -3,7 +3,7 @@ import type { AdultBoardLoadStatus } from '~/composables/adultboard/useAdultBoar
 import UtilBoardMessages from '~/utils/util-board-messages';
 
 /**
- * 내 19금 게시판 접근 설정·핀 확인 상태(공유 `useState`)와 그 동작 — 설정 화면(`/settings/adult-board`)과 핀 입력 화면(`AdultBoardPinGate`)이 같이 쓴다.
+ * 내 19금 게시판 접근 설정·핀 확인 상태(공유 `useState`)와 그 동작 — 설정 구역(본인인증 화면 `/settings/identity` 안의 `AdultBoardSettings`)과 핀 입력 화면(`AdultBoardPinGate`)이 같이 쓴다.
  * 계약: `docs/features/adult-board-pin-contract.md`. 서버 호출은 `useAdultBoardApi`.
  *
  * - `load()` 는 던지지 않는다(상태로 알린다). 바꾸는 동작(`enable`·`disable`·`changePin`·`setRelockMode`·`unlock`·`lock`)은 실패하면 **던진다** — 부르는 화면이 코드로 갈라 자리에 붙인다.

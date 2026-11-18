@@ -9,9 +9,12 @@ export default class UtilAdultBoard {
     /** 연속 5번 틀리면 잠기는 시간(초) — 서버가 끝 시각을 안 줬을 때만 쓴다 */
     static readonly DEFAULT_LOCK_SECONDS = 600;
 
-    static readonly SETTINGS_PATH = '/settings/adult-board';
-    /** 핀 입력 화면의 [핀번호를 잊었어요] — 설정 화면이 다시 정하기 대화상자를 바로 연다 */
-    static readonly RESET_PATH = '/settings/adult-board?reset=1';
+    /** 본인인증 화면(`/settings/identity`) 안 「19금 게시판」 구역의 `id` — 주소의 `#adult-board` 로 그 구역까지 내려간다 */
+    static readonly ANCHOR = 'adult-board';
+    /** 접근 설정이 있는 곳 — 본인인증 화면 안의 「19금 게시판」 구역(사용자 결정 2026-11-18). 옛 주소 `/settings/adult-board` 는 여기로 넘긴다 */
+    static readonly SETTINGS_PATH = '/settings/identity#adult-board';
+    /** 핀 입력 화면의 [핀번호를 잊었어요] — 그 구역이 다시 정하기 대화상자를 바로 연다 */
+    static readonly RESET_PATH = '/settings/identity?reset=1#adult-board';
 
     /** 성인 전용 게시판을 여는 API 가 「핀 필요」라고 할 때(403) */
     static readonly CODE_PIN_REQUIRED = 'ADULT_BOARD_PIN_REQUIRED';

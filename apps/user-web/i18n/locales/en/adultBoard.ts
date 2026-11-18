@@ -1,17 +1,14 @@
 /**
- * Adults-only board access and PIN — settings screen (`/settings/adult-board`), PIN entry screen (`AdultBoardPinGate`, `AdultBoardPinDialog`).
+ * Adults-only board access and PIN — the "Adults-only boards" section of the identity screen (`/settings/identity`, `AdultBoardSettings`), PIN entry screen (`AdultBoardPinGate`, `AdultBoardPinDialog`).
  * Same keys and order as `ko/adultBoard.ts`.
  */
 export default {
     title: 'Adults-only boards',
-    seoDescription: 'Set your access and PIN for adults-only boards on {site}.',
     loading: 'Loading adults-only board settings',
     loadFailed: 'Could not load adults-only board settings',
 
-    // Not a verified adult
-    notAdultTitle: 'You need to be verified as 19 or older',
+    // Not a verified adult (not verified yet, or under 19) — the section shows only this line
     notAdultText: 'Only members verified as 19 or older by identity check can turn on access to adults-only boards.',
-    notAdultButton: 'Go to identity check',
 
     // Access switch
     accessLabel: 'Access to adults-only boards',

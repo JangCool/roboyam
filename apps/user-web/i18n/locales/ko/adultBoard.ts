@@ -1,17 +1,14 @@
 /**
- * 19금 게시판 접근 설정·핀번호 문구 — 설정 화면(`/settings/adult-board`)·핀 입력 화면(`AdultBoardPinGate`·`AdultBoardPinDialog`).
+ * 19금 게시판 접근 설정·핀번호 문구 — 본인인증 화면(`/settings/identity`)의 「19금 게시판」 구역(`AdultBoardSettings`)·핀 입력 화면(`AdultBoardPinGate`·`AdultBoardPinDialog`).
  * 계약: `docs/features/adult-board-pin-contract.md`. 키는 `adultBoard.무엇` 두 마디. `en/adultBoard.ts` 와 같은 키, 같은 차례.
  */
 export default {
     title: '19금 게시판',
-    seoDescription: '{site} 성인 전용 게시판 접근과 핀번호를 정해요.',
     loading: '19금 게시판 설정을 불러오는 중',
     loadFailed: '19금 게시판 설정을 불러오지 못했어요',
 
-    // 본인인증 성인이 아닐 때
-    notAdultTitle: '본인인증으로 만 19세 이상이 확인돼야 해요',
+    // 본인인증 성인이 아닐 때(인증 전 · 만 19세 미만) — 구역에 이 한 줄만
     notAdultText: '성인 전용 게시판은 본인인증으로 만 19세 이상이 확인된 회원만 접근을 켤 수 있어요.',
-    notAdultButton: '본인인증으로 가기',
 
     // 접근 스위치
     accessLabel: '19금 게시판 접근',
