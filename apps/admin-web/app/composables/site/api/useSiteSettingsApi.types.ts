@@ -1,5 +1,4 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
-import type { SiteLogoSet } from '~/utils/util-site-logo';
 
 /**
  * 사이트 설정 API 가 주고받는 모양 — 서버 계약(`/api/admin/site/**`, `docs/features/site-settings-contract.md`)과 같은 모양이다.
@@ -12,7 +11,7 @@ export interface SiteBasicResponse {
     siteName: string;
     /** 한 줄 소개. 없으면 null */
     tagline: string | null;
-    /** 로고 — 이미지면 파일 주소, SVG 면 서버가 만든 data URI. 그대로 `<img src>` 에 넣는다. 올리지 않았으면 null(이름 글자만 보인다) */
+    /** 로고 — 평소 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸). 이미지면 파일 주소, SVG 면 서버가 만든 data URI. 그대로 `<img src>` 에 넣는다. 없으면 null */
     logoUrl: string | null;
 }
 
@@ -20,43 +19,6 @@ export interface SiteBasicRequest {
     siteName: string;
     /** 비우면 null(문구 없음) */
     tagline: string | null;
-}
-
-/**
- * 로고 — 바이트(`POST /api/admin/files`, multipart)와 "그 파일을 로고로 삼기"(JSON)는 두 걸음이다. 폼(JSON)과 바이트를 한 API 가 같이 받지 않는다(hamonica3 와 같다).
- * 로고 변경·제거는 이름·소개와 달리 **저장 단추 없이 즉시 적용**되고, 바뀐 `logoUrl` 만 돌려준다.
- */
-export interface SiteLogoFileUploadResponse {
-    fileId: string;
-}
-
-export interface SiteLogoFileRequest {
-    fileId: string;
-}
-
-export interface SiteLogoSvgRequest {
-    /** SVG 마크업 원문. `xmlns` 가 없으면 서버가 넣는다 */
-    svgSource: string;
-}
-
-export interface SiteLogoResponse {
-    logoUrl: string | null;
-}
-
-/**
- * 로고 4칸(언어 × 바탕) + 「로고에 사이트 이름이 들어 있음」 — 서버 `SiteLogosController` 응답(`/api/admin/site/logos/**` 모두 이 모양).
- * 칸: `koLight` ① 한글·밝은 바탕용 · `koDark` ② 한글·어두운 바탕용 · `enLight` ③ 영문·밝은 바탕용 · `enDark` ④ 영문·어두운 바탕용 — 값은 `/media/…` 상대 주소 또는 SVG data URI(그대로 `<img src>`).
- * 빈 칸은 null 이고 서버는 대신 채우지 않는다(대체 순서는 `UtilSiteLogo.resolve`).
- * `nameInLogo` 가 켜져 있으면 공개 헤더가 로고 옆 사이트 이름 글자를 붙이지 않는다.
- */
-export interface SiteLogoSetResponse {
-    logos: SiteLogoSet;
-    nameInLogo: boolean;
-}
-
-/** 「이름 포함」 바꾸기 — `PUT /api/admin/site/logos/name-in-logo` 본문(null 이면 `fields.nameInLogo`) */
-export interface SiteLogoNameRequest {
-    nameInLogo: boolean;
 }
 
 /**

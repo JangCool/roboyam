@@ -11,6 +11,7 @@ import com.community.profile.dto.request.AvatarSelectRequest;
 import com.community.profile.dto.request.MyProfileRequest;
 import com.community.profile.dto.response.MyProfileView;
 import com.community.profile.dto.response.NicknameChangeView;
+import com.community.user.entity.MemberGender;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.ProfileNicknameHistoryEntity;
 import com.community.user.entity.ProfileVisibility;
@@ -50,8 +51,10 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>자기소개</b>: 줄바꿈 허용({@link #normalizeBio} 로 정리) 뒤 0~{@value #BIO_MAX}자(사용자 2026-11-08 — 100자 한 줄에서 늘림), 빈 값은 null 로 저장한다.</li>
  *   <li><b>공개 범위</b>({@code visibility}, 선택): {@code PUBLIC}·{@code PRIVATE} 만(대소문자 그대로), 없으면 그대로. 공개 범위만 바꾸는 저장은 소개만 바꿀 때처럼 닉네임
  *       변경 횟수·변경권을 쓰지 않는다. 정지 중이면 공개 범위만 바꾸는 저장도 막힌다(같은 요청). profile-privacy-contract 「API」.</li>
+ *   <li><b>성별</b>({@code gender}, 선택): {@code MALE}·{@code FEMALE}·{@code NONE} 만, 없으면 그대로(V250). 본인 응답에만 싣고 공개 프로필·다른 회원 응답에는 없다 —
+ *       사이트 로고 표시에만 쓴다(site-logo-library-contract).</li>
  *   <li><b>검사 순서</b>: 로그인(401) → 정지·영구 정지 {@code 403 ACCOUNT_RESTRICTED}(글쓰기와 같은 예외 — 읽기는 정지 중에도 된다) → 프로필 행 쓰기 잠금 →
- *       칸 검사 {@code 400 VALIDATION fields.nickname|bio|visibility} → 변경권 {@code 409 NICKNAME_TICKET_REQUIRED}(쓰면 이 트랜잭션 안에서) → 중복 {@code 409 NICKNAME_TAKEN}.
+ *       칸 검사 {@code 400 VALIDATION fields.nickname|bio|visibility|gender} → 변경권 {@code 409 NICKNAME_TICKET_REQUIRED}(쓰면 이 트랜잭션 안에서) → 중복 {@code 409 NICKNAME_TAKEN}.
  *       실패하면 트랜잭션째 되돌아가 변경권도 그대로다. 같은 회원의 동시 요청은 프로필 행 잠금에서 줄을 서고, 변경권 쓰기는 조건부 UPDATE({@code SKIP LOCKED})라
  *       <b>한 장이 두 번 쓰이지 않는다</b>.</li>
  *   <li><b>아바타 고르기</b>({@link #selectAvatar}): 무료는 누구나(사업자 전용 계정 포함), 유료는 가진 것만 — 판정은 shared {@link ProfileAvatarService#select}. 응답은 저장 뒤 내 프로필.</li>
@@ -126,6 +129,12 @@ public class MyProfileService {
         if (visibilityText != null && visibility == null) {
             invalid.put("visibility", new MessageRef("profile.visibility.invalid"));
         }
+        // 성별(선택 — 없으면 그대로). 닉네임 변경 횟수·변경권과 무관하다
+        String genderText = body == null ? null : body.gender();
+        MemberGender gender = genderText == null ? null : MemberGender.of(genderText).orElse(null);
+        if (genderText != null && gender == null) {
+            invalid.put("gender", new MessageRef("profile.gender.invalid"));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -147,6 +156,7 @@ public class MyProfileService {
         }
         profile.changeBio(bio, now);
         profile.changeVisibility(visibility, now); // 없으면 그대로 — 닉네임 변경 횟수·변경권과 무관하다
+        profile.changeGender(gender, now); // 없으면 그대로
         if (changing) {
             try {
                 profiles.flush();
@@ -198,7 +208,7 @@ public class MyProfileService {
         AvatarLooks.Look look = avatars.look(user.getId());
         return new MyProfileView(profile.getNickname(), profile.getBio() == null ? "" : profile.getBio(), user.getCreatedAt(),
                 new NicknameChangeView(count < NICKNAME_FREE_LIMIT, count, NICKNAME_FREE_LIMIT, ticket.count(), ticket.price()), look.url(), look.stillUrl(),
-                profile.getVisibility());
+                profile.getVisibility(), profile.getGender());
     }
 
     /** 자기소개 정리 — 줄바꿈을 LF 로 맞추고, 줄 끝 공백을 떼고, 빈 줄은 연달아 하나까지만 두고, 앞뒤 공백을 자른다 */

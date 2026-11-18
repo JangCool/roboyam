@@ -9,6 +9,8 @@ package com.community.profile.dto.request;
  *                   (member-mypage-contract 「후속 작업: 닉네임 변경권」)
  * @param visibility 프로필 공개 범위 {@code PUBLIC}·{@code PRIVATE}(선택 — 없으면 그대로). 틀린 값은 {@code 400 VALIDATION fields.visibility} 라 글자로 받는다
  *                   (profile-privacy-contract 「API」)
+ * @param gender     성별 {@code MALE}·{@code FEMALE}·{@code NONE}(선택 — 없으면 그대로). 틀린 값은 {@code 400 VALIDATION fields.gender}. 다른 회원에게 보이지 않고
+ *                   사이트 로고 표시에만 쓴다(site-logo-library-contract)
  */
-public record MyProfileRequest(String nickname, String bio, Boolean useTicket, String visibility) {
+public record MyProfileRequest(String nickname, String bio, Boolean useTicket, String visibility, String gender) {
 }

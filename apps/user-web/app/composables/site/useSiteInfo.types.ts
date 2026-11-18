@@ -5,6 +5,18 @@ import type { SiteGrade } from '~/composables/grade/api/useGradeApi.types';
 import type { VisitCollectSwitch } from '#layers/analytics/utils/util-visit-signal';
 import type { SiteLogoSet } from '~/utils/util-site-logo';
 
+/** 로고 묶음 한 벌의 공개 모양 — 4칸과 「로고에 사이트 이름이 들어 있음」 */
+export interface SiteLogoBundleView {
+    logos: SiteLogoSet;
+    nameIncluded: boolean;
+}
+
+/** 성별 규칙의 묶음 — 정해지지 않은 쪽은 null */
+export interface SiteGenderLogos {
+    male: SiteLogoBundleView | null;
+    female: SiteLogoBundleView | null;
+}
+
 /**
  * 화면이 쓰는 사이트 정보 — `GET /api/site/info` 응답을 `UtilSiteInfo.fromResponse` 로 걸러 둔 것(쓸 수 없는 칸은 null).
  * 링크 미리보기 이미지(`ogImageUrl`)는 서버가 `<head>` 에 직접 넣으므로 화면 상태에는 두지 않는다.
@@ -20,6 +32,11 @@ export interface SiteInfo {
     logos: SiteLogoSet;
     /** 로고 그림에 사이트 이름이 들어 있음(옆 이름 글자 숨김) — `true` 일 때만 켬 */
     logoNameIncluded: boolean;
+    /**
+     * 성별 규칙의 로고 묶음(`site-logo-library-contract.md`) — 기념일이 안 걸린 날이고 성별 묶음이 정해져 있을 때만 있다(아니면 null).
+     * 로그인 회원의 성별이 남성·여성이고 그쪽 값이 있으면 `SiteBrand` 가 위 `logos`·`logoNameIncluded` 대신 이것을 쓴다.
+     */
+    genderLogos: SiteGenderLogos | null;
     /** 올린 아이콘 — 없으면 null */
     icon: SiteIconResponse | null;
     /** 표시 기본값(사용자 개인 값이 없을 때의 폴백) — 못 읽으면 null(시스템 폴백) */

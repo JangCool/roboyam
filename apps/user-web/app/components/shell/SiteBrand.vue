@@ -1,6 +1,7 @@
 <template>
     <!--
         로고 자리 — 운영자가 올린 로고 4칸(관리자 설정 「일반」: 한글·영문 × 밝은·어두운 바탕용)에서 화면 언어와 놓인 면의 바탕에 맞는 하나를 보인다. 쓸 그림이 없으면 사이트 이름 글자만.
+          · 묶음: 서버가 오늘의 묶음(기념일 규칙이 걸리면 그 묶음, 아니면 평소 로고)을 `logos` 로 준다. 성별 규칙(`genderLogos`)에 로그인 회원의 성별 쪽 묶음이 있으면 그것을 대신 쓴다(`site-logo-library-contract.md` — 기념일 → 성별 → 평소).
           · 언어: 화면 언어(`useLanguage`) — `en` 이면 영문 칸, 아니면 한글 칸.
           · 바탕: 그림을 둘(밝은 바탕용·어두운 바탕용) 함께 두고 CSS 가 하나만 보인다(`main.css` 의 `.site-logo-light`·`.site-logo-dark` — 놓인 면의 역할 변수 `--brand-logo-light`·`--brand-logo-dark`).
             면의 바탕은 테마 하나로 정해지지 않는다(야간 모드 · 주 색상 바 · 흰 모바일 바 · 색상 테마의 로고 줄 색 · 모바일/데스크톱) — 그 색을 정하는 CSS 자리에서 짝 값을 같이 채운다.
@@ -33,8 +34,22 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { size: 'md' });
 
 /** 상단 로고 자리(헤더·모바일 메뉴·로그인·설치 레이아웃). 이름을 모르면 기본 이름(`UtilSiteName.DEFAULT`)이다. */
-const { siteLabel, siteLogos, nameInLogo } = useSiteName();
+const { siteLabel, siteLogos: todayLogos, nameInLogo: todayNameInLogo, genderLogos } = useSiteName();
 const { language } = useLanguage();
+const { user } = useAuth();
+
+/**
+ * 보일 묶음 — 성별 규칙(`genderLogos` — 서버가 기념일이 안 걸린 날에만 준다)에 로그인 회원의 성별(남성·여성) 쪽 묶음이 있으면 그것, 아니면 오늘의 묶음(기념일 또는 평소 로고).
+ * 로그인 정보의 `gender` 를 읽으므로 내 정보에서 성별을 바꾸면(저장 뒤 `auth.refresh()`) 새로 고침 없이 바뀐다.
+ */
+const genderBundle = computed(() => {
+    const gender = user.value?.gender;
+    if (gender === 'MALE') return genderLogos.value?.male ?? null;
+    if (gender === 'FEMALE') return genderLogos.value?.female ?? null;
+    return null;
+});
+const siteLogos = computed(() => genderBundle.value?.logos ?? todayLogos.value);
+const nameInLogo = computed(() => (genderBundle.value ? genderBundle.value.nameIncluded : todayNameInLogo.value));
 
 /** 못 불러온 그림 주소 — 대체 순서에서 건너뛴다. 로고 값이 바뀌면 다시 시도한다 */
 const failed = ref<string[]>([]);

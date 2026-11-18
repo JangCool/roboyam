@@ -12,6 +12,7 @@ import com.community.sociallogin.dto.SocialProfile;
 import com.community.sociallogin.exception.SocialAlreadyRegisteredException;
 import com.community.sociallogin.exception.SocialLastLoginMethodException;
 import com.community.sociallogin.exception.SocialNotLinkedException;
+import com.community.user.entity.MemberGender;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.Role;
 import com.community.user.entity.UserEntity;
@@ -149,6 +150,12 @@ public class SocialAccountWriter {
      */
     @Transactional
     public AuthUser createMember(PendingSignup pending, String nickname) {
+        return createMember(pending, nickname, MemberGender.NONE);
+    }
+
+    /** 가입 대기 정보로 회원을 만든다 — 가입 때 고른 성별과 함께(선택 항목, 기본 「밝히지 않음」) */
+    @Transactional
+    public AuthUser createMember(PendingSignup pending, String nickname, MemberGender gender) {
         if (identities.findByProviderAndProviderUserId(pending.provider(), pending.subject()).isPresent()) {
             throw new SocialAlreadyRegisteredException();
         }
@@ -171,7 +178,7 @@ public class SocialAccountWriter {
         long userId = ids.nextId();
         try {
             users.persist(UserEntity.createSocial(userId, pending.email(), pending.emailVerified(), terms.currentTermsVersion(), now));
-            profiles.persist(ProfileEntity.create(userId, nickname, now));
+            profiles.persist(ProfileEntity.create(userId, nickname, gender, now));
             identities.persist(UserIdentityEntity.create(ids.nextId(), userId, pending.provider(), pending.subject(), pending.email(), now));
             identities.flush();
         } catch (DataIntegrityViolationException e) {

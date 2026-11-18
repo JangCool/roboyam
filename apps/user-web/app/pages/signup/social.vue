@@ -62,6 +62,9 @@
             <!-- 가입 뒤 닉네임 변경은 1번뿐(`member-mypage-contract.md` 결정) — 이메일 가입 2/3 닉네임 단계와 같은 안내 -->
             <Message severity="secondary" :closable="false" size="small" data-testid="social-nickname-note">{{ t('signup.nicknameNote') }}</Message>
 
+            <!-- 성별(선택, 기본 「밝히지 않음」) — 이메일 가입과 같은 칸. 가입 마무리 요청의 `gender` 로 보낸다 -->
+            <MemberGenderField v-model="gender" :disabled="submitting" testid="social-gender" />
+
             <TermsAgreement v-model="agreements" :errors="termsErrors" :disabled="submitting" />
 
             <Button type="submit" :label="submitting ? t('signup.submitting') : t('signup.submit')" fluid size="large" :loading="submitting" data-testid="social-submit" />
@@ -78,6 +81,7 @@ import type { Agreements, SocialPending } from '~/composables/auth/api/useAuthAp
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilProvider from '~/utils/util-provider';
 import UtilSanction from '~/utils/util-sanction';
+import type { MemberGender } from '~/composables/profile/api/useProfileApi.types';
 import UtilValidation from '~/utils/util-validation';
 
 /**
@@ -96,6 +100,8 @@ useSeoMeta({ title: () => t('signup.socialTitle'), description: () => t('signup.
 
 const api = useAuthApi();
 const { completeSocialSignup, restriction } = useAuth();
+/** 성별(선택 — 기본 「밝히지 않음」). 로고 표시에만 쓴다 */
+const gender = ref<MemberGender>('NONE');
 const toast = useAppToast();
 
 const state = ref<'loading' | 'ready' | 'error'>('loading');
@@ -161,7 +167,7 @@ async function submit() {
     const next = pending.value.next;
     submitting.value = true;
     try {
-        await completeSocialSignup({ nickname: nickname.value, ...agreements.value });
+        await completeSocialSignup({ nickname: nickname.value, gender: gender.value, ...agreements.value });
         toast.success(t('signup.welcome'));
         // 성공하면 화면을 떠난다 — 버튼을 다시 열지 않는다. 정지 등으로 안내가 필요하면 제재 안내를 먼저(7-2)
         await navigateTo(UtilSanction.afterLoginPath(restriction.value, next ?? '/'), { replace: true });

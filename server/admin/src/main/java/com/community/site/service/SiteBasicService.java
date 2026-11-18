@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 사이트 기본 정보(이름·한 줄 소개) 조회·저장 (docs/features/site-settings-contract.md). 공개 주소({@code publicUrl})는 이 서비스가 건드리지 않는다
- * (소셜 로그인 콜백·메일 링크의 기준이라 변경 정책이 먼저다). 로고는 따로({@link SiteLogoService}) 즉시 적용된다 — 여기서는 지금 로고 주소를 응답에 실어 줄 뿐이다.
+ * (소셜 로그인 콜백·메일 링크의 기준이라 변경 정책이 먼저다). 로고는 따로({@link SiteLogoLibraryService} — 보관함·보이기 규칙) 정한다 — 여기서는 평소 로고의 주소를 응답에 실어 줄 뿐이다.
  *
  * <p>검사는 설치 마법사와 같은 규칙({@code SitePolicy})을 쓰되 문구는 화면 문구와 같다: 이름 1~50자(앞뒤 공백을 자른 뒤)·꺾쇠·제어 문자 없음 → {@code fields.siteName},
  * 한 줄 소개 0~100자·꺾쇠·제어 문자 없음(비우면 문구 없음) → {@code fields.tagline}. 두 칸의 위반을 한꺼번에 돌려준다.

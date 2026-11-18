@@ -20,6 +20,7 @@ import com.community.sociallogin.dto.request.SocialCompleteRequest;
 import com.community.sociallogin.dto.response.SocialPendingResponse;
 import com.community.sociallogin.exception.SocialProviderNotFoundException;
 import com.community.sociallogin.service.SocialProviderAdapter.ClientCredentials;
+import com.community.user.entity.MemberGender;
 import com.community.user.service.UserPolicy;
 import com.community.zconfiguration.crypto.Digests;
 import com.community.zconfiguration.exception.ValidationException;
@@ -188,7 +189,7 @@ public class SocialLoginService {
     /**
      * 가입을 마친다 — 입력 검사(닉네임 → 약관 → 개인정보 → 만 14세 순, 한꺼번에) → 회원 만들기 → (확인되지 않은 이메일이면) 인증 메일.
      *
-     * @throws ValidationException 입력 위반({@code fields.nickname}·{@code agreeTerms}·{@code agreePrivacy}·{@code ageConfirmed})
+     * @throws ValidationException 입력 위반({@code fields.nickname}·{@code agreeTerms}·{@code agreePrivacy}·{@code ageConfirmed}·{@code gender})
      * @see SocialAccountWriter#createMember
      */
     public AuthUser complete(PendingSignup pending, SocialCompleteRequest body) {
@@ -204,11 +205,17 @@ public class SocialLoginService {
         if (body == null || !Boolean.TRUE.equals(body.ageConfirmed())) {
             errors.put("ageConfirmed", new MessageRef("user.ageConfirmed.required"));
         }
+        // 성별(선택 — 없으면 밝히지 않음) — 이메일 가입과 같은 칸
+        String genderText = body == null ? null : body.gender();
+        MemberGender gender = genderText == null ? MemberGender.NONE : MemberGender.of(genderText).orElse(null);
+        if (gender == null) {
+            errors.put("gender", new MessageRef("profile.gender.invalid"));
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
 
-        AuthUser member = writer.createMember(pending, nickname);
+        AuthUser member = writer.createMember(pending, nickname, gender);
         SignupService.grantSignupEmoticons(emoticons, member.id()); // 무료 운영 로보티콘 — 이메일 가입과 같다
         if (pending.email() != null && !pending.emailVerified()) {
             try {

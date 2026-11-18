@@ -60,6 +60,8 @@ const FULL_TABLES = ['emoticon_images', 'emoticons', 'emoticon_packs', 'emoticon
 const LATE = ['business_profiles.certificate_id'];
 /** 담지 않는 표(이름 그대로 또는 앞부분) */
 const EXCLUDE = [
+    // 로고 묶음·보이기 규칙(shared V249) — 기본 제공 묶음은 마이그레이션이 넣고, 평소 로고·규칙은 site_settings 처럼 설치한 곳의 값이다
+    'site_logo_bundles', 'site_logo_rules',
     'installation', 'site_settings', 'mail_settings', 'mail_setting_history', 'social_provider_settings', 'social_provider_setting_history', 'portone_settings',
     'public_data_settings', 'address_search_settings', 'site_operator', 'site_operator_history', 'stats_collection_settings', 'stats_collection_setting_history',
     'commerce_sales_settings', 'admin_security_settings', 'operators', 'operator_roles', 'roles', 'role_permissions', 'permissions', 'audit_logs', 'auth_tokens',

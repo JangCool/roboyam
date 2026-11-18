@@ -43,6 +43,10 @@ public final class AuditActions {
     public static final String SITE_LOGO_REMOVE = "SITE_LOGO_REMOVE";
     /** 「로고에 사이트 이름이 들어 있음」 바꿈(V237 — site-logo-variants-contract) */
     public static final String SITE_LOGO_NAME_CHANGE = "SITE_LOGO_NAME_CHANGE";
+    /** 로고 보관함·보이기 규칙(V249 — site-logo-library-contract) — 묶음 올리기 · 올린 묶음 고치기 · 규칙(평소 로고·기념일·성별) 저장 */
+    public static final String SITE_LOGO_BUNDLE_CREATE = "SITE_LOGO_BUNDLE_CREATE";
+    public static final String SITE_LOGO_BUNDLE_UPDATE = "SITE_LOGO_BUNDLE_UPDATE";
+    public static final String SITE_LOGO_RULES_UPDATE = "SITE_LOGO_RULES_UPDATE";
     public static final String SITE_ICON_CHANGE = "SITE_ICON_CHANGE";
     public static final String SITE_ICON_RESET = "SITE_ICON_RESET";
     public static final String SITE_OG_CHANGE = "SITE_OG_CHANGE";

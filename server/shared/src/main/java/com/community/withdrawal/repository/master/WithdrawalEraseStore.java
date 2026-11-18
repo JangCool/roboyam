@@ -95,12 +95,12 @@ public class WithdrawalEraseStore extends IrobitRepositoryQDSL {
     }
 
     /**
-     * 프로필 익명화 — 닉네임·소개·프로필 이미지·닉네임 이미지 NULL, 등급은 그대로.
+     * 프로필 익명화 — 닉네임·소개·프로필 이미지·닉네임 이미지 NULL, 성별은 「밝히지 않음」(V250), 등급은 그대로.
      *
      * <p>Native SQL 인 이유: {@code profile_image}·{@code nickname_image} 는 프로필 엔티티가 매핑하지 않는 칸이다(다른 저장소가 고친다).
      */
     public void anonymizeProfile(long userId, Instant now) {
-        jdbc.update("UPDATE profiles SET nickname = NULL, bio = NULL, profile_image = NULL, nickname_image = NULL, updated_at = ? WHERE user_id = ?", Timestamp.from(now), userId);
+        jdbc.update("UPDATE profiles SET nickname = NULL, bio = NULL, profile_image = NULL, nickname_image = NULL, gender = 'NONE', updated_at = ? WHERE user_id = ?", Timestamp.from(now), userId);
     }
 
     /** 설정·이력·관계·역할·토큰·주소록(배송지 관리 — 탈퇴하면 즉시 삭제) — 회원 번호가 키인 줄을 지운다(표 차례 그대로 — 엔티티가 없는 표는 SQL) */

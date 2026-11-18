@@ -19,34 +19,24 @@ export default {
     basicLoadFailed: 'Could not load the site basics',
     basicSaved: 'Site basics saved',
 
-    // Logo — applied as soon as you upload it (no save button)
+    // Logo — used by the logo row on the General screen and the 4 slot tiles in the logo set dialog (set and rule copy lives in siteLogo.ts)
     logoLabel: 'Logo',
     logoUpload: 'Upload image',
     logoFromSvg: 'Use SVG source',
     logoPreviewTooltip: 'Click to pick an image',
-    logoChange: 'Change logo',
-    logoAdd: 'Add logo',
-    logoHint: 'PNG, JPG, GIF or WEBP up to 2 MB, or paste SVG markup — shown in the 20×20 logo slot at the top of the admin screens and on the public site. Applied right away.',
     logoSvgWhy: 'SVG is taken as source, not as a file',
     logoSvgWhyTail: '— it is a document that can carry scripts, not just a picture.',
     logoSvgXmlns: 'is added for you when missing.',
-    logoSvgSource: 'SVG source',
-    logoRemoveTitle: 'Remove the logo?',
-    logoRemoveMessage: 'This removes the uploaded logo and goes back to showing only the site name.',
     logoRemove: 'Remove',
-    logoChanged: 'Logo changed',
-    logoSvgApplied: 'SVG logo applied',
-    logoRemoved: 'Logo removed',
     logoFileEmpty: 'The file is empty.',
     logoFileType: 'Only PNG, JPG, GIF or WEBP images can be uploaded. For SVG, use “Use SVG source”.',
     logoFileSize: 'Images can be up to {max} MB.',
     logoSvgEmpty: 'Enter the SVG source.',
     logoSvgLength: 'The SVG source can be up to {max} characters.',
     logoSvgNotSvg: 'This is not markup that starts with an “<svg>” tag.',
-    // Logo slots (language × background) — mockup
+    // Logo slots (language × background)
     logoVariantsHelp: 'The public site header picks the logo that matches the screen language and background color. Wide logos (about 200×36) fit best.',
     logoFallbackOrder: 'An empty slot uses the Korean logo for the same background (English slots), the light-background logo in the same language (dark slots), and finally ①.',
-    logoVariantsHint: 'PNG, JPG, GIF or WEBP up to 2 MB, or paste SVG markup — shown about 30px tall. Applied right away.',
     logoVariantKoLight: '① Korean · light background',
     logoVariantKoDark: '② Korean · dark background',
     logoVariantEnLight: '③ English · light background',
@@ -59,11 +49,7 @@ export default {
     logoVariantTileAdd: 'Add logo for {variant}',
     logoVariantTileChange: 'Change logo for {variant}',
     logoSvgSourceFor: 'SVG source — {variant}',
-    logoVariantRemoveMessage: 'This removes the logo for {variant}. While it is empty, another slot\'s logo (or the site name text) is shown in its place.',
     logoNameInLogo: 'The logo includes the site name (hide the name text next to it)',
-    logoNameInLogoHelp: 'When on, the public site header does not add the site name text next to the logo. If there is no logo to show, the name text still appears.',
-    logoNameInLogoSaved: 'Logo name text setting changed',
-    logoLoadFailed: 'Couldn\'t load the logos',
 
     // Site icon and link preview image — applied as soon as you upload them, like the logo (no save button)
     imageImmediate: 'Applied on upload',

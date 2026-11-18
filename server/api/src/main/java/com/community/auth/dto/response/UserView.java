@@ -14,7 +14,8 @@ import java.util.List;
  * @param xp             누적 경험치
  * @param levelXp        이 레벨이 시작한 누적 경험치
  * @param nextLevelXp    다음 레벨이 되는 누적 경험치(막대 = (xp − levelXp) / (nextLevelXp − levelXp))
+ * @param gender         성별 {@code MALE}·{@code FEMALE}·{@code NONE}(V250, 기본 {@code NONE}) — 본인에게만 내려간다. 화면이 사이트 정보의 {@code genderLogos} 에서 로고를 고를 때 쓴다
  */
 public record UserView(String id, String nickname, String grade, String gradeLabel, String role, String email, boolean emailVerified,
-                       List<String> authMethods, String businessStatus, int level, long xp, long levelXp, long nextLevelXp) {
+                       List<String> authMethods, String businessStatus, int level, long xp, long levelXp, long nextLevelXp, String gender) {
 }

@@ -71,13 +71,22 @@ public class PublicSiteController {
     }
 
     /**
-     * SVG 로고 한 칸(V237, 2026-11-16) — 사이트 정보의 {@code logos} 가 SVG 칸에 주는 주소. 본문은 저장할 때 위험 요소를 거절한 SVG 지만,
+     * SVG 로고 한 칸(V237, 2026-11-16) — 사이트 정보의 {@code logos}·{@code genderLogos} 가 SVG 칸에 주는 주소. {@code b} 는 로고 묶음 번호(V249 — 없으면 오늘의 성별 무관 묶음). 본문은 저장할 때 위험 요소를 거절한 SVG 지만,
      * 주소를 직접 열어도 스크립트·외부 자원이 돌지 않게 CSP·nosniff 를 붙인다. 지문({@code v})이 지금 본문과 같으면 1년 캐시, 아니면 매번 확인.
      */
     @GetMapping("/logos/{variant}.svg")
     public ResponseEntity<String> logoSvg(@org.springframework.web.bind.annotation.PathVariable String variant,
+                                          @org.springframework.web.bind.annotation.RequestParam(name = "b", required = false) String bundle,
                                           @org.springframework.web.bind.annotation.RequestParam(name = "v", required = false) String version) {
-        return siteService.logoSvg(variant).map(svg -> {
+        Long bundleId = null;
+        if (bundle != null) {
+            try {
+                bundleId = Long.parseLong(bundle);
+            } catch (NumberFormatException e) {
+                return ResponseEntity.notFound().build();
+            }
+        }
+        return siteService.logoSvg(variant, bundleId).map(svg -> {
             String fingerprint = com.community.site.service.SiteAssets.svgFingerprint(svg);
             CacheControl cache = fingerprint.equals(version)
                     ? CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic().immutable()

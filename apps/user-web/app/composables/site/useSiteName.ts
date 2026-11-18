@@ -17,5 +17,7 @@ export function useSiteName() {
     const siteLabel = computed(() => UtilSiteName.label(siteName.value));
     const siteLogos = computed(() => state.value?.logos ?? UtilSiteLogo.EMPTY);
     const nameInLogo = computed(() => state.value?.logoNameIncluded ?? false);
-    return { siteName, siteLabel, siteLogos, nameInLogo };
+    /** 성별 규칙의 묶음(기념일이 안 걸린 날에만 있다) — 로그인 회원의 성별로 고르는 것은 `SiteBrand` 가 한다 */
+    const genderLogos = computed(() => state.value?.genderLogos ?? null);
+    return { siteName, siteLabel, siteLogos, nameInLogo, genderLogos };
 }

@@ -9,6 +9,7 @@ import type { MyProfile, MyProfileRequest } from '~/composables/profile/api/useP
  *    오류(서버 검사 순서): `401` → `403 ACCOUNT_RESTRICTED`(정지·영구 정지 중 — 글쓰기와 같다) → `400 VALIDATION` `fields.nickname|bio` →
  *    `409 NICKNAME_TICKET_REQUIRED`(무료를 썼고 변경권을 쓰지 않았거나 없다 — 최상위 `ticketCount`·`ticketPrice`) → `409 NICKNAME_TAKEN`.
  *    공개 범위 `visibility`(`profile-privacy-contract.md`)는 선택 칸 — 없으면 그대로, 틀린 값 `400 fields.visibility`, 정지 중이면 공개 범위만 바꿔도 `403`.
+ *    성별 `gender`(`MALE`·`FEMALE`·`NONE` — `site-logo-library-contract.md`)도 `GET` 응답에 오고 `PUT` 본문의 선택 칸이다(없으면 그대로, 틀린 값 `400 fields.gender`). 사이트 로고 고르기에만 쓰이고 다른 회원에게 나가지 않는다.
  *  - 프로필 아바타 고르기는 `useAvatarApi().select`(`PUT /api/me/profile/avatar`).
  */
 const PATH = {

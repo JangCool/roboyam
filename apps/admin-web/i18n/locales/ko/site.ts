@@ -19,34 +19,24 @@ export default {
     basicLoadFailed: '사이트 기본 정보를 불러오지 못했어요',
     basicSaved: '사이트 기본 정보를 저장했어요',
 
-    // 로고 — 올리는 즉시 적용돼요(저장 단추 없음)
+    // 로고 — 일반 화면의 「로고」 줄과 로고 묶음 창의 4칸 타일이 쓴다(묶음·규칙 문구는 siteLogo.ts)
     logoLabel: '로고',
     logoUpload: '이미지 업로드',
     logoFromSvg: 'SVG 소스로 설정',
     logoPreviewTooltip: '눌러서 이미지 선택',
-    logoChange: '로고 바꾸기',
-    logoAdd: '로고 올리기',
-    logoHint: 'PNG·JPG·GIF·WEBP(최대 2MB) 또는 SVG 마크업 직접 입력 — 관리자 화면 상단과 공개 사이트의 로고 자리(20×20)에 보여요. 올리면 바로 적용돼요.',
     logoSvgWhy: 'SVG 는 파일이 아니라 소스로 받아요',
     logoSvgWhyTail: '— 그림이 아니라 스크립트가 들어갈 수 있는 문서라서요.',
     logoSvgXmlns: '가 없으면 넣어 드려요.',
-    logoSvgSource: 'SVG 소스',
-    logoRemoveTitle: '로고를 뗄까요?',
-    logoRemoveMessage: '올린 로고를 떼요. 사이트 이름 글자만 보이는 기본으로 돌아가요.',
     logoRemove: '제거',
-    logoChanged: '로고를 바꿨어요',
-    logoSvgApplied: 'SVG 로고를 적용했어요',
-    logoRemoved: '로고를 뗐어요',
     logoFileEmpty: '비어 있는 파일이에요.',
     logoFileType: 'PNG·JPG·GIF·WEBP 그림만 올릴 수 있어요. SVG 는 「SVG 소스로 설정」을 써 주세요.',
     logoFileSize: '그림은 {max}MB 까지 올릴 수 있어요.',
     logoSvgEmpty: 'SVG 소스를 입력해 주세요.',
     logoSvgLength: 'SVG 소스는 {max}자까지예요.',
     logoSvgNotSvg: '“<svg>” 로 시작하는 마크업이 아니에요.',
-    // 로고 4칸(언어 × 바탕) — 목업
+    // 로고 4칸(언어 × 바탕)
     logoVariantsHelp: '공개 사이트 상단에서 화면 언어와 바탕 색에 맞는 로고를 골라 보여요. 가로로 긴 로고(약 200×36)가 잘 맞아요.',
     logoFallbackOrder: '빈 칸은 영문이면 같은 바탕의 한글, 어두운 바탕용이면 같은 언어의 밝은 바탕용, 그래도 없으면 ①을 대신 써요.',
-    logoVariantsHint: 'PNG·JPG·GIF·WEBP(최대 2MB) 또는 SVG 마크업 직접 입력 — 높이 약 30px 로 줄여 보여요. 올리면 바로 적용돼요.',
     logoVariantKoLight: '① 한글 · 밝은 바탕용',
     logoVariantKoDark: '② 한글 · 어두운 바탕용',
     logoVariantEnLight: '③ 영문 · 밝은 바탕용',
@@ -59,11 +49,7 @@ export default {
     logoVariantTileAdd: '{variant} 로고 올리기',
     logoVariantTileChange: '{variant} 로고 바꾸기',
     logoSvgSourceFor: 'SVG 소스 — {variant}',
-    logoVariantRemoveMessage: '{variant} 로고를 떼요. 비어 있는 동안은 대체 순서에 따라 다른 칸의 로고(없으면 사이트 이름 글자)가 보여요.',
     logoNameInLogo: '로고에 사이트 이름이 들어 있음(옆 이름 글자 숨김)',
-    logoNameInLogoHelp: '켜면 공개 사이트 상단에서 로고 옆에 사이트 이름 글자를 붙이지 않아요. 쓸 로고가 없을 때는 이름 글자가 그대로 보여요.',
-    logoNameInLogoSaved: '로고 옆 이름 글자 설정을 바꿨어요',
-    logoLoadFailed: '로고를 불러오지 못했어요',
 
     // 사이트 아이콘 · 링크 미리보기 이미지 — 로고처럼 올리는 즉시 적용돼요(저장 단추 없음)
     imageImmediate: '올리면 바로 적용',

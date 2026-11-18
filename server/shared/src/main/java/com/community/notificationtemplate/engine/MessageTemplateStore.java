@@ -146,8 +146,9 @@ public class MessageTemplateStore implements CacheReloader {
     }
 
     private Site site() {
-        List<Site> rows = jdbc.query("select s.site_name, s.public_url, s.display_language, s.display_zone_id, s.logo_svg, f.storage_key "
-                + "from site_settings s left join files f on f.id = s.logo_file_id where s.id = ?", (rs, i) -> {
+        List<Site> rows = jdbc.query("select s.site_name, s.public_url, s.display_language, s.display_zone_id, b.ko_light_svg as logo_svg, f.storage_key "
+                // 로고 = 평소 로고 묶음의 ① 한글·밝은 바탕용 칸(V249 — 예전 site_settings 의 단일 로고 칸)
+                + "from site_settings s left join site_logo_bundles b on b.id = s.logo_default_bundle_id left join files f on f.id = b.ko_light_file_id where s.id = ?", (rs, i) -> {
                     String publicUrl = normalizeUrl(rs.getString("public_url"));
                     String logo = null;
                     if (rs.getString("logo_svg") != null) {

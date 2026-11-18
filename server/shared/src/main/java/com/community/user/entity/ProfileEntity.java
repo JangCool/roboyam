@@ -73,6 +73,10 @@ public class ProfileEntity {
     @Column(name = "profile_visibility")
     private ProfileVisibility visibility;
 
+    /** 성별(V250) — 선택 항목, 기본 「밝히지 않음」. <b>다른 회원·공개 프로필에 내보내지 않는다</b> — 사이트 로고 고르기에만 쓴다(site-logo-library-contract) */
+    @Enumerated(EnumType.STRING)
+    private MemberGender gender;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -81,7 +85,13 @@ public class ProfileEntity {
 
     /** 새 회원의 프로필 — 기본(첫) 등급으로 시작한다 */
     public static ProfileEntity create(long userId, String nickname, Instant now) {
+        return create(userId, nickname, MemberGender.NONE, now);
+    }
+
+    /** 새 회원의 프로필 — 가입 때 고른 성별과 함께(null 이면 「밝히지 않음」) */
+    public static ProfileEntity create(long userId, String nickname, MemberGender gender, Instant now) {
         ProfileEntity profile = new ProfileEntity();
+        profile.gender = gender == null ? MemberGender.NONE : gender;
         profile.userId = userId;
         profile.nickname = nickname;
         profile.gradeKey = GradeEntity.BASE_KEY;
@@ -149,6 +159,20 @@ public class ProfileEntity {
         }
         this.visibility = visibility;
         this.updatedAt = now;
+    }
+
+    /** 성별을 바꾼다 — 같은 값이면 고치지 않는다(null 은 그대로) */
+    public void changeGender(MemberGender gender, Instant now) {
+        if (gender == null || this.gender == gender) {
+            return;
+        }
+        this.gender = gender;
+        this.updatedAt = now;
+    }
+
+    /** 성별 — 칸은 NOT NULL 이지만 비어 읽히면 「밝히지 않음」으로 본다 */
+    public MemberGender getGender() {
+        return gender == null ? MemberGender.NONE : gender;
     }
 
     public Long getUserId() {

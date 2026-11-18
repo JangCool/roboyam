@@ -5,12 +5,6 @@ import type {
     SiteDisplayDefaultsResponse,
     SiteIconResponse,
     SiteIconSvgRequest,
-    SiteLogoFileRequest,
-    SiteLogoFileUploadResponse,
-    SiteLogoNameRequest,
-    SiteLogoResponse,
-    SiteLogoSetResponse,
-    SiteLogoSvgRequest,
     SiteNoticeBarRequest,
     SiteNoticeBarSettingsResponse,
     SiteOgImageResponse,
@@ -18,7 +12,6 @@ import type {
     SiteThemeRequest,
     SiteThemeResponse,
 } from '~/composables/site/api/useSiteSettingsApi.types';
-import type { SiteLogoVariant } from '~/utils/util-site-logo';
 
 /**
  * 사이트 설정 API — 서버 주소 문자열(`/api/admin/site…`)이 있는 **유일한 곳**이다. 상태는 없다(화면이 쓰는 값은 일반 화면의 `ref`).
@@ -27,12 +20,8 @@ import type { SiteLogoVariant } from '~/utils/util-site-logo';
  *   - `GET /api/admin/site/basic` → 200 `{ siteName, tagline|null, logoUrl|null }`  (`site.read`)
  *   - `PUT /api/admin/site/basic` `{ siteName, tagline|null }` → 200 저장된 모양  (`site.manage`)
  *       · 400 VALIDATION(`fields.siteName` 1~50자·`<` `>` 제어 문자 없음, `fields.tagline` 0~100자·`<` `>` 없음, 둘 다 한꺼번에) · 403 PERMISSION_DENIED
- *   - 로고(저장 단추 없이 즉시 적용, `site.manage`) — 바이트와 "로고로 삼기"를 두 걸음으로 가른다(폼 JSON 과 multipart 를 한 API 가 받지 않는다):
- *       · `POST /api/admin/files` multipart `file`·`purpose=SITE_LOGO` → **201** `{ fileId }` · 400 VALIDATION(`fields.file`·`fields.purpose`) — 주소는 `useFileApi` 에 있다
- *       · `PUT /api/admin/site/logo` `{ fileId }` → 200 `{ logoUrl }`(`/media/…` 상대 주소) · 400 VALIDATION(`fields.fileId` 없는 파일)
- *       · `PUT /api/admin/site/logo/svg` `{ svgSource }` → 200 `{ logoUrl }`(서버가 만든 SVG data URI — 화면은 `<img src>` 에만 넣고 `v-html` 을 쓰지 않는다) · 400 VALIDATION(`fields.svgSource` — 위험 요소는 정화하지 않고 거절)
- *       · `DELETE /api/admin/site/logo` → 200 `{ logoUrl: null }`
- *       ⚠ 이 로고는 관리자 화면 상단(`me` 의 `siteLogoUrl`)과 공개 사이트 로고 자리가 같이 쓴다.
+ *   - 로고는 여기 없다 — 로고 보관함·보이기 규칙 API(`useSiteLogoLibraryApi`, `/api/admin/site/logo-library/**`)가 맡는다. 옛 단일 로고·4칸 API(`/api/admin/site/logo**`·`/logos/**`)는 서버에서 지워졌다(V249).
+ *       응답의 `logoUrl`·`me` 의 `siteLogoUrl` 은 평소 로고 묶음의 한글·밝은 칸이다.
  *   - 사이트 아이콘(저장 단추 없이 즉시 적용) — 서버가 그림을 여러 크기로 다시 만들어 저장하므로 바이트를 곧바로 `POST` 한다(한 걸음):
  *       · `GET /api/admin/site/icon` → 200 `{ custom, previewUrl|null, defaultPreviewUrl }`  (`site.read`)
  *       · `POST /api/admin/site/icon` multipart `file` → 200 위와 같은 모양 · 400 VALIDATION(`fields.file` — 첫 걸림 하나, 지금 크기·용량 포함)  (`site.manage`)
@@ -59,13 +48,6 @@ import type { SiteLogoVariant } from '~/utils/util-site-logo';
 const PATH = {
     basic: '/api/admin/site/basic',
     displayDefaults: '/api/admin/site/display-defaults',
-    logo: '/api/admin/site/logo',
-    logoSvg: '/api/admin/site/logo/svg',
-    // 로고 4칸(언어 × 바탕) + 「이름 포함」 — 서버 `SiteLogosController`(shared V237)
-    logos: '/api/admin/site/logos',
-    logoVariant: (variant: string) => `/api/admin/site/logos/${encodeURIComponent(variant)}`,
-    logoVariantSvg: (variant: string) => `/api/admin/site/logos/${encodeURIComponent(variant)}/svg`,
-    logoName: '/api/admin/site/logos/name-in-logo',
     icon: '/api/admin/site/icon',
     iconSvg: '/api/admin/site/icon/svg',
     ogImage: '/api/admin/site/og-image',
@@ -84,59 +66,12 @@ function imageForm(file: File): FormData {
 export function useSiteSettingsApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
-    // 로고 바이트 올리기는 파일 API(`/api/admin/files` 의 유일한 자리)에 맡긴다
-    const files = useFileApi();
-
     return {
         /** 사이트 기본 정보(이름·한 줄 소개·로고) */
         basic: (): Promise<SiteBasicResponse> => client.get<SiteBasicResponse>(PATH.basic),
 
-        /** 사이트 기본 정보(이름·한 줄 소개)를 저장한다 — 저장된 모양을 돌려준다. 로고는 따로(즉시 적용) */
+        /** 사이트 기본 정보(이름·한 줄 소개)를 저장한다 — 저장된 모양을 돌려준다. 로고는 따로(`useSiteLogoLibraryApi`) */
         saveBasic: (body: SiteBasicRequest): Promise<SiteBasicResponse> => client.put<SiteBasicResponse>(PATH.basic, body),
-
-        /** 로고 그림 파일을 올린다 — 받은 `fileId` 로 `setLogoFile` 을 부른다(바이트와 로고 지정은 두 걸음) */
-        uploadLogoFile: (file: File): Promise<SiteLogoFileUploadResponse> => files.upload(file, 'SITE_LOGO'),
-
-        /** 올려 둔 그림을 로고로 삼는다 */
-        setLogoFile: (body: SiteLogoFileRequest): Promise<SiteLogoResponse> => client.put<SiteLogoResponse>(PATH.logo, body),
-
-        /** SVG 소스를 로고로 삼는다 */
-        setLogoSvg: (body: SiteLogoSvgRequest): Promise<SiteLogoResponse> => client.put<SiteLogoResponse>(PATH.logoSvg, body),
-
-        /** 로고를 뗀다 — 이름 글자만 보이는 기본으로 돌아간다 */
-        clearLogo: (): Promise<SiteLogoResponse> => client.del<SiteLogoResponse>(PATH.logo),
-
-        /*
-         * 로고 4칸(언어 × 바탕) + 「이름 포함」(`docs/features/site-logo-variants-contract.md` 「서버 구현 2026-11-16」, 서버 `SiteLogosController`).
-         * 응답은 모두 `SiteLogoSetResponse` — `{ logos: { koLight, koDark, enLight, enDark }, nameInLogo }`. 값은 `/media/…` 상대 주소 또는 SVG data URI, 빈 칸은 null
-         * (서버는 대신 채우지 않는다 — 대체 순서는 화면의 `UtilSiteLogo.resolve`).
-         *   - `GET /api/admin/site/logos`  (`site.read`)
-         *   - `PUT /api/admin/site/logos/{variant}` `{ fileId }` — 바이트는 지금처럼 `POST /api/admin/files`(purpose=SITE_LOGO) 두 걸음. 다른 칸이 쓰는 파일이면 `fields.fileId`  (`site.manage`)
-         *   - `PUT /api/admin/site/logos/{variant}/svg` `{ svgSource }` · `DELETE /api/admin/site/logos/{variant}` → 200 같은 모양  (`site.manage`)
-         *   - `PUT /api/admin/site/logos/name-in-logo` `{ nameInLogo }`  (`site.manage`)
-         *   - 400 VALIDATION(`fields.variant` 모르는 칸 · `fields.fileId` · `fields.svgSource` · `fields.nameInLogo`) · 403 PERMISSION_DENIED
-         * ① `koLight` 은 위 단일 로고 API·`me` 의 `siteLogoUrl` 과 같은 칸이다(서버가 옛 API 를 남겨 두었고, 일반 화면은 4칸 API 만 부른다).
-         */
-
-        /** 로고 4칸과 「이름 포함」 */
-        logoSet: (): Promise<SiteLogoSetResponse> => client.get<SiteLogoSetResponse>(PATH.logos),
-
-        /** 그림 파일을 한 칸의 로고로 — 파일을 올려(`fileId`) 그 칸에 지정한다. 바뀐 4칸 전체를 돌려준다 */
-        async setLogoVariantFile(variant: SiteLogoVariant, file: File): Promise<SiteLogoSetResponse> {
-            const { fileId } = await files.upload(file, 'SITE_LOGO');
-            const body: SiteLogoFileRequest = { fileId };
-            return client.put<SiteLogoSetResponse>(PATH.logoVariant(variant), body);
-        },
-
-        /** SVG 소스를 한 칸의 로고로 */
-        setLogoVariantSvg: (variant: SiteLogoVariant, body: SiteLogoSvgRequest): Promise<SiteLogoSetResponse> =>
-            client.put<SiteLogoSetResponse>(PATH.logoVariantSvg(variant), body),
-
-        /** 한 칸의 로고를 뗀다 — 빈 칸은 대체 순서(`UtilSiteLogo`)의 다른 칸이 대신한다 */
-        clearLogoVariant: (variant: SiteLogoVariant): Promise<SiteLogoSetResponse> => client.del<SiteLogoSetResponse>(PATH.logoVariant(variant)),
-
-        /** 「로고에 사이트 이름이 들어 있음」을 바꾼다(즉시 적용) */
-        setLogoNameInLogo: (body: SiteLogoNameRequest): Promise<SiteLogoSetResponse> => client.put<SiteLogoSetResponse>(PATH.logoName, body),
 
         /** 사이트 아이콘 상태(올려 둔 것이 있는지, 미리보기·기본 아이콘 주소) */
         icon: (): Promise<SiteIconResponse> => client.get<SiteIconResponse>(PATH.icon),

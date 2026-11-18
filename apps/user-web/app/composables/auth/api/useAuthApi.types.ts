@@ -3,6 +3,8 @@
  * ⚠ ID 는 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
 
+import type { MemberGender } from '~/composables/profile/api/useProfileApi.types';
+
 /** 로그인 정보(`/api/auth/me`)의 `businessStatus` — 탈퇴한 사업자는 로그인할 수 없어 `WITHDRAWN` 이 오지 않는다 */
 export type BusinessUserStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
@@ -50,6 +52,8 @@ export interface AuthUser {
     levelXp?: number | null;
     /** 다음 레벨이 되는 누적 XP */
     nextLevelXp?: number | null;
+    /** 성별(`MALE`·`FEMALE`·`NONE`) — 사이트 로고 고르기(`SiteBrand`)에만 쓴다. 옛 응답에는 없을 수 있다(없으면 `NONE` 으로 본다) */
+    gender?: MemberGender | null;
 }
 
 /**
@@ -111,10 +115,14 @@ export interface SignupRequest extends Agreements {
     email: string;
     password: string;
     nickname: string;
+    /** 성별(선택 — 없으면 서버가 `NONE`). 틀린 값 `400 fields.gender` */
+    gender?: MemberGender;
 }
 
 export interface SocialSignupRequest extends Agreements {
     nickname: string;
+    /** 성별(선택 — 없으면 서버가 `NONE`). 틀린 값 `400 fields.gender` */
+    gender?: MemberGender;
 }
 
 /**

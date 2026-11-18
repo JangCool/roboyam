@@ -1,7 +1,7 @@
 import UtilDisplayValues from '#layers/display-time/utils/util-display-values';
 import UtilVisitSignal from '#layers/analytics/utils/util-visit-signal';
 import type { SiteIconResponse, SiteOperatorPublicResponse, SiteOperatorStage } from '~/composables/site/api/useSiteInfoApi.types';
-import type { SiteInfo } from '~/composables/site/useSiteInfo.types';
+import type { SiteGenderLogos, SiteInfo, SiteLogoBundleView } from '~/composables/site/useSiteInfo.types';
 import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
 import type { SiteGrade } from '~/composables/grade/api/useGradeApi.types';
 import UtilGradeSprite from '~/utils/util-grade-sprite';
@@ -98,6 +98,24 @@ export default class UtilSiteInfo {
     }
 
     /**
+     * 성별 규칙의 묶음(`genderLogos`)을 읽는다 — 쪽마다 4칸을 `cleanLogoUrl` 로 거르고 「이름 포함」은 `true` 만 켬. 쓸 그림이 한 칸도 없는 쪽은 null(평소 로고를 쓴다).
+     * @param {unknown} raw - 응답의 `genderLogos`.
+     * @returns {SiteGenderLogos | null} 걸러 낸 값. 칸이 없거나(기념일이 걸린 날·성별 규칙 없음·옛 서버) 두 쪽 모두 쓸 수 없으면 null.
+     */
+    static cleanGenderLogos(raw: unknown): SiteGenderLogos | null {
+        if (!isObject(raw)) return null;
+        const side = (value: unknown): SiteLogoBundleView | null => {
+            if (!isObject(value) || !isObject(value.logos)) return null;
+            const logos = UtilSiteInfo.cleanLogos(value.logos, null);
+            if (!UtilSiteLogo.VARIANTS.some((variant) => logos[variant])) return null;
+            return { logos, nameIncluded: value.nameIncluded === true };
+        };
+        const male = side(raw.male);
+        const female = side(raw.female);
+        return male || female ? { male, female } : null;
+    }
+
+    /**
      * 아이콘 주소 묶음을 읽는다 — 여섯 주소가 모두 쓸 수 있어야 한다(하나라도 깨졌으면 올린 아이콘이 없는 것으로 본다).
      * @param {unknown} raw - 응답의 `icon`.
      * @returns {SiteIconResponse | null} 아이콘. 없거나 깨졌으면 null.
@@ -128,6 +146,7 @@ export default class UtilSiteInfo {
             logos: UtilSiteInfo.cleanLogos(raw.logos, raw.logoUrl),
             // 「이름 포함」 — `true` 만 켬(칸이 없는 옛 서버·다른 값은 이름 글자를 보인다)
             logoNameIncluded: raw.logoNameIncluded === true,
+            genderLogos: UtilSiteInfo.cleanGenderLogos(raw.genderLogos),
             icon: UtilSiteInfo.cleanIcon(raw.icon),
             // 서버 값(`H24`·`YMD_DASH` 등)은 공유 레이어의 표시 값과 같은 이름이라 변환 없이 검사만 한다
             displayDefaults: UtilDisplayValues.sanitize(raw.displayDefaults),

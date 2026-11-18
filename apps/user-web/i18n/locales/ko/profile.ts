@@ -41,6 +41,14 @@ export default {
     visibilityPrivateHint: '다른 사람에게는 닉네임·아바타·등급만 보여요. 자기소개·가입일·활동 수치와 작성글·댓글·소모임 목록은 숨겨요.',
     visibilityNote: '비공개로 해도 게시판에 쓴 글과 댓글은 그대로 보여요. 운영진은 운영을 위해 회원 정보를 볼 수 있어요.',
 
+    // 성별(선택) — 가입 화면과 프로필 수정이 같이 쓴다. 로고 표시에만 쓰고 다른 회원에게 보이지 않는다
+    genderLabel: '성별',
+    genderOptional: '선택',
+    genderMale: '남성',
+    genderFemale: '여성',
+    genderNone: '밝히지 않음',
+    genderHelp: '다른 회원에게 보이지 않고, 사이트 로고를 보여 줄 때만 써요. 나중에 프로필에서 바꿀 수 있어요.',
+
     // 비공개 프로필(`/users/{id}`)
     privateTitle: '비공개 프로필이에요',
     privateText: '{nickname}님이 프로필을 공개하지 않았어요. 쓴 글과 댓글은 게시판에서 볼 수 있어요.',

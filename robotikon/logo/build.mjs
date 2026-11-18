@@ -1,9 +1,12 @@
 // 확정 로고 4종 SVG — 글자는 개구체(Gaegu 700) 윤곽을 패스로 굳힌다(웹 글꼴 없이 <img> 로 보이게).
+// 국경일 변형 — THEME=samil|jeheon|gwangbok|gaecheon|hangeul(mascot.mjs): 마스코트에 그날의 특징과 표정, 작은 글자 자리에 그날의 날짜. 글자 색은 평소 그대로. 파일 이름은 irobit-logo-<THEME>-*.svg
 import fs from 'node:fs'
 import path from 'node:path'
 import opentype from 'opentype.js'
+import { C, THEME_DATES, THEME_DATES_EN, THEME_NAMES, THEME_BRUSH, MASCOT_S, mascot, mascotTop, mascotUnits } from './mascot.mjs'
 
-const dir = path.resolve('node_modules/@fontsource/gaegu/files')
+const THEME = process.env.THEME ?? ''
+const dir = path.resolve(process.env.LOGO_MODULES ?? 'node_modules', '@fontsource/gaegu/files')
 const fonts = fs.readdirSync(dir).filter((f) => f.endsWith('-700-normal.woff')).map((f) => {
   const b = fs.readFileSync(path.join(dir, f))
   return opentype.parse(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))
@@ -26,62 +29,53 @@ function textPaths(runs, x0, baseline, size) {
   return { out, width: x - x0 }
 }
 
-const C = { navy: '#0E1F4D', blue: '#2F6BFF', orange: '#FF9F2E', yellow: '#FFC83D', white: '#FFFFFF' }
-
-// 다리: 로보티콘(robotikon/src/parts.mjs body)과 같은 A자 — 꼭짓점 100,42 에서 머리 뒤로 내려가 바닥(46,164 / 154,164 기울기)으로 나온다.
-// 안테나 공(100,36 r12)이 꼭짓점에 얹혀 꼭대기를 대부분 가리고, 공과 머리 사이에 A 의 어깨만 살짝 보인다(사용자 2026-11-13 「로보티콘처럼, A 꼭대기는 너무 보이지 않게, 그래도 A 처럼」).
-// 머리 몸통 중앙(y=107)을 글자 중앙에 맞추는 정렬은 그대로. 캔버스 높이 40 안에 들도록 바닥 159 이하
-const LEG_END = Number(process.env.LEG_END ?? 159)
-const legX = (y, side) => +(100 + side * 54 * ((y - 42) / 122)).toFixed(2)
-const legs = (attrs) => [-1, 1].map((side) => `<line x1="100" y1="42" x2="${legX(LEG_END, side)}" y2="${LEG_END}" ${attrs}/>`).join('')
-const BALL = { cx: 100, cy: 36, r: 12 }
-
-// 심볼: 아바타 200 좌표의 머리(10..190 × 57..157) — 안테나 공(y=36, r12+테두리)이 위로, 다리가 아래로 튀어나온다
-function symbol(tx, ty, s, head) {
-  return `<g transform="translate(${tx} ${ty}) scale(${s}) translate(-10 -57)">
-<g stroke="#FFFFFF" stroke-width="10" fill="#FFFFFF" stroke-linejoin="round"><circle cx="${BALL.cx}" cy="${BALL.cy}" r="${BALL.r}"/><rect x="16" y="92" width="18" height="34" rx="9"/><rect x="166" y="92" width="18" height="34" rx="9"/><rect x="28" y="62" width="144" height="90" rx="40"/></g>
-${legs('stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"')}
-${legs(`stroke="${C.navy}" stroke-width="16" stroke-linecap="round"`)}
-<circle cx="${BALL.cx}" cy="${BALL.cy}" r="${BALL.r}" fill="${C.orange}"/>
-<rect x="16" y="92" width="18" height="34" rx="9" fill="${C.navy}"/><rect x="166" y="92" width="18" height="34" rx="9" fill="${C.navy}"/>
-<rect x="28" y="62" width="144" height="90" rx="40" fill="${head}"/>
-<rect x="46" y="76" width="108" height="62" rx="28" fill="${C.navy}"/>
-<path d="M68 112 Q80 94 92 112" stroke="${C.yellow}" stroke-width="8" fill="none" stroke-linecap="round"/><path d="M108 112 Q120 94 132 112" stroke="${C.yellow}" stroke-width="8" fill="none" stroke-linecap="round"/>
-</g>`
-}
-
-// 캔버스 높이 40: 머리 몸통 높이 26(180×100 → s=0.26 → 너비 46.8), 세로 중앙 y=23, 안테나 꼭대기(공 위 테두리 y=19) ≈ 10+(19-57)*0.26 ≈ 0.1, 다리 바닥(159+13) ≈ 39.9
+// 캔버스 높이 40, 머리 몸통 세로 중앙 y=23. 마스코트 크기는 mascot.mjs 의 MASCOT_S(예전 0.26 에서 높이 4 만큼 줄였다 — 사용자 2026-11-18, 평소·기념일 같음)
 const H = 40
 const CY = 23
-const S = 0.26
-const SYM_W = 180 * S
 
 function build({ lang, tone }) {
   const dark = tone === 'dark'
   const ink = dark ? C.white : C.navy
+  // 기념일 변형도 글자 색은 평소 그대로 둔다(사용자 2026-11-18 「기존 로고 색 유지」) — 달라지는 것은 캐릭터뿐이다
   const accent = dark ? C.yellow : C.blue
   const head = dark ? C.white : C.blue
   const gap = 8
-  const tx = SYM_W + gap
-  let parts = []
-  let wordmark = []
-  let width
-  if (lang === 'ko') {
-    const size = 32
-    // 한글 가운데를 머리 중앙에 — 개구체 한글 높이 ≈ 0.72em, 기준선 = CY + 0.36em
-    const main = textPaths([{ text: '아이로', color: ink }, { text: '빗', color: accent }], tx, CY + size * 0.29, size)
+  const size = lang === 'ko' ? 32 : 34
+  // 한글 가운데를 머리 중앙에 — 개구체 한글 높이 ≈ 0.72em, 기준선 = CY + 0.36em / 영문: 소문자 x높이 중심이 머리 중앙에 오게 — 기준선 = CY + 0.24em
+  const baseline = CY + size * (lang === 'ko' ? 0.29 : 0.24)
+  const runs = lang === 'ko' ? [{ text: '아이로', color: ink }, { text: '빗', color: accent }] : [{ text: 'IRO', color: ink }, { text: 'BIT', color: accent }]
+
+  // 마스코트: 평소·기념일 모두 머리 몸통 중앙 = 글자 중앙, 크기 MASCOT_S.
+  // 글자 높이에 맞춰 줄이면 헤더 크기에서 너무 작다. 깃발만큼 폭이 넓어질 뿐이다.
+  const s = MASCOT_S
+  const symW = mascotUnits(THEME) * s
+  const sym = mascot(0, mascotTop(CY, s), s, head, THEME)
+
+  const tx = symW + gap
+  const main = textPaths(runs, tx, baseline, size)
+  let parts = main.out
+  let wordmark = main.out
+  let width = Math.ceil(tx + main.width + 2)
+  // 작은 글자: 한글판은 「IROBIT」, 국경일 변형은 한글·영문 모두 그날의 날짜
+  let extra = ''
+  const subText = (lang === 'en' ? THEME_DATES_EN[THEME] : null) ?? THEME_DATES[THEME] ?? (lang === 'ko' ? 'IROBIT' : null)
+  if (subText) {
     const subSize = Number(process.env.SUB ?? 15)
-    const sub = textPaths([{ text: 'IROBIT', color: ink }], tx + main.width + 6, CY + size * 0.29, subSize)
+    // 국경일 한글판: 이름(위) + 날짜(아래) 두 줄. 그 밖에는 한 줄
+    const twoLines = THEME && lang === 'ko'
+    const sx = tx + main.width + 6
+    const brush = lang === 'ko' ? THEME_BRUSH[THEME] : null
+    const bk = brush ? 19 / brush.h : 0
+    // 이름을 붓글씨로 크게 쓰는 날: 붓글씨(위, 높이 19) + 날짜(아래)
+    if (brush) extra = `<path transform="translate(${sx.toFixed(1)} ${(CY - 15.5).toFixed(1)}) scale(${bk.toFixed(3)})" d="${brush.d}" fill="${ink}"/>`
+    const sub = brush
+      ? (() => { const d = textPaths([{ text: subText, color: ink }], sx, CY + 13.4, subSize * 0.72); return { out: d.out, width: Math.max(d.width, brush.w * bk) } })()
+      : twoLines
+      ? (() => { const a = textPaths([{ text: THEME_NAMES[THEME], color: ink }], sx, CY - 1.5, subSize * 0.9); const d = textPaths([{ text: subText, color: ink }], sx, CY + 11.5, subSize * 0.8); return { out: [...a.out, ...d.out], width: Math.max(a.width, d.width) } })()
+      : textPaths([{ text: subText, color: ink }], sx, baseline, subSize)
     parts = [...main.out, ...sub.out.map((p) => ({ ...p, opacity: dark ? 0.85 : 0.6 }))]
     wordmark = [...main.out, ...sub.out]
     width = Math.ceil(tx + main.width + 6 + sub.width + 2)
-  } else {
-    const size = 34
-    // 영문: 소문자 x높이 중심이 머리 중앙에 오게 — 기준선 = CY + 0.24em
-    const main = textPaths([{ text: 'IRO', color: ink }, { text: 'BIT', color: accent }], tx, CY + size * 0.24, size)
-    parts = main.out
-    wordmark = main.out
-    width = Math.ceil(tx + main.width + 2)
   }
   const SW = Number(process.env.STROKE ?? 0)
   const paths = parts.map((p) => `<path d="${p.d}" fill="${p.color}"${SW ? ` stroke="${p.color}" stroke-width="${SW}" stroke-linejoin="round"` : ''}${p.opacity ? ` fill-opacity="${p.opacity}"${SW ? ` stroke-opacity="${p.opacity}"` : ''}` : ''}/>`).join('')
@@ -93,14 +87,14 @@ function build({ lang, tone }) {
   // xMinYMid: 그림 상자가 영역보다 넓게 잡혀도(브라우저가 전체 비율로 상자를 만들 때) 글자가 가운데로 가지 않고 아이콘이 있던 왼쪽 끝에 붙는다
   const view = `<view id="wordmark" viewBox="${x1} 0 ${x2 - x1} ${H}" preserveAspectRatio="xMinYMid meet"/>`
   // 로봇 그림만 — <img src="….svg#symbol">(사이트 소개의 「AI」 카드: 안테나와 A자 다리가 A 를 그린다)
-  const symbolView = `<view id="symbol" viewBox="0 0 ${Math.ceil(SYM_W) + 1} ${H}" preserveAspectRatio="xMidYMid meet"/>`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${H}" role="img" aria-label="${lang === 'ko' ? '아이로빗' : 'IROBIT'}">${view}${symbolView}${symbol(0, CY - 13, S, head)}${paths}</svg>\n`
+  const symbolView = `<view id="symbol" viewBox="0 0 ${Math.ceil(symW) + 1} ${H}" preserveAspectRatio="xMidYMid meet"/>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${H}" role="img" aria-label="${lang === 'ko' ? '아이로빗' : 'IROBIT'}">${view}${symbolView}${sym}${paths}${extra}</svg>\n`
 }
 
 const outDir = process.argv[2]
 fs.mkdirSync(outDir, { recursive: true })
 for (const lang of ['ko', 'en']) for (const tone of ['light', 'dark']) {
   const svg = build({ lang, tone })
-  fs.writeFileSync(path.join(outDir, `irobit-logo-${lang}-${tone}.svg`), svg)
+  fs.writeFileSync(path.join(outDir, `irobit-logo-${THEME ? THEME + '-' : ''}${lang}-${tone}.svg`), svg)
   console.log(lang, tone, svg.length, svg.match(/viewBox="([^"]+)"/)[1])
 }

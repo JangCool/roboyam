@@ -40,6 +40,14 @@ export interface SiteInfoResponse {
     logos?: { koLight: string | null; koDark: string | null; enLight: string | null; enDark: string | null } | null;
     /** 로고 그림에 사이트 이름이 들어 있음 — 켜져 있으면 로고 옆 이름 글자를 숨긴다. 기본 false, 옛 서버에는 없다 */
     logoNameIncluded?: boolean;
+    /**
+     * 성별 규칙의 묶음(서버 V249 — `site-logo-library-contract.md`) — 기념일이 안 걸린 날이고 남성·여성 가운데 하나라도 묶음이 정해져 있을 때만 있다(아니면 칸 자체가 없다).
+     * 위 `logos`·`logoNameIncluded`·`logoUrl` 은 오늘의 성별 무관 묶음(기념일이 걸리면 그 묶음, 아니면 평소 로고)이다. SVG 칸 주소는 `/api/site/logos/{칸}.svg?b=<묶음 id>&v=<지문>`.
+     */
+    genderLogos?: {
+        male: { logos: { koLight: string | null; koDark: string | null; enLight: string | null; enDark: string | null }; nameIncluded: boolean } | null;
+        female: { logos: { koLight: string | null; koDark: string | null; enLight: string | null; enDark: string | null }; nameIncluded: boolean } | null;
+    } | null;
     /** 올린 아이콘이 없으면 null(기본 아이콘) */
     icon: SiteIconResponse | null;
     /** 링크 미리보기 이미지 — 서버가 `<head>` 에 직접 넣는다(화면은 쓰지 않는다) */

@@ -47,6 +47,8 @@ export interface MyProfile {
     avatarStillUrl?: string | null;
     /** 프로필 공개 범위 — 서버 연결됨. 칸이 없는 옛 응답이면 `PUBLIC` 으로 본다 */
     visibility?: ProfileVisibility;
+    /** 성별 — 칸이 없는 옛 응답이면 `NONE`(밝히지 않음)으로 본다 */
+    gender?: MemberGender;
 }
 
 /** `PUT /api/me/profile` 요청 — 두 칸 모두 보낸다(닉네임이 그대로면 변경 횟수·변경권을 쓰지 않는다 — 소개만 고치는 저장) */
@@ -60,7 +62,15 @@ export interface MyProfileRequest {
     useTicket?: boolean;
     /** 프로필 공개 범위 — 보내지 않으면 그대로. 틀린 값 `400 fields.visibility` */
     visibility?: ProfileVisibility;
+    /** 성별 — 보내지 않으면 그대로. 틀린 값 `400 fields.gender` */
+    gender?: MemberGender;
 }
+
+/**
+ * 회원 성별 — 선택 항목(기본 `NONE` 밝히지 않음). 다른 회원에게 보이지 않고 사이트 로고 표시(관리자 「보이기 규칙」의 성별 규칙)에만 쓴다.
+ * 서버 연결됨(`site-logo-library-contract.md` 「서버 구현」): 가입 요청(이메일·소셜)의 `gender`, `MyProfile`·`MyProfileRequest` 의 `gender`, 로그인 정보(`/api/auth/me`)의 `user.gender`.
+ */
+export type MemberGender = 'MALE' | 'FEMALE' | 'NONE';
 
 /** 자기소개 최대 글자 수 — 서버 `MyProfileService.BIO_MAX`(줄바꿈 포함, 정리·앞뒤 공백을 자른 뒤 0~300자, 서버는 코드 포인트로 센다 — 사용자 2026-11-08 100자에서 늘림) */
 export const PROFILE_BIO_MAX = 300;

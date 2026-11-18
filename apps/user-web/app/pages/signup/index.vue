@@ -128,6 +128,9 @@
 
             <Message severity="secondary" :closable="false" size="small">{{ t('signup.nicknameNote') }}</Message>
 
+            <!-- 성별(선택, 기본 「밝히지 않음」) — 로고 표시에만 쓴다. 가입 요청의 `gender` 로 보낸다 -->
+            <MemberGenderField v-model="gender" testid="signup-gender" />
+
             <Button type="submit" :label="t('common.next')" fluid size="large" :disabled="!nicknameReady" data-testid="signup-nickname-next" />
         </form>
 
@@ -158,6 +161,7 @@
 
 <script setup lang="ts">
 import type { Agreements, EmailAvailability, NicknameAvailability } from '~/composables/auth/api/useAuthApi.types';
+import type { MemberGender } from '~/composables/profile/api/useProfileApi.types';
 import UtilAccount from '~/utils/util-account';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilValidation from '~/utils/util-validation';
@@ -340,6 +344,9 @@ function toTerms() {
     if (nicknameReady.value) step.value = 'terms';
 }
 
+/** 성별(선택 — 기본 「밝히지 않음」). 로고 표시에만 쓴다 */
+const gender = ref<MemberGender>('NONE');
+
 // ── 3/3 약관 동의 + 제출 ────────────────────────────────────────
 const agreements = ref<Agreements>({ agreeTerms: false, agreePrivacy: false, ageConfirmed: false });
 const termsErrors = ref<Partial<Record<keyof Agreements, string>>>({});
@@ -354,7 +361,7 @@ async function submit() {
     error.value = '';
     termsErrors.value = {};
     try {
-        await signup({ email: email.value.trim(), password: password.value, nickname: nickname.value, ...agreements.value });
+        await signup({ email: email.value.trim(), password: password.value, nickname: nickname.value, gender: gender.value, ...agreements.value });
         // 비밀번호는 화면 메모리에만 — 성공하면 비운다
         password.value = '';
         passwordConfirm.value = '';

@@ -171,6 +171,11 @@
                 <p class="m-0 text-xs leading-relaxed text-muted-color" data-testid="profile-visibility-note">{{ t('profile.visibilityNote') }}</p>
             </section>
 
+            <!-- 성별(선택, 기본 「밝히지 않음」) — 로고 표시에만 쓴다. 닉네임·소개와 같은 저장 줄로 저장한다(`PUT /api/me/profile` 의 `gender`) -->
+            <section class="panel-card p-4" data-testid="profile-gender">
+                <MemberGenderField v-model="form.gender" :disabled="restricted || saving" testid="profile-gender-select" />
+            </section>
+
             <StickySaveBar v-if="!restricted" :dirty="dirty" :saving="saving" :count="changedCount" :error-count="errorCount" :error="formError" :disabled="errorCount > 0" revertable submit @revert="revert" />
             </form>
         </template>
@@ -180,7 +185,7 @@
 <script setup lang="ts">
 import type { AvatarGridCell } from '~/components/avatar/AvatarGrid.types';
 import type { AvatarCatalog } from '~/composables/avatar/api/useAvatarApi.types';
-import type { MyProfile, ProfileVisibility } from '~/composables/profile/api/useProfileApi.types';
+import type { MemberGender, MyProfile, ProfileVisibility } from '~/composables/profile/api/useProfileApi.types';
 import UtilAvatar from '~/utils/util-avatar';
 import UtilBusiness from '~/utils/util-business';
 import { PROFILE_BIO_MAX } from '~/composables/profile/api/useProfileApi.types';
@@ -219,7 +224,9 @@ const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 /** 서버에 저장된 값 */
 const saved = ref<MyProfile | null>(null);
-const form = reactive<{ nickname: string; bio: string; visibility: ProfileVisibility }>({ nickname: '', bio: '', visibility: 'PUBLIC' });
+const form = reactive<{ nickname: string; bio: string; visibility: ProfileVisibility; gender: MemberGender }>({ nickname: '', bio: '', visibility: 'PUBLIC', gender: 'NONE' });
+/** 저장된 성별 — 칸이 없는 옛 응답이면 「밝히지 않음」 */
+const savedGender = computed<MemberGender>(() => saved.value?.gender ?? 'NONE');
 /** 프로필 공개 범위 고르기 — 공개(기본) · 비공개 */
 const visibilityOptions = computed<{ value: ProfileVisibility; title: string; hint: string; icon: string }[]>(() => [
     { value: 'PUBLIC', title: t('profile.visibilityPublic'), hint: t('profile.visibilityPublicHint'), icon: 'pi pi-globe' },
@@ -246,6 +253,7 @@ function fill(value: MyProfile) {
     form.nickname = value.nickname;
     form.bio = value.bio;
     form.visibility = value.visibility ?? 'PUBLIC';
+    form.gender = value.gender ?? 'NONE';
     serverErrors.nickname = '';
     serverErrors.bio = '';
     formError.value = '';
@@ -298,7 +306,8 @@ const errorCount = computed(() => Object.values(errors.value).filter(Boolean).le
 const nicknameChanged = computed(() => Boolean(saved.value) && form.nickname !== saved.value?.nickname);
 const bioChanged = computed(() => Boolean(saved.value) && form.bio.trim() !== (saved.value?.bio ?? ''));
 const visibilityChanged = computed(() => Boolean(saved.value) && form.visibility !== (saved.value?.visibility ?? 'PUBLIC'));
-const changedCount = computed(() => Number(nicknameChanged.value) + Number(bioChanged.value) + Number(visibilityChanged.value));
+const genderChanged = computed(() => Boolean(saved.value) && form.gender !== savedGender.value);
+const changedCount = computed(() => Number(nicknameChanged.value) + Number(bioChanged.value) + Number(visibilityChanged.value) + Number(genderChanged.value));
 const dirty = computed(() => changedCount.value > 0);
 
 function revert() {
@@ -348,12 +357,13 @@ async function save() {
     try {
         // 무료를 썼고 변경권이 있으면 닉네임을 바꿀 때 1장을 쓴다(소개만이면 보내지 않는다 — 서버도 쓰지 않는다)
         const useTicket = nicknameStage.value === 'TICKET' && nicknameChanged.value;
-        const value = await api.save({ nickname: form.nickname, bio: form.bio.trim(), visibility: form.visibility, ...(useTicket ? { useTicket: true } : {}) });
         const nicknameDone = nicknameChanged.value;
+        const genderDone = genderChanged.value;
+        const value = await api.save({ nickname: form.nickname, bio: form.bio.trim(), visibility: form.visibility, gender: form.gender, ...(useTicket ? { useTicket: true } : {}) });
         fill(value);
         toast.success(t('common.saved'));
-        // 셸(헤더·햄버거)의 닉네임 — 로그인 정보를 다시 받는다. 실패해도 저장은 끝났다
-        if (nicknameDone) await auth.refresh().catch(() => undefined);
+        // 셸(헤더·햄버거)의 닉네임과 로고(성별 규칙 — `SiteBrand` 가 로그인 정보의 `gender` 로 고른다) — 로그인 정보를 다시 받는다. 실패해도 저장은 끝났다
+        if (nicknameDone || genderDone) await auth.refresh().catch(() => undefined);
     } catch (e) {
         if (e instanceof ApiError && e.code === 'ACCOUNT_RESTRICTED') {
             // 정지 중 — 고친 값을 되돌리고 읽기 전용 + 제재 안내로 바꾼다(다음부터는 요청 없이 같은 안내)

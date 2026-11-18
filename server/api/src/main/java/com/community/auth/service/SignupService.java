@@ -6,6 +6,7 @@ import com.community.auth.dto.response.EmailAvailabilityResponse;
 import com.community.auth.dto.response.NicknameAvailabilityResponse;
 import com.community.auth.exception.AuthRejoinBlockedException;
 import com.community.emoticon.service.EmoticonAcquireService;
+import com.community.user.entity.MemberGender;
 import com.community.user.repository.master.ProfileRepositoryQDSL;
 import com.community.user.repository.master.UserRepository;
 import com.community.user.service.UserPolicy;
@@ -65,7 +66,7 @@ public class SignupService {
     /**
      * 가입한다. 성공하면 로그인시킬 주체를 돌려준다.
      *
-     * @throws ValidationException 입력 위반({@code fields.email|password|nickname|agreeTerms|agreePrivacy|ageConfirmed})
+     * @throws ValidationException 입력 위반({@code fields.email|password|nickname|agreeTerms|agreePrivacy|ageConfirmed|gender})
      * @throws com.community.user.exception.UserEmailTakenException    409
      * @throws com.community.user.exception.UserNicknameTakenException 409
      */
@@ -86,6 +87,12 @@ public class SignupService {
         if (body == null || !Boolean.TRUE.equals(body.ageConfirmed())) {
             errors.put("ageConfirmed", new MessageRef("user.ageConfirmed.required"));
         }
+        // 성별(선택 — 없으면 밝히지 않음). 로고 표시에만 쓴다(site-logo-library-contract)
+        String genderText = body == null ? null : body.gender();
+        MemberGender gender = genderText == null ? MemberGender.NONE : MemberGender.of(genderText).orElse(null);
+        if (gender == null) {
+            errors.put("gender", new MessageRef("profile.gender.invalid"));
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
@@ -96,7 +103,7 @@ public class SignupService {
         withdrawals.blockedUntil(WithdrawalKind.EMAIL, email, now).ifPresent(until -> {
             throw new AuthRejoinBlockedException(until, now);
         });
-        AuthUser member = writer.create(email, encoder.encode(password), nickname, terms.currentTermsVersion());
+        AuthUser member = writer.create(email, encoder.encode(password), nickname, gender, terms.currentTermsVersion());
         grantSignupEmoticons(emoticons, member.id());
         try {
             verification.resend(member.id());

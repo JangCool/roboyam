@@ -87,7 +87,8 @@ public class MeService {
         String gradeLabel = grades.findById(p.getGradeKey()).map(GradeEntity::getLabel).orElse(p.getGradeKey()); // 등급 행이 없을 수는 없지만(외래키) 키라도 보인다
         XpCurve.Progress progress = xpProgress.of(p); // 레벨·경험치(V196 — grade-level-contract 5절)
         UserView view = new UserView(Long.toString(u.getId()), p.getNickname(), p.getGradeKey(), gradeLabel, u.getRole().name(), u.getEmail(),
-                u.isEmailVerified(), List.copyOf(methods), business.memberStatusOf(userId), progress.level(), progress.xp(), progress.levelXp(), progress.nextLevelXp());
+                u.isEmailVerified(), List.copyOf(methods), business.memberStatusOf(userId), progress.level(), progress.xp(), progress.levelXp(), progress.nextLevelXp(),
+                p.getGender().name());
 
         RestrictionView restriction = restrictionOf(u);
 

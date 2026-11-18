@@ -40,6 +40,14 @@ export default {
     visibilityPrivateHint: 'Others see only your nickname, avatar and grade. Your bio, join date, activity counts, and your posts, comments and groups lists are hidden.',
     visibilityNote: 'Even when private, your posts and comments on boards stay visible. Staff can see member information to run the site.',
 
+    // Gender (optional) — shared by sign-up and profile edit. Used only for the site logo, never shown to other members
+    genderLabel: 'Gender',
+    genderOptional: 'Optional',
+    genderMale: 'Male',
+    genderFemale: 'Female',
+    genderNone: 'Prefer not to say',
+    genderHelp: 'Not shown to other members; used only to choose which site logo you see. You can change it later in your profile.',
+
     // Private profile (`/users/{id}`)
     privateTitle: 'This profile is private',
     privateText: '{nickname} hasn’t made their profile public. You can still see their posts and comments on boards.',

@@ -1,6 +1,7 @@
 package com.community.auth.service;
 
 import com.community.auth.dto.AuthUser;
+import com.community.user.entity.MemberGender;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.Role;
 import com.community.user.entity.UserEntity;
@@ -68,12 +69,18 @@ public class MemberSignupWriter {
      */
     @Transactional
     public AuthUser create(String email, String passwordHash, String nickname, String termsVersion) {
+        return create(email, passwordHash, nickname, MemberGender.NONE, termsVersion);
+    }
+
+    /** 회원을 만든다 — 가입 때 고른 성별과 함께(선택 항목, 기본 「밝히지 않음」) */
+    @Transactional
+    public AuthUser create(String email, String passwordHash, String nickname, MemberGender gender, String termsVersion) {
         assertAvailable(email, nickname);
         Instant now = Instant.now();
         long userId = ids.nextId();
         try {
             users.persist(UserEntity.createWithPassword(userId, email, passwordHash, termsVersion, now));
-            profiles.persist(ProfileEntity.create(userId, nickname, now));
+            profiles.persist(ProfileEntity.create(userId, nickname, gender, now));
             users.flush();
         } catch (DataIntegrityViolationException e) {
             throw conflictOf(e); // 동시에 같은 이메일·닉네임으로 가입했다

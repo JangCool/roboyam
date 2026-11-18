@@ -8,7 +8,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마), V156(공지 띠), V237(로고 4칸 — {@link SiteLogoVariant}).
+ * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마), V156(공지 띠), V249(로고 보이기 규칙의 평소 로고·성별 묶음 — 로고 그림은 {@link SiteLogoBundleEntity}).
  * 사이트 이름과 공개 주소(서버가 밖으로 내보내는 링크의 기준), 슬로건, 로고·사이트 아이콘·링크 미리보기 이미지, 표시 기본값, 공개 사이트 테마다.
  * 행은 설치 때 처음 생기고, 이후 관리자 앱의 설정 > 일반 화면이 고친다(공개 주소는 그 화면이 건드리지 않는다).
  */
@@ -35,29 +35,14 @@ public class SiteSettingEntity {
     /** 사이트 슬로건(한 줄 소개). 없으면(null) 문구 없음 */
     private String tagline;
 
-    /** 로고로 지정한 그림 파일({@code files.id}). 로고 SVG 와 함께 있을 수 없다 */
-    private Long logoFileId;
+    /** 평소 로고 — 로고 묶음({@code site_logo_bundles.id}, V249). 처음 값은 기본 제공 「캐릭터 로고」({@link SiteLogoBundleEntity#CHARACTER_ID}) */
+    private Long logoDefaultBundleId;
 
-    /** 로고로 지정한 SVG 소스(검사를 마치고 xmlns 를 맞춘 것). 로고 그림 파일과 함께 있을 수 없다 */
-    private String logoSvg;
+    /** 성별 규칙 — 로그인한 남성 회원에게 보일 묶음(V249). 없으면(null) 평소 로고 */
+    private Long logoMaleBundleId;
 
-    /** ② 한글·어두운 바탕용 로고 — 그림 파일 또는 SVG 소스 하나(V237). ① 은 위 {@code logoFileId}·{@code logoSvg} 다 */
-    private Long logoKoDarkFileId;
-
-    private String logoKoDarkSvg;
-
-    /** ③ 영문·밝은 바탕용 로고(V237) */
-    private Long logoEnLightFileId;
-
-    private String logoEnLightSvg;
-
-    /** ④ 영문·어두운 바탕용 로고(V237) */
-    private Long logoEnDarkFileId;
-
-    private String logoEnDarkSvg;
-
-    /** 로고 그림에 사이트 이름이 들어 있는가(V237, 기본 끔) — 켜져 있으면 공개 헤더가 로고 옆 이름 글자를 붙이지 않는다 */
-    private boolean logoNameIncluded;
+    /** 성별 규칙 — 로그인한 여성 회원에게 보일 묶음(V249). 없으면(null) 평소 로고 */
+    private Long logoFemaleBundleId;
 
     /** 사이트 아이콘의 버전 토큰(저장소 키 {@code site-icon/{버전}/…}). 없으면(null) 기본 아이콘 */
     private String iconToken;
@@ -111,7 +96,7 @@ public class SiteSettingEntity {
     protected SiteSettingEntity() {
     }
 
-    /** 설치 때 처음 만든다 — 로고·아이콘·이미지는 없고 표시 기본값은 처음 값이다 */
+    /** 설치 때 처음 만든다 — 평소 로고는 기본 제공 「캐릭터 로고」, 아이콘·이미지는 없고 표시 기본값은 처음 값이다 */
     public static SiteSettingEntity create(String siteName, String publicUrl, String tagline, long updatedBy, Instant now) {
         SiteSettingEntity setting = new SiteSettingEntity();
         setting.id = ROW_ID;
@@ -123,6 +108,8 @@ public class SiteSettingEntity {
         setting.displayTimeFormat = DEFAULT_TIME_FORMAT;
         setting.displayDateFormat = DEFAULT_DATE_FORMAT;
         setting.theme = SiteThemes.DEFAULT;
+        // 평소 로고 처음 값 — V249 의 칸 기본값과 같다(기본 제공 「캐릭터 로고」)
+        setting.logoDefaultBundleId = SiteLogoBundleEntity.CHARACTER_ID;
         // 공지 띠 처음 값 — V156 의 칸 기본값과 같다(JPA 가 모든 칸을 넣으므로 여기서도 채운다)
         setting.noticeBarEnabled = true;
         setting.noticeBarSource = SiteNoticeBars.SOURCE_BOARD;
@@ -141,84 +128,25 @@ public class SiteSettingEntity {
         touch(operatorId, now);
     }
 
-    /** ① 로고를 그림 파일로 바꾼다 — SVG 로고는 비운다 */
-    public void changeLogoFile(long fileId, long operatorId, Instant now) {
-        changeLogoFile(SiteLogoVariant.KO_LIGHT, fileId, operatorId, now);
-    }
-
-    /** ① 로고를 SVG 소스로 바꾼다 — 그림 파일 로고는 비운다 */
-    public void changeLogoSvg(String svgSource, long operatorId, Instant now) {
-        changeLogoSvg(SiteLogoVariant.KO_LIGHT, svgSource, operatorId, now);
-    }
-
-    /** ① 로고를 뗀다 */
-    public void clearLogo(long operatorId, Instant now) {
-        clearLogo(SiteLogoVariant.KO_LIGHT, operatorId, now);
-    }
-
-    /** 한 칸의 로고를 그림 파일로 바꾼다 — 그 칸의 SVG 는 비운다 */
-    public void changeLogoFile(SiteLogoVariant variant, long fileId, long operatorId, Instant now) {
-        putLogo(variant, fileId, null);
+    /** 로고 보이기 규칙의 평소 로고·성별 묶음을 바꾼다(묶음이 있는지는 부르는 쪽이 확인했다 — 성별은 null 이면 고르지 않음) */
+    public void changeLogoRules(long defaultBundleId, Long maleBundleId, Long femaleBundleId, long operatorId, Instant now) {
+        this.logoDefaultBundleId = defaultBundleId;
+        this.logoMaleBundleId = maleBundleId;
+        this.logoFemaleBundleId = femaleBundleId;
         touch(operatorId, now);
     }
 
-    /** 한 칸의 로고를 SVG 소스로 바꾼다 — 그 칸의 그림 파일은 비운다 */
-    public void changeLogoSvg(SiteLogoVariant variant, String svgSource, long operatorId, Instant now) {
-        putLogo(variant, null, svgSource);
-        touch(operatorId, now);
+    /** 평소 로고 묶음 — 칸은 NOT NULL 이지만 비어 읽히면 「캐릭터 로고」로 본다 */
+    public long getLogoDefaultBundleId() {
+        return logoDefaultBundleId == null ? SiteLogoBundleEntity.CHARACTER_ID : logoDefaultBundleId;
     }
 
-    /** 한 칸의 로고를 뗀다 */
-    public void clearLogo(SiteLogoVariant variant, long operatorId, Instant now) {
-        putLogo(variant, null, null);
-        touch(operatorId, now);
+    public Long getLogoMaleBundleId() {
+        return logoMaleBundleId;
     }
 
-    /** 「로고에 사이트 이름이 들어 있음」을 바꾼다 */
-    public void changeLogoNameIncluded(boolean included, long operatorId, Instant now) {
-        this.logoNameIncluded = included;
-        touch(operatorId, now);
-    }
-
-    /** 한 칸의 그림 파일 번호(없으면 null) */
-    public Long logoFileId(SiteLogoVariant variant) {
-        return switch (variant) {
-            case KO_LIGHT -> logoFileId;
-            case KO_DARK -> logoKoDarkFileId;
-            case EN_LIGHT -> logoEnLightFileId;
-            case EN_DARK -> logoEnDarkFileId;
-        };
-    }
-
-    /** 한 칸의 SVG 소스(없으면 null) */
-    public String logoSvg(SiteLogoVariant variant) {
-        return switch (variant) {
-            case KO_LIGHT -> logoSvg;
-            case KO_DARK -> logoKoDarkSvg;
-            case EN_LIGHT -> logoEnLightSvg;
-            case EN_DARK -> logoEnDarkSvg;
-        };
-    }
-
-    private void putLogo(SiteLogoVariant variant, Long fileId, String svg) {
-        switch (variant) {
-            case KO_LIGHT -> {
-                this.logoFileId = fileId;
-                this.logoSvg = svg;
-            }
-            case KO_DARK -> {
-                this.logoKoDarkFileId = fileId;
-                this.logoKoDarkSvg = svg;
-            }
-            case EN_LIGHT -> {
-                this.logoEnLightFileId = fileId;
-                this.logoEnLightSvg = svg;
-            }
-            case EN_DARK -> {
-                this.logoEnDarkFileId = fileId;
-                this.logoEnDarkSvg = svg;
-            }
-        }
+    public Long getLogoFemaleBundleId() {
+        return logoFemaleBundleId;
     }
 
     /** 사이트 아이콘의 버전을 바꾼다. {@code null} 이면 기본 아이콘으로 되돌린다 */
@@ -311,18 +239,6 @@ public class SiteSettingEntity {
 
     public String getTagline() {
         return tagline;
-    }
-
-    public Long getLogoFileId() {
-        return logoFileId;
-    }
-
-    public String getLogoSvg() {
-        return logoSvg;
-    }
-
-    public boolean isLogoNameIncluded() {
-        return logoNameIncluded;
     }
 
     public String getIconToken() {
