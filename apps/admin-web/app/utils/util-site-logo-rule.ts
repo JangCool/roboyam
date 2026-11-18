@@ -183,7 +183,8 @@ export default class UtilSiteLogoRule {
      * @returns {SiteLogoBundle | null} 실제로 보일 묶음.
      */
     static matchStyle(bundle: SiteLogoBundle | null, wanted: SiteLogoStyle, bundles: readonly SiteLogoBundle[]): SiteLogoBundle | null {
-        if (!bundle || !bundle.dayKey || !bundle.style) return bundle;
+        // 기념일 묶음인지는 `builtIn`·`dayKey` 로 가린다(`style` 은 올린 묶음에도 늘 있다)
+        if (!bundle || !bundle.builtIn || !bundle.dayKey) return bundle;
         if (bundle.style === wanted) return bundle;
         return bundles.find((item) => item.dayKey === bundle.dayKey && item.style === wanted) ?? bundle;
     }

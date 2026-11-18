@@ -33,6 +33,8 @@ export default {
     uploadedEmpty: '올린 로고가 없어요. 「새 로고 올리기」로 더해 보세요.',
     daysStyleAria: '볼 기념일 로고 유형',
     badgeInUse: '사용 중',
+    styleCharacter: '캐릭터',
+    styleWordmark: '글자',
     bundleSearch: '로고 이름으로 찾기',
 
     // 묶음 올리기·고치기 창
@@ -48,6 +50,8 @@ export default {
     cellsRequired: '로고를 한 칸 이상 올려 주세요.',
     svgUse: '이 칸에 넣기',
     nameInLogoHelp: '켜면 이 로고가 보일 때 공개 사이트 상단에서 로고 옆에 사이트 이름 글자를 붙이지 않아요.',
+    bundleStyleLabel: '유형',
+    bundleStyleHelp: '이 로고를 기본 로고나 성별 로고로 쓰면 기념일에 같은 유형의 기념일 로고가 보여요.',
     bundleCreated: '새 로고를 보관함에 넣었어요',
     bundleSaved: '로고를 고쳤어요',
 

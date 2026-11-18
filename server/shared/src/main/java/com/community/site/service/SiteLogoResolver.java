@@ -113,8 +113,8 @@ public class SiteLogoResolver {
 
     /**
      * 기념일 로고의 두 벌 가운데 고르기(V251·V252) — 규칙이 가리킨 묶음이 기본 제공 기념일 묶음이면 「기념일 로고 유형」 설정에 맞는 짝으로 바꾼다:
-     * {@code CHARACTER}·{@code WORDMARK} 면 늘 그 벌, {@code AUTO}(기본)면 <b>기준 로고의 벌</b> — 기준 로고가 글자 로고 계열이면 그날의 글자 벌,
-     * 그 밖에는(캐릭터 로고·운영자가 올린 묶음) 캐릭터 벌. 짝이 없으면 원래 묶음. 운영자가 올린 묶음을 가리키는 규칙은 짝이 없으니 그대로다.
+     * {@code CHARACTER}·{@code WORDMARK} 면 늘 그 벌, {@code AUTO}(기본)면 <b>기준 로고의 벌</b> — 기준 로고의 유효 유형({@link SiteLogoBundleEntity#effectiveStyle()} —
+     * 기본 제공은 벌, 올린 묶음은 운영자가 고른 유형·없으면 캐릭터)이 글자면 그날의 글자 벌, 아니면 캐릭터 벌. 짝이 없으면 원래 묶음. 운영자가 올린 묶음을 가리키는 규칙은 짝이 없으니 그대로다.
      *
      * @param usual 기준 로고 — 그 사람에게 평소 보일 묶음(기본 로고 또는 그 성별의 성별 로고)
      */
@@ -126,7 +126,8 @@ public class SiteLogoResolver {
         if (SiteLogoBundleEntity.STYLE_CHARACTER.equals(holidayStyle) || SiteLogoBundleEntity.STYLE_WORDMARK.equals(holidayStyle)) {
             wanted = holidayStyle;
         } else {
-            wanted = usual != null && SiteLogoBundleEntity.STYLE_WORDMARK.equals(usual.getBuiltInKey())
+            // 기준 로고의 유효 유형(V253) — 올린 묶음이어도 운영자가 글자로 골랐으면 글자 벌
+            wanted = usual != null && SiteLogoBundleEntity.STYLE_WORDMARK.equals(usual.effectiveStyle())
                     ? SiteLogoBundleEntity.STYLE_WORDMARK : SiteLogoBundleEntity.STYLE_CHARACTER;
         }
         if (wanted.equals(bundle.getBuiltInKey())) {

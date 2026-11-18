@@ -90,6 +90,8 @@
                             <Tag v-if="rowUsage(bundle).isDefault" class="site-logo-tag" :value="t('siteLogo.badgeDefault')" severity="success" />
                             <Tag v-if="rowUsage(bundle).ruleCount > 0" class="site-logo-tag" :value="t('siteLogo.badgeRules', { count: rowUsage(bundle).ruleCount })" severity="info" />
                             <Tag v-if="!rowUsage(bundle).isDefault && rowUsage(bundle).ruleCount === 0" class="site-logo-tag" :value="t('siteLogo.badgeStored')" severity="secondary" />
+                            <!-- 올린 로고의 유형(운영자가 고른 값) — 기본·성별 로고로 쓰일 때 기념일 벌을 정한다 -->
+                            <Tag v-if="section.key === 'uploaded'" class="site-logo-tag" :value="bundle.style === 'WORDMARK' ? t('siteLogo.styleWordmark') : t('siteLogo.styleCharacter')" severity="secondary" />
                         </div>
                         <p class="text-xs leading-relaxed text-muted-color">
                             {{ bundle.builtIn ? t('siteLogo.builtIn') : t('siteLogo.uploadedAt', { date: time.date(bundle.createdAt) }) }}
@@ -606,7 +608,7 @@ async function saveBundle(input: SiteLogoBundleInput): Promise<void> {
         // 서버 칸 오류(`name` · `cells` · `cells.koLight`…)는 창의 그 칸 아래에 그대로. 그 밖(404·409·칸 없는 400)은 창 아래 한 줄
         const fields = { ...(error.fields ?? {}) };
         bundleFieldErrors.value = fields;
-        const shown = Object.keys(fields).some((key) => key === 'name' || key === 'cells' || key.startsWith('cells.'));
+        const shown = Object.keys(fields).some((key) => key === 'name' || key === 'style' || key === 'cells' || key.startsWith('cells.'));
         if (!shown) bundleError.value = error.message;
     } finally {
         bundleBusy.value = false;

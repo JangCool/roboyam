@@ -43,6 +43,12 @@ public class SiteLogoBundleEntity {
     private String builtInKey;
 
     /**
+     * 올린 묶음의 유형(V253) — {@link #STYLE_CHARACTER} · {@link #STYLE_WORDMARK}. 고른 적 없으면 null(캐릭터로 본다). 기본 제공 묶음은 늘 null 이고
+     * {@code builtInKey} 가 유형이다 — 읽을 때는 {@link #effectiveStyle()} 하나만 쓴다
+     */
+    private String style;
+
+    /**
      * 기념일 로고 묶음이면 그날의 키({@code newyear}·{@code seollal}·{@code samil} … — V251). 평소 로고·올린 묶음은 null.
      * 같은 날 키의 두 묶음(벌이 다른 짝)이 있고, 기념일 규칙은 평소 로고의 벌에 맞는 쪽을 보인다({@code SiteLogoResolver}).
      */
@@ -86,6 +92,20 @@ public class SiteLogoBundleEntity {
         this.name = name;
         this.nameInLogo = nameInLogo;
         this.updatedAt = now;
+    }
+
+    /** 올린 묶음의 유형을 바꾼다(허용 값인지·기본 제공이 아닌지는 부르는 쪽이 확인했다) */
+    public void changeStyle(String style, Instant now) {
+        this.style = style;
+        this.updatedAt = now;
+    }
+
+    /** 유효 유형 — 기본 제공이면 {@code builtInKey}, 아니면 고른 유형, 고른 적 없으면 캐릭터. 유형을 읽는 곳은 모두 이것을 쓴다 */
+    public String effectiveStyle() {
+        if (builtInKey != null) {
+            return builtInKey;
+        }
+        return style == null ? STYLE_CHARACTER : style;
     }
 
     /** 한 칸을 그림 파일로 — 그 칸의 SVG 는 비운다 */

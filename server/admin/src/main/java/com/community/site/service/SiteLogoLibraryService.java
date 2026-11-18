@@ -131,6 +131,7 @@ public class SiteLogoLibraryService {
         Map<String, MessageRef> errors = new LinkedHashMap<>();
         String name = nameOf(body, errors);
         Map<SiteLogoVariant, Cell> cells = cellsOf(body, errors);
+        String requestedStyle = styleOf(body, errors);
         if (errors.isEmpty() && cells.values().stream().noneMatch(cell -> cell instanceof FileCell || cell instanceof SvgCell)) {
             errors.put("cells", new MessageRef("siteLogo.bundle.cells.required"));
         }
@@ -138,15 +139,19 @@ public class SiteLogoLibraryService {
             throw new ValidationException(errors);
         }
         boolean nameInLogo = Boolean.TRUE.equals(body.nameInLogo());
+        // 유형을 안 보내면 캐릭터 — 고른 값으로 적어 둔다(null 과 뜻이 같다)
+        String style = requestedStyle == null ? SiteLogoBundleEntity.STYLE_CHARACTER : requestedStyle;
         Changed changed = tx.execute(status -> {
             SiteSettingEntity row = settings.findById(SiteSettingEntity.ROW_ID).orElseThrow(SiteLogoLibraryService::missing);
             Instant now = Instant.now();
             SiteLogoBundleEntity bundle = SiteLogoBundleEntity.create(ids.nextId(), name, nameInLogo, actor.operatorId(), now);
+            bundle.changeStyle(style, now);
             List<String> changedCells = new ArrayList<>();
             apply(bundle, cells, now, changedCells);
             bundles.persistAndFlush(bundle);
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_BUNDLE_CREATE, AuditResult.SUCCESS).target("SITE", "1")
-                    .with("bundleId", Long.toString(bundle.getId())).with("name", name).with("cells", changedCells).with("nameInLogo", nameInLogo));
+                    .with("bundleId", Long.toString(bundle.getId())).with("name", name).with("cells", changedCells).with("nameInLogo", nameInLogo)
+                    .with("style", style));
             notices.siteSettingsChanged(actor, "siteLogo");
             log.info("로고 묶음을 올렸다 operatorId={} bundleId={} cells={}", actor.operatorId(), bundle.getId(), changedCells);
             return new Changed(library(row), List.of());
@@ -163,6 +168,7 @@ public class SiteLogoLibraryService {
         Map<String, MessageRef> errors = new LinkedHashMap<>();
         String name = nameOf(body, errors);
         Map<SiteLogoVariant, Cell> cells = cellsOf(body, errors);
+        String requestedStyle = styleOf(body, errors);
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
@@ -179,9 +185,15 @@ public class SiteLogoLibraryService {
             if (java.util.Arrays.stream(SiteLogoVariant.values()).noneMatch(bundle::filled)) {
                 throw ValidationException.of("cells", new MessageRef("siteLogo.bundle.cells.required")); // 트랜잭션째 되돌아간다
             }
-            boolean metaChanged = !oldName.equals(name) || oldNameInLogo != nameInLogo;
-            if (metaChanged) {
+            // 유형 — 안 보내면 그대로. 고른 적 없는 묶음(null)에 캐릭터를 보내도 유효 유형이 같으니 바뀐 것으로 치지 않는다
+            String oldStyle = bundle.effectiveStyle();
+            boolean styleChanged = requestedStyle != null && !requestedStyle.equals(oldStyle);
+            boolean metaChanged = !oldName.equals(name) || oldNameInLogo != nameInLogo || styleChanged;
+            if (!oldName.equals(name) || oldNameInLogo != nameInLogo) {
                 bundle.change(name, nameInLogo, now);
+            }
+            if (styleChanged) {
+                bundle.changeStyle(requestedStyle, now);
             }
             if (metaChanged || !changedCells.isEmpty()) {
                 AuditEvent event = AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_BUNDLE_UPDATE, AuditResult.SUCCESS).target("SITE", "1")
@@ -191,6 +203,9 @@ public class SiteLogoLibraryService {
                 }
                 if (oldNameInLogo != nameInLogo) {
                     event.with("nameInLogo", oldNameInLogo + " -> " + nameInLogo);
+                }
+                if (styleChanged) {
+                    event.with("style", oldStyle + " -> " + requestedStyle);
                 }
                 audit.record(event);
                 notices.siteSettingsChanged(actor, "siteLogo");
@@ -264,6 +279,16 @@ public class SiteLogoLibraryService {
             errors.put("name", new MessageRef("siteLogo.bundle.name.length", SiteLogoBundleEntity.NAME_MAX));
         }
         return name;
+    }
+
+    /** 요청의 유형 — 안 보냈으면 null(만들기는 캐릭터·고치기는 그대로), 허용 값 밖이면 {@code style} 에 문구를 모은다 */
+    private static String styleOf(SiteLogoBundleRequest body, Map<String, MessageRef> errors) {
+        String style = body == null ? null : body.style();
+        if (style != null && !SiteLogoBundleEntity.STYLE_CHARACTER.equals(style) && !SiteLogoBundleEntity.STYLE_WORDMARK.equals(style)) {
+            errors.put("style", new MessageRef("siteLogo.bundle.style.invalid"));
+            return null;
+        }
+        return style;
     }
 
     /** 요청의 칸을 읽는다 — 모양이 틀리거나 SVG 검사에 걸리면 {@code cells.<칸>} 에 문구를 모은다. 뺀 칸은 「그대로」 */
@@ -447,7 +472,7 @@ public class SiteLogoLibraryService {
     private SiteLogoLibraryResponse library(SiteSettingEntity row) {
         List<SiteLogoLibraryResponse.Bundle> bundleViews = bundles.findAllByOrderByIdAsc().stream()
                 .map(b -> new SiteLogoLibraryResponse.Bundle(Long.toString(b.getId()), b.getName(), b.isBuiltIn(), b.isBuiltIn() ? null : b.getCreatedAt(),
-                        assets.logoUrls(b), b.isNameInLogo(), b.getBuiltInKey(), b.getDayKey()))
+                        assets.logoUrls(b), b.isNameInLogo(), b.effectiveStyle(), b.getDayKey()))
                 .toList();
         List<SiteLogoLibraryResponse.Anniversary> anniversaries = rules.findAllByOrderBySortOrderAsc().stream()
                 .map(r -> new SiteLogoLibraryResponse.Anniversary(Long.toString(r.getId()), r.getName(), r.isEnabled(), r.getMode(), r.getStartDate(), r.getEndDate(),

@@ -1,6 +1,6 @@
 <template>
     <!--
-        로고 묶음 한 벌을 올리거나 고치는 창(로고 보관함) — 이름 + 4칸(① 한글·밝은 ② 한글·어두운 ③ 영문·밝은 ④ 영문·어두운, 칸마다 `SiteLogoVariantTile`) + 「로고에 사이트 이름이 들어 있음」.
+        로고 묶음 한 벌을 올리거나 고치는 창(로고 보관함) — 이름 + 유형(캐릭터 로고·글자 로고 — `fieldErrors.style`) + 4칸(① 한글·밝은 ② 한글·어두운 ③ 영문·밝은 ④ 영문·어두운, 칸마다 `SiteLogoVariantTile`) + 「로고에 사이트 이름이 들어 있음」.
         예전 일반 화면의 4칸은 올리는 즉시 적용이었지만, 묶음은 이름·칸·스위치를 **[저장] 한 번으로** 함께 저장한다(칸을 고르는 동안은 이 창의 초안이다).
         빈 칸은 대체 순서(`UtilSiteLogo.resolve`)대로 같은 묶음의 다른 칸이 대신하고 타일이 그 그림을 흐리게 보인다. SVG 소스 칸은 한 번에 한 칸만 열린다.
         `readonly`(기본 제공 묶음이거나 권한 없음)면 단추·저장이 없고 보기만 한다. 삭제는 없다(올린 로고는 보관 — 사용자 결정).
@@ -15,6 +15,17 @@
                     <InputText :id="id" v-model="name" name="bundleName" autocomplete="off" size="small" :maxlength="SITE_LOGO_BUNDLE_NAME_MAX" :readonly="readonly || busy" :invalid="invalid" :aria-describedby="describedBy" aria-required="true" class="w-full max-w-sm" />
                 </template>
             </LabeledField>
+
+            <!-- 유형 — 올린 묶음은 운영자가 고른다. 보기만일 때(기본 제공·권한 없음)는 글자로만 보인다 -->
+            <div class="flex flex-col gap-1.5">
+                <span :id="styleLabelId" class="text-sm font-medium">{{ t('siteLogo.bundleStyleLabel') }}</span>
+                <p v-if="readonly" class="text-sm">{{ styleOptions.find((option) => option.value === style)?.label }}</p>
+                <template v-else>
+                    <SelectButton v-model="style" :options="styleOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :disabled="busy" :invalid="Boolean(fieldErrors.style)" :aria-labelledby="styleLabelId" :aria-describedby="`${styleLabelId}-help`" class="self-start" />
+                    <p :id="`${styleLabelId}-help`" class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.bundleStyleHelp') }}</p>
+                    <p v-if="fieldErrors.style" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ fieldErrors.style }}</p>
+                </template>
+            </div>
 
             <div role="group" :aria-labelledby="cellsTitleId" class="flex flex-col gap-2">
                 <h3 :id="cellsTitleId" class="text-sm font-medium">{{ t('siteLogo.cellsLabel') }}</h3>
@@ -85,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SiteLogoBundle, SiteLogoBundleInput, SiteLogoCellInput } from '~/composables/site/api/useSiteLogoLibraryApi.types';
+import type { SiteLogoBundle, SiteLogoBundleInput, SiteLogoCellInput, SiteLogoStyle } from '~/composables/site/api/useSiteLogoLibraryApi.types';
 import { SITE_LOGO_BUNDLE_NAME_MAX } from '~/composables/site/api/useSiteLogoLibraryApi.types';
 import UtilSiteLogo, { type SiteLogoSet, type SiteLogoVariant } from '~/utils/util-site-logo';
 import UtilSiteSetting from '~/utils/util-site-setting';
@@ -114,6 +125,7 @@ const formId = useId();
 const cellsTitleId = useId();
 const svgInputId = useId();
 const nameInLogoId = useId();
+const styleLabelId = useId();
 
 const builtIn = computed(() => Boolean(props.bundle?.builtIn));
 const header = computed(() => {
@@ -125,6 +137,12 @@ const header = computed(() => {
 
 const name = ref('');
 const nameInLogo = ref(true);
+/** 유형 — 새로 올릴 때는 캐릭터 로고, 고칠 때는 지금 값 */
+const style = ref<SiteLogoStyle>('CHARACTER');
+const styleOptions = computed<{ label: string; value: SiteLogoStyle }[]>(() => [
+    { label: t('siteLogo.holidayStyleCharacter'), value: 'CHARACTER' },
+    { label: t('siteLogo.holidayStyleWordmark'), value: 'WORDMARK' },
+]);
 /** 칸에 넣을 것(`KEEP` = 지금 그대로) */
 const cells = ref<Record<SiteLogoVariant, SiteLogoCellInput>>({ koLight: null, koDark: null, enLight: null, enDark: null });
 /** 칸의 미리보기 주소 — 저장된 그림 주소, 방금 고른 파일의 임시 주소, SVG data URI */
@@ -149,6 +167,7 @@ function fill(): void {
     const bundle = props.bundle;
     name.value = bundle?.name ?? '';
     nameInLogo.value = bundle?.nameInLogo ?? true;
+    style.value = bundle?.style === 'WORDMARK' ? 'WORDMARK' : 'CHARACTER';
     previews.value = bundle ? { ...bundle.logos } : { ...UtilSiteLogo.EMPTY };
     cells.value = {
         koLight: bundle?.logos.koLight ? 'KEEP' : null,
@@ -257,6 +276,6 @@ function submit(): void {
     if (!trimmed || trimmed.length > SITE_LOGO_BUNDLE_NAME_MAX || !hasCell.value) return;
     // 반응형 껍데기 없이 평범한 값으로 올린다(파일 객체는 그대로)
     const raw = toRaw(cells.value);
-    emit('submit', { name: trimmed, nameInLogo: nameInLogo.value, cells: { koLight: raw.koLight, koDark: raw.koDark, enLight: raw.enLight, enDark: raw.enDark } });
+    emit('submit', { name: trimmed, nameInLogo: nameInLogo.value, style: style.value, cells: { koLight: raw.koLight, koDark: raw.koDark, enLight: raw.enLight, enDark: raw.enDark } });
 }
 </script>

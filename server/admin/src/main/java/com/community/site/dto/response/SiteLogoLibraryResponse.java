@@ -16,7 +16,8 @@ public record SiteLogoLibraryResponse(List<Bundle> bundles, Rules rules) {
      * 묶음 한 벌.
      *
      * @param builtIn    기본 제공 묶음(「캐릭터 로고」·「글자 로고」·기념일 로고 56개) — 고치지 못한다
-     * @param style      기본 제공 묶음의 벌 {@code CHARACTER}(캐릭터 로고 계열·기념일의 귀여운 버전) · {@code WORDMARK}(글자 로고 계열·일반 버전). 올린 묶음은 null
+     * @param style      유효 유형(늘 값이 있다) — {@code CHARACTER}(캐릭터 로고 계열·기념일의 귀여운 버전) · {@code WORDMARK}(글자 로고 계열·일반 버전).
+     *                   기본 제공 묶음은 그 벌, 올린 묶음은 운영자가 고른 유형(V253 — 고른 적 없으면 {@code CHARACTER})
      * @param dayKey     기념일 로고 묶음이면 그날의 키({@code newyear}·{@code samil} …) — 같은 키의 두 묶음이 짝이다. 평소 로고·올린 묶음은 null.
      *                   기념일 규칙이 이런 묶음을 가리키면 실제로는 {@code rules.holidayStyle} 에 맞는 짝이 보인다({@code AUTO} 면 평소 로고의 벌)
      * @param createdAt  올린 때 — 기본 제공 묶음은 null
