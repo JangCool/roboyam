@@ -561,7 +561,7 @@ public class AiDraftGenerator {
         }
         AiVoice voice = a.getVoice();
         AiPromptConfig.Mood mood = voice.animal() ? null : AiPrompts.pickMood(config, ThreadLocalRandom.current()); // 동물 소리 계정은 분위기를 넣지 않는다
-        // 수집 항목 뉴스 글 — 원문 기사를 읽어 본문 발췌를 자료에 더하고 대표 이미지 주소를 받는다(2026-11-18, 트랜잭션 밖 — 못 읽으면 요약만으로)
+        // 수집 항목 뉴스 글 — 원문 기사를 읽어 본문 발췌를 자료에 더한다(2026-11-18, 트랜잭션 밖 — 못 읽으면 요약만으로). 기사 사진은 가져오지 않는다
         AiNewsArticleReader.Article article = task.news() != null && task.news().collected() && !voice.animal()
                 ? articles.read(task.news().link()) : AiNewsArticleReader.Article.EMPTY;
         AiPrompts.Ask ask = task.ask();
@@ -574,7 +574,7 @@ public class AiDraftGenerator {
         try {
             AiLlmResult result = llm.generate(request, key.get().value());
             if (task.news() != null) {
-                generateNews(a, task, config, result, id, instant, article.imageUrl());
+                generateNews(a, task, config, result, id, instant);
                 return;
             }
             String title = null;
@@ -617,7 +617,7 @@ public class AiDraftGenerator {
      * 출처 칸을 쓸 수 없으면(게시판 옵션 꺼짐 · 링크가 http(s) 가 아님 · 사이트 공개 주소 없음) 예전처럼 본문 끝에 꼬리를 붙인다.
      * 생성 줄에 소재 항목 · 말머리 이름 · 태그 · 출처를 남기고, 수집 항목은 쓴 것으로 표시한다(같은 트랜잭션).
      */
-    private void generateNews(AiMemberProfileEntity a, Task task, AiPromptConfig config, AiLlmResult result, long id, boolean instant, String imageUrl) {
+    private void generateNews(AiMemberProfileEntity a, Task task, AiPromptConfig config, AiLlmResult result, long id, boolean instant) {
         AiNewsSources.Material m = task.news();
         EffectiveBoard board = task.board();
         // 출처(V232) — 회원 글은 사이트 공개 주소로 만든 절대 주소. 출처 칸을 쓸 수 없으면 예전 본문 꼬리(링크를 지우는 정리(cleanBody) 뒤에 붙인다)
@@ -646,7 +646,6 @@ public class AiDraftGenerator {
         AiDraftEntity d = AiDraftEntity.generated(id, a.getId(), task.target(), answer.title(), body, a.getProvider(), a.getModel(), result.inputTokens(), result.outputTokens(),
                 instant, now());
         d.news(m.itemId(), prefix == null ? null : prefix.name().strip(), board != null && board.tagsEnabled() ? tags : List.of(), sources);
-        d.newsImage(imageUrl); // 원문 대표 이미지 주소(V247) — 게시할 때 받아 글 이미지로 넣는다(AiDraftPublisher)
         tx.executeWithoutResult(status -> {
             drafts.persist(d);
             if (m.itemId() != null) {

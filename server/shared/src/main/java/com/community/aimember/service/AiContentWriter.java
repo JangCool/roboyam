@@ -32,7 +32,6 @@ import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostContentFields;
-import com.community.post.service.PostImages;
 import com.community.post.service.PostOpenRules;
 import com.community.post.service.PostSources;
 import com.community.post.service.PostTagStore;
@@ -52,7 +51,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.HtmlUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -84,7 +82,6 @@ public class AiContentWriter {
     static final String TARGET_GONE = "TARGET_GONE";
     static final String WRITE_BLOCKED = "WRITE_BLOCKED";
     private static final String TEXT = ContentFormat.TEXT.name();
-    private static final String HTML = ContentFormat.HTML.name();
 
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
@@ -103,7 +100,6 @@ public class AiContentWriter {
     private final MemberNotificationPublisher notices;
     private final WriterPromotion promotion;
     private final PostTagStore tagStore;
-    private final PostImages postImages;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate tx;
 
@@ -111,9 +107,8 @@ public class AiContentWriter {
                            PostWriteRules postRules, CommentWriteRules commentRules, PostOpenRules openRules, AdultContentGate adultGate,
                            SecretPostReaders secretReaders, GroupAccess groupAccess, DebateWriteStance stances, EmoticonGuard emoticons, PointService points,
                            MemberNotificationPublisher notices, WriterPromotion promotion, SnowflakeIdGenerator ids, PlatformTransactionManager txManager,
-                           PostTagStore tagStore, PostImages postImages) {
+                           PostTagStore tagStore) {
         this.tagStore = tagStore;
-        this.postImages = postImages;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -176,19 +171,6 @@ public class AiContentWriter {
      */
     public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, List<PostSource> sources, boolean gradeExempt,
                      String ip) {
-        return post(userId, boardId, prefixId, titleText, bodyText, tags, sources, null, null, gradeExempt, ip);
-    }
-
-    /**
-     * 게시판 글 + 맨 위 대표 사진 한 장(AI 기자 뉴스 글 — 원문 대표 이미지, 2026-11-18). 사진이 있으면 본문을 HTML(문단마다 {@code <p>})로 만들고
-     * 맨 앞에 {@code <figure data-align="center"><img data-image-id><figcaption>캡션</figcaption></figure>} 를 넣어 공개 글쓰기와 같은 정화·이미지 묶기({@link PostImages#bind})를 지난다
-     * — 목록 썸네일은 글 이미지 규칙대로 자동이다. 사진은 이 AI 회원이 올린 PENDING 글 이미지여야 한다({@code PostImageUploads#store}).
-     *
-     * @param imageId      맨 위에 넣을 글 이미지(없으면 null — 예전처럼 평문)
-     * @param imageCaption 사진 아래 글자(예: 「사진: 전자신문」, 없으면 null)
-     */
-    public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, List<PostSource> sources, Long imageId,
-                     String imageCaption, boolean gradeExempt, String ip) {
         Writable w = writable(userId, boardId, gradeExempt);
         BoardCatalogSnapshot s = w.snapshot();
         EffectiveBoard b = w.board();
@@ -196,9 +178,8 @@ public class AiContentWriter {
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        boolean withImage = imageId != null && b.imageUploadAllowed(); // 이미지를 받지 않는 게시판이면 글자만(올린 사진은 정리 배치가 지운다)
         PostContentFields.Cleaned c = PostContentFields.check(b, actor.staffOf(b.id()), memberWriter(b, actor, s), null, prefixId == null ? null : Long.toString(prefixId),
-                titleText, withImage ? HTML : TEXT, withImage ? imageHtml(imageId, imageCaption, bodyText) : bodyText, null, sec, fields);
+                titleText, TEXT, bodyText, null, sec, fields);
         if (prefixId != null && !fields.containsKey("prefixId") && b.prefix(prefixId).map(BoardPrefixInfo::adultOnly).orElse(false)) {
             fields.put("prefixId", new MessageRef("board.content.prefix.unknown")); // AI 글은 19금이 없다 — 성인 전용 말머리는 쓰지 않는다
         }
@@ -232,8 +213,7 @@ public class AiContentWriter {
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
             postRules.checkRate(s, userId, ip, title, content.plain(), now, true); // 간격·하루 한도 면제 — 작성자 잠금 · 같은 글 반복은 본다
-            String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), userId, id, false, now) : content.content(); // 이미지 행을 잠가 확인하고 글에 붙인다
-            PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), userId, null, null, ip, title, content.format(), stored, content.plain(), c.adult(),
+            PostEntity created = PostEntity.create(id, b.id(), c.prefixId(), userId, null, null, ip, title, content.format(), content.content(), content.plain(), c.adult(),
                     c.hasImage(), now);
             created.initOps(secret, b.statusEnabled());
             created.changeSources(PostSources.toJson(maskedSources)); // 출처(V232)
@@ -422,27 +402,6 @@ public class AiContentWriter {
     }
 
     // ── 도우미 ────────────────────────────────────────────────────────────
-
-    /** 이 게시판이 글 이미지를 받는가(고급 에디터 + 이미지 올리기 켬) — 없는 게시판이면 false. 사진을 받기 전에 본다 */
-    public boolean imageAllowed(long boardId) {
-        return catalog.snapshot().board(boardId).map(EffectiveBoard::imageUploadAllowed).orElse(false);
-    }
-
-    /** 평문 본문(빈 줄 = 문단, 줄바꿈 = br) → 맨 위 사진 묶음 + 문단 HTML. 글자는 모두 이스케이프한다(정화기가 다시 본다) */
-    static String imageHtml(long imageId, String caption, String bodyText) {
-        StringBuilder html = new StringBuilder("<figure data-align=\"center\"><img data-image-id=\"").append(imageId).append("\" alt=\"\">");
-        if (caption != null && !caption.isBlank()) {
-            html.append("<figcaption>").append(HtmlUtils.htmlEscape(caption.strip())).append("</figcaption>");
-        }
-        html.append("</figure>");
-        for (String para : (bodyText == null ? "" : bodyText.replace("\r", "")).split("\n\\s*\n")) {
-            String p = para.strip();
-            if (!p.isEmpty()) {
-                html.append("<p>").append(HtmlUtils.htmlEscape(p).replace("\n", "<br>")).append("</p>");
-            }
-        }
-        return html.toString();
-    }
 
     /** 링크·이미지 규칙의 작성자 구분 — AI 회원은 비회원이 아니다(새 회원 규칙 대상이면 그 규칙) */
     private static ContentRules.Writer memberWriter(EffectiveBoard b, BoardActor actor, BoardCatalogSnapshot s) {

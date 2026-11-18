@@ -1,7 +1,5 @@
 package com.community.aimember.service;
 
-import com.community.hotdeal.og.DealPageFetcher.OgTags;
-import com.community.hotdeal.og.OgParser;
 import com.community.notification.net.OutboundTargetGuard;
 import com.community.notification.net.OutboundTargetGuard.Target;
 import com.community.notification.net.SafeHttpClient;
@@ -23,8 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * AI 기자 뉴스 글의 <b>원문 기사 읽기</b>(ai-news-reporter-contract 「원문 읽기 2026-11-18」) — 수집 항목의 원문 링크를 열어 본문 발췌({@link AiNewsArticleText})와
- * 대표 이미지 주소(og:image)를 뽑는다. RSS 요약만으로는 자료가 너무 짧아 모델이 빈자리를 사견으로 채웠다(사용자 2026-11-18).
+ * AI 기자 뉴스 글의 <b>원문 기사 읽기</b>(ai-news-reporter-contract 「기사체·원문 읽기」 2026-11-18) — 수집 항목의 원문 링크를 열어 본문 발췌({@link AiNewsArticleText})를 뽑는다.
+ * RSS 요약만으로는 자료가 너무 짧아 모델이 빈자리를 사견으로 채웠다(사용자 2026-11-18). 기사 사진은 가져오지 않는다(사용자 2026-11-18 — 별도 저작물).
  *
  * <ul>
  *   <li>요청은 알림·핫딜과 같은 SSRF 방어 클라이언트({@link SafeHttpClient} + {@link OutboundTargetGuard#strictlyBlocked}) — 사설망·메타데이터 주소는 막는다.
@@ -47,10 +45,10 @@ public class AiNewsArticleReader {
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; irobit-news/1.0)";
     private static final Pattern META_CHARSET = Pattern.compile("<meta[^>]+charset\\s*=\\s*[\"']?([a-zA-Z0-9_-]+)", Pattern.CASE_INSENSITIVE);
 
-    /** 읽은 원문 — 둘 다 없을 수 있다 */
-    public record Article(String imageUrl, String text) {
+    /** 읽은 원문 — 본문 발췌(없으면 null) */
+    public record Article(String text) {
 
-        public static final Article EMPTY = new Article(null, null);
+        public static final Article EMPTY = new Article(null);
     }
 
     private final OutboundTargetGuard guard;
@@ -67,11 +65,7 @@ public class AiNewsArticleReader {
             return Article.EMPTY;
         }
         try {
-            return fetch(url).map(page -> {
-                String html = decode(page.body(), page.charset());
-                OgTags og = OgParser.parse(page.body(), page.charset(), page.url());
-                return new Article(og == null ? null : og.imageUrl(), AiNewsArticleText.extract(html));
-            }).orElse(Article.EMPTY);
+            return fetch(url).map(page -> new Article(AiNewsArticleText.extract(decode(page.body(), page.charset())))).orElse(Article.EMPTY);
         } catch (RuntimeException e) {
             log.info("뉴스 원문을 읽지 못했다(요약만으로 쓴다) host={} 원인={}", hostOf(url), e.getClass().getSimpleName());
             return Article.EMPTY;
