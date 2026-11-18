@@ -1,5 +1,6 @@
 package com.community.post.service;
 
+import com.community.adultboard.service.AdultBoardGate;
 import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
@@ -98,13 +99,16 @@ public class PostQueryService {
     private final PostTagStore tagStore;
     /** 구입 경로·구매 인증(V241) */
     private final TrialPostLinker purchases;
+    /** 성인 전용 게시판 접근 판정(adult-board-pin-contract) — 일반 19금 글 판정({@link AdultContentGate})과 따로다 */
+    private final AdultBoardGate adultBoards;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
                             PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows,
-                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore, TrialPostLinker purchases) {
+                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore, TrialPostLinker purchases, AdultBoardGate adultBoards) {
+        this.adultBoards = adultBoards;
         this.purchases = purchases;
         this.tagStore = tagStore;
         this.feedRows = feedRows;
@@ -211,8 +215,9 @@ public class PostQueryService {
                                  String tag, String around, String purchase) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
-        boolean adultViewer = adultGate.adult(viewerId); // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract)
-        PublicBoardService.requireAdultAccess(b, () -> adultViewer); // 성인 전용 게시판은 성인만 — 아니면 없는 게시판 404(V226, around 포함)
+        adultBoards.requireBoard(b, viewerId); // 성인 전용 게시판 — 숨김이면 없는 게시판 404, 핀이 필요하면 403 ADULT_BOARD_PIN_REQUIRED(around 포함 — adult-board-pin-contract)
+        // 성인이 아니면 19금 글을 목록에서 아예 뺀다(adult-content-contract — 핀과 무관한 일반 판정). 성인 전용 게시판을 통과했으면 성인이다(다시 읽지 않는다)
+        boolean adultViewer = b.adultOnly() || adultGate.adult(viewerId);
         Instant now = Instant.now();
         int listSize = b.listSize();
 
@@ -454,11 +459,12 @@ public class PostQueryService {
 
     /**
      * 읽을 수 없는 비밀글이면 403 {@code SECRET_POST}({@link SecretPostGate}) — {@code GroupPostGate#resolve} 를 거치지 않는 글 API(찬반 토론·의견 고정 요청·신고)가 부른다.
-     * 성인 전용 게시판(V226 — adult-board-contract)의 글은 성인이 아니면 없는 글과 같은 404 {@code POST_NOT_FOUND}({@code GroupPostGate#resolve} 와 같은 판정).
+     * 성인 전용 게시판(V226 — adult-board-contract)의 글은 숨김이면 없는 글과 같은 404 {@code POST_NOT_FOUND}, 핀이 필요하면 403
+     * {@code ADULT_BOARD_PIN_REQUIRED}({@code GroupPostGate#resolve} 와 같은 판정 — {@code AdultBoardGate}).
      */
     public void requireSecretReadable(BoardCatalogSnapshot s, PostEntity post, Long viewerId) {
-        if (!post.isGroupPost() && s.board(post.getBoardId()).map(EffectiveBoard::adultOnly).orElse(false) && !adultGate.adult(viewerId)) {
-            throw new PostNotFoundException();
+        if (!post.isGroupPost()) {
+            adultBoards.requirePost(s.board(post.getBoardId()).orElse(null), viewerId);
         }
         secretGate.requireReadable(s, post, viewerId);
     }

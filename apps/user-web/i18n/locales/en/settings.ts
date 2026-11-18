@@ -14,6 +14,7 @@ export default {
     displayHint: 'Language, time zone, time and date format',
     accountHint: 'Sign-in methods and linked social accounts',
     identityHint: 'Phone identity check and age 19+ (to see 18+ posts)',
+    adultBoardHint: 'Adults-only board access and PIN',
     nicknameImage: 'Nickname image',
     nicknameImageHint: 'An image in place of your nickname · apply with a ticket',
     avatarUpload: 'Upload avatar',

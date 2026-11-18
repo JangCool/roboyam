@@ -20,6 +20,7 @@ import com.community.group.repository.master.GroupPublishRequestRepository;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.PostNotFoundException;
+import com.community.adultboard.service.AdultBoardGate;
 import com.community.post.service.AdultContentGate;
 import com.community.post.service.PostOpenRules;
 import com.community.post.service.SecretPostGate;
@@ -33,7 +34,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>일반 글: 지금까지처럼 공개 게시판 판정({@link PublicBoardService#requireActive(BoardCatalogSnapshot, long)} 과 같은 규칙 — 소모임 게시판이면 404). 게시판·소모임 쪽 판정은 shared {@link PostOpenRules}.</li>
  *   <li>19금 글: 성인(로그인 + 본인인증 + 만 19세 이상)만 — 아니면 403 {@code POST_ADULT_ONLY}({@link AdultContentGate}). 작성자의 지우기만 {@link #resolveIgnoringAdult} 로 판정을 건너뛴다.
- *       성인 전용 게시판(V226 — adult-board-contract)의 글은 성인이 아니면 그보다 먼저 없는 글과 같은 404 {@code POST_NOT_FOUND}.</li>
+ *       성인 전용 게시판(V226 — adult-board-contract)의 글은 그보다 먼저 {@link AdultBoardGate} 가 본다 — 성인이 아니거나
+ *       「19금 게시판 접근」이 꺼져 있으면 없는 글과 같은 404 {@code POST_NOT_FOUND}, 켰지만 이 기기에서 핀번호를 확인하지 않았으면 403 {@code ADULT_BOARD_PIN_REQUIRED}.</li>
  *   <li>비밀글(V166): 글쓴이·그 게시판 매니저·스텝·운영자 회원 계정만 — 아니면 403 {@code SECRET_POST}({@link SecretPostGate}). 작성자의 지우기는 판정을 건너뛰어도 같다(작성자는 읽는다).</li>
  *   <li>소모임 글: 작성자가 나가서 가린 글 404 {@code POST_NOT_FOUND} → 소모임 상태(열림만 — 비활성 403 {@code GROUP_INACTIVE}, 해산은 공개 글만 읽힌다, 그 밖 404)
  *       → 비멤버에게 보이지 않는 글({@code is_public} false — 비공개 소모임의 비공개 글 · 공개 소모임에서 멤버 전용으로 돌린 글)은 멤버(모임장 포함)만
@@ -57,9 +59,11 @@ public class GroupPostGate {
     private final GroupVisibilityPolicy policy;
     private final AdultContentGate adultGate;
     private final SecretPostGate secretGate;
+    private final AdultBoardGate adultBoards;
 
     public GroupPostGate(PostOpenRules openRules, GroupPublishRequestRepository requests, GroupPostQueries groupPosts,
-                         GroupVisibilityPolicy policy, AdultContentGate adultGate, SecretPostGate secretGate) {
+                         GroupVisibilityPolicy policy, AdultContentGate adultGate, SecretPostGate secretGate, AdultBoardGate adultBoards) {
+        this.adultBoards = adultBoards;
         this.secretGate = secretGate;
         this.openRules = openRules;
         this.requests = requests;
@@ -100,9 +104,8 @@ public class GroupPostGate {
      */
     public Resolved resolve(BoardCatalogSnapshot s, PostEntity post, Long viewerId, boolean checkSecret) {
         Resolved resolved = resolveIgnoringAdult(s, post, viewerId);
-        if (resolved.board() != null && resolved.board().adultOnly() && !adultGate.adult(viewerId)) {
-            throw new PostNotFoundException(); // 성인 전용 게시판의 글은 성인이 아니면 없는 글과 같다(404 — V226, adult-board-contract)
-        }
+        // 성인 전용 게시판의 글 — 성인이 아니거나 「19금 게시판 접근」이 꺼져 있으면 없는 글과 같고(404), 핀이 필요하면 403 ADULT_BOARD_PIN_REQUIRED(adult-board-pin-contract)
+        adultBoards.requirePost(resolved.board(), viewerId);
         adultGate.requireViewable(post, viewerId); // 19금 글은 성인만(403 POST_ADULT_ONLY — adult-content-contract)
         if (checkSecret) {
             // 비밀글은 글쓴이·그 게시판 운영진(소모임 글은 소모임장·글 관리 매니저)·운영자 회원 계정·비밀번호로 연 방문자만(403 SECRET_POST — V166·V168)

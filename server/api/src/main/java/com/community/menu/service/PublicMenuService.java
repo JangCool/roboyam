@@ -12,7 +12,7 @@ import com.community.menu.entity.MenuSetEntity;
 import com.community.menu.exception.MenuSetNotFoundException;
 import com.community.menu.repository.master.MenuSetRepository;
 import com.community.menu.target.MenuResolveContext;
-import com.community.post.service.AdultContentGate;
+import com.community.adultboard.service.AdultBoardGate;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
@@ -31,8 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       공개 사이트의 운영진은 게시판 담당 회원뿐이다(게시판 쓰기 자격 {@code STAFF} 와 같은 뜻).</li>
  *   <li>그룹·트리·게시판·등급 서열·가젯 페이지는 캐시 {@code menu.public}(기본 300초 — 관리자 메뉴·게시판·등급·가젯 페이지 저장은 세대 번호로 몇 초 안에)에 두고,
  *       보는 사람 판정과 판매 스위치는 요청마다 읽는다. 판매가 꺼지면 공동구매 항목이 빠진다({@link MenuSales}).</li>
- *   <li>성인 전용 게시판(V226 — adult-board-contract): 캐시에는 성인 여부와 무관한 재료(게시판의 {@code adultOnly} 표시 포함)만 담고, 성인 판정은 꺼낸 뒤 요청마다 한다 —
- *       성인이 아니면 그 게시판 항목이 빠진다({@code BoardMenuTargetResolver}). 성인 전용 게시판이 없으면 판정 질의를 하지 않는다. 응답은 {@code no-store}(컨트롤러).</li>
+ *   <li>성인 전용 게시판(V226 — adult-board-contract): 캐시에는 성인 여부와 무관한 재료(게시판의 {@code adultOnly} 표시 포함)만 담고, 판정은 꺼낸 뒤 요청마다 한다 —
+ *       성인이 아니거나 「19금 게시판 접근」을 켜지 않았으면 그 게시판 항목이 빠진다({@code BoardMenuTargetResolver} — {@code MenuViewer.adult} 에
+ *       {@link AdultBoardGate#listed} 를 싣는다, 핀 확인은 보지 않는다 — adult-board-pin-contract). 성인 전용 게시판이 없으면 판정 질의를 하지 않는다. 응답은 {@code no-store}(컨트롤러).</li>
  * </ul>
  */
 @Service
@@ -48,11 +49,11 @@ public class PublicMenuService {
     private final BoardStaffRepository boardStaff;
     private final MenuSales sales;
     private final CacheManager caches;
-    private final AdultContentGate adultGate;
+    private final AdultBoardGate adultBoards;
 
     public PublicMenuService(MenuSetRepository sets, MenuTreeStore store, MenuSnapshots snapshots, MenuViewComposer composer, UserRepository users,
-                             ProfileRepository profiles, BoardStaffRepository boardStaff, MenuSales sales, CacheManager caches, AdultContentGate adultGate) {
-        this.adultGate = adultGate;
+                             ProfileRepository profiles, BoardStaffRepository boardStaff, MenuSales sales, CacheManager caches, AdultBoardGate adultBoards) {
+        this.adultBoards = adultBoards;
         this.caches = caches;
         this.sets = sets;
         this.store = store;
@@ -82,7 +83,8 @@ public class PublicMenuService {
         }
         // 보는 사람(등급·운영진) 판정과 판매 스위치(돈 기능 — 요청마다 지금 값)는 꺼낸 뒤 — 거르는 규칙은 캐시 전과 같다(같은 조립기)
         // 성인 판정(성인 전용 게시판 — V226)은 그런 게시판이 있을 때만 읽는다
-        boolean adult = userId != null && shared.boards().values().stream().anyMatch(MenuBoardRef::adultOnly) && adultGate.adult(userId);
+        // 메뉴에는 「성인 + 19금 게시판 접근 켜짐」이면 보인다(핀 확인은 보지 않는다 — 들어가면 핀 입력 화면, adult-board-pin-contract)
+        boolean adult = userId != null && shared.boards().values().stream().anyMatch(MenuBoardRef::adultOnly) && adultBoards.listed(userId);
         MenuResolveContext context = new MenuResolveContext(shared.boards(), shared.levels(), sales.enabled(), viewerOf(userId, shared.levels(), adult), shared.pages());
         return composer.compose(shared.nodes(), shared.side(), context, shared.version());
     }

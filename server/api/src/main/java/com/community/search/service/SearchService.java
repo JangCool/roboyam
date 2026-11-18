@@ -1,5 +1,6 @@
 package com.community.search.service;
 
+import com.community.adultboard.service.AdultBoardGate;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
@@ -64,10 +65,12 @@ public class SearchService {
     private final PostFeedRepositoryQDSL feeds;
     private final PostFeedRows rows;
     private final AdultContentGate adultGate;
+    private final AdultBoardGate adultBoards;
     private final TransactionTemplate tx;
 
     public SearchService(BoardCatalog catalog, PostSearchQueries searches, PostFeedRepositoryQDSL feeds, PostFeedRows rows, AdultContentGate adultGate,
-                         PlatformTransactionManager txManager) {
+                         AdultBoardGate adultBoards, PlatformTransactionManager txManager) {
+        this.adultBoards = adultBoards;
         this.adultGate = adultGate;
         this.catalog = catalog;
         this.searches = searches;
@@ -79,7 +82,8 @@ public class SearchService {
 
     /** @param viewerId 로그인한 회원(비로그인 null) — 줄의 {@code blocked}·작성자 {@code memo} 를 게시판 목록과 같게 싣는다(결과에서 빼지 않고 표시만, 개수·쪽 수도 그대로).
      *                 19금 글은 게시판을 고르지 않은 통합 검색이면 성인이어도 빼고, 게시판 하나를 고른 검색이면 성인에게만 넣는다(개수·쪽 수도 뺀 기준 — adult-board-contract).
-     *                 성인 전용 게시판(V226)은 통합 검색 범위에 없고, 성인이 아니면 고를 수도 없다({@code fields.board}) */
+     *                 성인 전용 게시판(V226)은 통합 검색 범위에 없고, 성인이 아니거나 「19금 게시판 접근」·이 기기의 핀 확인이 없으면 고를 수도 없다
+     *                 ({@code fields.board} — 핀이 필요한 때도 오류를 따로 내지 않는다, adult-board-pin-contract) */
     public SearchResponse search(String qRaw, String scopeRaw, String boardRaw, String orderRaw, String pageRaw, String cursorRaw, String sizeRaw, Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
@@ -98,7 +102,7 @@ public class SearchService {
         EffectiveBoard board = null;
         if (!blank(boardRaw)) {
             board = s.board(boardRaw.strip()).filter(b -> b.active() && PublicBoardService.isPublic(b))
-                    .filter(PublicBoardService.adultVisible(() -> adultGate.adult(viewerId))).orElse(null); // 성인 전용 게시판은 성인만(아니면 없는 게시판과 같다 — V226) // 게시판 고르기에 소모임 게시판은 없다(공개 게시판 API 가 모르는 게시판 — 소모임 글은 전체 검색에만 섞인다, 6단계)
+                    .filter(b -> adultBoards.viewable(b, viewerId)).orElse(null); // 성인 전용 게시판은 핀 확인까지 된 성인만(아니면 없는 게시판과 같다 — adult-board-pin-contract) // 게시판 고르기에 소모임 게시판은 없다(공개 게시판 API 가 모르는 게시판 — 소모임 글은 전체 검색에만 섞인다, 6단계)
             if (board == null) {
                 fields.put("board", new MessageRef("search.board.invalid"));
             }
@@ -125,7 +129,7 @@ public class SearchService {
         List<Long> boardIds = board != null ? List.of(board.id())
                 : s.boards().stream().filter(b -> b.active() && !b.adultOnly() && b.searchable()).map(EffectiveBoard::id).toList(); // 「통합검색 포함」을 끈 게시판도 빼고(F-7) // 성인 전용 게시판은 빼고(V226) · 소모임 게시판도 — 비멤버에게 보이는 소모임 글만 걸린다(6단계, PostSearchQueries)
         // 19금 글: 통합 검색(게시판을 고르지 않음)은 성인이어도 뺀다 — 게시판 하나를 고른 검색은 그 게시판 안 검색이라 성인에게만 넣는다(adult-board-contract 「19금 노출 규칙」)
-        boolean adultVisible = board != null && adultGate.adult(viewerId);
+        boolean adultVisible = board != null && (board.adultOnly() || adultGate.adult(viewerId)); // 성인 전용 게시판을 통과했으면 성인이다(다시 읽지 않는다)
         PostSearchQueries.Criteria criteria = new PostSearchQueries.Criteria(boardIds, tokens, scope, OLDEST.equals(order), cursor, adultVisible,
                 Instant.now());
         String boardSlug = board == null ? null : board.slug();

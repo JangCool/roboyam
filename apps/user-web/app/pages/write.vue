@@ -25,6 +25,8 @@
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
     -->
     <div class="content-card">
+        <!-- 쓰던 도중 성인 전용 게시판의 핀 확인이 끝났다(등록·태그 추천이 403 ADULT_BOARD_PIN_REQUIRED) — 폼을 그대로 둔 채 위에 핀 입력. 맞게 넣고 다시 [등록] -->
+        <AdultBoardPinDialog v-model:visible="pinDialog" :locked-until="pinLockedUntil" @unlocked="formError = ''" />
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-times" variant="text" severity="secondary" :aria-label="t('common.cancel')" @click="cancel" />
             <span class="text-sm font-semibold">{{ t('post.writeTitle') }}</span>
@@ -61,7 +63,9 @@
             <!-- 익명 게시판 — 글·댓글이 「익명」으로 올라간다는 안내(anonymous-board-contract). 익명 여부는 서버가 게시판 설정으로 정한다(요청 모양은 그대로) -->
             <AnonymousBoardNotice v-if="boardState === 'ready' && board?.viewer.canWrite && board.authorMode === 'ANONYMOUS'" />
             <div v-if="boardState === 'loading'" role="status" :aria-label="t('common.loading')" class="h-40 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
-            <ErrorState v-else-if="boardState === 'error'" :title="t('post.boardFailed')" :description="boardError" retry @retry="loadBoard" />
+            <!-- 성인 전용 게시판 — 이 기기에서 핀번호를 아직 안 넣었다(403 ADULT_BOARD_PIN_REQUIRED, adult-board-pin-contract). 맞게 넣으면 게시판 정보를 다시 받는다(쓰던 글은 그대로) -->
+            <AdultBoardPinGate v-else-if="boardState === 'pin'" :locked-until="pinLockedUntil" :heading-level="2" @unlocked="loadBoard" />
+            <ErrorState v-else-if="boardState === 'error'" :title="t('post.boardFailed')":description="boardError" retry @retry="loadBoard" />
             <PostEditorForm
                 v-else-if="board && board.viewer.canWrite"
                 v-model="form"
@@ -180,6 +184,7 @@ import { AUTO_THUMBNAIL, type PostThumbnailChoice } from '~/components/board/Pos
 import type { PostThumbnailInput } from '~/composables/board/api/usePostApi.types';
 import UtilPostThumbnail from '~/utils/util-post-thumbnail';
 import type { DealFieldActions } from '~/components/hotdeal/HotdealDealFields.types';
+import UtilAdultBoard from '~/utils/util-adult-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
@@ -289,8 +294,18 @@ async function explainBlocked(slug: string): Promise<void> {
 
 /* ── 고른 게시판 ── */
 const board = ref<BoardDetail | null>(null);
-const boardState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
+const boardState = ref<'idle' | 'loading' | 'ready' | 'pin' | 'error'>('idle');
 const boardError = ref('');
+/** 「핀 필요」 오류에 실려 온 틀림 잠금의 끝 시각(없으면 null) */
+const pinLockedUntil = ref<string | null>(null);
+/** 쓰던 도중(폼이 떠 있을 때) 핀 확인이 끝났다 — 폼을 치우지 않고 대화상자로 묻는다(쓰던 글이 그대로 남는다) */
+const pinDialog = ref(false);
+// 어느 호출이든(등록·태그 추천 등) 「핀 필요」를 받았다 — 폼이 떠 있으면 대화상자로. 게시판 정보를 받는 중이면 `loadBoard` 의 오류 처리가 폼 자리에 핀 입력을 그린다
+useAdultBoardPinDemand((lockedUntil) => {
+    if (boardState.value !== 'ready') return;
+    pinLockedUntil.value = lockedUntil;
+    pinDialog.value = true;
+});
 
 let boardRequest = 0;
 /** 마지막으로 미리 채운 글 양식 본문 — 손대지 않았는지 가르는 기준(게시판을 바꾸면 새 양식으로 갈아 끼운다) */
@@ -327,7 +342,9 @@ async function loadBoard(): Promise<void> {
     } catch (e) {
         if (mine !== boardRequest) return;
         boardError.value = UtilBoardMessages.of(t, e);
-        boardState.value = 'error';
+        const pin = UtilAdultBoard.pinRequired(e);
+        pinLockedUntil.value = pin?.lockedUntil ?? null;
+        boardState.value = pin ? 'pin' : 'error';
     }
 }
 
@@ -648,6 +665,8 @@ async function submit(): Promise<void> {
         const dealLimit = isDeal.value && e instanceof ApiError && (e.code === 'DEAL_DAILY_POST_LIMIT' || e.code === 'DEAL_SAME_STORE_TOO_SOON');
         const restricted = UtilBoardSanction.restrictionFromError(e);
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('write');
+        // 성인 전용 게시판의 핀 확인이 쓰는 사이 끝났다 — 핀 입력 대화상자가 뜬다(`useAdultBoardPinDemand`). 쓰던 내용은 그대로, 폼 아래 오류는 두지 않는다
+        else if (UtilAdultBoard.pinRequired(e)) formError.value = '';
         // 이 게시판에서 쓰기 제한 중(게시판 제재) — 폼 위 안내(쓰던 내용은 그대로)
         else if (restricted) errorRestriction.value = { slug: b.slug, restriction: restricted };
         // 하루 핫딜 글 한도 · 같은 쇼핑몰 간격(429) — 폼 아래 안내(쓰던 내용은 그대로)

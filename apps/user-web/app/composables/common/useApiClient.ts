@@ -44,6 +44,15 @@ type InstallStateSlice = { phase: string; authorized: boolean };
 /** 로그인 사용자 상태의 키 — `useAuth` 와 같은 값을 본다. */
 export const AUTH_USER_STATE_KEY = 'auth-user';
 
+/**
+ * 「핀 필요」 알림 상태의 키 — 성인 전용 게시판을 여는 API 는 **어느 것이든**(게시판·글 목록·레이아웃·태그·글·댓글·투표·추천·신고·토론·글쓰기) 이 기기의 핀 확인이 없으면
+ * `403 ADULT_BOARD_PIN_REQUIRED` 로 거절한다(adult-board-pin-contract). 호출마다 화면이 따로 가르지 않게 이 통로가 번호(`seq`)를 올려 알리고,
+ * 보는 화면(`useAdultBoardPinDemand` — 게시판·글 보기·글쓰기)이 핀 입력으로 바꾼다. 모양은 `AdultBoardPinDemand`(adultboard/useAdultBoard.types)와 같다.
+ */
+export const ADULT_BOARD_PIN_DEMAND_STATE_KEY = 'adult-board-pin-demand';
+const ADULT_BOARD_PIN_REQUIRED = 'ADULT_BOARD_PIN_REQUIRED';
+type PinDemandSlice = { seq: number; lockedUntil: string | null };
+
 export interface ApiErrorInit {
     status: number;
     code: string;
@@ -330,6 +339,14 @@ export function useApiClient(options: ApiClientOptions = {}) {
         });
     }
 
+    /** 성인 전용 게시판의 「핀 필요」(`403 ADULT_BOARD_PIN_REQUIRED`) — 번호를 올려 보는 화면에 알린다(오류는 그대로 던진다) */
+    function onAdultBoardPinRequired(error: ApiError): void {
+        nuxtApp.runWithContext(() => {
+            const demand = useState<PinDemandSlice>(ADULT_BOARD_PIN_DEMAND_STATE_KEY, () => ({ seq: 0, lockedUntil: null }));
+            demand.value = { seq: demand.value.seq + 1, lockedUntil: error.extraText('lockedUntil') ?? null };
+        });
+    }
+
     /** 요청 한 번(`attempt`)을 보내고, CSRF 거절이면 쿠키를 다시 받아 한 번만 다시 보낸다. 실패는 모두 `ApiError` 로 던진다 */
     async function run<T>(mutating: boolean, attempt: () => Promise<T>): Promise<T> {
         try {
@@ -353,6 +370,7 @@ export function useApiClient(options: ApiClientOptions = {}) {
             const error = toApiError(failure, t);
             if (error.status === 401 && error.code === 'UNAUTHENTICATED') await onSessionLost();
             if (UtilInstallState.isNotInstalled(error.status, error.code)) await onNotInstalled();
+            if (error.status === 403 && error.code === ADULT_BOARD_PIN_REQUIRED) onAdultBoardPinRequired(error);
             throw error;
         }
     }
