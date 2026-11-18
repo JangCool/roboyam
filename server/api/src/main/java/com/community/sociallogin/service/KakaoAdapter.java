@@ -6,6 +6,7 @@ import static com.community.sociallogin.service.SocialProviderAdapter.text;
 import com.community.social.entity.SocialProvider;
 import com.community.sociallogin.config.SocialEndpoints.Endpoints;
 import com.community.sociallogin.dto.SocialProfile;
+import com.community.user.entity.MemberGender;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -13,7 +14,7 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * 카카오 로그인 — 인가 코드 + PKCE(S256). {@code scope} 는 보내지 않는다(콘솔의 동의 항목을 따른다 — 콘솔에 없는 범위를 보내면 공급자가 거절한다).
- * 이메일은 {@code is_email_valid}·{@code is_email_verified} 가 모두 참일 때만 확인된 이메일로 본다. 닉네임 후보는 프로필 닉네임이다.
+ * 이메일은 {@code is_email_valid}·{@code is_email_verified} 가 모두 참일 때만 확인된 이메일로 본다. 닉네임 후보는 프로필 닉네임이다. 성별은 {@code kakao_account.gender}({@code male}·{@code female}) — 콘솔의 동의 항목을 켜고 이용자가 동의했을 때만 온다.
  */
 @Component
 public class KakaoAdapter implements SocialProviderAdapter {
@@ -77,6 +78,8 @@ public class KakaoAdapter implements SocialProviderAdapter {
         String email = SocialProviderAdapter.email(text(account, "email"));
         boolean verified = email != null && bool(account, "is_email_valid") && bool(account, "is_email_verified");
         String nickname = SocialProviderAdapter.nicknameCandidate(text(account == null ? null : account.get("profile"), "nickname"));
-        return new SocialProfile(SocialProvider.KAKAO, subject, email, verified, nickname);
+        String genderText = text(account, "gender");
+        MemberGender gender = "male".equals(genderText) ? MemberGender.MALE : "female".equals(genderText) ? MemberGender.FEMALE : null; // 동의 안 함·모르는 값은 null
+        return new SocialProfile(SocialProvider.KAKAO, subject, email, verified, nickname, gender);
     }
 }

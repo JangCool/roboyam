@@ -108,7 +108,7 @@ public class SocialAccountWriter {
         }
         log.info("소셜 로그인 — 처음 보는 소셜 계정, 가입 완료 단계로 provider={}", provider);
         return CallbackOutcome.signupRequired(provider, new PendingSignup(provider, profile.subject(), profile.email(), profile.emailVerified(),
-                profile.nickname(), next, pendingExpiresAt));
+                profile.nickname(), profile.gender(), next, pendingExpiresAt));
     }
 
     /** 로그인한 회원({@code userId})에 소셜 계정을 연결한다 */

@@ -67,6 +67,24 @@
                 </template>
             </section>
 
+            <!-- 소셜 가입 정보 — 본인 전용(다른 사람 프로필에는 없다). 연결된 소셜이 없으면(이메일 가입) 카드를 숨긴다 -->
+            <section v-if="linkedSocial.length" class="panel-card p-4" :aria-labelledby="`${uid}-social`" data-testid="me-social">
+                <h2 :id="`${uid}-social`" class="text-sm font-semibold">{{ t('me.socialTitle') }}</h2>
+                <p class="mt-0.5 text-xs text-muted-color">{{ t('me.socialHint') }}</p>
+                <dl class="m-0 mt-3 flex flex-col gap-2 text-sm">
+                    <div v-for="p in linkedSocial" :key="p.id" class="flex flex-col gap-0.5" :data-testid="`me-social-${p.id}`">
+                        <dt class="text-xs text-muted-color">{{ t('me.socialProvider') }}</dt>
+                        <dd class="m-0 font-medium">{{ UtilProvider.name(t, p.id, p.name) }}</dd>
+                        <dt class="mt-1 text-xs text-muted-color">{{ t('me.socialEmail') }}</dt>
+                        <dd class="m-0 break-all">{{ p.email || t('me.socialEmailNone') }}</dd>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <dt class="text-xs text-muted-color">{{ t('me.socialGender') }}</dt>
+                        <dd class="m-0" data-testid="me-social-gender">{{ genderLabel }}</dd>
+                    </div>
+                </dl>
+            </section>
+
             <!-- 내 정보 메뉴 — 모바일은 여기 목록으로. 데스크톱은 셸의 오른쪽 열(`MeFrame`)에 늘 있어 숨긴다 -->
             <MeMenu class="lg:hidden" :home="false" />
         </template>
@@ -79,6 +97,8 @@ import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 import UtilBusiness from '~/utils/util-business';
 import UtilGrade from '~/utils/util-grade';
 import UtilPoint from '~/utils/util-point';
+import UtilProvider from '~/utils/util-provider';
+import type { MeSocialProvider } from '~/composables/auth/api/useAuthApi.types';
 
 /**
  * 내 정보 `/me` — 로그인 필요(`auth` 미들웨어). 하단 탭·헤더 프로필 메뉴·햄버거의 「내 정보」가 온다.
@@ -142,6 +162,27 @@ watch(
     { immediate: true },
 );
 onBeforeUnmount(() => profileSeq++);
+
+/** 소셜 가입 정보 카드 — 연결된 공급자만(`GET /api/me/social`). 못 받으면 카드를 그냥 숨긴다(부가 정보) */
+const socialApi = useMeSocialApi();
+const linkedSocial = ref<MeSocialProvider[]>([]);
+let socialSeq = 0;
+async function loadSocial() {
+    const mine = ++socialSeq;
+    try {
+        const res = await socialApi.list();
+        if (mine === socialSeq) linkedSocial.value = res.providers.filter((p) => p.linked);
+    } catch {
+        if (mine === socialSeq) linkedSocial.value = [];
+    }
+}
+onMounted(() => void loadSocial());
+onBeforeUnmount(() => socialSeq++);
+/** 가입 때 저장된 성별 — 없거나 `NONE` 이면 「밝히지 않음」 */
+const genderLabel = computed(() => {
+    const g = user.value?.gender;
+    return g === 'MALE' ? t('profile.genderMale') : g === 'FEMALE' ? t('profile.genderFemale') : t('profile.genderNone');
+});
 
 /** 오늘 적립 줄 — 상한이 0(꺼짐)인 것은 뺀다 */
 const todayRows = computed(() => {

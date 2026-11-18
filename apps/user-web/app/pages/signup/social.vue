@@ -58,12 +58,14 @@
                     />
                 </template>
             </LabeledField>
+            <!-- 공급자가 준 이름을 미리 채웠을 때만 -->
+            <small v-if="pending.suggestedNickname" class="-mt-2 text-xs text-muted-color" data-testid="social-nickname-suggested">{{ t('signup.nicknameSuggested') }}</small>
 
             <!-- 가입 뒤 닉네임 변경은 1번뿐(`member-mypage-contract.md` 결정) — 이메일 가입 2/3 닉네임 단계와 같은 안내 -->
             <Message severity="secondary" :closable="false" size="small" data-testid="social-nickname-note">{{ t('signup.nicknameNote') }}</Message>
 
-            <!-- 성별(선택, 기본 「밝히지 않음」) — 이메일 가입과 같은 칸. 가입 마무리 요청의 `gender` 로 보낸다 -->
-            <MemberGenderField v-model="gender" :disabled="submitting" testid="social-gender" />
+            <!-- 성별(선택, 기본 「밝히지 않음」) — 이메일 가입과 같은 칸. 공급자가 성별을 주지 않았을 때만 보이고 가입 마무리 요청의 `gender` 로 보낸다 -->
+            <MemberGenderField v-if="!pending.genderProvided" v-model="gender" :disabled="submitting" testid="social-gender" />
 
             <TermsAgreement v-model="agreements" :errors="termsErrors" :disabled="submitting" />
 
@@ -167,7 +169,9 @@ async function submit() {
     const next = pending.value.next;
     submitting.value = true;
     try {
-        await completeSocialSignup({ nickname: nickname.value, gender: gender.value, ...agreements.value });
+        // 공급자가 성별을 줬으면 보내지 않는다 — 서버가 가입 대기에 든 값을 쓴다
+        const genderPart = pending.value.genderProvided ? {} : { gender: gender.value };
+        await completeSocialSignup({ nickname: nickname.value, ...genderPart, ...agreements.value });
         toast.success(t('signup.welcome'));
         // 성공하면 화면을 떠난다 — 버튼을 다시 열지 않는다. 정지 등으로 안내가 필요하면 제재 안내를 먼저(7-2)
         await navigateTo(UtilSanction.afterLoginPath(restriction.value, next ?? '/'), { replace: true });

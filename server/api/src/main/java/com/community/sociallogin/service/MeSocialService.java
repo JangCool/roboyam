@@ -46,14 +46,16 @@ public class MeSocialService {
     /** 공급자 3종의 연결 상태 */
     public MeSocialResponse view(long userId) {
         UserEntity user = member(userId);
-        Set<SocialProvider> linked = identities.findByUserIdOrderByCreatedAtAsc(userId).stream().map(UserIdentityEntity::getProvider)
-                .collect(Collectors.toSet());
+        List<UserIdentityEntity> rows = identities.findByUserIdOrderByCreatedAtAsc(userId);
+        Set<SocialProvider> linked = rows.stream().map(UserIdentityEntity::getProvider).collect(Collectors.toSet());
         boolean hasPassword = user.hasPassword();
         List<MeSocialProviderView> views = ORDER.stream().map(provider -> {
             boolean isLinked = linked.contains(provider);
             boolean otherMethodLeft = hasPassword || linked.size() > 1;
             return new MeSocialProviderView(provider.id(), messages.get(provider.displayNameKey()), isLinked,
-                    !isLinked && clients.clientId(provider).isPresent(), isLinked && otherMethodLeft);
+                    !isLinked && clients.clientId(provider).isPresent(), isLinked && otherMethodLeft,
+                    rows.stream().filter(row -> row.getProvider() == provider).map(UserIdentityEntity::getEmail).filter(e -> e != null).findFirst()
+                            .orElse(null));
         }).toList();
         return new MeSocialResponse(hasPassword, views);
     }

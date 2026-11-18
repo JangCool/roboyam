@@ -14,6 +14,14 @@ export default {
     profileLoadFailed: 'Couldn’t load your bio.',
     bioEmpty: 'No bio yet.',
 
+    // Social sign-up info card (visible only to you)
+    socialTitle: 'Social sign-up info',
+    socialHint: 'Only you can see this. It is never shown to other members.',
+    socialProvider: 'Linked account',
+    socialEmail: 'Email from provider',
+    socialEmailNone: 'Not provided',
+    socialGender: 'Gender',
+
     // Shortcuts
     shortcuts: 'Shortcuts',
     entryProfile: 'Activity',

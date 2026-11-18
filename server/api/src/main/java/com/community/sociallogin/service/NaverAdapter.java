@@ -5,6 +5,7 @@ import static com.community.sociallogin.service.SocialProviderAdapter.text;
 import com.community.social.entity.SocialProvider;
 import com.community.sociallogin.config.SocialEndpoints.Endpoints;
 import com.community.sociallogin.dto.SocialProfile;
+import com.community.user.entity.MemberGender;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,7 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * 네이버 로그인 — 인가 코드 + state. 네이버는 PKCE·nonce 를 받지 않는다(state 만으로 막는다).
- * 네이버는 이메일을 확인했는지 알려 주지 않으므로 <b>늘 확인되지 않은 이메일</b>로 본다(가입 뒤 이메일 인증 흐름). 닉네임 후보는 별명이다(실명 {@code name} 은 쓰지 않는다).
+ * 네이버는 이메일을 확인했는지 알려 주지 않으므로 <b>늘 확인되지 않은 이메일</b>로 본다(가입 뒤 이메일 인증 흐름). 닉네임 후보는 별명이다(실명 {@code name} 은 쓰지 않는다). 성별은 {@code response.gender}({@code M}·{@code F}, {@code U}=모름→null) — 콘솔의 성별 항목을 켰을 때만 온다.
  * 토큰 오류는 상태 200 에 {@code error} 칸으로 오기도 한다 — 액세스 토큰이 없으면 실패다.
  */
 @Component
@@ -72,6 +73,8 @@ public class NaverAdapter implements SocialProviderAdapter {
         String subject = SocialProviderAdapter.subject(response, "id");
         String email = SocialProviderAdapter.email(text(response, "email"));
         String nickname = SocialProviderAdapter.nicknameCandidate(text(response, "nickname"));
-        return new SocialProfile(SocialProvider.NAVER, subject, email, false, nickname);
+        String genderText = text(response, "gender");
+        MemberGender gender = "M".equals(genderText) ? MemberGender.MALE : "F".equals(genderText) ? MemberGender.FEMALE : null; // U(모름)·없음·모르는 값은 null
+        return new SocialProfile(SocialProvider.NAVER, subject, email, false, nickname, gender);
     }
 }

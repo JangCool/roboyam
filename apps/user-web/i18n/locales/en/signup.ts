@@ -33,6 +33,7 @@ export default {
     nicknameOverflow: 'Up to {max} characters.',
     previewLabel: 'How it looks',
     nicknameNote: 'No real name or contact details needed. After signing up, you can change your nickname only once.',
+    nicknameSuggested: 'This name came from your social account. Feel free to change it.',
     noRealName: 'This site never asks for your real name or contact details.',
     submitEmail: 'Sign up and get the verification email',
 

@@ -63,4 +63,9 @@ public class UserIdentityEntity {
     public String getProviderUserId() {
         return providerUserId;
     }
+
+    /** 공급자가 준 이메일(없으면 null) — 본인 응답에만 쓴다 */
+    public String getEmail() {
+        return email;
+    }
 }

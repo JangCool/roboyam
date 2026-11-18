@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 여럿이면 {@code azp} 도 우리 ID), 만료({@code exp}, 시계 차이 60초), 발급 시각({@code iat} 가 5분 넘게 미래가 아님), {@code nonce}(시작 때 보낸 값의 해시와 같음),
  * {@code sub}. 서명({@code alg})은 확인하지 않는다 — ID 토큰을 <b>TLS 로 토큰 엔드포인트에서 직접</b> 받았으므로 OpenID Connect Core 3.1.3.7 6항에 따라
  * TLS 서버 확인으로 발급자 확인을 대신한다(다른 경로로 받은 ID 토큰은 쓰지 않는다). {@code alg=none} 은 거절한다.
- * 이메일은 {@code email_verified} 가 참일 때만 확인된 이메일이다. 실명({@code name})은 닉네임 후보로 쓰지 않는다.
+ * 이메일은 {@code email_verified} 가 참일 때만 확인된 이메일이다. 이름({@code name})은 닉네임 규칙에 맞을 때만 닉네임 후보로 쓴다(카카오·네이버와 같은 경로). 성별은 ID 토큰에 없어 늘 null 이다.
  */
 @Component
 public class GoogleAdapter implements SocialProviderAdapter {
@@ -89,7 +89,8 @@ public class GoogleAdapter implements SocialProviderAdapter {
         String subject = SocialProviderAdapter.subject(claims, "sub");
         String email = SocialProviderAdapter.email(text(claims, "email"));
         boolean verified = email != null && bool(claims, "email_verified");
-        return new SocialProfile(SocialProvider.GOOGLE, subject, email, verified, null);
+        String nickname = SocialProviderAdapter.nicknameCandidate(text(claims, "name")); // 닉네임 규칙(길이·금칙어)에 맞을 때만
+        return new SocialProfile(SocialProvider.GOOGLE, subject, email, verified, nickname, null); // 성별은 ID 토큰에 없다
     }
 
     /** ID 토큰의 내용을 읽고 확인한다. 어긋나면 실패(사유에 토큰 값을 싣지 않는다) */

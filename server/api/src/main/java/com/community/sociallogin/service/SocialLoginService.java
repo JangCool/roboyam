@@ -183,7 +183,7 @@ public class SocialLoginService {
     /** 가입 완료 화면이 보일 정보 */
     public SocialPendingResponse pendingView(PendingSignup pending) {
         return new SocialPendingResponse(pending.provider().id(), messages.get(pending.provider().displayNameKey()), pending.nicknameCandidate(),
-                maskEmail(pending.email()), pending.email() != null && pending.emailVerified(), pending.next());
+                maskEmail(pending.email()), pending.email() != null && pending.emailVerified(), pending.gender() != null, pending.next());
     }
 
     /**
@@ -206,10 +206,14 @@ public class SocialLoginService {
             errors.put("ageConfirmed", new MessageRef("user.ageConfirmed.required"));
         }
         // 성별(선택 — 없으면 밝히지 않음) — 이메일 가입과 같은 칸
-        String genderText = body == null ? null : body.gender();
-        MemberGender gender = genderText == null ? MemberGender.NONE : MemberGender.of(genderText).orElse(null);
+        // 공급자가 성별을 줬으면 그 값을 쓰고 요청의 gender 는 무시한다(검증도 하지 않는다). 못 받았을 때만 요청 값을 본다
+        MemberGender gender = pending.gender();
         if (gender == null) {
-            errors.put("gender", new MessageRef("profile.gender.invalid"));
+            String genderText = body == null ? null : body.gender();
+            gender = genderText == null ? MemberGender.NONE : MemberGender.of(genderText).orElse(null);
+            if (gender == null) {
+                errors.put("gender", new MessageRef("profile.gender.invalid"));
+            }
         }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);

@@ -34,6 +34,7 @@ export default {
     nicknameOverflow: '{max}자까지 입력할 수 있어요.',
     previewLabel: '이렇게 보여요',
     nicknameNote: '실명·연락처를 입력하지 않아도 돼요. 닉네임은 가입한 뒤에는 1번만 바꿀 수 있어요.',
+    nicknameSuggested: '소셜에서 가져온 이름이에요. 마음대로 고칠 수 있어요.',
     noRealName: '이 사이트는 실명·연락처를 요구하지 않아요.',
     submitEmail: '가입하고 인증 메일 받기',
 

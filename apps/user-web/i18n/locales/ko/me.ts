@@ -15,6 +15,14 @@ export default {
     profileLoadFailed: '소개를 불러오지 못했어요.',
     bioEmpty: '아직 자기소개가 없어요.',
 
+    // 소셜 가입 정보 카드(본인 전용)
+    socialTitle: '소셜 가입 정보',
+    socialHint: '나에게만 보여요. 다른 회원에게는 공개되지 않아요.',
+    socialProvider: '연결된 계정',
+    socialEmail: '제공받은 이메일',
+    socialEmailNone: '제공받지 않음',
+    socialGender: '성별',
+
     // 바로가기
     shortcuts: '바로가기',
     entryProfile: '활동 현황',

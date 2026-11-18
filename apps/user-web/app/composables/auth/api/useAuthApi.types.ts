@@ -140,6 +140,8 @@ export interface SocialPending {
     emailMasked: string | null;
     /** 공급자가 이메일을 확인했다고 했는가 — false 면 가입 뒤 서버가 인증 메일을 보낸다(이메일이 없어도 false) */
     emailVerified: boolean;
+    /** 공급자가 성별을 줬는가(서버 가입 대기에 값이 있다) — true 면 화면이 성별 칸을 숨기고 `gender` 를 보내지 않는다. 칸이 없거나 false 면 칸을 보인다(후보 필드) */
+    genderProvided?: boolean;
     /** 가입 뒤 돌아갈 같은 사이트 상대 경로 — 없으면 null(`/`) */
     next: string | null;
 }
@@ -162,6 +164,8 @@ export interface MeSocialProvider {
     name: string;
     /** 이 계정에 연결돼 있는가 */
     linked: boolean;
+    /** 공급자가 준 이메일(본인에게만 그대로) — 연결된 줄에만, 안 줬으면 null. 서버가 아직 안 주면 칸이 없다(후보 필드) */
+    email?: string | null;
     /** 지금 연결을 시작할 수 있는가(운영자가 켜 두고 키가 있음 + 아직 연결 안 됨) */
     linkable: boolean;
     /** 연결돼 있고 해제해도 다른 로그인 수단(비밀번호 또는 다른 소셜)이 남는가 */
