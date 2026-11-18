@@ -79,7 +79,7 @@ const EXCLUDE_PREFIX = ['flyway_schema_history', 'spring_session', 'admin_spring
     // AI 기자 뉴스 출처·수집 항목(shared V228) — 출처는 V229 가 설치 시각 ID 로 넣고(팩에 담으면 같은 출처가 겹친다), 항목은 빌드 관리자 서버의 수집 배치가 받은 7일짜리 바깥 기사다
     'ai_news_'];
 /**
- * 일부 행만 담는 표 — 운영자 역할(seed/demo/patches/0004-operator-roles.sql)만. 회원 역할(등급·종류·게시판 — 앱·마이그레이션이 만든다)과
+ * 일부 행만 담는 표 — 운영자 역할(seed/demo/patches/0005-operator-roles.sql)만. 회원 역할(등급·종류·게시판 — 앱·마이그레이션이 만든다)과
  * 데모 로더 전용 역할 ROLE_DEMO_SEED(로더가 도는 동안만 쓰는 데모 운영자 몫)는 담지 않는다. 역할을 운영자에 붙인 줄(operator_roles)도 담지 않는다.
  */
 const DEMO_LOADER_ROLE = 'ROLE_DEMO_SEED';

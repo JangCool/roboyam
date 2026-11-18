@@ -370,7 +370,7 @@ async function enableOperator() {
 /** 운영자 역할 38개(권한 유형별 담당·총괄) — 원고는 데모 팩 패치 0004 의 SQL 그 자체(한 곳에서만 고친다). 운영자에 붙이지 않는다(설치한 운영자가 초대하며 고른다) */
 function seedOperatorRoles() {
     console.log('\n운영자 역할');
-    const script = readFileSync(join(DEMO, 'patches', '0004-operator-roles.sql'), 'utf8');
+    const script = readFileSync(join(DEMO, 'patches', '0005-operator-roles.sql'), 'utf8');
     // 패치는 한 트랜잭션으로 돈다(임시 표 ON COMMIT DROP) — 같은 변수(:'demo_now' · :demo_id_base)를 지금 시각으로 준다
     sql(['BEGIN;', `\\set demo_now ${q(new Date().toISOString())}`, `\\set demo_id_base ${snowflake()}`, script, 'COMMIT;'].join('\n'));
     const made = rows(sql(`SELECT r.role_name, count(p.id) FROM roles r LEFT JOIN role_permissions p USING (role_id)
@@ -785,6 +785,7 @@ async function seedAiMembers(members, admin) {
         const r = await admin.request('POST', '/api/admin/ai-members', {
             nickname: a.nickname, avatarId: avatarOk(a.avatarId) ? a.avatarId : null, provider: a.provider, model, persona: a.persona, bio: a.bio, relation: null,
             windows: a.windows, voice: a.voice ?? 'NORMAL', boards, groups: [group.id],
+            dailyPostMax: a.dailyPostMax ?? null, newsRatio: a.newsRatio ?? null, extraPrompt: a.extraPrompt ?? null, // 계정별 값(V223·V228) — AI 기자 등
         });
         if (!ok(r)) {
             failed(`AI 회원 ${a.nickname}`, r);
