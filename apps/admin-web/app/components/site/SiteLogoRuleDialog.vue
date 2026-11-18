@@ -55,7 +55,7 @@
                 <Message v-if="holidayFallback" severity="warn" :closable="false" size="small">{{ t('siteLogo.ruleHolidayFallback') }}</Message>
             </template>
 
-            <!-- 기념일 로고는 날 단위로 고른다(두 벌 가운데 보이는 쪽은 평소 로고를 따른다) -->
+            <!-- 기념일 로고는 날 단위로 고른다(두 벌 가운데 보이는 쪽은 보이기 규칙의 「기념일 로고 유형」을 따른다) -->
             <LabeledField :label="t('siteLogo.ruleBundleLabel')" :help="t('siteLogo.anniversaryStyleNote')" :error="tried && problems.bundle ? t('siteLogo.ruleBundleRequired') : ''">
                 <template #default="{ id, describedBy, invalid }">
                     <SiteLogoBundleSelect v-model="form.bundleId" :bundles="bundles" day-unit :input-id="id" :invalid="invalid" :described-by="describedBy" />

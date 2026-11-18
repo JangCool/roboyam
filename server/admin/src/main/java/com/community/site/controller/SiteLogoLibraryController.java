@@ -51,7 +51,7 @@ public class SiteLogoLibraryController {
         return ApiResponse.success(service.updateBundle(actor, id, body));
     }
 
-    /** 보이기 규칙(평소 로고·기념일·성별)을 통째로 저장한다 */
+    /** 보이기 규칙(평소 로고·기념일·성별·기념일 로고 유형)을 통째로 저장한다 */
     @RequirePermission(Permission.SITE_MANAGE)
     @PutMapping("/rules")
     public ApiResponse<SiteLogoLibraryResponse> saveRules(@RequestBody(required = false) SiteLogoRulesRequest body, AdminActor actor) {

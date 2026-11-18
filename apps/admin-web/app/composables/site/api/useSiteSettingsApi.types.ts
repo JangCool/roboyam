@@ -11,7 +11,7 @@ export interface SiteBasicResponse {
     siteName: string;
     /** 한 줄 소개. 없으면 null */
     tagline: string | null;
-    /** 로고 — 평소 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸). 이미지면 파일 주소, SVG 면 서버가 만든 data URI. 그대로 `<img src>` 에 넣는다. 없으면 null */
+    /** 로고 — 기본 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸). 이미지면 파일 주소, SVG 면 서버가 만든 data URI. 그대로 `<img src>` 에 넣는다. 없으면 null */
     logoUrl: string | null;
 }
 

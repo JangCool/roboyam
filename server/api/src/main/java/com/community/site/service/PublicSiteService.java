@@ -146,9 +146,10 @@ public class PublicSiteService implements CacheReloader {
         String publicUrl = found.map(SiteSettingEntity::getPublicUrl).orElse(null);
         String siteName = found.map(SiteSettingEntity::getSiteName).orElse(null);
         String tagline = found.map(SiteSettingEntity::getTagline).orElse(null);
-        // 로고(V249 보이기 규칙) — 오늘의 성별 무관 묶음(기념일이 걸리면 그 묶음, 아니면 평소 로고)의 원본 4칸. 대체 순서는 화면 규칙, 옛 logoUrl 은 ① 칸 그대로
+        // 로고(V249 보이기 규칙) — 오늘의 성별 무관 묶음(기념일이 걸리면 그 묶음, 아니면 기본 로고)의 원본 4칸. 대체 순서는 화면 규칙, 옛 logoUrl 은 ① 칸 그대로
         // SVG 칸은 data URI 대신 공개 주소(/api/site/logos/{칸}.svg?b=묶음&v=지문) — 첫 화면 HTML 에 SVG 본문을 싣지 않는다(2026-11-16)
-        // 기념일이 안 걸린 날에만 성별 묶음을 더한다 — 로그인한 회원의 성별로 고르는 것은 화면이다
+        // 성별 묶음을 더한다 — 평소에는 성별 로고, 기념일에는 그 성별 로고의 유형에 맞는 기념일 벌이 성별 무관 묶음과 다를 때만(SiteLogoResolver.Today).
+        // 로그인한 회원의 성별로 고르는 것은 화면이다
         LocalDate today = ServiceTime.today(clock);
         logoDate = today;
         Optional<SiteLogoResolver.Today> todayLogo = logoResolver == null ? Optional.empty() : logoResolver.on(today);
@@ -198,7 +199,7 @@ public class PublicSiteService implements CacheReloader {
                 fingerprint(info + "|" + themeView + "|" + (aboutHtml == null ? "" : aboutHtml), manifest, ogCustom));
     }
 
-    /** 성별 묶음 하나의 공개 모양 — 정하지 않았으면 null */
+    /** 성별 묶음 하나의 공개 모양 — 정하지 않았거나(기념일에는 성별 무관 묶음과 같으면) null */
     private SiteLogoSetView logoSet(SiteLogoBundleEntity bundle) {
         return bundle == null ? null : new SiteLogoSetView(assets.publicLogoUrls(bundle), bundle.isNameInLogo());
     }

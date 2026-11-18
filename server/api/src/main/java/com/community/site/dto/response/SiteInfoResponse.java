@@ -17,10 +17,11 @@ import com.community.site.dto.SiteLogoUrls;
  * @param operator 운영 주체의 단계·연락 이메일·푸터 안내 문구(terms-operator-contract) — 운영 주체 행이 없으면(마이그레이션 전) 개인 단계·이메일 null·안내 처음 값
  * @param grades   등급 목록(서열 순 — V196, grade-level-contract 5절): 키·이름·서열·도트 캐릭터
  * @param about    사이트 소개가 있는가(V203) — 공개 푸터의 「사이트 소개」 링크를 보일지. 본문은 {@code GET /api/site/about}
- * @param logos    <b>오늘의 성별 무관 묶음</b>(V249 로고 보이기 규칙 — 기념일이 걸리면 그 묶음, 아니면 평소 로고)의 4칸( {@code koLight}·{@code koDark}·{@code enLight}·{@code enDark}, 그림 파일은 저장소 주소, SVG 칸은 {@code /api/site/logos/{칸}.svg?b=묶음&v=지문} — 첫 화면 HTML 에 SVG 본문을 싣지 않는다). 빈 칸은 null — 대체 순서는 화면 규칙({@code UtilSiteLogo.resolve}).
+ * @param logos    <b>오늘의 성별 무관 묶음</b>(V249 로고 보이기 규칙 — 기념일이 걸리면 그 묶음, 아니면 기본 로고)의 4칸( {@code koLight}·{@code koDark}·{@code enLight}·{@code enDark}, 그림 파일은 저장소 주소, SVG 칸은 {@code /api/site/logos/{칸}.svg?b=묶음&v=지문} — 첫 화면 HTML 에 SVG 본문을 싣지 않는다). 빈 칸은 null — 대체 순서는 화면 규칙({@code UtilSiteLogo.resolve}).
  *                 설정 행이 없으면 모두 null. {@code logoUrl} 은 하위 호환으로 남긴 ① {@code koLight} 와 같은 값
  * @param logoNameIncluded 그 묶음의 로고 그림에 사이트 이름이 들어 있는가 — 켜져 있으면 로고 옆 이름 글자를 숨긴다
- * @param genderLogos 성별 규칙의 묶음(V249) — <b>기념일이 안 걸린 날</b>이고 남성·여성 가운데 하나라도 묶음이 정해져 있을 때만 있다(아니면 null — 응답에 없다).
+ * @param genderLogos 성별 규칙의 묶음(V249) — 평소에는 남성·여성 가운데 하나라도 성별 로고가 정해져 있을 때, 기념일에는 성별 로고의 유형에 맞는 그날의 벌(V252)이
+ *                 {@code logos} 와 <b>다른 묶음</b>인 성별이 하나라도 있을 때만 있다(아니면 null — 응답에 없다).
  *                 화면이 로그인한 회원의 성별({@code /api/auth/me} 의 {@code user.gender})로 고르고, 그 성별 칸이 null 이면 {@code logos} 를 쓴다
  */
 public record SiteInfoResponse(String siteName, String tagline, String logoUrl, SiteIconResponse icon, String ogImageUrl,

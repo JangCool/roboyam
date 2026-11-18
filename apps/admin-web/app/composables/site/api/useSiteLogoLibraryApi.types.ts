@@ -4,7 +4,7 @@ import type { SiteLogoSet, SiteLogoVariant } from '~/utils/util-site-logo';
  * 로고 보관함 + 보이기 규칙 API(`useSiteLogoLibraryApi`)가 주고받는 모양 — 서버 `SiteLogoLibraryResponse`·`SiteLogoBundleRequest`·`SiteLogoRulesRequest`(`docs/features/site-logo-library-contract.md`).
  * 로고 묶음 한 벌 = 4칸(`SiteLogoSet` — ① 한글·밝은 ② 한글·어두운 ③ 영문·밝은 ④ 영문·어두운) + 이름 + 「로고에 사이트 이름이 들어 있음」.
  * 묶음은 지우지 않는다(올린 로고는 보관해 두고 나중에도 고른다 — 사용자 결정). 기본 제공 묶음(`builtIn`)은 고치지 못한다.
- * 보이기 규칙의 우선순위: 기념일 → 성별 → 평소.
+ * 보이기 규칙의 우선순위: 기념일 → 성별 → 기본.
  */
 
 /** 로고 묶음 한 벌 */
@@ -23,14 +23,17 @@ export interface SiteLogoBundle {
     /** 기본 제공 묶음의 벌 — `CHARACTER`(캐릭터 로고 계열·기념일의 귀여운 버전) · `WORDMARK`(글자 로고 계열·일반 버전). 올린 묶음은 null */
     style?: SiteLogoStyle | null;
     /**
-     * 기념일 로고 묶음이면 그날의 키(`newyear`·`samil` …) — 같은 키의 두 묶음(캐릭터 벌·글자 벌)이 짝이다. 평소 로고·올린 묶음은 null.
-     * 기념일 규칙이 이런 묶음을 가리키면 실제로는 평소 로고의 벌에 맞는 짝이 보인다(`UtilSiteLogoRule.matchStyle` — 서버 `SiteLogoResolver.matchStyle`).
+     * 기념일 로고 묶음이면 그날의 키(`newyear`·`samil` …) — 같은 키의 두 묶음(캐릭터 벌·글자 벌)이 짝이다. 기본 로고·올린 묶음은 null.
+     * 기념일 규칙이 이런 묶음을 가리키면 실제로는 「기념일 로고 유형」(`SiteLogoRules.holidayStyle`)에 맞는 짝이 보인다(`UtilSiteLogoRule.matchStyle` — 서버 `SiteLogoResolver.matchStyle`).
      */
     dayKey?: string | null;
 }
 
 /** 기본 제공 묶음의 벌 */
 export type SiteLogoStyle = 'CHARACTER' | 'WORDMARK';
+
+/** 기념일 로고 유형 — `AUTO`(기본 로고의 벌에 맞춤, 기본) · `CHARACTER` · `WORDMARK`. 기본 제공 기념일 로고 전체에 한 번에 적용된다 */
+export type SiteLogoHolidayStyle = 'AUTO' | SiteLogoStyle;
 
 /** 기념일 날짜를 정하는 법 — `DATES` 날짜 직접(시작~끝) · `HOLIDAY` 쉬는 날 표에서 고르기 */
 export type SiteLogoRuleDateMode = 'DATES' | 'HOLIDAY';
@@ -57,7 +60,7 @@ export interface SiteLogoAnniversaryRule {
     bundleId: string;
 }
 
-/** 성별 규칙 — 로그인한 회원에게만 적용. null = 고르지 않음(평소 로고) */
+/** 성별 규칙 — 로그인한 회원에게만 적용. null = 고르지 않음(기본 로고) */
 export interface SiteLogoGenderRule {
     male: string | null;
     female: string | null;
@@ -65,16 +68,27 @@ export interface SiteLogoGenderRule {
 
 /** 보이기 규칙 전체 — 한 번에 저장한다 */
 export interface SiteLogoRules {
-    /** 평소 로고 — 묶음 id */
+    /** 기본 로고 — 묶음 id */
     defaultBundleId: string;
     anniversaries: SiteLogoAnniversaryRule[];
     gender: SiteLogoGenderRule;
+    /** 기념일 로고 유형 — 서버 응답에 없으면 API 컴포저블이 `AUTO` 로 채운다. `PUT …/rules` 본문에 같이 보낸다 */
+    holidayStyle: SiteLogoHolidayStyle;
 }
 
 /** 보관함(묶음 목록 — 기본 제공 먼저, 그다음 올린 차례)과 보이기 규칙 */
 export interface SiteLogoLibraryResponse {
     bundles: SiteLogoBundle[];
     rules: SiteLogoRules;
+}
+
+/**
+ * 서버가 준 그대로의 보관함 응답 — `rules.holidayStyle` 이 없을 수 있다(옛 서버 jar).
+ * API 컴포저블이 `SiteLogoLibraryResponse`(늘 `rules.holidayStyle` 이 있다 — 없으면 `AUTO`)로 맞춘다.
+ */
+export interface SiteLogoLibraryRawResponse {
+    bundles: SiteLogoBundle[];
+    rules: Omit<SiteLogoRules, 'holidayStyle'> & { holidayStyle?: string | null };
 }
 
 /**

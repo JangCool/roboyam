@@ -51,9 +51,10 @@ import tools.jackson.databind.JsonNode;
  *       그림 파일(먼저 {@code POST /api/admin/files} 로 올린 {@code PENDING} 파일 — 지정하면 {@code IN_USE}, 파일 하나는 한 칸만 가리킨다) · SVG 소스
  *       ({@link SvgInspector} — 위험 요소가 있으면 정화하지 않고 거절) · 그대로({@code "KEEP"}·칸 생략) · 비움({@code null}). 저장한 뒤 <b>한 칸 이상</b> 채워져 있어야 한다.
  *       칸에서 빠진 그림 파일은 장부에서 지우고 저장소 파일은 커밋 뒤에 지운다. 묶음은 지우지 못한다(보관). 기본 제공 묶음은 고치지 못한다(409).</li>
- *   <li><b>규칙</b>({@link #saveRules}): 평소 로고 · 기념일 줄(차례 = 우선순위, 줄 전체를 갈아 끼운다) · 성별(남성·여성 묶음 또는 고르지 않음). 가리키는 묶음이 모두 있어야 한다.</li>
+ *   <li><b>규칙</b>({@link #saveRules}): 평소 로고 · 기념일 줄(차례 = 우선순위, 줄 전체를 갈아 끼운다) · 성별(남성·여성 묶음 또는 고르지 않음) ·
+ *       기념일 로고 유형({@code holidayStyle} — AUTO·CHARACTER·WORDMARK, 없으면 그대로). 가리키는 묶음이 모두 있어야 한다.</li>
  *   <li>검사 위반은 한꺼번에 {@code 400 VALIDATION} — 칸 경로 {@code name} · {@code cells} · {@code cells.koLight} … · {@code defaultBundleId} ·
- *       {@code anniversaries[0].name|mode|startDate|endDate|holidayName|bundleId} · {@code gender.male|female}.</li>
+ *       {@code anniversaries[0].name|mode|startDate|endDate|holidayName|bundleId} · {@code gender.male|female} · {@code holidayStyle}.</li>
  * </ul>
  * 사이트 설정 행(규칙)·묶음 행(고치기)을 쓰기 잠금으로 잡아 동시에 바꾸는 요청을 줄 세운다. 바뀐 일은 감사 기록({@code SITE_LOGO_BUNDLE_CREATE}·{@code SITE_LOGO_BUNDLE_UPDATE}·
  * {@code SITE_LOGO_RULES_UPDATE})에 남긴다 — 파일 이름·내용·SVG 소스는 남기지 않는다. 감사 기록이 남으면 {@code CacheAutoRefresh} 가 공개 사본({@code site.info})을 비운다.
@@ -228,6 +229,12 @@ public class SiteLogoLibraryService {
         SiteLogoRulesRequest.Gender gender = body == null ? null : body.gender();
         Long male = genderBundle(gender == null ? null : gender.male(), "gender.male", known, errors);
         Long female = genderBundle(gender == null ? null : gender.female(), "gender.female", known, errors);
+        // 기념일 로고 유형 — 보내지 않으면(null) 지금 값 그대로
+        String oldHolidayStyle = row.getHolidayLogoStyle();
+        String holidayStyle = body == null || body.holidayStyle() == null ? oldHolidayStyle : body.holidayStyle();
+        if (!SiteSettingEntity.HOLIDAY_STYLES.contains(holidayStyle)) {
+            errors.put("holidayStyle", new MessageRef("siteLogo.rules.holidayStyle.invalid"));
+        }
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
@@ -235,11 +242,13 @@ public class SiteLogoLibraryService {
         long oldDefault = row.getLogoDefaultBundleId();
         rules.deleteAllInBatch();
         next.forEach(rules::persist);
+        row.changeHolidayLogoStyle(holidayStyle);
         row.changeLogoRules(defaultId, male, female, actor.operatorId(), now);
         rules.flush();
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_RULES_UPDATE, AuditResult.SUCCESS).target("SITE", "1")
                 .with("defaultBundleId", oldDefault + " -> " + defaultId).with("anniversaries", next.size())
-                .with("male", male == null ? "" : Long.toString(male)).with("female", female == null ? "" : Long.toString(female)));
+                .with("male", male == null ? "" : Long.toString(male)).with("female", female == null ? "" : Long.toString(female))
+                .with("holidayStyle", oldHolidayStyle.equals(holidayStyle) ? holidayStyle : oldHolidayStyle + " -> " + holidayStyle));
         notices.siteSettingsChanged(actor, "siteLogo");
         log.info("로고 보이기 규칙을 저장했다 operatorId={} default={} anniversaries={}", actor.operatorId(), defaultId, next.size());
         return library(row);
@@ -445,7 +454,7 @@ public class SiteLogoLibraryService {
                         r.isYearly(), r.getHolidayName(), Long.toString(r.getBundleId())))
                 .toList();
         return new SiteLogoLibraryResponse(bundleViews, new SiteLogoLibraryResponse.Rules(Long.toString(row.getLogoDefaultBundleId()), anniversaries,
-                new SiteLogoLibraryResponse.Gender(idText(row.getLogoMaleBundleId()), idText(row.getLogoFemaleBundleId()))));
+                new SiteLogoLibraryResponse.Gender(idText(row.getLogoMaleBundleId()), idText(row.getLogoFemaleBundleId())), row.getHolidayLogoStyle()));
     }
 
     private static String idText(Long id) {

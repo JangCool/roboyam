@@ -1,4 +1,4 @@
-// Logo library + display rules (Settings > General) — one set = 4 slots, priority: special days → gender → everyday
+// Logo library + display rules (Settings > General) — one set = 4 slots, priority: special days → gender → default
 export default {
     // Logo row on the General screen and the "Logo" dialog
     pageTitle: 'Logo',
@@ -10,7 +10,7 @@ export default {
     libraryIntro: 'A logo set has 4 slots (Korean and English, each for light and dark backgrounds). Keep several sets here and choose when to show each one under "Display rules" below.',
     createButton: 'Upload new logo',
     loadFailed: 'Could not load the logo library',
-    badgeDefault: 'Everyday logo',
+    badgeDefault: 'Default logo',
     badgeRules: '{count} rule(s)',
     badgeStored: 'Stored',
     builtIn: 'Built-in',
@@ -23,7 +23,7 @@ export default {
     keepNote: 'Uploaded logos are kept, not deleted. You can pick an unused logo again later.',
 
     // The three groups of the library · the two styles of special-day logos
-    groupUsual: 'Everyday logos',
+    groupUsual: 'Default logos',
     groupDays: 'Special-day logos',
     groupUploaded: 'Uploaded logos',
     groupCount: '{count}',
@@ -31,8 +31,8 @@ export default {
     daysHide: 'Collapse',
     daysHelp: 'Each special day comes with two built-in styles, character and wordmark. Built-in logos cannot be edited.',
     uploadedEmpty: 'No uploaded logos yet. Add one with "Upload new logo".',
-    styleCharacter: 'Character',
-    styleWordmark: 'Wordmark',
+    daysStyleAria: 'Special-day logo style to view',
+    badgeInUse: 'In use',
     bundleSearch: 'Search by logo name',
 
     // Upload / edit dialog
@@ -58,21 +58,27 @@ export default {
 
     // Display rules
     rulesTitle: 'Display rules',
-    orderNote: 'The first match wins, in this order: special-day rules → gender rules → everyday logo.',
+    orderNote: 'On ordinary days the first match wins: gender logo → default logo. On special days the special-day logo is shown. When "Special-day logo style" is set to match, it uses the same style as the logo that member normally sees (gender or default).',
     todayLabel: 'Logo shown today ({date})',
     todayAnniversary: 'Special-day rule "{rule}" applies, so "{bundle}" is shown.',
-    todayDefault: 'No special-day rule applies, so the everyday logo "{bundle}" is shown.',
+    todayDefault: 'No special-day rule applies, so the default logo "{bundle}" is shown.',
     todayGenderMale: 'Signed-in male members see "{bundle}".',
     todayGenderFemale: 'Signed-in female members see "{bundle}".',
     todaySavedOnly: 'Unsaved changes are not included yet.',
-    defaultLabel: 'Everyday logo',
-    defaultHelp: 'Shown when no special-day or gender rule applies.',
+    defaultLabel: 'Default logo',
+    defaultHelp: 'Shown when no special-day rule or gender logo applies. Visitors who are not signed in also see this logo.',
     rulesSaved: 'Display rules saved',
 
     // Special-day rules
     anniversaryTitle: 'Special-day rules',
-    anniversaryHelp: 'On the chosen days, the selected logo replaces the everyday logo. If several rows match the same day, the upper row wins.',
-    anniversaryStyleNote: 'Built-in special-day logos follow the everyday logo: the character or wordmark style that matches is shown.',
+    anniversaryHelp: 'On the chosen days, the selected logo replaces the default or gender logo. If several rows match the same day, the upper row wins.',
+    anniversaryStyleNote: 'Built-in special-day logos are shown in the style (character or wordmark) chosen under "Special-day logo style" in the display rules.',
+    holidayStyleLabel: 'Special-day logo style',
+    holidayStyleAuto: 'Match default / gender logo',
+    holidayStyleCharacter: 'Character logo',
+    holidayStyleWordmark: 'Wordmark logo',
+    holidayStyleHelp: 'Applies to all {count} built-in special-day logos at once. Rules that use a logo you uploaded stay as they are.',
+    holidayStyleAutoNow: 'When matching, each member sees the same style as the logo they normally see (gender or default). For example, if the logo for male members is a wordmark logo, male members also see the wordmark style on special days. Visitors who are not signed in currently see the "{style}" style.',
     anniversaryEmpty: 'No special-day rules yet. Use "Add rule" to set a logo for days like Lunar New Year or Christmas.',
     ruleAddButton: 'Add rule',
     ruleEnabledAria: 'Use {name}',
@@ -130,7 +136,7 @@ export default {
 
     // Gender rules
     genderTitle: 'Gender rules',
-    genderHelp: 'Applies only to signed-in members who set their gender in their profile. Guests and members who did not set it see the everyday logo.',
+    genderHelp: 'Applies only to signed-in members who set their gender in their profile. Guests and members who did not set it see the default logo.',
     genderMale: 'Logo for male members',
     genderFemale: 'Logo for female members',
 };

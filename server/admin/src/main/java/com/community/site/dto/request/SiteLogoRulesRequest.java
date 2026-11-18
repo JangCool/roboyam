@@ -8,8 +8,9 @@ import java.util.List;
  * @param defaultBundleId 평소 로고 — 묶음 ID
  * @param anniversaries   기념일 줄(차례 = 우선순위, 없으면 빈 목록)
  * @param gender          성별 규칙(없으면 둘 다 고르지 않음)
+ * @param holidayStyle    기념일 로고 유형(V252, 선택) — {@code AUTO}(평소 로고에 맞춤) · {@code CHARACTER} · {@code WORDMARK}. 없으면(null) 지금 값 그대로
  */
-public record SiteLogoRulesRequest(String defaultBundleId, List<Anniversary> anniversaries, Gender gender) {
+public record SiteLogoRulesRequest(String defaultBundleId, List<Anniversary> anniversaries, Gender gender, String holidayStyle) {
 
     /**
      * 기념일 한 줄.

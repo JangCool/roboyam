@@ -16,12 +16,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 그날 보일 로고 묶음을 고른다 — <b>기념일 → 성별 → 평소</b>(docs/features/site-logo-library-contract.md 「정책」).
+ * 그날 보일 로고 묶음을 고른다(docs/features/site-logo-library-contract.md 「정책」) — 평소에는 <b>성별 로고 → 기본 로고</b>,
+ * 기념일에는 <b>그 회원에게 보일 로고(성별 로고가 있으면 그것, 없으면 기본 로고)의 유형에 맞는 기념일 벌</b>.
  * <ul>
- *   <li>기념일: 켜진 줄 가운데 그날 걸리는 맨 위 줄({@link SiteLogoRules#matches}). 그 줄이 기본 제공 기념일 묶음을 가리키면 평소 로고의 벌(캐릭터·글자)에 맞는 짝을 보인다. 쉬는 날 이름은 쉬는 날 표({@code site_holidays})에서 그날의 이름으로 푼다
- *       (쉬는 날 이름 줄이 있을 때만 읽는다).</li>
- *   <li>성별: 기념일이 안 걸린 날에만 뜻이 있다 — 서버는 성별마다 묶음을 주고, 로그인한 회원의 성별로 고르는 것은 화면이다(사이트 정보는 회원과 무관하게 캐시된다).</li>
- *   <li>평소: 그 밖의 모든 경우. 메일 로고·관리자 상단 로고처럼 「① 칸」을 쓰던 곳은 날짜와 무관하게 평소 로고를 쓴다({@link #defaultBundle}).</li>
+ *   <li>기념일: 켜진 줄 가운데 그날 걸리는 맨 위 줄({@link SiteLogoRules#matches}). 그 줄이 기본 제공 기념일 묶음을 가리키면 「기념일 로고 유형」 설정(V252)에 맞는 짝(캐릭터·글자)을 보인다 —
+ *       {@code AUTO}(기본)면 방문자·성별 로고가 없는 회원은 기본 로고의 유형, 성별 로고가 정해진 성별의 회원은 그 성별 로고의 유형에 맞는 벌,
+ *       {@code CHARACTER}·{@code WORDMARK} 면 모두에게 그 벌. 운영자가 올린 묶음을 가리키는 줄은 성별과 무관하게 그 묶음 그대로다.
+ *       쉬는 날 이름은 쉬는 날 표({@code site_holidays})에서 그날의 이름으로 푼다(쉬는 날 이름 줄이 있을 때만 읽는다).</li>
+ *   <li>성별: 서버는 성별마다 묶음을 주고, 로그인한 회원의 성별로 고르는 것은 화면이다(사이트 정보는 회원과 무관하게 캐시된다). 기념일에는 성별 무관 묶음과 다를 때만 준다.</li>
+ *   <li>기본 로고: 그 밖의 모든 경우. 메일 로고·관리자 상단 로고처럼 「① 칸」을 쓰던 곳은 날짜와 무관하게 기본 로고를 쓴다({@link #defaultBundle}).</li>
  * </ul>
  * 「그날」은 부르는 쪽이 넘긴다(서비스 시간대 날짜 — {@code ServiceTime}).
  */
@@ -43,10 +46,11 @@ public class SiteLogoResolver {
     /**
      * 그날의 로고.
      *
-     * @param bundle      성별과 무관하게 보일 묶음 — 기념일이 걸리면 그 묶음, 아니면 평소 로고
-     * @param anniversary 기념일이 걸렸는가 — 걸렸으면 성별 묶음은 쓰지 않는다({@code male}·{@code female} 이 null)
-     * @param male        남성 회원에게 보일 묶음(정하지 않았거나 기념일이면 null)
-     * @param female      여성 회원에게 보일 묶음(정하지 않았거나 기념일이면 null)
+     * @param bundle      성별과 무관하게 보일 묶음(방문자·성별 로고가 없는 회원·메일처럼 로그인 맥락이 없는 곳) — 기념일이 걸리면 그 묶음(기본 로고의 유형에 맞는 벌), 아니면 기본 로고
+     * @param anniversary 기념일이 걸렸는가
+     * @param male        남성 회원에게 보일 묶음 — 평소에는 남성 로고(정하지 않았으면 null). 기념일에는 남성 로고의 유형에 맞는 그날의 벌이
+     *                    {@code bundle} 과 <b>다른 묶음일 때만</b> 그 벌(같으면 null — {@code bundle} 을 쓴다)
+     * @param female      여성 회원에게 보일 묶음 — {@code male} 과 같은 규칙
      */
     public record Today(SiteLogoBundleEntity bundle, boolean anniversary, SiteLogoBundleEntity male, SiteLogoBundleEntity female) {
     }
@@ -59,14 +63,30 @@ public class SiteLogoResolver {
             return Optional.empty();
         }
         SiteLogoBundleEntity usual = defaultBundle(row).orElse(null);
-        Optional<SiteLogoBundleEntity> anniversary = anniversaryBundle(date).map(bundle -> matchStyle(bundle, usual));
-        if (anniversary.isPresent()) {
-            return Optional.of(new Today(anniversary.get(), true, null, null));
+        SiteLogoBundleEntity male = find(row.getLogoMaleBundleId());
+        SiteLogoBundleEntity female = find(row.getLogoFemaleBundleId());
+        SiteLogoBundleEntity pointed = anniversaryBundle(date).orElse(null);
+        if (pointed != null) {
+            String style = row.getHolidayLogoStyle();
+            SiteLogoBundleEntity neutral = matchStyle(pointed, usual, style);
+            return Optional.of(new Today(neutral, true, genderHoliday(pointed, male, style, neutral), genderHoliday(pointed, female, style, neutral)));
         }
         if (usual == null) {
             return Optional.empty();
         }
-        return Optional.of(new Today(usual, false, find(row.getLogoMaleBundleId()), find(row.getLogoFemaleBundleId())));
+        return Optional.of(new Today(usual, false, male, female));
+    }
+
+    /**
+     * 기념일에 그 성별 회원에게 보일 벌 — 성별 로고가 정해져 있으면 그 묶음의 유형에 맞는 그날의 벌({@link #matchStyle}). 성별 무관 묶음과 같으면 null
+     * (성별 로고가 없을 때, 유형 설정이 한쪽 벌로 고정일 때, 규칙이 운영자가 올린 묶음을 가리킬 때가 모두 여기에 든다).
+     */
+    private SiteLogoBundleEntity genderHoliday(SiteLogoBundleEntity pointed, SiteLogoBundleEntity genderBundle, String style, SiteLogoBundleEntity neutral) {
+        if (genderBundle == null) {
+            return null;
+        }
+        SiteLogoBundleEntity matched = matchStyle(pointed, genderBundle, style);
+        return matched.getId().equals(neutral.getId()) ? null : matched;
     }
 
     /** 평소 로고 묶음 — 설정 행이 없으면 비어 있다 */
@@ -92,15 +112,23 @@ public class SiteLogoResolver {
     }
 
     /**
-     * 기념일 로고의 두 벌 가운데 고르기(V251) — 규칙이 가리킨 묶음이 기본 제공 기념일 묶음이면 <b>평소 로고의 벌</b>에 맞는 짝으로 바꾼다:
-     * 평소 로고가 글자 로고 계열이면 그날의 글자 벌, 그 밖에는(캐릭터 로고·운영자가 올린 묶음) 캐릭터 벌. 운영자가 올린 묶음을 가리키는 규칙은 짝이 없으니 그대로다.
+     * 기념일 로고의 두 벌 가운데 고르기(V251·V252) — 규칙이 가리킨 묶음이 기본 제공 기념일 묶음이면 「기념일 로고 유형」 설정에 맞는 짝으로 바꾼다:
+     * {@code CHARACTER}·{@code WORDMARK} 면 늘 그 벌, {@code AUTO}(기본)면 <b>기준 로고의 벌</b> — 기준 로고가 글자 로고 계열이면 그날의 글자 벌,
+     * 그 밖에는(캐릭터 로고·운영자가 올린 묶음) 캐릭터 벌. 짝이 없으면 원래 묶음. 운영자가 올린 묶음을 가리키는 규칙은 짝이 없으니 그대로다.
+     *
+     * @param usual 기준 로고 — 그 사람에게 평소 보일 묶음(기본 로고 또는 그 성별의 성별 로고)
      */
-    private SiteLogoBundleEntity matchStyle(SiteLogoBundleEntity bundle, SiteLogoBundleEntity usual) {
+    private SiteLogoBundleEntity matchStyle(SiteLogoBundleEntity bundle, SiteLogoBundleEntity usual, String holidayStyle) {
         if (bundle.getDayKey() == null || bundle.getBuiltInKey() == null) {
             return bundle;
         }
-        String wanted = usual != null && SiteLogoBundleEntity.STYLE_WORDMARK.equals(usual.getBuiltInKey())
-                ? SiteLogoBundleEntity.STYLE_WORDMARK : SiteLogoBundleEntity.STYLE_CHARACTER;
+        String wanted;
+        if (SiteLogoBundleEntity.STYLE_CHARACTER.equals(holidayStyle) || SiteLogoBundleEntity.STYLE_WORDMARK.equals(holidayStyle)) {
+            wanted = holidayStyle;
+        } else {
+            wanted = usual != null && SiteLogoBundleEntity.STYLE_WORDMARK.equals(usual.getBuiltInKey())
+                    ? SiteLogoBundleEntity.STYLE_WORDMARK : SiteLogoBundleEntity.STYLE_CHARACTER;
+        }
         if (wanted.equals(bundle.getBuiltInKey())) {
             return bundle;
         }

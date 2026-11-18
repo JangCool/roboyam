@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마), V156(공지 띠), V249(로고 보이기 규칙의 평소 로고·성별 묶음 — 로고 그림은 {@link SiteLogoBundleEntity}).
@@ -25,6 +26,11 @@ public class SiteSettingEntity {
     public static final String DEFAULT_TIME_FORMAT = "H24";
     public static final String DEFAULT_DATE_FORMAT = "YMD_DASH";
 
+    /** 기념일 로고 유형의 「평소 로고에 맞춤」 — V252 의 칸 기본값 */
+    public static final String HOLIDAY_STYLE_AUTO = "AUTO";
+    /** 기념일 로고 유형의 허용 값 — V252 의 CHECK 와 같다 */
+    public static final List<String> HOLIDAY_STYLES = List.of(HOLIDAY_STYLE_AUTO, SiteLogoBundleEntity.STYLE_CHARACTER, SiteLogoBundleEntity.STYLE_WORDMARK);
+
     @Id
     private Integer id;
 
@@ -43,6 +49,12 @@ public class SiteSettingEntity {
 
     /** 성별 규칙 — 로그인한 여성 회원에게 보일 묶음(V249). 없으면(null) 평소 로고 */
     private Long logoFemaleBundleId;
+
+    /**
+     * 기념일 로고 유형(V252) — 기본 제공 기념일 묶음의 두 벌 가운데 어느 쪽을 보일지. {@link #HOLIDAY_STYLE_AUTO}(그 회원에게 평소 보일 로고 — 성별 로고 또는 기본 로고 — 의 벌에 맞춤, 기본) ·
+     * {@code CHARACTER}(늘 캐릭터 벌) · {@code WORDMARK}(늘 글자 벌) — 뒤의 둘은 {@link SiteLogoBundleEntity#STYLE_CHARACTER}·{@link SiteLogoBundleEntity#STYLE_WORDMARK} 와 같은 값이다
+     */
+    private String holidayLogoStyle;
 
     /** 사이트 아이콘의 버전 토큰(저장소 키 {@code site-icon/{버전}/…}). 없으면(null) 기본 아이콘 */
     private String iconToken;
@@ -110,6 +122,8 @@ public class SiteSettingEntity {
         setting.theme = SiteThemes.DEFAULT;
         // 평소 로고 처음 값 — V249 의 칸 기본값과 같다(기본 제공 「캐릭터 로고」)
         setting.logoDefaultBundleId = SiteLogoBundleEntity.CHARACTER_ID;
+        // 기념일 로고 유형 처음 값 — V252 의 칸 기본값과 같다(JPA 가 모든 칸을 넣으므로 여기서도 채운다)
+        setting.holidayLogoStyle = HOLIDAY_STYLE_AUTO;
         // 공지 띠 처음 값 — V156 의 칸 기본값과 같다(JPA 가 모든 칸을 넣으므로 여기서도 채운다)
         setting.noticeBarEnabled = true;
         setting.noticeBarSource = SiteNoticeBars.SOURCE_BOARD;
@@ -147,6 +161,16 @@ public class SiteSettingEntity {
 
     public Long getLogoFemaleBundleId() {
         return logoFemaleBundleId;
+    }
+
+    /** 기념일 로고 유형을 바꾼다(허용 값인지는 부르는 쪽이 확인했다 — 바꾼 사람·때는 함께 부르는 {@link #changeLogoRules} 가 남긴다) */
+    public void changeHolidayLogoStyle(String style) {
+        this.holidayLogoStyle = style;
+    }
+
+    /** 기념일 로고 유형 — 칸은 NOT NULL 이지만 비어 읽히면 「평소 로고에 맞춤」으로 본다 */
+    public String getHolidayLogoStyle() {
+        return holidayLogoStyle == null ? HOLIDAY_STYLE_AUTO : holidayLogoStyle;
     }
 
     /** 사이트 아이콘의 버전을 바꾼다. {@code null} 이면 기본 아이콘으로 되돌린다 */

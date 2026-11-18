@@ -76,9 +76,9 @@ async function load(): Promise<void> {
     }
 }
 
-/** 오늘 걸린 기념일 줄(저장된 규칙 기준) — 없으면 평소 로고 */
+/** 오늘 걸린 기념일 줄(저장된 규칙 기준) — 없으면 기본 로고 */
 const todayRule = computed(() => (library.value ? UtilSiteLogoRule.todayRule(library.value.rules, today.value, holidays.value) : null));
-/** 오늘 보일 묶음 — 기념일 묶음을 가리키는 줄이면 평소 로고의 벌에 맞는 짝(`UtilSiteLogoRule.matchStyle`) */
+/** 오늘 보일 묶음 — 기념일 묶음을 가리키는 줄이면 「기념일 로고 유형」(`rules.holidayStyle`)에 맞는 짝(`UtilSiteLogoRule.matchStyle`) */
 const todayBundle = computed(() => (library.value ? UtilSiteLogoRule.todayBundle(library.value.rules, library.value.bundles, today.value, holidays.value).bundle : null));
 const preview = computed(() => (todayBundle.value ? UtilSiteLogoRule.cardPreview(todayBundle.value.logos) : null));
 const line = computed(() => {

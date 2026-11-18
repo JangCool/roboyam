@@ -1,4 +1,4 @@
-// 로고 보관함 + 보이기 규칙(설정 > 일반) — 묶음 한 벌 = 4칸, 우선순위 기념일 → 성별 → 평소
+// 로고 보관함 + 보이기 규칙(설정 > 일반) — 묶음 한 벌 = 4칸, 우선순위 기념일 → 성별 → 기본
 export default {
     // 일반 화면의 로고 줄과 「로고」 모달
     pageTitle: '로고',
@@ -10,7 +10,7 @@ export default {
     libraryIntro: '로고 한 벌은 4칸(한글·영문 × 밝은·어두운 바탕용)이에요. 여러 벌을 올려 두고 아래 「보이기 규칙」에서 언제 어떤 로고를 보일지 정해요.',
     createButton: '새 로고 올리기',
     loadFailed: '로고 보관함을 불러오지 못했어요',
-    badgeDefault: '평소 로고',
+    badgeDefault: '기본 로고',
     badgeRules: '규칙 {count}개',
     badgeStored: '보관 중',
     builtIn: '기본 제공',
@@ -23,7 +23,7 @@ export default {
     keepNote: '올린 로고는 지우지 않고 보관해요. 쓰지 않는 로고도 나중에 다시 고를 수 있어요.',
 
     // 보관함의 세 묶음 · 기념일 로고의 두 벌
-    groupUsual: '평소 로고',
+    groupUsual: '기본 로고',
     groupDays: '기념일 로고',
     groupUploaded: '올린 로고',
     groupCount: '{count}개',
@@ -31,8 +31,8 @@ export default {
     daysHide: '접기',
     daysHelp: '기념일마다 캐릭터·글자 두 벌이 기본으로 들어 있어요. 기본 제공이라 고칠 수 없어요.',
     uploadedEmpty: '올린 로고가 없어요. 「새 로고 올리기」로 더해 보세요.',
-    styleCharacter: '캐릭터',
-    styleWordmark: '글자',
+    daysStyleAria: '볼 기념일 로고 유형',
+    badgeInUse: '사용 중',
     bundleSearch: '로고 이름으로 찾기',
 
     // 묶음 올리기·고치기 창
@@ -58,21 +58,27 @@ export default {
 
     // 보이기 규칙
     rulesTitle: '보이기 규칙',
-    orderNote: '기념일 규칙 → 성별 규칙 → 평소 로고 순서로, 먼저 맞는 로고를 보여요.',
+    orderNote: '평소에는 성별 로고 → 기본 로고 순서로, 먼저 맞는 로고를 보여요. 기념일에는 기념일 로고를 보여요. 「기념일 로고 유형」이 맞춤이면 그 회원에게 보일 로고(성별·기본)와 같은 유형의 기념일 로고를 보여요.',
     todayLabel: '오늘({date}) 보이는 로고',
     todayAnniversary: '기념일 규칙 「{rule}」에 걸려 「{bundle}」 묶음을 보여요.',
-    todayDefault: '걸린 기념일 규칙이 없어 평소 로고인 「{bundle}」 묶음을 보여요.',
+    todayDefault: '걸린 기념일 규칙이 없어 기본 로고인 「{bundle}」 묶음을 보여요.',
     todayGenderMale: '로그인한 남성 회원에게는 「{bundle}」 묶음을 보여요.',
     todayGenderFemale: '로그인한 여성 회원에게는 「{bundle}」 묶음을 보여요.',
     todaySavedOnly: '저장하지 않은 변경은 아직 들어가지 않았어요.',
-    defaultLabel: '평소 로고',
-    defaultHelp: '기념일도 성별 규칙도 걸리지 않을 때 보이는 로고예요.',
+    defaultLabel: '기본 로고',
+    defaultHelp: '기념일도 성별 로고도 걸리지 않을 때 보이는 로고예요. 로그인하지 않은 방문자에게도 이 로고가 보여요.',
     rulesSaved: '보이기 규칙을 저장했어요',
 
     // 기념일 규칙
     anniversaryTitle: '기념일 규칙',
-    anniversaryHelp: '정한 날에는 평소 로고 대신 고른 로고를 보여요. 같은 날 여러 줄이 걸리면 위에 있는 줄이 먼저예요.',
-    anniversaryStyleNote: '기본 제공 기념일 로고는 평소 로고에 맞춰 캐릭터·글자 가운데 맞는 쪽이 보여요.',
+    anniversaryHelp: '정한 날에는 기본·성별 로고 대신 고른 로고를 보여요. 같은 날 여러 줄이 걸리면 위에 있는 줄이 먼저예요.',
+    anniversaryStyleNote: '기본 제공 기념일 로고는 보이기 규칙의 「기념일 로고 유형」에서 고른 쪽(캐릭터·글자)으로 보여요.',
+    holidayStyleLabel: '기념일 로고 유형',
+    holidayStyleAuto: '기본·성별 로고에 맞춤',
+    holidayStyleCharacter: '캐릭터 로고',
+    holidayStyleWordmark: '글자 로고',
+    holidayStyleHelp: '기본 제공 기념일 로고 {count}일 전체에 한 번에 적용돼요. 직접 올린 로고를 건 규칙은 그대로예요.',
+    holidayStyleAutoNow: '맞춤이면 회원마다 평소에 보는 로고(성별·기본)와 같은 유형으로 보여요. 예를 들어 남성 회원에게 보일 로고가 글자 로고면 남성 회원에게는 기념일에도 글자 로고를 보여요. 지금 로그인하지 않은 방문자에게는 「{style}」로 보여요.',
     anniversaryEmpty: '기념일 규칙이 없어요. 「규칙 더하기」로 설날·크리스마스 같은 날의 로고를 정해 보세요.',
     ruleAddButton: '규칙 더하기',
     ruleEnabledAria: '{name} 사용',
@@ -130,7 +136,7 @@ export default {
 
     // 성별 규칙
     genderTitle: '성별 규칙',
-    genderHelp: '로그인한 회원이 내 정보에 성별을 밝힌 경우에만 적용돼요. 로그인하지 않았거나 밝히지 않은 회원에게는 평소 로고가 보여요.',
+    genderHelp: '로그인한 회원이 내 정보에 성별을 밝힌 경우에만 적용돼요. 로그인하지 않았거나 밝히지 않은 회원에게는 기본 로고가 보여요.',
     genderMale: '남성 회원에게 보일 로고',
     genderFemale: '여성 회원에게 보일 로고',
 };

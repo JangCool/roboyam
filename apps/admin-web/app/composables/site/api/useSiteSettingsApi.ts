@@ -21,7 +21,7 @@ import type {
  *   - `PUT /api/admin/site/basic` `{ siteName, tagline|null }` → 200 저장된 모양  (`site.manage`)
  *       · 400 VALIDATION(`fields.siteName` 1~50자·`<` `>` 제어 문자 없음, `fields.tagline` 0~100자·`<` `>` 없음, 둘 다 한꺼번에) · 403 PERMISSION_DENIED
  *   - 로고는 여기 없다 — 로고 보관함·보이기 규칙 API(`useSiteLogoLibraryApi`, `/api/admin/site/logo-library/**`)가 맡는다. 옛 단일 로고·4칸 API(`/api/admin/site/logo**`·`/logos/**`)는 서버에서 지워졌다(V249).
- *       응답의 `logoUrl`·`me` 의 `siteLogoUrl` 은 평소 로고 묶음의 한글·밝은 칸이다.
+ *       응답의 `logoUrl`·`me` 의 `siteLogoUrl` 은 기본 로고 묶음의 한글·밝은 칸이다.
  *   - 사이트 아이콘(저장 단추 없이 즉시 적용) — 서버가 그림을 여러 크기로 다시 만들어 저장하므로 바이트를 곧바로 `POST` 한다(한 걸음):
  *       · `GET /api/admin/site/icon` → 200 `{ custom, previewUrl|null, defaultPreviewUrl }`  (`site.read`)
  *       · `POST /api/admin/site/icon` multipart `file` → 200 위와 같은 모양 · 400 VALIDATION(`fields.file` — 첫 걸림 하나, 지금 크기·용량 포함)  (`site.manage`)

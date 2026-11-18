@@ -4,18 +4,18 @@
         모달 안이라 구획에 주소(`anchor`)를 주지 않는다(일반 화면의 우측 구역 내비에 올리지 않는다). 모달이 열릴 때마다 새로 만들어져 다시 읽으므로, 저장하지 않은 규칙 변경은 모달을 닫으면 버려진다.
         이 위에 겹쳐 뜨는 창(묶음 고치기·기념일 규칙 줄)이 열려 있는지는 `overlay` 로 알린다 — PrimeVue Dialog 는 창마다 문서에 Esc 를 걸어 두어, 바깥 모달이 그동안 Esc 를 끄지 않으면 Esc 한 번에 둘 다 닫힌다.
         묶음 목록은 줄 형식이다(한 줄에 묶음 하나 — 밝은·어두운 바탕 미리보기, 이름·배지, 올린 날·칸 수, 오른쪽 끝 [보기]/[고치기], 줄 사이 구분선).
-        기념일 로고가 기본 제공으로 들어와(평소 2 + 기념일 28일 × 두 벌 = 58개, 기념일 규칙 28줄) 목록을 세 묶음으로 나눈다 — 평소 로고 · 기념일 로고(날마다 한 줄에 캐릭터 벌·글자 벌, 처음엔 접힘) · 올린 로고.
-          날 이름은 서버가 준 묶음 이름에서 벌 표시를 뗀 것이다(`UtilSiteLogoRule.dayName`). 기념일 규칙이 기념일 묶음을 가리키면 실제로는 평소 로고의 벌에 맞는 짝이 보인다 —
+        기념일 로고가 기본 제공으로 들어와(기본 2 + 기념일 28일 × 두 벌 = 58개, 기념일 규칙 28줄) 목록을 세 묶음으로 나눈다 — 기본 로고 · 기념일 로고(처음엔 접힘, 펼치면 캐릭터 로고 | 글자 로고 전환으로 한 유형씩 줄 형식) · 올린 로고.
+          기념일 규칙이 기념일 묶음을 가리키면 실제로는 「기념일 로고 유형」(`rules.holidayStyle` — AUTO 면 그 회원이 평소에 보는 로고(성별 로고 → 기본 로고)의 벌, 아니면 고른 벌. 화면 계산은 방문자 = 기본 로고 기준)에 맞는 짝이 보인다 —
           규칙 줄 미리보기·「오늘 보이는 로고」가 그 계산(`UtilSiteLogoRule.matchStyle`, 서버 `SiteLogoResolver.matchStyle` 과 같다)을 쓴다. 기념일 규칙 목록은 최대 높이 안에서 넘겨 본다.
         예전 일반 화면 「기본 정보」 안 로고 4칸을 넓힌 것이다(`docs/features/site-logo-variants-contract.md` 의 4칸이 묶음 한 벌이 된다).
-          · 로고 보관함: 묶음(한 벌 = 4칸)을 카드로 나열한다 — 밝은 바탕 한글 칸 미리보기 · 이름 · 올린 날 · 채워진 칸 수 · 지금 쓰이는 곳(「평소 로고」/「규칙 n개」/「보관 중」).
+          · 로고 보관함: 묶음(한 벌 = 4칸)을 카드로 나열한다 — 밝은 바탕 한글 칸 미리보기 · 이름 · 올린 날 · 채워진 칸 수 · 지금 쓰이는 곳(「기본 로고」/「규칙 n개」/「보관 중」).
             기본 제공 묶음 2개(「캐릭터 로고」·「글자 로고」)는 늘 있고 고치지 못한다(보기만). 「새 로고 올리기」로 더하고, 올린 묶음은 이름·칸·「이름 포함」을 고친다(`SiteLogoBundleDialog` — 창의 [저장] 한 번).
             **삭제 단추는 없다** — 올린 로고는 지우지 않고 보관해 나중에도 고른다(사용자 결정).
-          · 보이기 규칙: 우선순위 기념일 → 성별 → 평소. 평소 로고(묶음 하나) · 기념일 규칙(줄 더하기·고치기·빼기·사용 켬/끔·순서 — 위 줄이 먼저, `SiteLogoRuleDialog`) · 성별 규칙(남성·여성 각각, 로그인한 회원만).
+          · 보이기 규칙: 우선순위 기념일 → 성별 → 기본. 기본 로고(묶음 하나) · 기념일 규칙(줄 더하기·고치기·빼기·사용 켬/끔·순서 — 위 줄이 먼저, `SiteLogoRuleDialog`) · 성별 규칙(남성·여성 각각, 로그인한 회원만).
             구획의 [저장] 한 번으로 저장한다. 「오늘 보이는 로고」는 **저장된 규칙** 기준 요약이다(계산 `UtilSiteLogoRule` — 실제 표시는 서버·공개 사이트 몫, API 단계).
         서버에 연결돼 있다(`useSiteLogoLibraryApi` — `/api/admin/site/logo-library/**`, `docs/features/site-logo-library-contract.md`). 응답이 늘 묶음 목록 + 규칙 전체라 그것으로 다시 그린다.
           서버 칸 오류는 가공하지 않고 그 칸·그 줄 아래에 보인다(묶음 창: `name`·`cells`·`cells.<칸>` / 규칙: `defaultBundleId`·`anniversaries[i].…`·`gender.male|female`), 칸이 없는 오류(404·409 등)는 아래 한 줄.
-          규칙을 저장하면 기념일 줄 id 가 새로 매겨져 온다. 평소 로고 묶음의 한글·밝은 칸은 관리자 화면 상단 로고이기도 해서 저장 뒤 바로 맞춘다(`setSiteLogoUrl`).
+          규칙을 저장하면 기념일 줄 id 가 새로 매겨져 온다. 기본 로고 묶음의 한글·밝은 칸은 관리자 화면 상단 로고이기도 해서 저장 뒤 바로 맞춘다(`setSiteLogoUrl`).
           쉬는 날 목록은 휴일 관리 표(`useHolidayApi().year`)를 쓰고, 못 받거나 비면 고를 것이 없다는 안내를 보인다.
         권한: 조회 `site.read`, 변경 `site.manage` — 없으면 올리기·고치기·저장이 사라지고 보기만 한다. 다른 구획과 따로 읽고 저장한다.
     -->
@@ -34,7 +34,7 @@
             <p class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.libraryIntro') }}</p>
 
             <!--
-                세 묶음 — 평소 로고(기본 제공 2) · 기념일 로고(날마다 한 줄: 캐릭터 벌·글자 벌 나란히, 처음엔 접혀 있다) · 올린 로고(줄 형식).
+                세 묶음 — 기본 로고(기본 제공 2) · 기념일 로고(처음엔 접혀 있다 — 펼치면 고른 유형의 벌만) · 올린 로고. 모두 같은 줄 형식.
                 줄 형식: 한 줄에 묶음 하나, 줄 사이 구분선. 좁으면 한 줄 안에서 줄바꿈된다(미리보기·이름 위, 정보·단추 아래).
             -->
             <section v-for="section in sections" :key="section.key" class="flex flex-col gap-2" :aria-labelledby="`${uid}-group-${section.key}`">
@@ -56,49 +56,40 @@
                     />
                 </div>
 
-                <!-- 기념일 로고 — 날마다 한 줄. 펼쳤을 때만 그린다(그림 56장) -->
+                <!-- 기념일 로고 — 펼치면 유형 전환(캐릭터 로고 | 글자 로고)이 나오고, 고른 유형의 묶음만 아래 줄 목록(기본 로고와 같은 형식)으로 그린다(그림은 펼쳤을 때만) -->
                 <template v-if="section.key === 'days'">
                     <p class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.daysHelp') }}</p>
-                    <ul v-if="daysOpen" :id="`${uid}-days`" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-xl border border-(--line) p-0">
-                        <li v-for="pair in parts.days" :key="pair.dayKey" class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2">
-                            <div class="flex min-w-32 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                                <h4 class="min-w-0 truncate text-sm font-semibold">{{ pair.name }}</h4>
-                                <Tag v-if="dayUsage(pair).isDefault" class="site-logo-tag" :value="t('siteLogo.badgeDefault')" severity="success" />
-                                <Tag v-if="dayUsage(pair).ruleCount > 0" class="site-logo-tag" :value="t('siteLogo.badgeRules', { count: dayUsage(pair).ruleCount })" severity="info" />
-                            </div>
-                            <span v-for="item in dayItems(pair)" :key="item.bundle.id" class="flex shrink-0 items-center gap-1.5">
-                                <span class="text-xs text-muted-color">{{ item.label }}</span>
-                                <span class="flex h-9 w-28 items-center justify-center overflow-hidden rounded-md border border-(--line) bg-surface-0 px-2 text-surface-900">
-                                    <img v-if="UtilSiteLogoRule.cardPreview(item.bundle.logos)" :src="UtilSiteLogoRule.cardPreview(item.bundle.logos) ?? undefined" alt="" loading="lazy" class="block h-5 w-auto max-w-full object-contain" />
-                                    <i v-else class="pi pi-image opacity-60" aria-hidden="true" />
-                                </span>
-                                <Button type="button" :label="t('siteLogo.viewButton')" size="small" severity="secondary" variant="text" :aria-label="t('siteLogo.viewAria', { name: item.bundle.name })" @click="openBundle(item.bundle)" />
+                    <SelectButton v-if="daysOpen" :model-value="daysStyle" :options="styleOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('siteLogo.daysStyleAria')" class="self-start" @update:model-value="onDaysStyleChange">
+                        <template #option="{ option }">
+                            <span class="flex items-center gap-1.5">
+                                <span>{{ option.label }}</span>
+                                <Tag v-if="option.value === usedStyle" class="site-logo-tag" :value="t('siteLogo.badgeInUse')" severity="success" />
                             </span>
-                        </li>
-                    </ul>
+                        </template>
+                    </SelectButton>
                 </template>
 
-                <p v-else-if="!section.bundles.length" class="rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-xs text-muted-color">{{ t('siteLogo.uploadedEmpty') }}</p>
+                <p v-if="section.key !== 'days' && !section.bundles.length" class="rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-xs text-muted-color">{{ t('siteLogo.uploadedEmpty') }}</p>
 
-                <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-xl border border-(--line) p-0">
+                <ul v-else-if="section.bundles.length" :id="section.key === 'days' ? `${uid}-days` : undefined" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-xl border border-(--line) p-0">
                 <li v-for="bundle in section.bundles" :key="bundle.id" class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
                     <!-- 밝은 바탕 한글 칸 미리보기(비었으면 채워진 첫 칸) + 어두운 바탕 한글 칸(올려 둔 것이 있을 때만) — 그림은 `<img src>` 하나로만 -->
                     <span class="flex shrink-0 items-center gap-1.5">
                         <span class="flex h-9 w-28 items-center justify-center overflow-hidden rounded-md border border-(--line) bg-surface-0 px-2 text-surface-900">
-                            <img v-if="UtilSiteLogoRule.cardPreview(bundle.logos)" :src="UtilSiteLogoRule.cardPreview(bundle.logos) ?? undefined" alt="" class="block h-5 w-auto max-w-full object-contain" />
+                            <img v-if="UtilSiteLogoRule.cardPreview(bundle.logos)" :src="UtilSiteLogoRule.cardPreview(bundle.logos) ?? undefined" alt="" loading="lazy" class="block h-5 w-auto max-w-full object-contain" />
                             <i v-else class="pi pi-image opacity-60" aria-hidden="true" />
                         </span>
                         <span v-if="bundle.logos.koDark" class="flex h-9 w-28 items-center justify-center overflow-hidden rounded-md border border-(--line) bg-surface-900 px-2 max-sm:hidden">
-                            <img :src="bundle.logos.koDark" alt="" class="block h-5 w-auto max-w-full object-contain" />
+                            <img :src="bundle.logos.koDark" alt="" loading="lazy" class="block h-5 w-auto max-w-full object-contain" />
                         </span>
                     </span>
 
                     <div class="flex min-w-40 flex-1 flex-col gap-0.5">
                         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                             <h4 class="min-w-0 truncate text-sm font-semibold">{{ bundle.name }}</h4>
-                            <Tag v-if="usageOf(bundle.id).isDefault" class="site-logo-tag" :value="t('siteLogo.badgeDefault')" severity="success" />
-                            <Tag v-if="usageOf(bundle.id).ruleCount > 0" class="site-logo-tag" :value="t('siteLogo.badgeRules', { count: usageOf(bundle.id).ruleCount })" severity="info" />
-                            <Tag v-if="!usageOf(bundle.id).isDefault && usageOf(bundle.id).ruleCount === 0" class="site-logo-tag" :value="t('siteLogo.badgeStored')" severity="secondary" />
+                            <Tag v-if="rowUsage(bundle).isDefault" class="site-logo-tag" :value="t('siteLogo.badgeDefault')" severity="success" />
+                            <Tag v-if="rowUsage(bundle).ruleCount > 0" class="site-logo-tag" :value="t('siteLogo.badgeRules', { count: rowUsage(bundle).ruleCount })" severity="info" />
+                            <Tag v-if="!rowUsage(bundle).isDefault && rowUsage(bundle).ruleCount === 0" class="site-logo-tag" :value="t('siteLogo.badgeStored')" severity="secondary" />
                         </div>
                         <p class="text-xs leading-relaxed text-muted-color">
                             {{ bundle.builtIn ? t('siteLogo.builtIn') : t('siteLogo.uploadedAt', { date: time.date(bundle.createdAt) }) }}
@@ -151,12 +142,30 @@
                 <p v-if="changeCount > 0" class="text-xs text-muted-color">{{ t('siteLogo.todaySavedOnly') }}</p>
             </div>
 
-            <!-- 평소 로고 -->
+            <!-- 기본 로고 -->
             <LabeledField :label="t('siteLogo.defaultLabel')" :help="t('siteLogo.defaultHelp')" :error="ruleFields.defaultBundleId ?? ''">
                 <template #default="{ id, describedBy, invalid }">
                     <SiteLogoBundleSelect :model-value="draft.defaultBundleId" :bundles="saved.bundles" :input-id="id" :disabled="!canManage || saving" :invalid="invalid" :described-by="describedBy" @update:model-value="onDefaultChange" />
                 </template>
             </LabeledField>
+
+            <!-- 성별 규칙 — 기본 로고 바로 아래(평소에 보이는 로고: 성별 → 기본) -->
+            <div role="group" :aria-labelledby="`${uid}-gender`" class="flex flex-col gap-2">
+                <h3 :id="`${uid}-gender`" class="text-sm font-medium">{{ t('siteLogo.genderTitle') }}</h3>
+                <p class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.genderHelp') }}</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <LabeledField :label="t('siteLogo.genderMale')" :error="ruleFields['gender.male'] ?? ''">
+                        <template #default="{ id, describedBy, invalid }">
+                            <SiteLogoBundleSelect :model-value="draft.gender.male" :bundles="saved.bundles" allow-empty :input-id="id" :disabled="!canManage || saving" :invalid="invalid" :described-by="describedBy" @update:model-value="(value) => setGender('male', value)" />
+                        </template>
+                    </LabeledField>
+                    <LabeledField :label="t('siteLogo.genderFemale')" :error="ruleFields['gender.female'] ?? ''">
+                        <template #default="{ id, describedBy, invalid }">
+                            <SiteLogoBundleSelect :model-value="draft.gender.female" :bundles="saved.bundles" allow-empty :input-id="id" :disabled="!canManage || saving" :invalid="invalid" :described-by="describedBy" @update:model-value="(value) => setGender('female', value)" />
+                        </template>
+                    </LabeledField>
+                </div>
+            </div>
 
             <!-- 기념일 규칙 -->
             <div role="group" :aria-labelledby="`${uid}-anniversary`" class="flex flex-col gap-2">
@@ -164,7 +173,31 @@
                     <h3 :id="`${uid}-anniversary`" class="text-sm font-medium">{{ t('siteLogo.anniversaryTitle') }}</h3>
                     <Button v-if="canManage" type="button" :label="t('siteLogo.ruleAddButton')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" class="ml-auto" :disabled="saving" @click="openRule(null)" />
                 </div>
-                <p class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.anniversaryHelp') }} {{ t('siteLogo.anniversaryStyleNote') }}</p>
+                <p class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.anniversaryHelp') }}</p>
+
+                <!-- 기념일 로고 유형 — 기본 제공 기념일 로고 전체가 어느 벌로 보일지(초안 값 — 바꾸면 아래 줄 미리보기가 바로 따라온다) -->
+                <div class="flex flex-col gap-1.5">
+                    <span :id="`${uid}-holiday-style`" class="text-sm font-medium">{{ t('siteLogo.holidayStyleLabel') }}</span>
+                    <SelectButton
+                        :model-value="draft.holidayStyle"
+                        :options="holidayStyleOptions"
+                        option-label="label"
+                        option-value="value"
+                        :allow-empty="false"
+                        size="small"
+                        :disabled="!canManage || saving"
+                        :invalid="Boolean(ruleFields.holidayStyle)"
+                        :aria-labelledby="`${uid}-holiday-style`"
+                        :aria-describedby="`${uid}-holiday-style-help`"
+                        class="self-start"
+                        @update:model-value="onHolidayStyleChange"
+                    />
+                    <p :id="`${uid}-holiday-style-help`" class="text-xs leading-relaxed text-muted-color">
+                        {{ t('siteLogo.holidayStyleHelp', { count: parts.days.length }) }}
+                        <template v-if="draft.holidayStyle === 'AUTO'">{{ t('siteLogo.holidayStyleAutoNow', { style: styleLabel(draftStyle) }) }}</template>
+                    </p>
+                    <p v-if="ruleFields.holidayStyle" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ ruleFields.holidayStyle }}</p>
+                </div>
 
                 <p v-if="!draft.anniversaries.length" class="rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-xs text-muted-color">{{ t('siteLogo.anniversaryEmpty') }}</p>
 
@@ -199,24 +232,6 @@
                 </ol>
 
                 <p v-if="ruleFields.anniversaries" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ ruleFields.anniversaries }}</p>
-            </div>
-
-            <!-- 성별 규칙 -->
-            <div role="group" :aria-labelledby="`${uid}-gender`" class="flex flex-col gap-2">
-                <h3 :id="`${uid}-gender`" class="text-sm font-medium">{{ t('siteLogo.genderTitle') }}</h3>
-                <p class="text-xs leading-relaxed text-muted-color">{{ t('siteLogo.genderHelp') }}</p>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <LabeledField :label="t('siteLogo.genderMale')" :error="ruleFields['gender.male'] ?? ''">
-                        <template #default="{ id, describedBy, invalid }">
-                            <SiteLogoBundleSelect :model-value="draft.gender.male" :bundles="saved.bundles" allow-empty :input-id="id" :disabled="!canManage || saving" :invalid="invalid" :described-by="describedBy" @update:model-value="(value) => setGender('male', value)" />
-                        </template>
-                    </LabeledField>
-                    <LabeledField :label="t('siteLogo.genderFemale')" :error="ruleFields['gender.female'] ?? ''">
-                        <template #default="{ id, describedBy, invalid }">
-                            <SiteLogoBundleSelect :model-value="draft.gender.female" :bundles="saved.bundles" allow-empty :input-id="id" :disabled="!canManage || saving" :invalid="invalid" :described-by="describedBy" @update:model-value="(value) => setGender('female', value)" />
-                        </template>
-                    </LabeledField>
-                </div>
             </div>
 
             <Message v-if="formError" severity="error" variant="simple" size="small">{{ formError }}</Message>
@@ -258,11 +273,13 @@ import type {
     SiteLogoAnniversaryRule,
     SiteLogoBundle,
     SiteLogoBundleInput,
+    SiteLogoHolidayStyle,
     SiteLogoLibraryResponse,
     SiteLogoRules,
+    SiteLogoStyle,
 } from '~/composables/site/api/useSiteLogoLibraryApi.types';
 import UtilSiteLogo from '~/utils/util-site-logo';
-import UtilSiteLogoRule, { type SiteLogoBundleUsage, type SiteLogoDayPair } from '~/utils/util-site-logo-rule';
+import UtilSiteLogoRule, { type SiteLogoBundleUsage } from '~/utils/util-site-logo-rule';
 import UtilSiteLogoRuleMessages from '~/utils/util-site-logo-rule-messages';
 
 const emit = defineEmits<{
@@ -344,7 +361,7 @@ function usageOf(id: string): SiteLogoBundleUsage {
     return usages.value.get(id) ?? { isDefault: false, ruleCount: 0 };
 }
 
-/* ── 보관함의 세 묶음(평소 로고 · 기념일 로고 · 올린 로고) ── */
+/* ── 보관함의 세 묶음(기본 로고 · 기념일 로고 · 올린 로고) ── */
 
 const parts = computed(() => UtilSiteLogoRule.groups(saved.value?.bundles ?? []));
 /** 기념일 로고 구획을 펼쳤는가 — 처음엔 접혀 있다(모달이 길어지지 않게, 그림 56장을 미리 그리지 않게) */
@@ -353,34 +370,57 @@ const daysOpen = ref(false);
 interface LibrarySection {
     key: 'usual' | 'days' | 'uploaded';
     title: string;
-    /** 평소·올린 로고는 묶음 수, 기념일 로고는 날 수 */
+    /** 기본·올린 로고는 묶음 수, 기념일 로고는 날 수 */
     count: number;
-    /** 줄 형식으로 그릴 묶음(기념일 구획은 `parts.days` 를 따로 그린다) */
+    /** 줄 형식으로 그릴 묶음 — 기념일 구획은 펼쳤을 때만, 고른 유형의 벌만 */
     bundles: SiteLogoBundle[];
 }
 
+/* ── 기념일 로고 유형(캐릭터 로고 | 글자 로고) ── */
+
+function styleLabel(style: SiteLogoStyle): string {
+    return style === 'WORDMARK' ? t('siteLogo.holidayStyleWordmark') : t('siteLogo.holidayStyleCharacter');
+}
+
+const styleOptions = computed<{ label: string; value: SiteLogoStyle }[]>(() => [
+    { label: styleLabel('CHARACTER'), value: 'CHARACTER' },
+    { label: styleLabel('WORDMARK'), value: 'WORDMARK' },
+]);
+/** 보이기 규칙의 「기념일 로고 유형」 고르개 */
+const holidayStyleOptions = computed<{ label: string; value: SiteLogoHolidayStyle }[]>(() => [{ label: t('siteLogo.holidayStyleAuto'), value: 'AUTO' }, ...styleOptions.value]);
+
+/** 지금 실제로 쓰이는 벌 — 저장된 규칙 기준(보관함의 다른 배지와 같다), 로그인하지 않은 방문자(기본 로고) 기준. 「사용 중」 표시와 보관함 전환의 처음 값 */
+const usedStyle = computed<SiteLogoStyle>(() => (saved.value ? UtilSiteLogoRule.holidayStyle(saved.value.rules, saved.value.bundles) : 'CHARACTER'));
+/** 초안 기준으로 쓰일 벌(방문자 기준) — 「기본·성별 로고에 맞춤」일 때 어느 쪽이 되는지 안내한다 */
+const draftStyle = computed<SiteLogoStyle>(() => (saved.value && draft.value ? UtilSiteLogoRule.holidayStyle(draft.value, saved.value.bundles) : usedStyle.value));
+
+/** 보관함에서 직접 고른 유형 — 고르기 전(null)에는 지금 쓰이는 유형을 본다 */
+const daysStylePicked = ref<SiteLogoStyle | null>(null);
+const daysStyle = computed<SiteLogoStyle>(() => daysStylePicked.value ?? usedStyle.value);
+
+function onDaysStyleChange(value: SiteLogoStyle | null): void {
+    if (value) daysStylePicked.value = value;
+}
+
+/** 기념일 구획에 그릴 묶음 — 날마다 고른 유형의 벌 하나(없는 날은 뺀다) */
+const dayBundles = computed(() => parts.value.days.map((pair) => (daysStyle.value === 'WORDMARK' ? pair.wordmark : pair.character)).filter((bundle): bundle is SiteLogoBundle => bundle !== null));
+
 const sections = computed<LibrarySection[]>(() => [
     { key: 'usual', title: t('siteLogo.groupUsual'), count: parts.value.usual.length, bundles: parts.value.usual },
-    { key: 'days', title: t('siteLogo.groupDays'), count: parts.value.days.length, bundles: [] },
+    { key: 'days', title: t('siteLogo.groupDays'), count: parts.value.days.length, bundles: daysOpen.value ? dayBundles.value : [] },
     { key: 'uploaded', title: t('siteLogo.groupUploaded'), count: parts.value.uploaded.length, bundles: parts.value.uploaded },
 ]);
 
-/** 한 날의 두 벌 — 캐릭터 벌·글자 벌 차례(없는 쪽은 뺀다) */
-function dayItems(pair: SiteLogoDayPair): { label: string; bundle: SiteLogoBundle }[] {
-    const items: { label: string; bundle: SiteLogoBundle }[] = [];
-    if (pair.character) items.push({ label: t('siteLogo.styleCharacter'), bundle: pair.character });
-    if (pair.wordmark) items.push({ label: t('siteLogo.styleWordmark'), bundle: pair.wordmark });
-    return items;
-}
-
-/** 한 날이 쓰이는 곳 — 두 벌의 것을 더한다(규칙은 어느 벌을 가리켜도 같은 날이다) */
-function dayUsage(pair: SiteLogoDayPair): SiteLogoBundleUsage {
+/** 줄의 배지 — 기념일 묶음은 그날 두 벌의 것을 더한다(규칙은 어느 벌을 가리켜도 같은 날이다) */
+function rowUsage(bundle: SiteLogoBundle): SiteLogoBundleUsage {
+    const pair = bundle.builtIn && bundle.dayKey ? parts.value.days.find((item) => item.dayKey === bundle.dayKey) : null;
+    if (!pair) return usageOf(bundle.id);
     const a = pair.character ? usageOf(pair.character.id) : { isDefault: false, ruleCount: 0 };
     const b = pair.wordmark ? usageOf(pair.wordmark.id) : { isDefault: false, ruleCount: 0 };
     return { isDefault: a.isDefault || b.isDefault, ruleCount: a.ruleCount + b.ruleCount };
 }
 
-/** 기념일 규칙 줄이 실제로 보일 묶음 — 초안의 평소 로고를 따라 저장 전 미리보기도 바뀐다 */
+/** 기념일 규칙 줄이 실제로 보일 묶음 — 초안의 기념일 로고 유형·기본 로고를 따라 저장 전 미리보기도 바뀐다 */
 function shownOf(bundleId: string): SiteLogoBundle | null {
     return saved.value && draft.value ? UtilSiteLogoRule.shownBundle(draft.value, bundleId, saved.value.bundles) : null;
 }
@@ -388,20 +428,33 @@ function shownOf(bundleId: string): SiteLogoBundle | null {
 /* ── 오늘 보이는 로고(저장된 규칙 기준) ── */
 
 const todayRule = computed(() => (saved.value ? UtilSiteLogoRule.todayRule(saved.value.rules, today.value, holidays.value) : null));
-/** 오늘 보일 묶음 — 기념일 묶음을 가리키는 줄이면 평소 로고의 벌에 맞는 짝(`matchStyle`) */
+/** 오늘 보일 묶음 — 기념일 묶음을 가리키는 줄이면 저장된 「기념일 로고 유형」에 맞는 짝(`matchStyle`) */
 const todayBundleId = computed(() => (saved.value ? (UtilSiteLogoRule.todayBundle(saved.value.rules, saved.value.bundles, today.value, holidays.value).bundle?.id ?? null) : null));
 const todayPreview = computed(() => previewOf(todayBundleId.value));
 const todayLine = computed(() => {
     const bundle = nameOf(todayBundleId.value);
     return todayRule.value ? t('siteLogo.todayAnniversary', { rule: todayRule.value.name, bundle }) : t('siteLogo.todayDefault', { bundle });
 });
-/** 기념일이 걸리지 않은 날에만 성별 규칙이 보인다 */
+/**
+ * 성별 로고가 정해진 회원에게 오늘 보일 묶음 — 기념일이 없는 날은 그 성별 로고,
+ * 기념일에는 그 줄의 묶음을 그 성별 로고의 벌에 맞춘 짝(유형이 「맞춤」일 때만 방문자와 달라진다). 방문자와 같으면 null(줄을 더하지 않는다)
+ */
+function todayGenderBundleId(genderBundleId: string | null): string | null {
+    const lib = saved.value;
+    if (!lib || !genderBundleId) return null;
+    if (!todayRule.value) return genderBundleId;
+    const id = UtilSiteLogoRule.shownBundle(lib.rules, todayRule.value.bundleId, lib.bundles, genderBundleId)?.id ?? null;
+    return id && id !== todayBundleId.value ? id : null;
+}
+
 const todayGenderLines = computed(() => {
     const rules = saved.value?.rules;
-    if (!rules || todayRule.value) return [];
+    if (!rules) return [];
     const lines: string[] = [];
-    if (rules.gender.male) lines.push(t('siteLogo.todayGenderMale', { bundle: nameOf(rules.gender.male) }));
-    if (rules.gender.female) lines.push(t('siteLogo.todayGenderFemale', { bundle: nameOf(rules.gender.female) }));
+    const male = todayGenderBundleId(rules.gender.male);
+    const female = todayGenderBundleId(rules.gender.female);
+    if (male) lines.push(t('siteLogo.todayGenderMale', { bundle: nameOf(male) }));
+    if (female) lines.push(t('siteLogo.todayGenderFemale', { bundle: nameOf(female) }));
     return lines;
 });
 
@@ -425,13 +478,19 @@ function ruleRowError(index: number): string {
 
 /** 화면에 자리(칸·줄)가 있어 보이는 서버 칸 오류 수 — 0 이면 폼 아래 한 줄로 보인다 */
 const shownRuleFieldCount = computed(
-    () => Object.keys(ruleFields.value).filter((key) => key === 'defaultBundleId' || key === 'gender.male' || key === 'gender.female' || key === 'anniversaries' || /^anniversaries\[\d+\]\./.test(key)).length,
+    () => Object.keys(ruleFields.value).filter((key) => key === 'defaultBundleId' || key === 'holidayStyle' || key === 'gender.male' || key === 'gender.female' || key === 'anniversaries' || /^anniversaries\[\d+\]\./.test(key)).length,
 );
 
 function onDefaultChange(value: string | null): void {
     if (!draft.value || !value) return;
     draft.value.defaultBundleId = value;
     clearRuleFields('defaultBundleId');
+}
+
+function onHolidayStyleChange(value: SiteLogoHolidayStyle | null): void {
+    if (!draft.value || !value) return;
+    draft.value.holidayStyle = value;
+    clearRuleFields('holidayStyle');
 }
 
 function setGender(key: 'male' | 'female', value: string | null): void {
@@ -445,7 +504,7 @@ function setRuleEnabled(index: number, enabled: boolean): void {
     if (rule) rule.enabled = enabled;
 }
 
-/** 관리자 화면 상단 로고(`me` 의 `siteLogoUrl`)는 평소 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸)이다 — 규칙·묶음을 저장하면 바로 맞춘다 */
+/** 관리자 화면 상단 로고(`me` 의 `siteLogoUrl`)는 기본 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸)이다 — 규칙·묶음을 저장하면 바로 맞춘다 */
 function syncAdminLogo(): void {
     const bundle = bundleOf(saved.value?.rules.defaultBundleId ?? null);
     setSiteLogoUrl(bundle ? UtilSiteLogoRule.cardPreview(bundle.logos) : null);

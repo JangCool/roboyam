@@ -3,13 +3,14 @@ import type {
     SiteLogoBundle,
     SiteLogoHolidayOption,
     SiteLogoRules,
+    SiteLogoStyle,
 } from '~/composables/site/api/useSiteLogoLibraryApi.types';
 import { SITE_LOGO_RULE_NAME_MAX } from '~/composables/site/api/useSiteLogoLibraryApi.types';
 import UtilSiteLogo, { type SiteLogoSet } from '~/utils/util-site-logo';
 
 /**
  * 로고 보이기 규칙 — 어느 규칙이 걸리는지·묶음이 어디에 쓰이는지·기념일 줄 검사를 하는 순수 함수 한 곳. 상태도 요청도 없다.
- * 우선순위: 기념일(위 줄이 먼저, 사용 켬인 줄만) → 성별(로그인한 회원만) → 평소 로고.
+ * 우선순위: 기념일(위 줄이 먼저, 사용 켬인 줄만) → 성별(로그인한 회원만) → 기본 로고.
  * ⚠ 실제로 어떤 로고를 보일지는 서버·공개 사이트가 정한다(API 단계) — 여기 계산은 관리 화면의 「오늘 보이는 로고」 요약과 미리 검사용이다.
  */
 
@@ -23,7 +24,7 @@ export interface SiteLogoRuleProblems {
 
 /** 묶음이 쓰이는 곳 */
 export interface SiteLogoBundleUsage {
-    /** 평소 로고인가 */
+    /** 기본 로고인가 */
     isDefault: boolean;
     /** 이 묶음을 가리키는 규칙 수(기념일 줄 + 성별 칸) */
     ruleCount: number;
@@ -77,7 +78,7 @@ export default class UtilSiteLogoRule {
      * 묶음이 쓰이는 곳을 센다.
      * @param {SiteLogoRules} rules - 보이기 규칙.
      * @param {string} bundleId - 묶음 id.
-     * @returns {SiteLogoBundleUsage} 평소 로고 여부와 가리키는 규칙 수.
+     * @returns {SiteLogoBundleUsage} 기본 로고 여부와 가리키는 규칙 수.
      */
     static usage(rules: SiteLogoRules, bundleId: string): SiteLogoBundleUsage {
         const anniversaries = rules.anniversaries.filter((rule) => rule.bundleId === bundleId).length;
@@ -158,36 +159,50 @@ export default class UtilSiteLogoRule {
     }
 
     /**
+     * 기본 제공 기념일 로고에서 실제로 쓰이는 벌 — 「기념일 로고 유형」(`rules.holidayStyle`)을 따른다.
+     * `CHARACTER`·`WORDMARK` 면 그 벌, `AUTO` 면 **그 사람이 평소에 보는 로고**(성별 로고가 걸리면 그것, 아니면 기본 로고)의 벌 —
+     * 그 로고의 벌이 `WORDMARK` 면 글자 벌, 그 밖에는(캐릭터 로고·올린 묶음) 캐릭터 벌.
+     * @param {SiteLogoRules} rules - 보이기 규칙(초안을 주면 저장 전 미리보기가 된다).
+     * @param {readonly SiteLogoBundle[]} bundles - 보관함의 묶음.
+     * @param {string | null} [baseBundleId] - 그 사람이 평소에 보는 로고(성별 로고)의 id. 비우면 기본 로고(로그인하지 않은 방문자).
+     * @returns {SiteLogoStyle} 쓰이는 벌.
+     */
+    static holidayStyle(rules: SiteLogoRules, bundles: readonly SiteLogoBundle[], baseBundleId: string | null = null): SiteLogoStyle {
+        if (rules.holidayStyle === 'CHARACTER' || rules.holidayStyle === 'WORDMARK') return rules.holidayStyle;
+        const base = bundles.find((item) => item.id === (baseBundleId ?? rules.defaultBundleId)) ?? null;
+        return base?.style === 'WORDMARK' ? 'WORDMARK' : 'CHARACTER';
+    }
+
+    /**
      * 기념일 로고의 두 벌 가운데 고르기 — 서버 `SiteLogoResolver.matchStyle` 과 같은 규칙.
-     * 기념일 규칙이 가리킨 묶음이 기본 제공 기념일 묶음(`dayKey`·`style` 이 있다)이면 **평소 로고의 벌**에 맞는 짝으로 바꾼다:
-     * 평소 로고의 벌이 `WORDMARK` 면 그날의 글자 벌, 그 밖에는(캐릭터 로고·올린 묶음) 캐릭터 벌. 올린 묶음을 가리키면 그대로다. 짝이 없으면 그대로.
+     * 기념일 규칙이 가리킨 묶음이 기본 제공 기념일 묶음(`dayKey`·`style` 이 있다)이면 **쓰이는 벌**(`holidayStyle`)에 맞는 짝으로 바꾼다.
+     * 올린 묶음·기본 로고를 가리키면 그대로다. 짝이 없으면 그대로.
      * @param {SiteLogoBundle | null} bundle - 규칙이 가리킨 묶음.
-     * @param {SiteLogoBundle | null} usual - 평소 로고 묶음.
+     * @param {SiteLogoStyle} wanted - 쓰이는 벌(`holidayStyle` 의 답).
      * @param {readonly SiteLogoBundle[]} bundles - 보관함의 묶음.
      * @returns {SiteLogoBundle | null} 실제로 보일 묶음.
      */
-    static matchStyle(bundle: SiteLogoBundle | null, usual: SiteLogoBundle | null, bundles: readonly SiteLogoBundle[]): SiteLogoBundle | null {
+    static matchStyle(bundle: SiteLogoBundle | null, wanted: SiteLogoStyle, bundles: readonly SiteLogoBundle[]): SiteLogoBundle | null {
         if (!bundle || !bundle.dayKey || !bundle.style) return bundle;
-        const wanted = usual?.style === 'WORDMARK' ? 'WORDMARK' : 'CHARACTER';
         if (bundle.style === wanted) return bundle;
         return bundles.find((item) => item.dayKey === bundle.dayKey && item.style === wanted) ?? bundle;
     }
 
     /**
      * 기념일 규칙 줄이 실제로 보일 묶음 — 가리킨 묶음에 `matchStyle` 을 먹인 것.
-     * @param {SiteLogoRules} rules - 보이기 규칙(평소 로고를 여기서 읽는다 — 초안을 주면 저장 전 미리보기가 된다).
+     * @param {SiteLogoRules} rules - 보이기 규칙(기념일 로고 유형·기본 로고를 여기서 읽는다 — 초안을 주면 저장 전 미리보기가 된다).
      * @param {string | null} bundleId - 줄이 가리킨 묶음 id.
      * @param {readonly SiteLogoBundle[]} bundles - 보관함의 묶음.
+     * @param {string | null} [baseBundleId] - 보는 사람이 평소에 보는 로고(성별 로고)의 id. 비우면 기본 로고(로그인하지 않은 방문자).
      * @returns {SiteLogoBundle | null} 보일 묶음, 없는 id 면 null.
      */
-    static shownBundle(rules: SiteLogoRules, bundleId: string | null, bundles: readonly SiteLogoBundle[]): SiteLogoBundle | null {
+    static shownBundle(rules: SiteLogoRules, bundleId: string | null, bundles: readonly SiteLogoBundle[], baseBundleId: string | null = null): SiteLogoBundle | null {
         const bundle = bundles.find((item) => item.id === bundleId) ?? null;
-        const usual = bundles.find((item) => item.id === rules.defaultBundleId) ?? null;
-        return UtilSiteLogoRule.matchStyle(bundle, usual, bundles);
+        return UtilSiteLogoRule.matchStyle(bundle, UtilSiteLogoRule.holidayStyle(rules, bundles, baseBundleId), bundles);
     }
 
     /**
-     * 오늘 보이는 로고(성별 무관) — 걸린 기념일 줄이 있으면 그 줄의 보일 묶음, 없으면 평소 로고.
+     * 오늘 보이는 로고(로그인하지 않은 방문자 기준) — 걸린 기념일 줄이 있으면 그 줄의 보일 묶음, 없으면 기본 로고.
      * @param {SiteLogoRules} rules - 보이기 규칙.
      * @param {readonly SiteLogoBundle[]} bundles - 보관함의 묶음.
      * @param {string} today - 오늘(`YYYY-MM-DD`).
@@ -209,7 +224,7 @@ export default class UtilSiteLogoRule {
     }
 
     /**
-     * 보관함을 세 묶음으로 나눈다 — 평소 로고(기본 제공, 날 키 없음) · 기념일 로고(날마다 캐릭터 벌·글자 벌 짝, 서버가 준 차례) · 올린 로고.
+     * 보관함을 세 묶음으로 나눈다 — 기본 로고(기본 제공, 날 키 없음) · 기념일 로고(날마다 캐릭터 벌·글자 벌 짝, 서버가 준 차례) · 올린 로고.
      * @param {readonly SiteLogoBundle[]} bundles - 보관함의 묶음.
      * @returns {SiteLogoBundleGroups} 세 묶음.
      */
@@ -266,7 +281,8 @@ export default class UtilSiteLogoRule {
      * @returns {boolean} 같으면 true.
      */
     static isSame(a: SiteLogoRules, b: SiteLogoRules): boolean {
-        return JSON.stringify(a) === JSON.stringify(b);
+        // 사본으로 열쇠 차례를 맞춘 뒤 견준다(서버 응답과 초안의 열쇠 차례가 달라도 같은 값이면 같다)
+        return JSON.stringify(UtilSiteLogoRule.copy(a)) === JSON.stringify(UtilSiteLogoRule.copy(b));
     }
 
     /**
@@ -279,6 +295,7 @@ export default class UtilSiteLogoRule {
             defaultBundleId: rules.defaultBundleId,
             anniversaries: rules.anniversaries.map((rule) => ({ ...rule })),
             gender: { male: rules.gender.male, female: rules.gender.female },
+            holidayStyle: rules.holidayStyle,
         };
     }
 }
