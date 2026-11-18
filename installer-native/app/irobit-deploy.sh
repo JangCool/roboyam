@@ -25,6 +25,7 @@
 #   - 되돌려도 DB 는 되돌리지 않는다. 새 jar 가 Flyway 이관을 이미 적용했을 수 있다
 #     (옛 jar 는 모르는 새 이관을 건너뛰고 뜬다 — 그래도 표 변경이 옛 코드와 맞지 않으면 직접 판단한다).
 #   - 서버 두 대에 같은 jar 를 올릴 때는 한 대씩 한다(Cloudflare 로드밸런싱이 내려간 서버를 잠시 뺀다).
+#   - DB 연결 수(env 의 DB_POOL_SIZE)가 하한(api 30 · admin 20)보다 작으면 배포 때 올린다 — 옛 설치에 남은 작은 값 보정.
 #   - api 와 admin 은 각각 부른다. 둘 다 바꾸는 릴리스는 admin → api 순서를 권한다(관리자 앱이 DB 배치를 등록한다).
 # ============================================================================
 set -Eeuo pipefail
@@ -41,6 +42,10 @@ TIMEOUT=300
 MODE=deploy
 APP=""
 NEW_JAR=""
+# DB 연결 수(DB_POOL_SIZE) 하한 — 설치 때만 env 에 쓰여서 옛 설치에는 작은 값이 남는다(관리자 5 → 매시 00·30분 배치에서 바닥, 2026-11-18).
+# 배포할 때 이보다 작으면 올린다. 운영자가 더 크게 정한 값은 그대로 둔다. 서버 2대 × api + admin < DB max_connections(200).
+MIN_POOL_API=30
+MIN_POOL_ADMIN=20
 
 usage() { usage_from_header "$0"; }
 usage_error() { printf '[사용법 오류] %s\n\n' "$*" >&2; usage >&2; exit 2; }
@@ -79,6 +84,18 @@ parse_args() {
     PORT="$(env_get "$ENV_FILE" SERVER_PORT)"
     [ -n "$PORT" ] || fail "${ENV_FILE} 에 SERVER_PORT 가 없습니다."
     READY_URL="http://127.0.0.1:${PORT}/actuator/health/readiness"
+}
+
+# env 의 DB_POOL_SIZE 가 하한보다 작거나 비었으면 하한으로 올린다(재시작 때 적용 — 되돌려도 그대로 둔다)
+raise_pool_size() {
+    local want cur
+    if [ "$APP" = api ]; then want="$MIN_POOL_API"; else want="$MIN_POOL_ADMIN"; fi
+    cur="$(env_get "$ENV_FILE" DB_POOL_SIZE)"
+    if [[ "$cur" =~ ^[0-9]+$ ]] && [ "$cur" -ge "$want" ]; then
+        return 0
+    fi
+    env_set "$ENV_FILE" DB_POOL_SIZE "$want"
+    log "DB 연결 수(DB_POOL_SIZE): ${cur:-없음} → ${want} (${ENV_FILE})"
 }
 
 current_target() { [ -L "$CURRENT" ] && readlink -f "$CURRENT" || true; }
@@ -171,6 +188,7 @@ do_deploy() {
     fi
 
     log "배포: $(basename "${prev:-없음}") → $(basename "$dest")"
+    raise_pool_size
     point_current_to "$dest"
     if restart_and_wait; then
         log "준비 완료: ${APP} $(basename "$dest")"

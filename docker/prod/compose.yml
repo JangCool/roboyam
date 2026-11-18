@@ -51,7 +51,7 @@ services:
       # 관리자 앱 주소(http(s)://…) — 관리자 테마 화면 「실제 화면」 iframe 허락(?adminPreview=1 화면에만 frame-ancestors 로 이 origin 을 붙인다). 비우면 「실제 화면」이 뜨지 않는다
       ADMIN_URL: ${ADMIN_URL:-}
       # 서버 2대 x 풀 크기(+ 관리자 앱)가 DB 서버 max_connections(compose.db.yml)보다 작아야 한다
-      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-30}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}
       # 올린 이미지 저장소(docs/features/media-storage-contract.md) — r2(prod 기본) | s3(AWS·MinIO) | local. 아래 volumes 의 폴더는 local 일 때만 쓴다
