@@ -78,11 +78,29 @@
             <Button type="button" :label="t('identity.verifyButton')" icon="pi pi-mobile" :loading="verifying" class="w-full sm:w-auto" data-testid="identity-verify" @click="onVerify" />
             <p class="mt-2 px-1 text-xs leading-relaxed text-muted-color">{{ t('identity.verifyHelp') }}</p>
         </template>
+
+        <!--
+            19금 게시판 — 접근 설정·핀번호(adult-board-pin-contract). 전에는 따로 있는 설정 화면이었고 여기로 옮겼다(사용자 결정 2026-11-18).
+            본인인증 성인일 때만 설정(`AdultBoardSettings`)을 올린다 — 인증 전·만 19세 미만은 한 줄 안내만(인증 단추는 바로 위에 있다).
+            `status` 가 반응형이라 이 화면에서 인증을 방금 마치면 새로고침 없이 설정으로 바뀐다. 주소의 `#adult-board` 로 오면 이 구역까지 내려간다.
+        -->
+        <section
+            v-if="loadStatus === 'ready' && status"
+            :id="UtilAdultBoard.ANCHOR"
+            class="mt-8 scroll-mt-24 border-t border-surface pt-6"
+            :aria-labelledby="`${uid}-adult-board`"
+            data-testid="identity-adult-board"
+        >
+            <h2 :id="`${uid}-adult-board`" class="mb-3 text-base font-bold">{{ t('adultBoard.title') }}</h2>
+            <AdultBoardSettings v-if="status.verified && status.adult" />
+            <p v-else class="m-0 panel-card px-4 py-3.5 text-sm leading-relaxed text-muted-color" data-testid="adult-board-not-adult">{{ t('adultBoard.notAdultText') }}</p>
+        </section>
     </div>
 </template>
 
 <script setup lang="ts">
 import type { IdentityVerifyOutcome } from '~/composables/identity/useIdentity.types';
+import UtilAdultBoard from '~/utils/util-adult-board';
 import UtilIdentityMessages from '~/utils/util-identity-messages';
 
 /**
@@ -92,12 +110,16 @@ import UtilIdentityMessages from '~/utils/util-identity-messages';
  * 실패는 화면 위 한 줄(이미 다른 계정에서 인증 · 탈퇴 후 30일 · 인증 업체 오류 · 시간 지남), 사용자가 창을 닫으면 아무것도 보이지 않는다.
  *
  * 인증은 한 번이면 끝이라 다시 인증 단추가 없다(서버도 409 `IDENTITY_ALREADY_VERIFIED`). 생년월일이 바뀌는 일은 고객센터로.
+ *
+ * 맨 아래 「19금 게시판」 구역(`#adult-board`) — 성인 전용 게시판 접근 설정·핀번호(`AdultBoardSettings`, adult-board-pin-contract). 본인인증 성인에게만 설정이 보이고,
+ * 인증 전·만 19세 미만은 한 줄 안내만 보인다. 옛 주소 `/settings/adult-board` 와 핀 입력 화면의 [핀번호를 잊었어요](`?reset=1`)가 이 구역으로 온다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('identity.title'), description: () => t('identity.seoDescription', { site: siteLabel.value }), robots: 'noindex' });
 
+const route = useRoute();
 const identity = useIdentity();
 const { status, loadStatus, loadError } = identity;
 const toast = useAppToast();
@@ -147,7 +169,15 @@ async function onVerify(): Promise<void> {
 }
 
 // 화면에 들어올 때마다 최신으로(받아 둔 값이 있으면 그대로 보이면서 바꾼다)
-void identity.load();
+const identityLoaded = identity.load();
 void points.load();
 void commerce.ensureLoaded().catch(() => null);
+
+onMounted(async () => {
+    // 「19금 게시판」 구역으로 왔으면(`#adult-board` — 옛 주소·핀 입력 화면·다시 로그인) 그 구역까지 내린다(상태를 받은 뒤에 그려져 라우터의 해시 스크롤이 닿지 못한다)
+    if (route.hash !== `#${UtilAdultBoard.ANCHOR}`) return;
+    await identityLoaded;
+    await nextTick();
+    document.getElementById(UtilAdultBoard.ANCHOR)?.scrollIntoView({ block: 'start' });
+});
 </script>

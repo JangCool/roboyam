@@ -34,9 +34,7 @@ const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('settings.title'), description: () => t('settings.seoDescription', { site: siteLabel.value }), robots: 'noindex' });
 
-/** 「19금 게시판」은 본인인증 성인에게만 — 본인인증 상태는 부모(`pages/settings.vue`)가 받아 둔다 */
-const identity = useIdentity();
-const entries = computed(() => UtilSettings.entries(identity.status.value?.adult === true));
+const entries = UtilSettings.ENTRIES;
 
 const router = useRouter();
 const isDesktop = useIsDesktop();

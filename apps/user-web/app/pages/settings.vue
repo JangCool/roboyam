@@ -3,7 +3,7 @@
         설정 묶음의 틀 — 넓은 화면(md 이상)은 왼쪽 메뉴(`AppSideNav`) + 오른쪽 화면, 좁은 화면은 `/settings` 가 목록이고 각 화면 위에 「‹ 설정」 돌아가기 링크가 선다
         (하위 화면 — 이메일·비밀번호 변경 — 은 「‹ 계정·로그인 연결」로 부모에 돌아간다).
         내 정보 메뉴(`MeFrame`)와 따로다 — 설정 화면에는 이 설정 메뉴만 보인다(사용자 결정 2026-11-05). 헤더 계정 메뉴의 「설정」이 여기로 온다.
-        메뉴의 차례·이름은 `UtilSettings.ENTRIES` 한 곳에서 온다(좁은 화면 목록과 같다 — 「19금 게시판」은 본인인증 성인에게만, `UtilSettings.entries`). 하위 화면은 왼쪽 메뉴에만 들여 써서 보인다.
+        메뉴의 차례·이름은 `UtilSettings.ENTRIES` 한 곳에서 온다(좁은 화면 목록과 같다 — 19금 게시판 접근 설정은 따로 줄이 없고 「본인인증」 화면 안에 있다). 하위 화면은 왼쪽 메뉴에만 들여 써서 보인다.
     -->
     <div class="w-full md:grid md:grid-cols-[13rem_minmax(0,1fr)] md:items-start md:gap-6">
         <AppSideNav class="max-md:hidden md:sticky md:top-16" :items="navItems" :title="t('settings.title')" :nav-label="t('settings.title')" />
@@ -45,12 +45,8 @@ const back = computed(() => {
     return parent ? { to: parent.to, label: t(parent.labelKey) } : { to: '/settings', label: t('settings.title') };
 });
 
-/** 본인인증 성인에게만 보이는 줄(19금 게시판)이 있어 본인인증 상태를 받아 둔다 — 받기 전·실패는 성인이 아닌 것으로 본다 */
-const identity = useIdentity();
-void identity.ensureLoaded();
-
 const navItems = computed(() =>
-    UtilSettings.entries(identity.status.value?.adult === true).flatMap((entry) => {
+    UtilSettings.ENTRIES.flatMap((entry) => {
         const children = (entry.children ?? []).map((child) => ({
             to: child.to,
             label: t(child.labelKey),

@@ -7,8 +7,6 @@ export interface SettingsEntry {
     hintKey: string;
     icon: string;
     testid: string;
-    /** 본인인증 성인(`useIdentity().status.adult`)에게만 메뉴에 보인다 — 19금 게시판(adult-board-pin-contract). 주소로 오면 그 화면이 안내한다 */
-    adultOnly?: boolean;
     /** 이 화면 아래의 하위 화면 — 넓은 화면의 왼쪽 메뉴에만 들여 써서 보인다(좁은 화면 목록·`/me` 바로가기에는 없다 — 그 화면 안의 줄로 간다) */
     children?: readonly SettingsSubEntry[];
 }
@@ -52,18 +50,9 @@ export default class UtilSettings {
                 { to: '/settings/account/withdraw', labelKey: 'withdrawal.title', testid: 'settings-account-withdraw' },
             ],
         },
+        // 19금 게시판 접근 설정·핀번호는 따로 줄이 없다 — 본인인증 화면 안의 구역이다(사용자 결정 2026-11-18, adult-board-pin-contract)
         { to: '/settings/identity', labelKey: 'identity.title', hintKey: 'settings.identityHint', icon: 'pi pi-id-card', testid: 'settings-identity' },
-        { to: '/settings/adult-board', labelKey: 'adultBoard.title', hintKey: 'settings.adultBoardHint', icon: 'pi pi-lock', testid: 'settings-adult-board', adultOnly: true },
     ];
-
-    /**
-     * 메뉴에 보일 설정 화면 — 성인 전용 줄(`adultOnly`)은 본인인증 성인에게만.
-     * @param {boolean} adult - 본인인증으로 만 19세 이상이 확인됐는가.
-     * @returns {readonly SettingsEntry[]} 보일 화면(차례 그대로).
-     */
-    static entries(adult: boolean): readonly SettingsEntry[] {
-        return adult ? UtilSettings.ENTRIES : UtilSettings.ENTRIES.filter((entry) => !entry.adultOnly);
-    }
 
     /**
      * 지금 주소가 그 설정 화면(또는 그 아래)인가.
