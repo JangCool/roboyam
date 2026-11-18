@@ -18,8 +18,8 @@
  *   - 표는 FK 차례(부모 먼저)로, 행은 기본 키 차례로. bigint·numeric 칸은 글자로(18자리 ID 가 JSON 숫자로 끝자리를 잃지 않게).
  *   - 방식: 기본 UPSERT. FULL_TABLES(마이그레이션이 설치 시각으로 ID 를 매기는 시드 표 — 로보티콘·포인트 상점 상품·기본 칭호)는 표 전체를 REPLACE —
  *     설치마다 시드 ID 가 달라 팩의 행(로보티콘 받기·댓글 :emo-ID:)이 가리키는 ID 를 맞추려고 팩의 시드로 갈아 끼운다.
- *   - 빼는 것: 설치 때 정한 값(installation·site_settings·mail/social 설정), 운영자 계정·역할(만든 DB 의 운영자 ID 는 설치한 곳의 루트로 바뀐다), 감사·세션·배치·분석 기록,
- *     구조 표(구조 스냅숏이 넣는다 — 바뀌었으면 경고).
+ *   - 빼는 것: 설치 때 정한 값(installation·site_settings·mail/social 설정), 운영자 계정·역할 배정(만든 DB 의 운영자 ID 는 설치한 곳의 루트로 바뀐다), 감사·세션·배치·분석 기록,
+ *     구조 표(구조 스냅숏이 넣는다 — 바뀌었으면 경고). 역할은 운영자 역할만 담는다(ROW_FILTER — 회원 역할·데모 로더 역할 제외).
  *   - 개인정보 칸(DataCipher 암호문)은 그대로 담고 빌드 서버의 키(local 개발 키)를 목록에 적는다 — 설치 서버가 풀어 그곳의 키로 다시 잠근다.
  *   - 데모 회원이 아닌 회원(시험 계정)·local 공구 시더 상품이 있으면 멈춘다.
  *   - 회원 비밀번호는 아무도 모르는 값의 해시로 바꾼다(데모 회원으로 로그인할 수 없다 — 원고의 시험 비밀번호가 실제 사이트에 남지 않게). --keep-passwords 면 그대로.
@@ -64,7 +64,7 @@ const EXCLUDE = [
     'site_logo_bundles', 'site_logo_rules',
     'installation', 'site_settings', 'mail_settings', 'mail_setting_history', 'social_provider_settings', 'social_provider_setting_history', 'portone_settings',
     'public_data_settings', 'address_search_settings', 'site_operator', 'site_operator_history', 'stats_collection_settings', 'stats_collection_setting_history',
-    'commerce_sales_settings', 'admin_security_settings', 'operators', 'operator_roles', 'roles', 'role_permissions', 'permissions', 'audit_logs', 'auth_tokens',
+    'commerce_sales_settings', 'admin_security_settings', 'operators', 'operator_roles', 'permissions', 'audit_logs', 'auth_tokens',
     'login_attempts', 'idempotency_requests', 'guest_password_attempts', 'identity_verification_attempts', 'demo_pack_baseline', 'member_view_settings',
     // 하루 판정 표 — 방문자 해시만 담고 날짜 조각(파티션)이 있어 옛 날짜 줄은 새 설치에 들어갈 조각이 없다(site-analytics-contract 3단계 결정 ⑤·⑥)
     'deal_click_daily', 'ad_view_marks',
@@ -78,6 +78,15 @@ const EXCLUDE_PREFIX = ['flyway_schema_history', 'spring_session', 'admin_spring
     'operator_preferences', 'operator_dashboards', 'operator_notification', 'operator_invitation', 'operator_cert', 'admin_', 'notification_send_', 'mail_outbox',
     // AI 기자 뉴스 출처·수집 항목(shared V228) — 출처는 V229 가 설치 시각 ID 로 넣고(팩에 담으면 같은 출처가 겹친다), 항목은 빌드 관리자 서버의 수집 배치가 받은 7일짜리 바깥 기사다
     'ai_news_'];
+/**
+ * 일부 행만 담는 표 — 운영자 역할(seed/demo/patches/0004-operator-roles.sql)만. 회원 역할(등급·종류·게시판 — 앱·마이그레이션이 만든다)과
+ * 데모 로더 전용 역할 ROLE_DEMO_SEED(로더가 도는 동안만 쓰는 데모 운영자 몫)는 담지 않는다. 역할을 운영자에 붙인 줄(operator_roles)도 담지 않는다.
+ */
+const DEMO_LOADER_ROLE = 'ROLE_DEMO_SEED';
+const ROW_FILTER = {
+    roles: `axis = 'OPERATOR' AND role_id <> '${DEMO_LOADER_ROLE}'`,
+    role_permissions: `role_id IN (SELECT role_id FROM roles WHERE axis = 'OPERATOR' AND role_id <> '${DEMO_LOADER_ROLE}')`,
+};
 /** 구조 표 중 데모 로더가 바꿔도 되는 것(바뀌면 경고만) */
 const STRUCTURE_TABLES = EXCLUDE.slice(EXCLUDE.indexOf('grades'));
 
@@ -224,7 +233,7 @@ async function refresh() {
     const builtAt = new Date(Date.parse(oldManifest.builtAt) + Number(deltaMs)).toISOString();
     // 복원한 행 수 = 저장소 팩의 표별 행 수인가(한 번에 센다) — 다르면 jar 에 든 팩이 저장소 팩과 다르다(팩을 바꾼 뒤 jar 를 다시 만들지 않음)
     const restored = json(`SELECT json_object_agg(t, n) FROM (VALUES ${Object.keys(oldManifest.counts)
-        .map((t) => `(${lit(t)}, (SELECT count(*) FROM ${ident(t)} WHERE ${FULL_TABLES.includes(t) ? 'true' : `(xmin::text::bigint) >= ${xid}`}))`).join(', ')}) v(t, n)`);
+        .map((t) => `(${lit(t)}, (SELECT count(*) FROM ${ident(t)} WHERE ${FULL_TABLES.includes(t) ? 'true' : `(xmin::text::bigint) >= ${xid}`}${ROW_FILTER[t] ? ` AND ${ROW_FILTER[t]}` : ''}))`).join(', ')}) v(t, n)`);
     const mismatch = Object.entries(oldManifest.counts).filter(([t, n]) => restored[t] !== n);
     if (mismatch.length) {
         throw new Error(`복원한 행 수가 저장소 팩과 다르다 — ${mismatch.slice(0, 8).map(([t, n]) => `${t} ${restored[t]}≠${n}`).join(', ')}. 빌드 api jar 에 든 팩이 저장소 팩(seed/demo-pack/)과 다르다 — 팩을 바꾼 뒤 jar 를 다시 만든다`);
@@ -337,7 +346,7 @@ function exportPack() {
             if (STRUCTURE_TABLES.includes(t.name) && sql(`SELECT count(*) FROM ${ident(t.name)} WHERE ${fresh}`) !== '0') changedStructure.push(t.name);
             continue;
         }
-        const where = full ? 'true' : fresh;
+        const where = `${full ? 'true' : fresh}${ROW_FILTER[t.name] ? ` AND ${ROW_FILTER[t.name]}` : ''}`;
         if (sql(`SELECT count(*) FROM ${ident(t.name)} WHERE ${where}`) === '0') continue;
         if (!t.key) {
             console.warn(`⚠ 기본 키가 없는 표라 담지 않았다: ${t.name}`);

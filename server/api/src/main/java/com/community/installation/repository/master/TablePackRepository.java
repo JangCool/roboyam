@@ -154,6 +154,31 @@ public class TablePackRepository {
         jdbc.queryForObject("SELECT board_ensure_post_partitions(6)", Integer.class);
     }
 
+    /** 권한 카탈로그 한 줄({@code permissions} 표 — 관리자 서버의 PermissionCatalogSynchronizer 와 같은 값) */
+    public record PermissionRow(String code, String axis, String typeId, String category, boolean featureReady) {
+    }
+
+    /**
+     * 권한 카탈로그 중 표에 없는 줄만 넣는다(있으면 그대로 — 고치기·지우기는 관리자 서버가 뜰 때 맞춘다). 넣은 줄 수.
+     * 동시에 뜬 관리자 서버가 같은 줄을 넣어도 겹치지 않게 {@code ON CONFLICT DO NOTHING}.
+     */
+    public int ensurePermissions(List<PermissionRow> rows) {
+        int[] done = jdbc.batchUpdate("""
+                INSERT INTO permissions (code, axis, type_id, category, feature_ready, synced_at) VALUES (?, ?, ?, ?, ?, now())
+                ON CONFLICT (code) DO NOTHING""", rows, rows.size(), (ps, row) -> {
+            ps.setString(1, row.code());
+            ps.setString(2, row.axis());
+            ps.setString(3, row.typeId());
+            ps.setString(4, row.category());
+            ps.setBoolean(5, row.featureReady());
+        })[0];
+        int added = 0;
+        for (int n : done) {
+            added += Math.max(n, 0);
+        }
+        return added;
+    }
+
     private static String ident(String name) {
         return "\"" + name.replace("\"", "\"\"") + "\"";
     }

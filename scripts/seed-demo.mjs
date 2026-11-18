@@ -30,7 +30,7 @@ const DB_CONTAINER = process.env.SEED_DB_CONTAINER ?? 'irobit-local-postgres';
 const DB_NAME = process.env.SEED_DB_NAME ?? 'irobit';
 const DB_USER = process.env.SEED_DB_USER ?? 'irobit';
 const FORCE = process.argv.includes('--force');
-/** --limit=N: 원고마다 앞 N개만(시험용) · --only=boards,groups,ai,biz,groupbuys,highlights,ads,notices,ops,site,extras: 그 단계만(회원·운영자·설정은 늘 한다) */
+/** --limit=N: 원고마다 앞 N개만(시험용) · --only=roles,boards,groups,ai,biz,groupbuys,highlights,ads,notices,ops,site,extras: 그 단계만(회원·운영자·설정은 늘 한다) */
 const LIMIT = Number(process.argv.find((a) => a.startsWith('--limit='))?.slice(8)) || Infinity;
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',') ?? null;
 const step = (name) => !ONLY || ONLY.includes(name);
@@ -238,6 +238,7 @@ async function main() {
     const psql = new Psql();
     try {
         await adminSettings(admin);
+        if (step('roles')) seedOperatorRoles();
         const emoticons = await acquireEmoticons(members);
         const boards = new Map(((await new Session('anon').request('GET', '/api/boards')).data?.boards ?? []).map((b) => [b.slug, b]));
         // 성인 전용 게시판(V226 — 예: frontback)은 본인인증한 성인에게만 목록에 나온다 — 성인 표시 데모 회원으로 한 번 더 읽어 그 게시판만 더한다
@@ -364,6 +365,17 @@ async function enableOperator() {
     }
     console.log(`  ${op.email} 로그인 ○ (역할 ${DEMO_ROLE})`);
     return admin;
+}
+
+/** 운영자 역할 38개(권한 유형별 담당·총괄) — 원고는 데모 팩 패치 0004 의 SQL 그 자체(한 곳에서만 고친다). 운영자에 붙이지 않는다(설치한 운영자가 초대하며 고른다) */
+function seedOperatorRoles() {
+    console.log('\n운영자 역할');
+    const script = readFileSync(join(DEMO, 'patches', '0004-operator-roles.sql'), 'utf8');
+    // 패치는 한 트랜잭션으로 돈다(임시 표 ON COMMIT DROP) — 같은 변수(:'demo_now' · :demo_id_base)를 지금 시각으로 준다
+    sql(['BEGIN;', `\\set demo_now ${q(new Date().toISOString())}`, `\\set demo_id_base ${snowflake()}`, script, 'COMMIT;'].join('\n'));
+    const made = rows(sql(`SELECT r.role_name, count(p.id) FROM roles r LEFT JOIN role_permissions p USING (role_id)
+                            WHERE r.axis = 'OPERATOR' AND r.role_id <> ${q(DEMO_ROLE)} GROUP BY r.role_id, r.role_name ORDER BY min(r.created_at), r.role_id`));
+    console.log(`  ${made.map(([name, n]) => `${name}(${n})`).join(' · ')}`);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

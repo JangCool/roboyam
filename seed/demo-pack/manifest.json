@@ -1,21 +1,22 @@
 {
   "format": 1,
   "preset": "IROBIT",
-  "builtAt": "2026-11-17T06:32:17.045Z",
+  "builtAt": "2026-11-18T05:34:17.045Z",
   "source": {
-    "sharedVersion": "244",
+    "sharedVersion": "255",
     "database": "irobit_demo_build"
   },
   "operatorIds": [
-    "116063164298072064"
+    "116410907319242752"
   ],
   "dataKey": "1:Nkfi1vUhkXnb6dM1b8wzSxEbPhDjKWCqih4IwYR9o34=",
   "data": "data.json.gz",
-  "dataSha256": "0801aa486e93162bf6fa7a2009f85f7e659f1456698ff8a44b8592694519007f",
+  "dataSha256": "2cd92bd1cc3a0c87c2578231d6b4df723be43fbf8224219f37fc5452f0dbe15c",
   "patches": [
     "0001-member-titles-featured-posts.sql",
     "0002-trials-purchase-sources.mjs",
-    "0003-trial-review-prefix.sql"
+    "0003-trial-review-prefix.sql",
+    "0004-operator-roles.sql"
   ],
   "counts": {
     "users": 52,
@@ -97,6 +98,8 @@
     "reward_events": 2,
     "reward_event_tiers": 3,
     "reward_event_lines": 3,
+    "roles": 38,
+    "role_permissions": 370,
     "shipping_policies": 1,
     "site_popups": 1,
     "title_applications": 3,
