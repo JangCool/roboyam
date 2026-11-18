@@ -43,7 +43,7 @@ public class SiteLogoBundleEntity {
     private String builtInKey;
 
     /**
-     * 올린 묶음의 유형(V253) — {@link #STYLE_CHARACTER} · {@link #STYLE_WORDMARK}. 고른 적 없으면 null(캐릭터로 본다). 기본 제공 묶음은 늘 null 이고
+     * 올린 묶음의 유형(V255) — {@link #STYLE_CHARACTER} · {@link #STYLE_WORDMARK}. 고른 적 없으면 null(캐릭터로 본다). 기본 제공 묶음은 늘 null 이고
      * {@code builtInKey} 가 유형이다 — 읽을 때는 {@link #effectiveStyle()} 하나만 쓴다
      */
     private String style;

@@ -126,7 +126,7 @@ public class SiteLogoResolver {
         if (SiteLogoBundleEntity.STYLE_CHARACTER.equals(holidayStyle) || SiteLogoBundleEntity.STYLE_WORDMARK.equals(holidayStyle)) {
             wanted = holidayStyle;
         } else {
-            // 기준 로고의 유효 유형(V253) — 올린 묶음이어도 운영자가 글자로 골랐으면 글자 벌
+            // 기준 로고의 유효 유형(V255) — 올린 묶음이어도 운영자가 글자로 골랐으면 글자 벌
             wanted = usual != null && SiteLogoBundleEntity.STYLE_WORDMARK.equals(usual.effectiveStyle())
                     ? SiteLogoBundleEntity.STYLE_WORDMARK : SiteLogoBundleEntity.STYLE_CHARACTER;
         }

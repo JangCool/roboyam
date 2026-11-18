@@ -69,7 +69,7 @@
 - 벌은 `built_in_key`(`CHARACTER` = 귀여운 버전 · `WORDMARK` = 일반 버전)가 말한다. 유일 조건은 (`built_in_key`, `day_key`) 한 쌍.
 - 양력 날은 「날짜 직접 · 매년 반복」 하루, 음력 세 날은 쉬는 날 표의 이름 `설날`·`부처님오신날`·`추석`.
 - **두 벌 고르기**(`SiteLogoResolver.matchStyle`): 규칙이 기본 제공 기념일 묶음을 가리키면 기준 로고(그 사람에게 평소 보일 묶음 — 기본 로고 또는 성별 로고)의 벌에 맞는 짝을 보인다 — 기준 로고의 유효 유형이 `WORDMARK` 면 글자 벌, 아니면 캐릭터 벌(유효 유형 = 기본 제공은 `built_in_key`, 올린 묶음은 고른 유형·없으면 캐릭터 — 아래 「올린 묶음의 유형」). 올린 묶음을 가리키는 규칙은 그대로(성별 무관). 기본 규칙은 캐릭터 벌 묶음(101~128)을 가리킨다.
-- 관리자 응답의 묶음에 `style`(`CHARACTER`·`WORDMARK` — V253 부터 올린 묶음에도 늘 값이 있다)과 `dayKey`(날 키·null)를 더했다.
+- 관리자 응답의 묶음에 `style`(`CHARACTER`·`WORDMARK` — V255 부터 올린 묶음에도 늘 값이 있다)과 `dayKey`(날 키·null)를 더했다.
 - 그림을 고치면: 적용 전에는 스크립트를 다시 돌려 V251 를 다시 쓰고, 적용된 뒤에는 `node scripts/build-holiday-logo-migration.mjs V<번호>__이름.sql --update` 로 SVG 칸만 고치는 새 마이그레이션을 뽑는다.
 
 ### 기념일 로고 유형 (서버 2026-11-18 — 컴파일만 확인, 화면 연결 전)
@@ -80,7 +80,7 @@
 - 공개 `GET /api/site/info` 는 모양(필드·`SiteLogoSetView`)이 그대로다 — 기념일에도 위 조건이면 `genderLogos.male`/`female` 에 그 성별용 기념일 벌이 실린다(예: 기본 로고 = 캐릭터, 남성 로고 = 글자 로고 → 기념일에 `logos` 는 캐릭터 벌, `genderLogos.male` 은 글자 벌, `female` 은 null). user-web `SiteBrand` 는 `genderLogos` 가 있으면 그것을 쓰므로 화면 수정이 없다.
 
 ### 올린 묶음의 유형 (서버 2026-11-18 — 컴파일만 확인, 화면 연결 전)
-- shared **V253** `site_logo_bundles.style`(varchar(16), NULL 허용, CHECK `CHARACTER`·`WORDMARK`) — 올린 묶음만 쓴다. NULL = 고른 적 없음 = 캐릭터. 기본 제공 묶음은 채우지 않고 `built_in_key` 가 유형이다(유효 유형은 `SiteLogoBundleEntity.effectiveStyle()` 한 곳). 다음 shared 번호는 **V254**.
+- shared **V255** `site_logo_bundles.style`(varchar(16), NULL 허용, CHECK `CHARACTER`·`WORDMARK`) — 올린 묶음만 쓴다. NULL = 고른 적 없음 = 캐릭터. 기본 제공 묶음은 채우지 않고 `built_in_key` 가 유형이다(유효 유형은 `SiteLogoBundleEntity.effectiveStyle()` 한 곳). 다음 shared 번호는 **V256**.
 - 관리자 API(JSON 본문): `POST …/bundles`·`PUT …/bundles/{id}` 에 `style`(선택 — 없으면 올릴 때 `CHARACTER`, 고칠 때 그대로, 둘 밖이면 400 `VALIDATION` `fields.style`). 응답 묶음의 `style` 은 유효 유형이라 늘 값이 있다. 기본 제공 묶음은 고치기 자체가 409 라 유형도 못 바꾼다. 감사는 기존 `SITE_LOGO_BUNDLE_CREATE`(`style`)·`SITE_LOGO_BUNDLE_UPDATE`(`style: 옛 -> 새`)에 값만 더했다.
 - 쓰임: 기념일 로고 유형이 `AUTO` 일 때 기준 로고(기본 로고·성별 로고)가 올린 묶음이어도 유형이 `WORDMARK` 면 글자 벌을 보인다. 규칙이 올린 묶음을 직접 가리키면 유형과 무관하게 그 묶음 그대로.
 

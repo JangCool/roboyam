@@ -11,7 +11,7 @@ import tools.jackson.databind.JsonNode;
  * @param cells      칸({@code koLight}·{@code koDark}·{@code enLight}·{@code enDark})마다 넣을 것 —
  *                   {@code {"fileId":"…"}}(먼저 {@code POST /api/admin/files}, purpose=SITE_LOGO 로 올린 파일) · {@code {"svgSource":"…"}} ·
  *                   {@code "KEEP"}(지금 그대로 — 칸을 아예 빼도 같다) · {@code null}(비움). 만들기에서 {@code "KEEP"}·뺀 칸은 빈 칸이다
- * @param style      유형(V253, 선택) — {@code CHARACTER}(캐릭터) · {@code WORDMARK}(글자). 없으면(null) 만들기는 {@code CHARACTER}, 고치기는 지금 그대로
+ * @param style      유형(V255, 선택) — {@code CHARACTER}(캐릭터) · {@code WORDMARK}(글자). 없으면(null) 만들기는 {@code CHARACTER}, 고치기는 지금 그대로
  */
 public record SiteLogoBundleRequest(String name, Boolean nameInLogo, Map<String, JsonNode> cells, String style) {
 }
