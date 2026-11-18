@@ -20,14 +20,17 @@
     -->
     <div>
         <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->
-        <BoardLayoutFrame screen="LIST" :board="boardState === 'notfound' || boardState === 'inactive' ? null : slug">
+        <BoardLayoutFrame screen="LIST" :board="boardState === 'notfound' || boardState === 'inactive' || boardState === 'pin' ? null : slug">
             <ErrorState v-if="boardState === 'notfound'" code="404" :title="t('board.notFoundTitle')" :description="t('board.notFoundText')">
                 <Button as="router-link" to="/" :label="t('board.goHome')" />
             </ErrorState>
             <ErrorState v-else-if="boardState === 'inactive'" :title="t('board.inactiveTitle')" :description="boardError">
                 <Button as="router-link" to="/" :label="t('board.goHome')" />
             </ErrorState>
-            <ErrorState v-else-if="boardState === 'error' && !view" :title="t('board.loadFailed')" :description="boardError" retry @retry="retryAll" />
+            <!-- 성인 전용 게시판 — 접근은 켰지만 이 기기에서 핀번호를 아직 안 넣었다(403 ADULT_BOARD_PIN_REQUIRED, adult-board-pin-contract). 맞게 넣으면 게시판·목록을 다시 받는다.
+                 게시판 정보·글 목록·레이아웃·태그 가운데 어느 호출이 받아도, 보던 도중(쪽 넘기기·거르기) 받아도 이 화면으로 바뀐다(`showPin`) -->
+            <AdultBoardPinGate v-else-if="boardState === 'pin'" class="content-card" :locked-until="pinLockedUntil" @unlocked="retryAll" />
+            <ErrorState v-else-if="boardState === 'error' && !view":title="t('board.loadFailed')" :description="boardError" retry @retry="retryAll" />
 
             <!-- 게시판 머리·목록·쪽 번호를 한 흰 카드에 — 묶음 메뉴 화면(팁·강좌·사용기·소모임)과 같은 카드(`gadget-card` 머리 없음)·같은 제목 머리(`PageTitleHead`, 사용자 2026-11-08) -->
             <div v-else class="gadget-card" data-headless data-testid="board-card">
@@ -283,6 +286,7 @@ import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi
 import type { DealPostListQuery, PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
 import type { DealSort, DealStoreChip } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
+import UtilAdultBoard from '~/utils/util-adult-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
@@ -316,10 +320,12 @@ const slug = computed(() => String(route.params.slug ?? ''));
 const query = computed<PostListQuery>(() => UtilBoardQuery.parse(route.query));
 
 /* ── 게시판(머리) ── */
-type BoardState = 'loading' | 'ready' | 'notfound' | 'inactive' | 'error';
+type BoardState = 'loading' | 'ready' | 'notfound' | 'inactive' | 'pin' | 'error';
 const detail = ref<BoardDetail | null>(null);
 const boardState = ref<BoardState>('loading');
 const boardError = ref('');
+/** 「핀 필요」 오류에 실려 온 틀림 잠금의 끝 시각(없으면 null) — 핀 입력 화면이 처음부터 잠김으로 그린다 */
+const pinLockedUntil = ref<string | null>(null);
 
 /** 메뉴가 받아 둔 게시판 요약으로 먼저 그리고, 자세한 정보가 오면 그것으로 바꾼다 */
 const view = computed<BoardView | BoardDetail | null>(() => (detail.value?.slug === slug.value ? detail.value : (bySlug(slug.value) ?? null)));
@@ -371,9 +377,25 @@ async function loadBoard(): Promise<void> {
         if (mine !== boardRequest) return;
         boardError.value = UtilBoardMessages.of(t, e);
         const code = e instanceof ApiError ? e.code : '';
-        boardState.value = code === 'BOARD_NOT_FOUND' ? 'notfound' : code === 'BOARD_INACTIVE' ? 'inactive' : 'error';
+        const pin = UtilAdultBoard.pinRequired(e);
+        pinLockedUntil.value = pin?.lockedUntil ?? null;
+        boardState.value = pin ? 'pin' : code === 'BOARD_NOT_FOUND' ? 'notfound' : code === 'BOARD_INACTIVE' ? 'inactive' : 'error';
     }
 }
+
+/**
+ * 핀 입력 화면으로 바꾼다 — 게시판 정보 말고 다른 호출(글 목록·레이아웃·태그)이 「핀 필요」를 받았거나, 보던 도중 핀 확인이 끝났을 때.
+ * 오고 있던 게시판 정보 응답은 버린다(핀 화면을 덮지 않게). 맞게 넣으면 `retryAll` 이 게시판·목록을 다시 받는다.
+ */
+function showPin(lockedUntil: string | null): void {
+    boardRequest++;
+    pinLockedUntil.value = lockedUntil;
+    boardState.value = 'pin';
+}
+// 어느 호출이든 「핀 필요」를 받았다 — 게시판을 이미 그린 뒤(보던 도중)면 핀 화면으로. 처음 읽는 중이면 `loadBoard`·`loadList` 의 오류 처리가 바꾼다
+useAdultBoardPinDemand((lockedUntil) => {
+    if (boardState.value === 'ready') showPin(lockedUntil);
+});
 
 const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.writeLock));
 /** 게시판 제재(board-sanction-contract) — 매니저·스텝 본인의 운영 도구 · 보는 나의 이 게시판 쓰기 제한 */
@@ -551,6 +573,9 @@ async function loadList(): Promise<void> {
     } catch (e) {
         if (mine !== listRequest) return;
         if (e instanceof ApiError && e.code === 'ABORTED') return;
+        // 성인 전용 게시판의 핀 확인이 없다(목록이 게시판 정보보다 먼저 받았거나 보던 도중 끝났다) — 핀 입력 화면으로
+        const pin = UtilAdultBoard.pinRequired(e);
+        if (pin) showPin(pin.lockedUntil);
         // 게시판 자체가 없거나 꺼졌으면 머리 쪽 판정(loadBoard)이 화면을 바꾼다
         listError.value = UtilBoardMessages.of(t, e);
         listState.value = 'error';
@@ -619,6 +644,6 @@ onBeforeUnmount(() => {
 useSeoMeta({
     title: () => (view.value ? `${localizedName(view.value.name, view.value.nameEn)}${query.value.page > 1 ? ` (${t('board.pageN', { n: query.value.page })})` : ''}` : t('board.bundleLabel')),
     // 게시판 정책 「검색엔진 색인」을 끄면 목록도 noindex(관리자 QA 2026-11-17 F-7)
-    robots: () => (boardState.value === 'notfound' || boardState.value === 'inactive' || detail.value?.indexable === false ? 'noindex' : undefined),
+    robots: () => (boardState.value === 'notfound' || boardState.value === 'inactive' || boardState.value === 'pin' || detail.value?.indexable === false ? 'noindex' : undefined),
 });
 </script>

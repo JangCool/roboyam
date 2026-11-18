@@ -4,7 +4,7 @@
         <h1 class="text-lg font-bold">{{ t('settings.title') }}</h1>
 
         <ul class="m-0 list-none panel-card p-0" data-testid="settings-list">
-            <li v-for="entry in UtilSettings.ENTRIES" :key="entry.to" class="border-b border-surface last:border-b-0">
+            <li v-for="entry in entries" :key="entry.to" class="border-b border-surface last:border-b-0">
                 <NuxtLink
                     :to="entry.to"
                     class="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
@@ -33,6 +33,10 @@ definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('settings.title'), description: () => t('settings.seoDescription', { site: siteLabel.value }), robots: 'noindex' });
+
+/** 「19금 게시판」은 본인인증 성인에게만 — 본인인증 상태는 부모(`pages/settings.vue`)가 받아 둔다 */
+const identity = useIdentity();
+const entries = computed(() => UtilSettings.entries(identity.status.value?.adult === true));
 
 const router = useRouter();
 const isDesktop = useIsDesktop();

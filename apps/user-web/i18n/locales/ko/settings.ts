@@ -15,6 +15,7 @@ export default {
     displayHint: '언어·시간대·시간과 날짜 모양',
     accountHint: '로그인 수단·소셜 계정 연결',
     identityHint: '휴대폰 본인인증·만 19세 확인(19금 글 보기)',
+    adultBoardHint: '성인 전용 게시판 접근·핀번호',
     nicknameImage: '닉네임 이미지',
     nicknameImageHint: '닉네임 자리에 이미지 · 변경권으로 신청',
     avatarUpload: '아바타 올리기',

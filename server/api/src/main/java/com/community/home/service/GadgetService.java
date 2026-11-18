@@ -50,7 +50,7 @@ import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
 import com.community.post.repository.master.PostRepository;
 import com.community.tips.service.TipsService;
-import com.community.post.service.AdultContentGate;
+import com.community.adultboard.service.AdultBoardGate;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostTagStore;
 import com.community.post.service.PostTags;
@@ -128,7 +128,7 @@ public class GadgetService {
     private final BoardLayoutRepository boardLayouts;
     private final DealQueries dealQueries;
     private final DealSettingsReader dealSettings;
-    private final AdultContentGate adultGate;
+    private final AdultBoardGate adultBoards;
     private final CacheManager caches;
     private final PostRepository posts;
     private final PostTagStore tagStore;
@@ -137,12 +137,12 @@ public class GadgetService {
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightPicks highlightPicks,
                              GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
-                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultContentGate adultGate,
+                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings, AdultBoardGate adultBoards,
                              CacheManager caches, PostRepository posts, PostTagStore tagStore) {
         this.tagStore = tagStore;
         this.caches = caches;
         this.posts = posts;
-        this.adultGate = adultGate;
+        this.adultBoards = adultBoards;
         this.dealQueries = dealQueries;
         this.dealSettings = dealSettings;
         this.boardLayouts = boardLayouts;
@@ -171,8 +171,17 @@ public class GadgetService {
         boolean preview = SiteThemes.isKnown(requestedTheme);
         String theme = preview ? requestedTheme : site.snapshot().info().theme();
         Layout home = preview ? homeLayout(theme) : caches.getCache(CacheNames.HOME_LAYOUT).get(theme, () -> homeLayout(theme));
-        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, adultGate.adult(viewerId), null, null, !preview);
+        BoardCatalogSnapshot snapshot = catalog.snapshot();
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultOpen(snapshot, viewerId), null, null, !preview);
         return new GadgetsResponse(theme, home.layout(), home.specs().stream().map(spec -> view(spec, ctx)).toList());
+    }
+
+    /**
+     * 19금 전용 가젯({@code ADULT_POSTS})을 이 사람에게 그리는가 — 성인 + 「19금 게시판 접근」 켜짐 + 이 기기 핀 확인({@link AdultBoardGate#open}, adult-board-pin-contract).
+     * 켜진 성인 전용 게시판이 하나도 없으면 읽지 않는다. 가젯을 그리는 것은 「보는 동안 연장」으로 치지 않는다.
+     */
+    private boolean adultOpen(BoardCatalogSnapshot snapshot, Long viewerId) {
+        return viewerId != null && snapshot.boards().stream().anyMatch(b -> b.active() && b.adultOnly()) && adultBoards.open(viewerId);
     }
 
     /** 홈 배치(가젯 구성·위치·설정) — 저장한 것, 없으면 테마 기본 배치. 캐시 {@code home.layout}(항목 키 = 테마) */
@@ -206,7 +215,7 @@ public class GadgetService {
         for (String slug : page.folderSlugs()) {
             snapshot.board(slug).filter(b -> b.active() && !b.adultOnly()).ifPresent(b -> activeFolder.add(b.slug())); // 성인 전용 게시판은 기준 폴더에서 뺀다(V226)
         }
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultGate.adult(viewerId), activeFolder.isEmpty() ? null : activeFolder, null, true);
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultOpen(snapshot, viewerId), activeFolder.isEmpty() ? null : activeFolder, null, true);
         String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
         GadgetPageResponse.Page head = new GadgetPageResponse.Page(page.pageKey(), page.name(), page.nameEn(), page.description(), page.writeButton(), writeBoard);
         return new GadgetPageResponse(head, theme, page.layout(), page.specs().stream().map(spec -> view(spec, ctx)).toList());
@@ -244,13 +253,12 @@ public class GadgetService {
     public BoardLayoutResponse boardLayout(String slug, String requestedTheme, Long viewerId) {
         BoardCatalogSnapshot snapshot = catalog.snapshot();
         EffectiveBoard board = PublicBoardService.requireActive(snapshot, slug == null ? "" : slug.strip());
-        boolean adultViewer = adultGate.adult(viewerId);
-        PublicBoardService.requireAdultAccess(board, () -> adultViewer); // 성인 전용 게시판은 성인만(아니면 404 — V226)
+        adultBoards.requireBoard(board, viewerId); // 성인 전용 게시판 — 숨김이면 404, 핀이 필요하면 403 ADULT_BOARD_PIN_REQUIRED(adult-board-pin-contract)
         // 관리자 미리보기(theme)는 캐시를 거치지 않는다(홈 가젯과 같은 규칙)
         boolean preview = SiteThemes.isKnown(requestedTheme);
         String theme = preview ? requestedTheme : site.snapshot().info().theme();
         BoardLayout cached = preview ? boardLayout(theme) : caches.getCache(CacheNames.BOARDS_LAYOUT).get(theme, () -> boardLayout(theme));
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultViewer, null, board.slug(), !preview);
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, adultOpen(snapshot, viewerId), null, board.slug(), !preview);
         return new BoardLayoutResponse(theme, cached.screens(), cached.layout(), cached.specs().stream().map(spec -> view(spec, ctx)).toList());
     }
 
@@ -272,7 +280,7 @@ public class GadgetService {
      */
     private GadgetView view(GadgetSpec g, Ctx ctx) {
         if (GadgetKinds.ADULT_POSTS.equals(g.type()) && !ctx.adult()) {
-            // 19금 전용 가젯 — 성인이 아니면 데이터 없이 숨김 표시(화면이 자리째 그리지 않는다, adult-board-contract)
+            // 19금 전용 가젯 — 성인이 아니거나 19금 게시판 접근·핀 확인이 없으면 데이터 없이 숨김 표시(화면이 자리째 그리지 않는다, adult-board-contract)
             return new GadgetView(g.id(), g.type(), g.title(), g.desktop(), g.mobile(), true, false, g.style(), g.config(), g.more(), null, true);
         }
         Ctx shared = ctx.shared();
@@ -706,7 +714,7 @@ public class GadgetService {
      * 한 요청 동안 같이 쓰는 값
      *
      * @param folder 가젯 페이지 기준 폴더의 켜진 게시판 slug — 홈이거나 없으면 null(대상 {@code FOLDER} 는 전체)
-     * @param adult  보는 사람이 성인인가({@link AdultContentGate#adult}) — 19금 전용 가젯({@code ADULT_POSTS})만 본다(다른 글 목록 가젯은 성인이어도 19금 글을 뺀다)
+     * @param adult  보는 사람에게 성인 전용 게시판이 열려 있는가({@link AdultBoardGate#open} — 성인 + 접근 켜짐 + 핀 확인) —19금 전용 가젯({@code ADULT_POSTS})만 본다(다른 글 목록 가젯은 성인이어도 19금 글을 뺀다)
      * @param board  게시판 레이아웃이 그리는 게시판 slug(켜진 게시판) — 게시판 레이아웃이 아니면 null(대상 {@code BOARD} 는 전체)
      */
     private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, boolean adult, Set<String> folder, String board, boolean cached) {

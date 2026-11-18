@@ -1,5 +1,6 @@
 package com.community.post.service;
 
+import com.community.adultboard.service.AdultBoardGate;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardSecurityValues;
@@ -122,13 +123,17 @@ public class PostWriteService {
     private final PostTagStore tagStore;
     /** 구입 경로·체험단 사용기 연결(V241 — trial-group-contract) */
     private final TrialPostLinker purchases;
+    /** 성인 전용 게시판 접근 판정(adult-board-pin-contract) */
+    private final AdultBoardGate adultBoards;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
                             DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
-                            PostThumbnailChoices thumbnails, PostTagStore tagStore, TrialPostLinker purchases, PlatformTransactionManager txManager) {
+                            PostThumbnailChoices thumbnails, PostTagStore tagStore, TrialPostLinker purchases, AdultBoardGate adultBoards,
+                            PlatformTransactionManager txManager) {
+        this.adultBoards = adultBoards;
         this.purchases = purchases;
         this.rules = rules;
         this.tagStore = tagStore;
@@ -157,7 +162,7 @@ public class PostWriteService {
 
     public PostWriteResult create(PostWriteRequest body, Long userId, String ip) {
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireAdultAccess(PublicBoardService.requireActive(s, body.boardSlug()), () -> adultGate.adult(userId)); // 성인 전용 게시판은 성인만(404 — V226)
+        EffectiveBoard b = adultBoards.requireBoard(PublicBoardService.requireActive(s, body.boardSlug()), userId); // 성인 전용 게시판 — 숨김 404 · 핀 필요 403(adult-board-pin-contract)
         BoardActor actor = actors.resolve(userId, s);
         // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
         requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);

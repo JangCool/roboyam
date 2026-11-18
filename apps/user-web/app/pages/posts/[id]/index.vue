@@ -42,6 +42,9 @@
           그 아래 「처리 이력」 접기(`GET …/process-status/history`). 소모임 글도 같다(소모임 비밀글은 공개 요청·직접 공개 단추를 숨긴다 — `GroupPostPanel secret`).
     -->
     <div>
+        <!-- 보던 도중 성인 전용 게시판의 핀 확인이 끝났다(댓글·추천·신고·투표·토론·아래 목록 쪽 넘기기 등 어느 호출이든 403 ADULT_BOARD_PIN_REQUIRED) —
+             글 화면을 그대로 둔 채 위에 핀 입력(쓰던 댓글이 남는다). 맞게 넣으면 닫고, 받지 못한 댓글 목록만 다시 받는다 -->
+        <AdultBoardPinDialog v-model:visible="pinDialog" :locked-until="pinLockedUntil" @unlocked="onPinDialogUnlocked" />
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface bg-card px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-chevron-left" variant="text" severity="secondary" :aria-label="t('post.backToBoard')" @click="goBoard" />
@@ -103,6 +106,8 @@
                 <Button v-if="!user" type="button" :label="t('common.login')" @click="prompt('view')" />
                 <Button v-else as="router-link" :to="UtilGroup.LIST_PATH" :label="t('group.browse')" />
             </ErrorState>
+            <!-- 성인 전용 게시판의 글 — 접근은 켰지만 이 기기에서 핀번호를 아직 안 넣었다(403 ADULT_BOARD_PIN_REQUIRED, adult-board-pin-contract). 맞게 넣으면 글을 다시 읽는다 -->
+            <AdultBoardPinGate v-else-if="pageState === 'pinRequired'" class="content-card" :locked-until="pinLockedUntil" @unlocked="load" />
             <!-- 19금 글을 성인(로그인 + 본인인증 + 만 19세 이상)이 아닌 사람이 열었다(403 POST_ADULT_ONLY) — 본문·댓글을 받지 못한다 -->
             <ErrorState
                 v-else-if="pageState === 'adultOnly' && adultBlock"
@@ -598,6 +603,7 @@ import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.ty
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import UtilAd from '~/utils/util-ad';
+import UtilAdultBoard from '~/utils/util-adult-board';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -646,7 +652,7 @@ const id = computed(() => String(route.params.id ?? ''));
 const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 
 /* ── 불러오기 ── */
-type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'secretLocked' | 'error';
+type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'adultOnly' | 'pinRequired' | 'secretLocked' | 'error';
 const post = ref<PostDetail | null>(null);
 /** AI 회원의 글 — 본문 아래 고지·기계가 읽는 표시·댓글 입력 안내(`author.ai` — 이 글을 만든 모델) */
 /** 글 태그(post-tags-contract) — 옛 응답·쓸 수 없는 값은 빼고 */
@@ -690,6 +696,16 @@ function leaveSecret(): void {
 }
 /** 19금 글을 성인이 아닌 사람이 열었다(`403 POST_ADULT_ONLY` 의 extras — `reason` LOGIN·IDENTITY·UNDERAGE, `adultFrom` 은 미성년일 때) */
 const adultBlock = ref<{ reason: 'LOGIN' | 'IDENTITY' | 'UNDERAGE'; adultFrom: string | null } | null>(null);
+/** 성인 전용 게시판의 「핀 필요」(`403 ADULT_BOARD_PIN_REQUIRED`)에 실려 온 틀림 잠금의 끝 시각(없으면 null) */
+const pinLockedUntil = ref<string | null>(null);
+/** 글을 보던 도중 핀 확인이 끝났다 — 글 화면을 치우지 않고 대화상자로 묻는다(쓰던 댓글이 그대로 남는다) */
+const pinDialog = ref(false);
+// 어느 호출이든 「핀 필요」를 받았다 — 글을 이미 그린 뒤면 대화상자로. 글을 읽는 중이면 `load` 의 오류 처리가 내용 자리에 핀 입력을 그린다
+useAdultBoardPinDemand((lockedUntil) => {
+    if (pageState.value !== 'ready') return;
+    pinLockedUntil.value = lockedUntil;
+    pinDialog.value = true;
+});
 const identityGate = useIdentityGate();
 const adultVerifying = ref(false);
 /** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 서버 `DealSellerHiddenException`, `applicationId` 는 작성자에게만) */
@@ -812,7 +828,11 @@ async function load(): Promise<void> {
         secretBoardSlug.value = e instanceof ApiError && code === 'SECRET_POST' ? (e.extraText('boardSlug') ?? null) : null;
         secretGroupId.value = e instanceof ApiError && code === 'SECRET_POST' ? (e.extraText('groupId') ?? null) : null;
         secretGuest.value = e instanceof ApiError && code === 'SECRET_POST' && e.extras?.guestPost === true;
-        pageState.value = sellerHidden.value
+        const pin = UtilAdultBoard.pinRequired(e);
+        pinLockedUntil.value = pin?.lockedUntil ?? null;
+        pageState.value = pin
+            ? 'pinRequired'
+            : sellerHidden.value
             ? 'sellerHidden'
             : adultBlock.value
               ? 'adultOnly'
@@ -863,6 +883,12 @@ const commentActions = actionsOf(comments);
 /** 토론 의견(본문 영역 안) — `OPINION` 에서 시작, 칩으로 한 입장 */
 const opinions = usePostComments(id, 'OPINION');
 const opinionActions = actionsOf(opinions);
+
+/** 핀 입력 대화상자에서 맞게 넣었다 — 글은 다시 읽지 않는다(쓰던 댓글을 지키려고). 핀이 없어 받지 못한 댓글·의견 목록만 다시 받고, 하던 동작은 회원이 다시 누른다 */
+function onPinDialogUnlocked(): void {
+    if (comments.state.value === 'error') void comments.load();
+    if (opinions.state.value === 'error') void opinions.load();
+}
 const debateActions: DebateActions = {
     vote: (stance) => opinions.vote(stance),
     commenters: (q, signal) => opinions.commenters(q, signal),
