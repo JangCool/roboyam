@@ -94,6 +94,12 @@ public class SiteLogoBundleEntity {
         this.updatedAt = now;
     }
 
+    /** 「이름 포함」만 바꾼다 — 기본 제공 묶음도 된다(그림·이름은 그대로 — 2026-11-19) */
+    public void changeNameInLogo(boolean nameInLogo, Instant now) {
+        this.nameInLogo = nameInLogo;
+        this.updatedAt = now;
+    }
+
     /** 올린 묶음의 유형을 바꾼다(허용 값인지·기본 제공이 아닌지는 부르는 쪽이 확인했다) */
     public void changeStyle(String style, Instant now) {
         this.style = style;

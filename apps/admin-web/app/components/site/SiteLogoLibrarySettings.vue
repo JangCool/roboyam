@@ -9,7 +9,7 @@
           규칙 줄 미리보기·「오늘 보이는 로고」가 그 계산(`UtilSiteLogoRule.matchStyle`, 서버 `SiteLogoResolver.matchStyle` 과 같다)을 쓴다. 기념일 규칙 목록은 최대 높이 안에서 넘겨 본다.
         예전 일반 화면 「기본 정보」 안 로고 4칸을 넓힌 것이다(`docs/features/site-logo-variants-contract.md` 의 4칸이 묶음 한 벌이 된다).
           · 로고 보관함: 묶음(한 벌 = 4칸)을 카드로 나열한다 — 밝은 바탕 한글 칸 미리보기 · 이름 · 올린 날 · 채워진 칸 수 · 지금 쓰이는 곳(「기본 로고」/「규칙 n개」/「보관 중」).
-            기본 제공 묶음 2개(「캐릭터 로고」·「글자 로고」)는 늘 있고 고치지 못한다(보기만). 「새 로고 올리기」로 더하고, 올린 묶음은 이름·칸·「이름 포함」을 고친다(`SiteLogoBundleDialog` — 창의 [저장] 한 번).
+            기본 제공 묶음 2개(「캐릭터 로고」·「글자 로고」)는 늘 있고 그림·이름은 고치지 못한다(보기만 — 「이름 포함」 토글만 바꿀 수 있다, 2026-11-19). 「새 로고 올리기」로 더하고, 올린 묶음은 이름·칸·「이름 포함」을 고친다(`SiteLogoBundleDialog` — 창의 [저장] 한 번).
             **삭제 단추는 없다** — 올린 로고는 지우지 않고 보관해 나중에도 고른다(사용자 결정).
           · 보이기 규칙: 우선순위 기념일 → 성별 → 기본. 기본 로고(묶음 하나) · 기념일 규칙(줄 더하기·고치기·빼기·사용 켬/끔·순서 — 위 줄이 먼저, `SiteLogoRuleDialog`) · 성별 규칙(남성·여성 각각, 로그인한 회원만).
             구획의 [저장] 한 번으로 저장한다. 「오늘 보이는 로고」는 **저장된 규칙** 기준 요약이다(계산 `UtilSiteLogoRule` — 실제 표시는 서버·공개 사이트 몫, API 단계).
@@ -249,11 +249,13 @@
         v-model:visible="bundleOpen"
         :bundle="bundleTarget"
         :readonly="!canManage || Boolean(bundleTarget?.builtIn)"
+        :name-in-logo-editable="canManage && Boolean(bundleTarget?.builtIn)"
         :busy="bundleBusy"
         :error="bundleError"
         :field-errors="bundleFieldErrors"
         :site-name="siteLabel"
         @submit="saveBundle"
+        @save-name-in-logo="saveNameInLogo"
     />
 
     <SiteLogoRuleDialog
@@ -611,6 +613,25 @@ async function saveBundle(input: SiteLogoBundleInput): Promise<void> {
         bundleFieldErrors.value = fields;
         const shown = Object.keys(fields).some((key) => key === 'name' || key === 'style' || key === 'cells' || key.startsWith('cells.'));
         if (!shown) bundleError.value = error.message;
+    } finally {
+        bundleBusy.value = false;
+    }
+}
+
+/** 기본 제공 묶음의 「이름 포함」만 저장한다(그림·이름은 잠겨 있다) — 묶음 목록만 바꾸고 규칙 초안은 그대로 */
+async function saveNameInLogo(nameInLogo: boolean): Promise<void> {
+    const target = bundleTarget.value;
+    if (bundleBusy.value || !canManage.value || !target) return;
+    bundleBusy.value = true;
+    bundleError.value = '';
+    bundleFieldErrors.value = {};
+    try {
+        saved.value = await api.changeNameInLogo(target.id, nameInLogo);
+        syncAdminLogo();
+        bundleOpen.value = false;
+        toast.success(t('siteLogo.bundleSaved'));
+    } catch (e) {
+        bundleError.value = toApiError(e).message;
     } finally {
         bundleBusy.value = false;
     }

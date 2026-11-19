@@ -4,6 +4,7 @@ import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.site.dto.request.SiteLogoBundleRequest;
+import com.community.site.dto.request.SiteLogoNameInLogoRequest;
 import com.community.site.dto.request.SiteLogoRulesRequest;
 import com.community.site.dto.response.SiteLogoLibraryResponse;
 import com.community.site.service.SiteLogoLibraryService;
@@ -49,6 +50,13 @@ public class SiteLogoLibraryController {
     @PutMapping("/bundles/{id}")
     public ApiResponse<SiteLogoLibraryResponse> updateBundle(@PathVariable String id, @RequestBody(required = false) SiteLogoBundleRequest body, AdminActor actor) {
         return ApiResponse.success(service.updateBundle(actor, id, body));
+    }
+
+    /** 묶음의 「로고에 사이트 이름이 들어 있음」만 바꾼다 — 기본 제공 묶음도 된다(그림·이름은 그대로) */
+    @RequirePermission(Permission.SITE_MANAGE)
+    @PutMapping("/bundles/{id}/name-in-logo")
+    public ApiResponse<SiteLogoLibraryResponse> changeNameInLogo(@PathVariable String id, @RequestBody(required = false) SiteLogoNameInLogoRequest body, AdminActor actor) {
+        return ApiResponse.success(service.changeNameInLogo(actor, id, body));
     }
 
     /** 보이기 규칙(평소 로고·기념일·성별·기념일 로고 유형)을 통째로 저장한다 */

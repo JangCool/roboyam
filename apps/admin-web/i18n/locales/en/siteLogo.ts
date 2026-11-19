@@ -40,7 +40,7 @@ export default {
     // Upload / edit dialog
     createTitle: 'Upload new logo',
     editTitle: 'Edit logo',
-    builtInNote: 'Built-in logos cannot be edited. To change one, add a new logo with "Upload new logo".',
+    builtInNote: 'Built-in logos cannot have their images or name edited (only "The logo includes the site name" can be changed). To change the image, add a new logo with "Upload new logo".',
     bundleNameLabel: 'Logo name',
     bundleNameHint: 'Up to {max} characters',
     bundleNameRequired: 'Enter a logo name.',

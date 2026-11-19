@@ -40,7 +40,7 @@ export default {
     // 묶음 올리기·고치기 창
     createTitle: '새 로고 올리기',
     editTitle: '로고 고치기',
-    builtInNote: '기본 제공 로고는 고칠 수 없어요. 바꾸고 싶으면 「새 로고 올리기」로 새 로고를 더해 주세요.',
+    builtInNote: '기본 제공 로고는 그림·이름을 고칠 수 없어요(「로고에 사이트 이름이 들어 있음」만 바꿀 수 있어요). 그림을 바꾸고 싶으면 「새 로고 올리기」로 새 로고를 더해 주세요.',
     bundleNameLabel: '로고 이름',
     bundleNameHint: '{max}자 이하',
     bundleNameRequired: '로고 이름을 입력해 주세요.',

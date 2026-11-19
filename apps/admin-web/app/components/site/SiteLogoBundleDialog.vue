@@ -3,7 +3,7 @@
         로고 묶음 한 벌을 올리거나 고치는 창(로고 보관함) — 이름 + 유형(캐릭터 로고·글자 로고 — `fieldErrors.style`) + 4칸(① 한글·밝은 ② 한글·어두운 ③ 영문·밝은 ④ 영문·어두운, 칸마다 `SiteLogoVariantTile`) + 「로고에 사이트 이름이 들어 있음」.
         예전 일반 화면의 4칸은 올리는 즉시 적용이었지만, 묶음은 이름·칸·스위치를 **[저장] 한 번으로** 함께 저장한다(칸을 고르는 동안은 이 창의 초안이다).
         빈 칸은 대체 순서(`UtilSiteLogo.resolve`)대로 같은 묶음의 다른 칸이 대신하고 타일이 그 그림을 흐리게 보인다. SVG 소스 칸은 한 번에 한 칸만 열린다.
-        `readonly`(기본 제공 묶음이거나 권한 없음)면 단추·저장이 없고 보기만 한다. 삭제는 없다(올린 로고는 보관 — 사용자 결정).
+        `readonly`(기본 제공 묶음이거나 권한 없음)면 보기만 한다 — 단 기본 제공 묶음이고 권한이 있으면(`nameInLogoEditable`) 「이름 포함」 토글과 그 값만 보내는 [저장](`saveNameInLogo`)이 있다(2026-11-19). 삭제는 없다(올린 로고는 보관 — 사용자 결정).
         서버는 부르지 않는다 — 값은 `submit` 으로 올리고, 서버 거절 문구는 `fieldErrors`(`name`·`cells`·`cells.<칸>` — 그 칸 타일 아래)·`error` 로 받는다.
     -->
     <Dialog :visible="visible" modal :draggable="false" :closable="!busy" :header="header" :style="{ width: 'min(44rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
@@ -74,7 +74,7 @@
 
             <!-- 「이름 포함」 — 묶음마다 따로. 켜면 이 묶음이 보일 때 공개 헤더가 로고 옆 이름 글자를 붙이지 않는다 -->
             <div class="flex items-center gap-3">
-                <ToggleSwitch v-model="nameInLogo" :input-id="nameInLogoId" :disabled="readonly || busy" :aria-describedby="`${nameInLogoId}-help`" />
+                <ToggleSwitch v-model="nameInLogo" :input-id="nameInLogoId" :disabled="(readonly && !nameInLogoEditable) || busy" :aria-describedby="`${nameInLogoId}-help`" />
                 <div>
                     <label :for="nameInLogoId" class="text-sm">{{ t('site.logoNameInLogo') }}</label>
                     <p :id="`${nameInLogoId}-help`" class="text-xs text-muted-color">{{ t('siteLogo.nameInLogoHelp') }}</p>
@@ -85,7 +85,9 @@
         </form>
         <template #footer>
             <template v-if="readonly">
-                <Button type="button" :label="t('common.close')" severity="secondary" variant="text" @click="emit('update:visible', false)" />
+                <Button type="button" :label="t('common.close')" severity="secondary" variant="text" :disabled="busy" @click="emit('update:visible', false)" />
+                <!-- 기본 제공 묶음도 「이름 포함」은 바꿀 수 있다(권한이 있을 때) — 그 값만 저장 -->
+                <Button v-if="nameInLogoEditable && bundle" type="button" :label="t('common.save')" icon="pi pi-check" :loading="busy" :disabled="nameInLogo === bundle.nameInLogo" @click="emit('saveNameInLogo', nameInLogo)" />
             </template>
             <template v-else>
                 <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="busy" @click="emit('update:visible', false)" />
@@ -108,6 +110,8 @@ interface Props {
     bundle?: SiteLogoBundle | null;
     /** 보기만(기본 제공 묶음·권한 없음) */
     readonly?: boolean;
+    /** 보기만인 창(기본 제공 묶음)에서도 「이름 포함」은 바꿀 수 있다 — 권한(`site.manage`)이 있을 때. [저장] 이 그 값만 보낸다(`saveNameInLogo`) */
+    nameInLogoEditable?: boolean;
     busy?: boolean;
     /** 칸에 붙지 않는 서버 오류 */
     error?: string;
@@ -117,8 +121,8 @@ interface Props {
     siteName?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { bundle: null, readonly: false, busy: false, error: '', fieldErrors: () => ({}), siteName: '' });
-const emit = defineEmits<{ 'update:visible': [visible: boolean]; submit: [input: SiteLogoBundleInput] }>();
+const props = withDefaults(defineProps<Props>(), { bundle: null, readonly: false, nameInLogoEditable: false, busy: false, error: '', fieldErrors: () => ({}), siteName: '' });
+const emit = defineEmits<{ 'update:visible': [visible: boolean]; submit: [input: SiteLogoBundleInput]; saveNameInLogo: [nameInLogo: boolean] }>();
 
 const { t } = useI18n();
 const formId = useId();

@@ -29,6 +29,7 @@
 - 관리자(응답은 늘 묶음 목록 + 규칙 전체)
   - `GET /api/admin/site/logo-library`
   - `POST /api/admin/site/logo-library/bundles` · `PUT /api/admin/site/logo-library/bundles/{id}`
+  - `PUT /api/admin/site/logo-library/bundles/{id}/name-in-logo` `{ nameInLogo }` — 「로고에 사이트 이름이 들어 있음」만 바꾼다. **기본 제공 묶음도 된다**(그림·이름은 그대로 잠금 — 2026-11-19, 기본 로고를 쓰는 사이트가 이 표시를 바꿀 길이 없었다). 값 없으면 400 `fields.nameInLogo`(`siteLogo.bundle.nameInLogo.required`), 없는 묶음 404, 감사 `SITE_LOGO_BUNDLE_UPDATE`(`nameInLogo: 옛 -> 새`). 관리자 창은 기본 제공 묶음을 보기만으로 열되 권한이 있으면 토글 + [저장].
   - `PUT /api/admin/site/logo-library/rules`
   - 파일은 기존 `POST /api/admin/files`(SITE_LOGO)로 올린 뒤 `fileId`, SVG 는 소스 글자열.
 - 공개 `GET /api/site/info`: `logos`·`logoNameIncluded`·`logoUrl` 은 **오늘의 성별 무관 묶음**(기념일이 걸리면 그 묶음, 아니면 기본 로고)으로 채운다. `genderLogos{male,female}`(각 `{logos, nameIncluded}` 또는 null)을 더한다 — 평소에는 성별 로고, 기념일에는 그 성별 회원용 기념일 벌이 `logos` 와 다른 묶음일 때만(아래 「기념일 로고 유형」). 화면이 로그인 회원의 성별로 고른다.

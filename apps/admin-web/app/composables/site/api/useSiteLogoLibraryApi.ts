@@ -17,6 +17,7 @@ import UtilSiteLogo from '~/utils/util-site-logo';
  *   - `POST /api/admin/site/logo-library/bundles` `{ name, nameInLogo, style: "CHARACTER"|"WORDMARK"(칸 오류 `fields.style`), cells: { koLight: {fileId}|{svgSource}|"KEEP"|null, … } }`  (`site.manage`)
  *       그림 파일은 먼저 `POST /api/admin/files`(purpose=SITE_LOGO — `useFileApi`)로 올려 받은 `fileId` 를 칸에 넣는다. 만들기에서 `"KEEP"` 은 빈 칸이다.
  *   - `PUT  /api/admin/site/logo-library/bundles/{id}` 같은 본문(`"KEEP"` = 지금 그대로, null = 비움) · 404 `SITE_LOGO_BUNDLE_NOT_FOUND` · 기본 제공 묶음이면 409 `SITE_LOGO_BUNDLE_NOT_EDITABLE`  (`site.manage`)
+ *   - `PUT  /api/admin/site/logo-library/bundles/{id}/name-in-logo` `{ nameInLogo }` — 「이름 포함」만(기본 제공 묶음도 된다) · 값 없으면 400 `fields.nameInLogo`  (`site.manage`)
  *   - `PUT  /api/admin/site/logo-library/rules` `SiteLogoRules`(기본 로고·기념일 줄 차례대로·성별·기념일 로고 유형 `holidayStyle`)  (`site.manage`)
  *       `holidayStyle`(`AUTO`|`CHARACTER`|`WORDMARK`)은 응답의 `rules` 안에 오고 요청 본문 최상위로 보낸다. 응답에 없으면 `AUTO` 로 본다(`normalize`). 칸 오류는 `fields.holidayStyle`.
  *       기념일 줄은 통째로 갈아 끼운다 — 요청의 줄 `id` 는 쓰이지 않고 응답에 새 id 가 온다(화면은 응답으로 다시 채운다). 줄 수 한도 50.
@@ -27,6 +28,7 @@ const PATH = {
     library: '/api/admin/site/logo-library',
     bundles: '/api/admin/site/logo-library/bundles',
     bundle: (id: string) => `/api/admin/site/logo-library/bundles/${encodeURIComponent(id)}`,
+    nameInLogo: (id: string) => `/api/admin/site/logo-library/bundles/${encodeURIComponent(id)}/name-in-logo`,
     rules: '/api/admin/site/logo-library/rules',
 };
 
@@ -82,6 +84,10 @@ export function useSiteLogoLibraryApi() {
         async updateBundle(id: string, input: SiteLogoBundleInput): Promise<SiteLogoLibraryResponse> {
             return normalize(await client.put<SiteLogoLibraryRawResponse>(PATH.bundle(id), await toRequest(input)));
         },
+
+        /** 묶음의 「로고에 사이트 이름이 들어 있음」만 바꾼다 — 기본 제공 묶음도 된다(그림·이름은 그대로) */
+        changeNameInLogo: async (id: string, nameInLogo: boolean): Promise<SiteLogoLibraryResponse> =>
+            normalize(await client.put<SiteLogoLibraryRawResponse>(PATH.nameInLogo(id), { nameInLogo })),
 
         /** 보이기 규칙(기본 로고·기념일·성별·기념일 로고 유형)을 통째로 저장한다 — 응답의 기념일 줄 id 는 새로 매겨진다 */
         saveRules: async (rules: SiteLogoRules): Promise<SiteLogoLibraryResponse> => normalize(await client.put<SiteLogoLibraryRawResponse>(PATH.rules, rules)),

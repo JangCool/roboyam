@@ -11,6 +11,7 @@ import com.community.media.repository.master.FileRepository;
 import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.site.dto.request.SiteLogoBundleRequest;
+import com.community.site.dto.request.SiteLogoNameInLogoRequest;
 import com.community.site.dto.request.SiteLogoRulesRequest;
 import com.community.site.dto.response.SiteLogoLibraryResponse;
 import com.community.site.entity.SiteLogoBundleEntity;
@@ -216,6 +217,32 @@ public class SiteLogoLibraryService {
         });
         imageFiles.deleteQuietly(changed.oldKeys());
         return changed.library();
+    }
+
+    /**
+     * 묶음의 「로고에 사이트 이름이 들어 있음」만 바꾼다 — 기본 제공 묶음도 된다(그림·이름은 그대로 잠겨 있다, 2026-11-19 — 기본 로고를 쓰는 사이트가 이 표시를 바꿀 길이 없었다).
+     * 없는 묶음 404, 값이 없으면 {@code fields.nameInLogo}. 값이 그대로면 아무것도 적지 않는다.
+     */
+    public SiteLogoLibraryResponse changeNameInLogo(AdminActor actor, String idText, SiteLogoNameInLogoRequest body) {
+        long id = parseId(idText).orElseThrow(SiteLogoBundleNotFoundException::new);
+        if (body == null || body.nameInLogo() == null) {
+            throw ValidationException.of("nameInLogo", new MessageRef("siteLogo.bundle.nameInLogo.required"));
+        }
+        boolean nameInLogo = body.nameInLogo();
+        return tx.execute(status -> {
+            SiteSettingEntity row = settings.findById(SiteSettingEntity.ROW_ID).orElseThrow(SiteLogoLibraryService::missing);
+            SiteLogoBundleEntity bundle = bundles.findWithLockById(id).orElseThrow(SiteLogoBundleNotFoundException::new);
+            boolean old = bundle.isNameInLogo();
+            if (old != nameInLogo) {
+                bundle.changeNameInLogo(nameInLogo, Instant.now());
+                audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_BUNDLE_UPDATE, AuditResult.SUCCESS).target("SITE", "1")
+                        .with("bundleId", Long.toString(id)).with("nameInLogo", old + " -> " + nameInLogo));
+                notices.siteSettingsChanged(actor, "siteLogo");
+                log.info("로고 묶음의 이름 포함을 바꿨다 operatorId={} bundleId={} nameInLogo={}", actor.operatorId(), id, nameInLogo);
+                bundles.flush();
+            }
+            return library(row);
+        });
     }
 
     // ── 규칙 ──
