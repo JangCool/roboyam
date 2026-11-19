@@ -243,6 +243,7 @@ export default {
     field: {
         label: 'Name',
         nameEn: 'English name',
+        nameStyle: 'Name style',
         parent: 'Put in',
         visible: 'Show in menu',
         audience: 'Visible to',
@@ -293,6 +294,13 @@ export default {
     badgeHelp: 'Badge color = text color',
     textStyleSample: 'Sample',
     textStyleSampleEmpty: 'Menu name',
+    nameStyle: {
+        TEXT: 'Plain text',
+        LOGO: 'Logo lettering',
+    },
+    nameStyleTextHelp: 'Shown in the site font.',
+    nameStyleLogoHelp: "Shown as artwork in the irobit logo typeface. It's redrawn on save when you change the name. English screens show the English name as plain text.",
+    nameStyleLogoPending: 'On save, this name is drawn in the irobit logo typeface. (Mockup: only 「아추!」 has a preview.)',
     divider: {
         NONE: 'None',
         BEFORE: 'Left',

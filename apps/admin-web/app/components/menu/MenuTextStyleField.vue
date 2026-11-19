@@ -40,7 +40,12 @@
         <div class="flex items-center gap-2 rounded-lg border border-(--line) px-3 py-2" data-testid="menu-text-style-sample">
             <span class="shrink-0 text-xs text-muted-color">{{ t('menuConfig.textStyleSample') }}</span>
             <span class="inline-flex min-w-0 items-center gap-1.5 text-sm">
-                <span class="truncate" :class="bold ? 'font-semibold' : ''" :style="UtilMenu.textStyle({ textColor: model })">{{ sampleName || t('menuConfig.textStyleSampleEmpty') }}</span>
+                <!-- 이름 그림(이름 모양 › 로고 글꼴 그림) — 글자 색으로 채운다. 그림이면 「굵게」는 쓰지 않는다 -->
+                <span v-if="nameArt" class="inline-flex shrink-0 items-center" :style="UtilMenu.textStyle({ textColor: model })" data-testid="menu-text-style-art">
+                    <svg :viewBox="`0 0 ${nameArt.w} ${nameArt.h}`" :style="{ height: `${nameArt.em}em`, width: 'auto' }" class="block fill-current overflow-visible" aria-hidden="true" focusable="false"><path :d="nameArt.d" stroke="currentColor" :stroke-width="nameArt.sw ?? 0" stroke-linejoin="round" /></svg>
+                    <span class="sr-only">{{ sampleName }}</span>
+                </span>
+                <span v-else class="truncate" :class="bold ? 'font-semibold' : ''" :style="UtilMenu.textStyle({ textColor: model })">{{ sampleName || t('menuConfig.textStyleSampleEmpty') }}</span>
                 <MenuNodeBadge :badge="badge" :text-color="model" />
             </span>
         </div>
@@ -53,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import type { MenuNameArtMock } from '~/composables/menu/api/mock/menu-name-art-mock';
 import UtilMenu from '~/utils/util-menu';
 
 /** 글자 색 — null 기본 · 13색 이름 · `#RRGGBB`(입력 중이면 틀린 글자일 수 있다) */
@@ -69,9 +75,11 @@ interface Props {
     badgeError?: string;
     /** 이름 옆 점(●)은 게시판 표시색을 따른다는 안내를 보일까(점이 있는 항목 창만) */
     dotNote?: boolean;
+    /** 견본을 이 그림으로(항목 「이름 모양 › 로고 글꼴 그림」) — 없으면 글자 */
+    nameArt?: MenuNameArtMock | null;
 }
 
-withDefaults(defineProps<Props>(), { sampleName: '', textColorError: '', badgeError: '', dotNote: true });
+withDefaults(defineProps<Props>(), { sampleName: '', textColorError: '', badgeError: '', dotNote: true, nameArt: null });
 
 const { t } = useI18n();
 const idBase = useId();

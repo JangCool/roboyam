@@ -1,6 +1,7 @@
 import type { MenuNode } from '~/composables/menu/api/useMenuApi.types';
 import type { MenuPhase, MenuViewState } from '~/utils/util-menu';
 import UtilMenu from '~/utils/util-menu';
+import { withAchuMock } from '~/composables/menu/api/mock/menu-achu-mock';
 
 /**
  * 메뉴 트리 — 왼쪽·오른쪽·상단 메뉴, 햄버거, 모바일 상단 탭, `/boards` 모음이 함께 쓰는 **공유 상태**다 (frontend-guide 3장).
@@ -71,8 +72,11 @@ export function useMenu() {
                 if (!parsed) throw new Error('menu-shape');
                 // 서버 구분선(2026-10-29)이 없는 최상위 노드에만 개발 모드의 `?divider=` 미리보기를 입힌다(운영 빌드는 그대로)
                 // 그룹 연결도 같다 — 서버 `path` 가 없는 그룹에만 개발 모드의 `?groupLink=` 미리보기
-                serverNodes.value = UtilMenu.withGroupLinkPreview(UtilMenu.withDividerPreview(parsed.nodes));
-                serverTabs.value = parsed.mobileTabs;
+                // MOCK: 「아추!」 항목(이름 그림)을 인기글 뒤에 끼운다 — achu-page-contract. 서버가 붙으면 이 줄과 import 를 지우고 아래 REAL 줄로
+                const mocked = withAchuMock(parsed.nodes, parsed.mobileTabs);
+                serverNodes.value = UtilMenu.withGroupLinkPreview(UtilMenu.withDividerPreview(mocked.nodes));
+                serverTabs.value = mocked.mobileTabs;
+                // REAL: serverNodes.value = UtilMenu.withGroupLinkPreview(UtilMenu.withDividerPreview(parsed.nodes)); serverTabs.value = parsed.mobileTabs;
                 phase.value = 'ready';
             })
             .catch(() => {

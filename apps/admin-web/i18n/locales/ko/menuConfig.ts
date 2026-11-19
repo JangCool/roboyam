@@ -243,6 +243,7 @@ export default {
     field: {
         label: '이름',
         nameEn: '영문명',
+        nameStyle: '이름 모양',
         parent: '넣을 곳',
         visible: '메뉴에 보이기',
         audience: '보이는 대상',
@@ -293,6 +294,13 @@ export default {
     badgeHelp: '배지 색 = 글자 색',
     textStyleSample: '견본',
     textStyleSampleEmpty: '메뉴 이름',
+    nameStyle: {
+        TEXT: '보통 글자',
+        LOGO: '로고 글꼴 그림',
+    },
+    nameStyleTextHelp: '사이트 글꼴 그대로 보여요.',
+    nameStyleLogoHelp: '이름을 아이로빗 로고 글꼴 그림으로 보여요. 이름을 고치면 저장할 때 다시 만들어요. 영어 화면에서는 영문명을 보통 글자로 보여요.',
+    nameStyleLogoPending: '저장하면 이 이름을 아이로빗 로고 글꼴 그림으로 만들어요. (목업: 지금은 「아추!」만 견본이 보여요)',
     divider: {
         NONE: '없음',
         BEFORE: '왼쪽',

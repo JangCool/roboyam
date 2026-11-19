@@ -64,6 +64,20 @@ export interface MenuItemNode {
     bold?: boolean;
     /** 이름 뒤 작은 배지 글자(1~4자, 운영자 「강조 › 배지」) — 배지 색 = 글자 색(기본이면 주 색). 없으면 null */
     badge?: string | null;
+    /**
+     * 이름 그림(운영자 「이름 모양 › 로고 글꼴 그림」 — `docs/features/achu-page-contract.md`) — 이름을 아이로빗 캐릭터 로고 글꼴(개구체 Gaegu 700)로 굳힌 SVG 패스.
+     * 저장할 때 만들어 두므로 공개 사이트는 글꼴을 받지 않는다. 없으면(null·옛 응답) 보통 글자. 지금 언어가 영문명을 보일 때는 쓰지 않는다. 색은 글자 색을 따른다
+     */
+    nameArt?: MenuNameArt | null;
+}
+
+/** 메뉴 이름 그림 — `d` 는 (0,0)~(w,h) 안의 채움 패스, `em` 은 그릴 높이(글자 크기의 배수), `sw` 는 같은 색 테두리 두께(viewBox 단위 — 캐릭터 로고처럼 획을 두껍게, 없으면 0) */
+export interface MenuNameArt {
+    d: string;
+    w: number;
+    h: number;
+    em: number;
+    sw?: number;
 }
 
 /** 폴더형 노드 — 이름과 아래 노드들, 그리고 이름을 누르면 가는 곳(선택) */

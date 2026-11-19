@@ -8,6 +8,7 @@ import type {
     MenuItemDto,
     MenuKnownTargetType,
     MenuLinkClick,
+    MenuNameStyle,
     MenuNodeDto,
     MenuPlacement,
 } from '~/composables/menu/api/useMenuApi.types';
@@ -88,6 +89,8 @@ export interface MenuEditItem extends MenuEditCommon, MenuEditLink {
      * 한 그룹 안 한 번 규칙은 진짜 자리(바로가기 아닌 항목)에만 걸린다. 폴더 안에만 둔다(최상위 불가). 모바일 탭은 쓰지 않는다. 서버 칸 `menu_nodes.shortcut`(shared V167).
      */
     shortcut: boolean;
+    /** 이름 모양 — 보통 글자 · 로고 글꼴 그림(저장할 때 이름을 아이로빗 캐릭터 로고 글꼴(개구체) 그림으로 만든다 — achu-page-contract) */
+    nameStyle: MenuNameStyle;
 }
 
 export type MenuEditNode = MenuEditFolder | MenuEditItem;
@@ -481,6 +484,7 @@ export default class UtilMenu {
                 description: node.description ?? '',
                 rawSettings: known ? null : node.settings,
                 shortcut: node.targetType === 'BOARD' && node.shortcut === true,
+                nameStyle: node.nameStyle === 'LOGO' ? 'LOGO' : 'TEXT',
             };
         });
     }
@@ -565,6 +569,8 @@ export default class UtilMenu {
                 description: (side && top && node.description.trim()) || null,
                 // 바로가기 표시는 바로가기에만 싣는다(일반 항목의 요청 모양은 그대로)
                 ...(node.shortcut ? { shortcut: true } : {}),
+                // MOCK: 이름 모양(`nameStyle`)은 서버 칸이 생기면 싣는다 — achu-page-contract
+                // REAL: nameStyle: node.nameStyle,
             };
             return item;
         });
@@ -602,6 +608,7 @@ export default class UtilMenu {
             textColor: null,
             bold: false,
             badge: '',
+            nameStyle: 'TEXT',
         };
     }
 

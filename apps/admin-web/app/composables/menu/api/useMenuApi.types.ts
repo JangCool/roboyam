@@ -135,7 +135,14 @@ export interface MenuItemDto extends MenuNodeBase {
      * 규칙(서버 `MenuTreeValidator`): 폴더 안에만 · 같은 그룹에 진짜 자리가 있어야 · 진짜 자리와 같은 폴더·같은 폴더 두 번 불가 · 모바일 탭 false. 서버 연결됨(2026-11-08, shared V167) — 응답은 늘 싣는다.
      */
     shortcut?: boolean;
+    /**
+     * 이름 모양 — `TEXT` 보통 글자(기본) · `LOGO` 로고 글꼴 그림(achu-page-contract). ⚠ MOCK: 서버 칸이 아직 없다 — 응답에 없으면 `TEXT`, 저장 요청에는 아직 싣지 않는다
+     */
+    nameStyle?: MenuNameStyle;
 }
+
+/** 메뉴 항목 이름 모양 — 보통 글자 · 로고 글꼴 그림 */
+export type MenuNameStyle = 'TEXT' | 'LOGO';
 
 export type MenuNodeDto = MenuFolderDto | MenuItemDto;
 

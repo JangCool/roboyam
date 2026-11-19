@@ -91,6 +91,16 @@
                 </template>
             </LabeledField>
 
+            <!--
+                이름 모양 — 보통 글자 · 로고 글꼴 그림(achu-page-contract). 그림을 고르면 저장할 때 이름을 아이로빗 캐릭터 로고 글꼴(개구체)로 굳힌 그림을 만들어 공개 메뉴가 그 그림을 그린다
+                (공개 사이트는 글꼴을 받지 않는다). 영어 화면에서 영문명을 보일 때는 보통 글자. ⚠ MOCK: 견본 그림은 「아추!」만, 저장 요청에는 아직 싣지 않는다
+            -->
+            <div class="flex flex-col gap-1.5">
+                <span :id="`${formId}-name-style`" class="text-sm font-medium">{{ t('menuConfig.field.nameStyle') }}</span>
+                <SelectButton v-model="form.nameStyle" :options="nameStyleOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${formId}-name-style`" data-testid="menu-name-style" />
+                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ nameStyleHelp }}</p>
+            </div>
+
             <!-- 글자 색 · 강조(굵게 · 배지) — 서버 칸 오류(`…textColor`·`…badge`)도 칸 아래 -->
             <MenuTextStyleField
                 v-model:text-color="form.textColor"
@@ -99,6 +109,7 @@
                 :sample-name="form.label.trim() ? localizedName(form.label.trim(), form.nameEn.trim() || null) : targetName"
                 :text-color-error="errorOf('textColor') || (serverErrors.textColor ?? '')"
                 :badge-error="errorOf('badge') || (serverErrors.badge ?? '')"
+                :name-art="sampleArt"
             />
 
             <div class="flex items-center gap-2">
@@ -136,6 +147,7 @@
 <script setup lang="ts">
 import type { MenuContext, MenuEditItem, MenuLinkedTarget, MenuProblemField, MenuTargetKind } from '~/utils/util-menu';
 import UtilMenu from '~/utils/util-menu';
+import { mockNameArt } from '~/composables/menu/api/mock/menu-name-art-mock';
 import UtilMenuMessages from '~/utils/util-menu-messages';
 import UtilMenuTree from '~/utils/util-menu-tree';
 
@@ -208,6 +220,18 @@ const tabsFull = computed(() => props.tabCount >= UtilMenu.LIMITS.mobileTabs);
 const targetName = computed(() => (form.value ? UtilMenuMessages.targetName(t, form.value, props.ctx, localizedName) : ''));
 const followHelp = computed(() => (needsLabel.value ? '' : targetName.value ? t('menuConfig.followHelp', { name: targetName.value }) : t('menuConfig.followHelpEmpty')));
 const audienceNote = computed(() => (audienceChanged.value ? t('menuConfig.audienceAuto') : ''));
+const nameStyleOptions = computed(() => [
+    { value: 'TEXT', label: t('menuConfig.nameStyle.TEXT') },
+    { value: 'LOGO', label: t('menuConfig.nameStyle.LOGO') },
+]);
+/** 견본에 그릴 이름 — 비었으면 따라가는 대상 이름 */
+const sampleLabel = computed(() => (form.value?.label.trim() ? form.value.label.trim() : targetName.value));
+// MOCK: 견본 그림은 미리 만든 「아추!」만(`menu-name-art-mock`) — 실제로는 저장할 때 이름으로 만든다
+const sampleArt = computed(() => (form.value?.nameStyle === 'LOGO' ? mockNameArt(sampleLabel.value) : null));
+const nameStyleHelp = computed(() => {
+    if (form.value?.nameStyle !== 'LOGO') return t('menuConfig.nameStyleTextHelp');
+    return sampleArt.value ? t('menuConfig.nameStyleLogoHelp') : t('menuConfig.nameStyleLogoPending');
+});
 
 /** 종류 고르기 — 같은 종류면 고친 값 그대로, 다른 종류면 대상 칸만 비운다(이미 만든 항목도 이름·보이는 대상 등은 그대로) */
 function pickKind(kind: MenuTargetKind) {

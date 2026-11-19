@@ -1,6 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { BoardKind, BoardView } from '~/composables/board/api/useBoardApi.types';
-import type { MenuBoardRef, MenuDivider, MenuGroupNode, MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
+import type { MenuBoardRef, MenuDivider, MenuGroupNode, MenuItemNode, MenuNameArt, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
 import UtilBoard from '~/utils/util-board';
 import type { ColorStyle } from '~/utils/util-board';
 import UtilColor from '~/utils/util-color';
@@ -176,6 +176,20 @@ function readBadge(raw: unknown): string | null {
     return text === '' ? null : text;
 }
 
+/** 이름 그림의 패스 글자 — 그리기 명령·숫자만(다른 글자가 섞이면 그림을 버리고 보통 글자로) */
+const NAME_ART_PATH = /^[MLHVQCSTZmlhvqcstz0-9 .,-]+$/;
+
+/** 서버가 준 이름 그림 — 모양이 틀리면 null(보통 글자). 그릴 높이는 글자 크기의 2배까지 */
+function readNameArt(raw: unknown): MenuNameArt | null {
+    if (!isRecord(raw)) return null;
+    const { d, w, h, em } = raw;
+    if (typeof d !== 'string' || d.length > 20000 || !NAME_ART_PATH.test(d)) return null;
+    if (typeof w !== 'number' || typeof h !== 'number' || typeof em !== 'number') return null;
+    if (![w, h, em].every((v) => Number.isFinite(v) && v > 0)) return null;
+    const sw = typeof raw.sw === 'number' && Number.isFinite(raw.sw) && raw.sw > 0 ? Math.min(raw.sw, 10) : 0;
+    return { d, w, h, em: Math.min(em, 2), sw };
+}
+
 /** 개발 미리보기 `?divider=이름:before|after,…` 를 이 탭에 기억하는 저장 키 */
 const DIVIDER_PREVIEW_KEY = 'irobit:menu-divider-preview';
 
@@ -258,6 +272,7 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
             textColor: UtilColor.normalize(raw.textColor),
             bold: raw.bold === true,
             badge: readBadge(raw.badge),
+            nameArt: readNameArt(raw.nameArt),
         };
     }
     return null;
