@@ -27,9 +27,10 @@
             <span class="sr-only">{{ t('board.commentCountLabel') }}</span><template v-if="plainCount">{{ row.commentCount }}</template><template v-else>[{{ row.commentCount }}]</template>
         </span>
         <!-- 새 글 「N」 — 원의 가운데를 제목 글자의 대문자 높이 가운데(`new-mark`)에 둔다(글꼴이 달라도 같다 — `align-middle` 은 소문자 가운데라 글꼴마다 위로 떴다).
-             바깥 원은 제목 글자 크기를 그대로 받아야 `cap` 이 제목 기준이 되므로 「N」 글자 크기는 안쪽에만 준다. 안의 「N」 은 라틴 대문자라 글자 보정(`chip-label`) 없이 원의 가운데(mobile-nav-prefix-style-contract 5절) -->
+             바깥 원은 제목 글자 크기를 그대로 받아야 `cap` 이 제목 기준이 되므로 「N」 글자 크기는 안쪽에만 준다.
+             안의 「N」 은 글자 상자를 대문자 높이로 잘라(`chip-label`) 원의 정중앙에 둔다 — 줄 상자째 가운데면 글꼴의 위아래 여백 차이만큼 치우친다 -->
         <span v-if="isNew" class="new-mark ml-1 rounded-full bg-primary" :title="t('board.newMark')">
-            <span class="flex size-full items-center justify-center text-[0.5625rem] font-bold leading-none text-primary-contrast" aria-hidden="true">N</span>
+            <span class="flex size-full items-center justify-center text-[0.5625rem] font-bold leading-none text-primary-contrast" aria-hidden="true"><span class="chip-label">N</span></span>
             <span class="sr-only">{{ t('board.newMark') }}</span>
         </span>
     </span>
