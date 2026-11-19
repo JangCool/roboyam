@@ -62,7 +62,7 @@
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <!-- 1. 기본 정보 -->
-                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'layout', 'chipPosition', 'prefixStyle', 'detailList', 'authorMode', 'adultOnly', ...DETAIL_FEED_FIELDS])">
+                <AppGadget :title="t('board.section.basic')" anchor="board-basic" :changes="changes.basic" :invalid="invalidOf(['name', 'nameEn', 'description', 'viewToggle', 'investmentNotice', 'color', 'listEmoji', 'layout', 'chipPosition', 'prefixStyle', 'detailList', 'authorMode', 'adultOnly', ...DETAIL_FEED_FIELDS])">
                     <div class="grid gap-x-8 gap-y-4 md:grid-cols-2">
                         <LabeledField :label="t('board.field.name')" :hint="t('board.nameHint', { max: UtilBoard.NAME_MAX })" :error="textErrorOf('name')">
                             <template #default="{ id, describedBy, invalid }">
@@ -239,6 +239,25 @@
                                 {{ textErrorOf('color') || t('board.colorHelp', { name: colorName }) }}
                             </p>
                         </div>
+
+                        <!-- 목록 이모지(mobile-home-list-contract) — 사진 없는 글 줄의 썸네일 자리(홈 최신글·아추! 줄 등). 비우면 게시판 이름 첫 글자. 저장은 `board.manage` -->
+                        <LabeledField :label="t('board.field.listEmoji')" :hint="t('board.optional')" :help="t('board.listEmojiHelp')" :error="textErrorOf('listEmoji')">
+                            <template #default="{ id, describedBy, invalid }">
+                                <InputText
+                                    :id="id"
+                                    v-model="form.listEmoji"
+                                    name="listEmoji"
+                                    maxlength="16"
+                                    :readonly="!canManage || saving"
+                                    :invalid="invalid"
+                                    :aria-describedby="describedBy"
+                                    autocomplete="off"
+                                    class="w-24 text-center text-xl"
+                                    data-testid="board-list-emoji"
+                                    @update:model-value="clearServer('listEmoji')"
+                                />
+                            </template>
+                        </LabeledField>
                     </div>
                 </AppGadget>
 

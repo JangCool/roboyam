@@ -129,6 +129,8 @@ export interface BoardDetailForm {
     detailList: BoardDetailList;
     /** 표시색 — `null` 자동 · 13색 이름 · `#RRGGBB`(직접 고르기, 입력 중이면 틀린 글자일 수 있다 — `colorProblem` 이 막는다) */
     color: BoardDisplayColor | null;
+    /** 목록 이모지(mobile-home-list-contract) — 빈 글자 = 없음(게시판 이름 첫 글자) */
+    listEmoji: string;
     allowAdult: boolean;
     /** 성인 전용 게시판(adult-board-contract) — 게시판마다의 값(사이트 기본 없음) */
     adultOnly: boolean;
@@ -758,6 +760,8 @@ export default class UtilBoard {
             // 옛 서버 응답에 칸이 없으면 게시판 목록과 같은 모양(기본)
             detailList: UtilBoard.detailList(detail.detailList),
             color: detail.color,
+            // 옛 서버 응답에 칸이 없으면 없음
+            listEmoji: detail.listEmoji ?? '',
             allowAdult: detail.allowAdult,
             // 옛 서버 응답에 칸이 없으면 끔
             adultOnly: detail.adultOnly === true,
@@ -803,6 +807,8 @@ export default class UtilBoard {
             prefixStyle: form.prefixStyle ?? '',
             detailList: form.detailList,
             color: UtilBoard.normalizeColor(form.color), // 13색 이름 또는 대문자 #RRGGBB(서버도 같은 모양으로 정리)
+            // 목록 이모지 — 비우면 빈 글자(서버가 지운다, null 은 「그대로」)
+            listEmoji: form.listEmoji.trim(),
             allowAdult: form.allowAdult,
             // 성인 전용은 일반 게시판만 — 그 밖 종류는 null(그대로)
             adultOnly: kind === undefined || UtilBoard.adultOnlyAllowed(kind) ? form.adultOnly : null,
@@ -860,7 +866,7 @@ export default class UtilBoard {
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
         const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
         const basic =
-            (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'detailList', 'color', 'allowAdult', 'adultOnly', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0) +
+            (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'chipPosition', 'prefixStyle', 'detailList', 'color', 'listEmoji', 'allowAdult', 'adultOnly', 'investmentNotice', 'authorMode'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0) +
             // 상세 탭 PC·휴대폰 표시는 정책 칸이지만 기본 정보 구획(글 상세 아래 목록 옆)에 둔다
             policyDiff(['detailFeedTabsPc', 'detailFeedTabsMobile']);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));

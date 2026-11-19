@@ -28,13 +28,13 @@
                     <NuxtLink :to="`/posts/${card.lead.id}`" class="gadget-hover-photo mb-2 flex items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-primary" data-testid="home-board-lead">
                         <GadgetThumb v-if="card.lead.thumbnailUrl || cfg.leadPlaceholder" :src="card.lead.thumbnailUrl" :variant="UtilBoard.isNews(card.board.slug) ? 'news' : 'default'" ratio="16 / 10" class="w-[4.5rem] shrink-0" />
                         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span class="gadget-hover-title truncate text-[0.9375rem] font-semibold leading-snug">{{ card.lead.title }}</span>
+                            <span class="gadget-hover-title truncate text-[0.9375rem] leading-snug" :class="listRows ? 'font-medium' : 'font-semibold'">{{ card.lead.title }}</span>
                             <span v-if="card.lead.excerpt" class="truncate text-[0.8125rem] leading-snug text-muted-color" data-testid="home-board-lead-excerpt">{{ card.lead.excerpt }}</span>
                         </span>
                     </NuxtLink>
                 </FoldedRow>
 
-                <ul v-if="card.items.length" class="m-0 list-none p-0">
+                <ul v-if="card.items.length" class="m-0 list-none p-0" :class="listRows && card.lead ? 'border-t border-surface' : ''">
                     <li v-for="row in card.items" :key="row.id" :class="cfg.dividers ? 'border-t border-surface first:border-t-0' : ''">
                         <FoldedRow :reason="foldOf(row)" kind="post" class="py-2 text-sm" hide-class="pb-2">
                             <NuxtLink :to="`/posts/${row.id}`" class="gadget-hover flex items-baseline gap-1 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary">
@@ -83,7 +83,12 @@ const look = useGadgetLook();
 const { localizedName } = useLocalizedName();
 const overrides = useBlockOverrides();
 
-const cfg = computed(() => UtilGadget.boardCardsConfig(props.gadget.config));
+/** 모바일 목록형(템플릿 `mobile.listRows`, 한 열일 때만) — 글 줄마다 선 + 대표 글과 목록 사이 선(사용자 2026-11-19 「팁과강좌·사용기도 선」) */
+const listRows = useGadgetListRows();
+const cfg = computed(() => {
+    const base = UtilGadget.boardCardsConfig(props.gadget.config);
+    return listRows.value ? { ...base, dividers: true } : base;
+});
 const cards = computed(() => UtilGadget.boardCards(props.gadget.data));
 
 /** 열 수 — 가젯 칸(`@container`) 폭으로. 2열은 34rem, 3열은 54rem 이상 */

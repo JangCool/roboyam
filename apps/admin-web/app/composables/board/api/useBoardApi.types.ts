@@ -386,6 +386,8 @@ export interface BoardDetail extends BoardRef {
     /** 글 상세 아래 게시판 목록(게시판마다의 값 — 사이트 기본 없음, post-detail-board-list-contract). 옛 서버 응답에는 칸이 없을 수 있다(없으면 `LIST`) */
     detailList?: BoardDetailList;
     color: BoardDisplayColor | null;
+    /** 목록 이모지(mobile-home-list-contract) — 사진 없는 글 줄의 썸네일 자리. null = 없음(게시판 이름 첫 글자). 옛 서버 응답에는 칸이 없을 수 있다 */
+    listEmoji?: string | null;
     allowAdult: boolean;
     /**
      * 성인 전용 게시판(adult-board-contract) — 본인인증 성인만 메뉴에서 보고 들어간다(아니면 서버가 「없는 게시판」 404). 켜면 글은 모두 19금, `allowAdult` 도 켠 것으로 본다.
@@ -468,6 +470,8 @@ export interface BoardSaveRequest {
     /** 글 상세 아래 게시판 목록 — `null` 이면 바꾸지 않는다. 목록 모양 칸이라 `board.manage`. 모르는 값 400 `fields.detailList` */
     detailList: BoardDetailList | null;
     color: BoardDisplayColor | null;
+    /** 목록 이모지 — 빈 글자 `""` = 지우기(null 저장), `null` 이면 바꾸지 않는다. 최대 16자(코드 포인트), 넘으면 400 `fields.listEmoji`. 기본 정보 칸이라 `board.manage` */
+    listEmoji: string | null;
     allowAdult: boolean;
     /** 성인 전용 게시판 — `null` 이면 바꾸지 않는다(종류가 받지 않는 게시판). 기본 정보 칸이라 `board.manage` */
     adultOnly: boolean | null;

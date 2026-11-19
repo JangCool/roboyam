@@ -26,7 +26,8 @@ withDefaults(defineProps<Props>(), {});
 provideGadgetLook('card', {
     heroSplit: true,
     galleryColumns: 4,
-    // 한 열(모바일) — 앱처럼: 본문 열에 오른쪽 열을 끼워 넣는다(하이라이트 → 방금 올라온 글 → 인기글 → 팁과강좌·사용기 → 영상·짤 → 인기 소모임 — 2026-11-06 사용자), 큰 글 사진은 화면 끝까지, 나머지는 가로로 미는 줄
-    mobile: { order: 'beside', highlightScroll: true, heroBleed: true, galleryScroll: true, groupBuyScroll: true, groupsScroll: true },
+    // 한 열(모바일) — 본문 열에 오른쪽 열을 끼워 넣는다(2026-11-06 사용자). 「목록형」(사용자 2026-11-19 확정 — 줄마다 선 · 최신글·아추!·영상·짤은 왼쪽 사진 칸 줄, `GadgetMobileLook.listRows`)이
+    // 하이라이트·갤러리의 가로로 미는 줄보다 먼저다(공구·소모임 가로 줄은 그대로)
+    mobile: { order: 'beside', highlightScroll: true, heroBleed: true, galleryScroll: true, groupBuyScroll: true, groupsScroll: true, listRows: true },
 });
 </script>

@@ -405,7 +405,7 @@ public class PostQueryService {
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
         boolean staffAuthor = staffAuthor(b, post, userId);
-        return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
+        return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color(), b.listEmoji()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
                 author, post.getCreatedAt(), post.getEditedAt(), viewCount,
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),

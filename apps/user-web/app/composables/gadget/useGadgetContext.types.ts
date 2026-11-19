@@ -43,6 +43,12 @@ export interface GadgetMobileLook {
     groupsScroll: boolean;
     /** 게시판 카드 묶음을 가로로 미는 카드 줄로 */
     boardCardsScroll: boolean;
+    /**
+     * 「목록형」(사용자 2026-11-19 시험) — 가젯 카드·머리 모양은 그대로, 줄만 바꾼다:
+     *  · 글 목록 촘촘 줄(`COMPACT` — 인기글 순위)을 최신글과 같은 헤드라인 줄로, 이웃한 글 목록 가젯(인기글 → 최신글)은 틈 없이 선 하나로(뉴스형 한 줄 `LINE` 은 그대로)
+     *  · 하이라이트(함께 보는 글)를 큰 글·슬라이드 대신 「작은 사진 + 제목 한 줄 + 본문 한 줄」 글 줄로
+     */
+    listRows: boolean;
 }
 
 /** `provideGadgetLook` 에 주는 세부 모양 — 모두 선택, 한 열 모양도 바꿀 값만 */
