@@ -1,8 +1,11 @@
 package com.community.menu.service;
 
 import com.community.board.service.BoardFields;
+import com.community.menu.dto.MenuNameArt;
 import com.community.zconfiguration.message.MessageRef;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -27,6 +30,53 @@ public final class MenuRules {
         }
         String stripped = value.strip();
         return stripped.isEmpty() ? null : stripped;
+    }
+
+    /**
+     * 이름 그림(V258, 이름 모양 {@code LOGO} 일 때) — 칸 이름({@code nameArt} · {@code nameArt.d} · {@code .w} · {@code .h} · {@code .em} · {@code .sw}) → 문구. 문제가 없으면 빈 맵.
+     * 그림이 없으면 {@code nameArt} 하나. {@code d} 는 비지 않고 {@link MenuLimits#NAME_ART_D} 모양·{@value MenuLimits#NAME_ART_D_MAX}자 이하, {@code w}·{@code h} 는 0 초과
+     * {@link MenuLimits#NAME_ART_SIZE_MAX} 이하, {@code em} 은 {@link MenuLimits#NAME_ART_EM_MIN}~{@link MenuLimits#NAME_ART_EM_MAX}, {@code sw} 는 비어도 되고 0~{@link MenuLimits#NAME_ART_STROKE_MAX}.
+     */
+    public static Map<String, MessageRef> nameArtProblems(MenuNameArt art) {
+        Map<String, MessageRef> out = new LinkedHashMap<>();
+        if (art == null) {
+            out.put("nameArt", new MessageRef("menu.nameArt.required"));
+            return out;
+        }
+        String d = art.d() == null ? null : art.d().strip();
+        if (d == null || d.isEmpty()) {
+            out.put("nameArt.d", new MessageRef("menu.nameArt.path"));
+        } else if (d.length() > MenuLimits.NAME_ART_D_MAX) {
+            out.put("nameArt.d", new MessageRef("menu.nameArt.pathLength", String.valueOf(MenuLimits.NAME_ART_D_MAX)));
+        } else if (!MenuLimits.NAME_ART_D.matcher(d).matches()) {
+            out.put("nameArt.d", new MessageRef("menu.nameArt.path"));
+        }
+        if (!inRange(art.w(), 0, false, MenuLimits.NAME_ART_SIZE_MAX)) {
+            out.put("nameArt.w", new MessageRef("menu.nameArt.size", String.valueOf((int) MenuLimits.NAME_ART_SIZE_MAX)));
+        }
+        if (!inRange(art.h(), 0, false, MenuLimits.NAME_ART_SIZE_MAX)) {
+            out.put("nameArt.h", new MessageRef("menu.nameArt.size", String.valueOf((int) MenuLimits.NAME_ART_SIZE_MAX)));
+        }
+        if (!inRange(art.em(), MenuLimits.NAME_ART_EM_MIN, true, MenuLimits.NAME_ART_EM_MAX)) {
+            out.put("nameArt.em", new MessageRef("menu.nameArt.em", String.valueOf(MenuLimits.NAME_ART_EM_MIN), String.valueOf((int) MenuLimits.NAME_ART_EM_MAX)));
+        }
+        if (art.sw() != null && !inRange(art.sw(), 0, true, MenuLimits.NAME_ART_STROKE_MAX)) {
+            out.put("nameArt.sw", new MessageRef("menu.nameArt.stroke", String.valueOf((int) MenuLimits.NAME_ART_STROKE_MAX)));
+        }
+        return out;
+    }
+
+    /** 이름 그림 정리 — 패스 앞뒤 공백을 뗀다(검사를 통과한 값에만) */
+    public static MenuNameArt normalizeNameArt(MenuNameArt art) {
+        return art == null ? null : new MenuNameArt(art.d() == null ? null : art.d().strip(), art.w(), art.h(), art.em(), art.sw());
+    }
+
+    /** 유한한 수이고 {@code min}(포함 여부 {@code minInclusive}) 이상 {@code max} 이하인가 — null 은 거짓 */
+    private static boolean inRange(Double value, double min, boolean minInclusive, double max) {
+        if (value == null || value.isNaN() || value.isInfinite()) {
+            return false;
+        }
+        return (minInclusive ? value >= min : value > min) && value <= max;
     }
 
     /** 항목 설명 — 비어도 된다, {@code <}·{@code >}·줄바꿈·제어 문자 금지, 글자 수(코드 포인트) ≤ {@link MenuLimits#DESCRIPTION_MAX} */

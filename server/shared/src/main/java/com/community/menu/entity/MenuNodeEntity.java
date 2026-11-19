@@ -62,6 +62,13 @@ public class MenuNodeEntity {
     /** 이름 옆 배지 글자 — null = 없음(V186) */
     private String badge;
 
+    /** 이름 모양 TEXT · LOGO(V258) — 폴더·그림 없는 항목은 TEXT */
+    private String nameStyle;
+
+    /** 이름 그림 JSON {d,w,h,em,sw} — LOGO 항목만, 그 밖에는 null(V258) */
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String nameArt;
+
     protected MenuNodeEntity() {
     }
 
@@ -93,13 +100,18 @@ public class MenuNodeEntity {
         entity.textColor = node.textColor();
         entity.bold = node.bold();
         entity.badge = node.badge();
+        // 그림은 LOGO 항목만 — 폴더·TEXT 는 그림을 두지 않는다(DB CHECK ck_menu_nodes_name_art)
+        boolean art = node.drawsNameArt();
+        entity.nameStyle = art ? MenuNode.NAME_STYLE_LOGO : MenuNode.NAME_STYLE_TEXT;
+        entity.nameArt = art ? MenuSettingsJson.writeNameArt(node.nameArt()) : null;
         return entity;
     }
 
     /** 저장 형태 → 노드(하위 없음) */
     public MenuNode toNode() {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey,
-                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick, shortcut, textColor, bold, badge);
+                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick, shortcut, textColor, bold, badge, nameStyle,
+                MenuSettingsJson.readNameArt(nameArt));
     }
 
     public Long getId() {

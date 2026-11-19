@@ -108,6 +108,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/trials", "/api/trials/*").permitAll()
                         // 공개 홈 가젯(site-theme-layout-contract) — 비회원도 읽는다
                         .requestMatchers(HttpMethod.GET, "/api/home/gadgets").permitAll()
+                        // 아추!(아이로빗 추천) — 기간 안에 고른 홈 하이라이트(achu-page-contract), 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/highlights").permitAll()
                         // 공개 가젯 페이지(gadget-page-contract) — 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/pages/*").permitAll()
                         // 팁·강좌·사용기 묶음(tips-contract) — 머리 몫·최신 글은 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)

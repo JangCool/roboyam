@@ -183,7 +183,7 @@ const NAME_ART_PATH = /^[MLHVQCSTZmlhvqcstz0-9 .,-]+$/;
 function readNameArt(raw: unknown): MenuNameArt | null {
     if (!isRecord(raw)) return null;
     const { d, w, h, em } = raw;
-    if (typeof d !== 'string' || d.length > 20000 || !NAME_ART_PATH.test(d)) return null;
+    if (typeof d !== 'string' || d.length > 60000 || !NAME_ART_PATH.test(d)) return null;
     if (typeof w !== 'number' || typeof h !== 'number' || typeof em !== 'number') return null;
     if (![w, h, em].every((v) => Number.isFinite(v) && v > 0)) return null;
     const sw = typeof raw.sw === 'number' && Number.isFinite(raw.sw) && raw.sw > 0 ? Math.min(raw.sw, 10) : 0;

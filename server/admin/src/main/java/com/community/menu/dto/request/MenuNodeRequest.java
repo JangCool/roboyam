@@ -1,5 +1,6 @@
 package com.community.menu.dto.request;
 
+import com.community.menu.dto.MenuNameArt;
 import java.util.List;
 import tools.jackson.databind.JsonNode;
 
@@ -17,9 +18,11 @@ import tools.jackson.databind.JsonNode;
  * @param textColor   글자 색 — null·빈 값 = 기본, 12색 키({@code BoardFields.COLORS}) 또는 {@code #RRGGBB}(소문자는 대문자로 정리). 그 밖 400 {@code textColor}
  * @param bold        굵게(빠지면 false)
  * @param badge       이름 옆 배지 글자 — 앞뒤 공백 정리, 빈 값 = 없음, 4자 초과·제어 문자 400 {@code badge}
+ * @param nameStyle   이름 모양(V258, 항목만) {@code TEXT}(빠지면 이것) · {@code LOGO}. 목록 밖 400 {@code nameStyle}. 폴더는 무시한다
+ * @param nameArt     이름 그림 {@code {d, w, h, em, sw}} — {@code LOGO} 면 필수(400 {@code nameArt}·{@code nameArt.d} 등), {@code TEXT} 면 버린다
  */
 public record MenuNodeRequest(String id, String kind, String label, String nameEn, Boolean visible, String audience, String minGrade, Boolean collapsible,
                               Boolean collapsed, Boolean autoAdd, List<MenuNodeRequest> children, String targetType, String targetId, String targetKey,
                               JsonNode settings, Boolean mobileTab, String divider, String description, String linkClick, Boolean shortcut,
-                              String textColor, Boolean bold, String badge) {
+                              String textColor, Boolean bold, String badge, String nameStyle, MenuNameArt nameArt) {
 }

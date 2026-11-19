@@ -8,6 +8,7 @@ import type {
     MenuItemDto,
     MenuKnownTargetType,
     MenuLinkClick,
+    MenuNameArt,
     MenuNameStyle,
     MenuNodeDto,
     MenuPlacement,
@@ -91,6 +92,8 @@ export interface MenuEditItem extends MenuEditCommon, MenuEditLink {
     shortcut: boolean;
     /** 이름 모양 — 보통 글자 · 로고 글꼴 그림(저장할 때 이름을 아이로빗 캐릭터 로고 글꼴(개구체) 그림으로 만든다 — achu-page-contract) */
     nameStyle: MenuNameStyle;
+    /** 이름 그림 — `LOGO` 일 때 항목 창이 [적용] 전에 이름으로 만든다(`useMenuNameArt`). `TEXT` 거나 아직 없으면 null */
+    nameArt: MenuNameArt | null;
 }
 
 export type MenuEditNode = MenuEditFolder | MenuEditItem;
@@ -365,6 +368,8 @@ export default class UtilMenu {
         { key: 'HOME', category: 'GENERAL', labelKey: 'menuConfig.builtin.HOME', path: '/', matchPrefix: false, loginRequired: false, salesGated: false },
         { key: 'BOARDS_HUB', category: 'GENERAL', labelKey: 'menuConfig.builtin.BOARDS_HUB', path: '/boards', matchPrefix: false, loginRequired: false, salesGated: false },
         { key: 'POPULAR', category: 'GENERAL', labelKey: 'menuConfig.builtin.POPULAR', path: '/popular', matchPrefix: true, loginRequired: false, salesGated: false },
+        // 아추!(아이로빗 추천 — 운영자가 고른 홈 하이라이트, achu-page-contract). 서버 `MenuBuiltin.ACHU` 와 같은 줄
+        { key: 'ACHU', category: 'GENERAL', labelKey: 'menuConfig.builtin.ACHU', path: '/achu', matchPrefix: true, loginRequired: false, salesGated: false },
         { key: 'LATEST', category: 'GENERAL', labelKey: 'menuConfig.builtin.LATEST', path: '/latest', matchPrefix: true, loginRequired: false, salesGated: false },
         { key: 'SEARCH', category: 'GENERAL', labelKey: 'menuConfig.builtin.SEARCH', path: '/search', matchPrefix: true, loginRequired: false, salesGated: false },
         // 체험단(trial-group-contract — 모집 상세 /trials/{id} 도 이 메뉴로 본다). 서버 `MenuBuiltin.TRIALS` 와 같은 줄
@@ -485,6 +490,7 @@ export default class UtilMenu {
                 rawSettings: known ? null : node.settings,
                 shortcut: node.targetType === 'BOARD' && node.shortcut === true,
                 nameStyle: node.nameStyle === 'LOGO' ? 'LOGO' : 'TEXT',
+                nameArt: node.nameStyle === 'LOGO' ? (node.nameArt ?? null) : null,
             };
         });
     }
@@ -569,8 +575,9 @@ export default class UtilMenu {
                 description: (side && top && node.description.trim()) || null,
                 // 바로가기 표시는 바로가기에만 싣는다(일반 항목의 요청 모양은 그대로)
                 ...(node.shortcut ? { shortcut: true } : {}),
-                // MOCK: 이름 모양(`nameStyle`)은 서버 칸이 생기면 싣는다 — achu-page-contract
-                // REAL: nameStyle: node.nameStyle,
+                // 이름 모양 — 그림은 로고 글꼴 그림일 때만(achu-page-contract)
+                nameStyle: node.nameStyle,
+                nameArt: node.nameStyle === 'LOGO' ? node.nameArt : null,
             };
             return item;
         });
@@ -609,6 +616,7 @@ export default class UtilMenu {
             bold: false,
             badge: '',
             nameStyle: 'TEXT',
+            nameArt: null,
         };
     }
 

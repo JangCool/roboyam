@@ -16,6 +16,8 @@ public enum MenuBuiltin {
     HOME("GENERAL", "/", false, false, false),
     BOARDS_HUB("GENERAL", "/boards", false, false, false),
     POPULAR("GENERAL", "/popular", true, false, false),
+    /** 아추!(아이로빗 추천) — 운영자가 고른 홈 하이라이트를 일간·주간·월간으로 모아 보는 페이지(achu-page-contract, 주소 /achu?period=) */
+    ACHU("GENERAL", "/achu", true, false, false),
     LATEST("GENERAL", "/latest", true, false, false),
     SEARCH("GENERAL", "/search", true, false, false),
     /** 체험단 페이지(trial-group-contract 「사용기 쓰는 곳」 — 모집 중·진행 중·끝난 모집, 상세 /trials/{id} 도 이 메뉴로 본다) */

@@ -92,13 +92,13 @@
             </LabeledField>
 
             <!--
-                이름 모양 — 보통 글자 · 로고 글꼴 그림(achu-page-contract). 그림을 고르면 저장할 때 이름을 아이로빗 캐릭터 로고 글꼴(개구체)로 굳힌 그림을 만들어 공개 메뉴가 그 그림을 그린다
-                (공개 사이트는 글꼴을 받지 않는다). 영어 화면에서 영문명을 보일 때는 보통 글자. ⚠ MOCK: 견본 그림은 「아추!」만, 저장 요청에는 아직 싣지 않는다
+                이름 모양 — 보통 글자 · 로고 글꼴 그림(achu-page-contract). 그림을 고르면 이 창이 이름(비었으면 따라가는 대상 이름)을 아이로빗 캐릭터 로고 글꼴(개구체)로 굳힌 그림을 만들어
+                [적용] 때 항목에 싣는다 — 공개 메뉴는 글꼴 없이 그 그림을 그린다. 영어 화면에서 영문명을 보일 때는 보통 글자. 글꼴에 없는 글자가 있으면 그림을 만들 수 없다(적용을 막는다)
             -->
             <div class="flex flex-col gap-1.5">
                 <span :id="`${formId}-name-style`" class="text-sm font-medium">{{ t('menuConfig.field.nameStyle') }}</span>
                 <SelectButton v-model="form.nameStyle" :options="nameStyleOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${formId}-name-style`" data-testid="menu-name-style" />
-                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ nameStyleHelp }}</p>
+                <p class="m-0 text-xs leading-relaxed" :class="artError ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="artError ? 'alert' : undefined">{{ artError || nameStyleHelp }}</p>
             </div>
 
             <!-- 글자 색 · 강조(굵게 · 배지) — 서버 칸 오류(`…textColor`·`…badge`)도 칸 아래 -->
@@ -145,9 +145,9 @@
 </template>
 
 <script setup lang="ts">
+import type { MenuNameArt } from '~/composables/menu/api/useMenuApi.types';
 import type { MenuContext, MenuEditItem, MenuLinkedTarget, MenuProblemField, MenuTargetKind } from '~/utils/util-menu';
 import UtilMenu from '~/utils/util-menu';
-import { mockNameArt } from '~/composables/menu/api/mock/menu-name-art-mock';
 import UtilMenuMessages from '~/utils/util-menu-messages';
 import UtilMenuTree from '~/utils/util-menu-tree';
 
@@ -226,11 +226,70 @@ const nameStyleOptions = computed(() => [
 ]);
 /** 견본에 그릴 이름 — 비었으면 따라가는 대상 이름 */
 const sampleLabel = computed(() => (form.value?.label.trim() ? form.value.label.trim() : targetName.value));
-// MOCK: 견본 그림은 미리 만든 「아추!」만(`menu-name-art-mock`) — 실제로는 저장할 때 이름으로 만든다
-const sampleArt = computed(() => (form.value?.nameStyle === 'LOGO' ? mockNameArt(sampleLabel.value) : null));
 const nameStyleHelp = computed(() => {
     if (form.value?.nameStyle !== 'LOGO') return t('menuConfig.nameStyleTextHelp');
-    return sampleArt.value ? t('menuConfig.nameStyleLogoHelp') : t('menuConfig.nameStyleLogoPending');
+    return artState.value === 'loading' ? t('menuConfig.nameArtLoading') : t('menuConfig.nameStyleLogoHelp');
+});
+
+// ── 이름 그림(로고 글꼴 그림) — 이름이 바뀌면 잠깐 기다렸다 다시 만든다. 만든 이름을 기억해 [적용] 때 같은 이름이면 그대로 쓴다 ──
+const nameArt = useMenuNameArt();
+const artState = ref<'idle' | 'loading' | 'ready' | 'unsupported' | 'failed'>('idle');
+/** 지금 견본 그림과 그 그림을 만든 이름 */
+const art = ref<{ name: string; value: MenuNameArt } | null>(null);
+let artSeq = 0;
+let artTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 견본 그림 — 로고 글꼴 그림이고 지금 이름으로 만든 것이 있을 때만 */
+const sampleArt = computed(() => (form.value?.nameStyle === 'LOGO' && art.value?.name === sampleLabel.value ? art.value.value : null));
+const artError = computed(() => {
+    if (form.value?.nameStyle !== 'LOGO') return '';
+    if (artState.value === 'unsupported') return t('menuConfig.nameArtUnsupported');
+    if (artState.value === 'failed') return t('menuConfig.nameArtFailed');
+    return '';
+});
+
+/** 이 이름의 그림을 만든다(이미 만든 이름이면 그대로). 글꼴에 없는 글자면 null */
+async function makeArt(name: string): Promise<MenuNameArt | null> {
+    if (art.value?.name === name) return art.value.value;
+    const mine = ++artSeq;
+    artState.value = 'loading';
+    try {
+        const value = await nameArt.make(name);
+        if (mine === artSeq) {
+            art.value = value ? { name, value } : null;
+            artState.value = value ? 'ready' : 'unsupported';
+        }
+        return value;
+    } catch {
+        if (mine === artSeq) artState.value = 'failed';
+        return null;
+    }
+}
+
+// 창을 열면(폼이 바뀌면) 저장된 그림을 그 이름의 그림으로 기억한다 — 이름을 고치지 않았으면 다시 만들지 않는다
+watch(
+    form,
+    (value) => {
+        art.value = value?.nameArt ? { name: sampleLabel.value, value: value.nameArt } : null;
+        artState.value = 'idle';
+    },
+    { immediate: true },
+);
+
+watch(
+    () => [form.value?.nameStyle, sampleLabel.value] as const,
+    ([style, name]) => {
+        if (artTimer) clearTimeout(artTimer);
+        if (style !== 'LOGO' || !name) {
+            artSeq++;
+            artState.value = 'idle';
+            return;
+        }
+        artTimer = setTimeout(() => void makeArt(name), 250);
+    },
+);
+onBeforeUnmount(() => {
+    if (artTimer) clearTimeout(artTimer);
 });
 
 /** 종류 고르기 — 같은 종류면 고친 값 그대로, 다른 종류면 대상 칸만 비운다(이미 만든 항목도 이름·보이는 대상 등은 그대로) */
@@ -275,10 +334,17 @@ function errorOf(field: MenuProblemField): string {
 
 const pickerErrors = computed(() => ({ target: errorOf('target'), path: errorOf('path'), href: errorOf('href') }));
 
-function apply() {
+async function apply() {
     submitted.value = true;
     if (!form.value || Object.keys(problems.value).length) return;
     const value = form.value;
+    // 로고 글꼴 그림 — 지금 이름(비었으면 대상 이름)으로 만든 그림을 싣는다. 만들 수 없으면 적용하지 않는다(칸 아래 안내)
+    let built: MenuNameArt | null = null;
+    if (value.nameStyle === 'LOGO') {
+        if (artTimer) clearTimeout(artTimer);
+        built = await makeArt(sampleLabel.value);
+        if (!built || form.value !== value) return;
+    }
     emit(
         'save',
         {
@@ -293,6 +359,7 @@ function apply() {
             minGrade: value.audience === 'GRADE_MIN' ? value.minGrade : null,
             mobileTab: side.value && value.mobileTab && !value.shortcut,
             newTab: value.targetType === 'PATH' || value.targetType === 'URL' ? value.newTab : false,
+            nameArt: built,
         },
         parentValue.value || null,
     );

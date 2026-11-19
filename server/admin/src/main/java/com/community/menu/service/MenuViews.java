@@ -1,5 +1,6 @@
 package com.community.menu.service;
 
+import com.community.menu.dto.MenuNameArt;
 import com.community.menu.dto.MenuNode;
 import com.community.menu.dto.request.MenuNodeRequest;
 import com.community.menu.dto.response.MenuFolderView;
@@ -48,7 +49,8 @@ public class MenuViews {
             MenuTargetStatus status = resolver == null ? MenuTargetStatus.UNKNOWN_TYPE : resolver.status(node, context);
             out.add(new MenuItemView(id, MenuNode.ITEM, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(), node.targetType(),
                     node.targetId(), node.targetKey(), node.settings(), node.mobileTab(), node.divider(), node.description(),
-                    new MenuItemView.Resolved(status.name()), node.shortcut(), node.textColor(), node.bold(), node.badge()));
+                    new MenuItemView.Resolved(status.name()), node.shortcut(), node.textColor(), node.bold(), node.badge(),
+                    node.drawsNameArt() ? MenuNode.NAME_STYLE_LOGO : MenuNode.NAME_STYLE_TEXT, node.drawsNameArt() ? node.nameArt() : null));
         }
         return out;
     }
@@ -69,7 +71,7 @@ public class MenuViews {
                     node.audience(), node.minGrade(), Boolean.TRUE.equals(node.collapsible()), Boolean.TRUE.equals(node.collapsed()),
                     Boolean.TRUE.equals(node.autoAdd()), node.targetType(), node.targetId(), node.targetKey(), node.settings(),
                     Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description(), node.linkClick(),
-                    Boolean.TRUE.equals(node.shortcut()), node.textColor(), Boolean.TRUE.equals(node.bold()), node.badge()));
+                    Boolean.TRUE.equals(node.shortcut()), node.textColor(), Boolean.TRUE.equals(node.bold()), node.badge(), node.nameStyle(), node.nameArt()));
         }
         return out;
     }
@@ -112,6 +114,12 @@ public class MenuViews {
             }
             if (node.bold()) {
                 line.append(" [bold]");
+            }
+            if (node.drawsNameArt()) {
+                // 이름 그림(V258) — 패스는 길어 요약에 싣지 않고 크기와 패스 지문만(그림이 바뀌면 줄이 바뀐다)
+                MenuNameArt art = node.nameArt();
+                line.append(" [logo ").append(art.w()).append('x').append(art.h()).append(" #")
+                        .append(Integer.toHexString(art.d() == null ? 0 : art.d().hashCode())).append(']');
             }
             if (node.badge() != null) {
                 line.append(" [badge ").append(node.badge()).append(']');

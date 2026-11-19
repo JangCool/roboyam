@@ -25,14 +25,22 @@ import tools.jackson.databind.JsonNode;
  * @param textColor  글자 색(V186) — null = 기본, 게시판 표시색 12색 키({@code BoardFields.COLORS}) 또는 {@code #RRGGBB}(대문자). 폴더·항목 모두
  * @param bold       굵게(V186)
  * @param badge      이름 옆 배지 글자(V186) — null = 없음, 코드포인트 {@value MenuLimits#BADGE_MAX}개까지
+ * @param nameStyle  이름 모양(V258) {@code TEXT}(null 도 이것) · {@code LOGO}(항목만 — 이름 자리에 {@code nameArt} 그림)
+ * @param nameArt    이름 그림(V258) — {@code LOGO} 항목만, 그 밖에는 null
  */
 public record MenuNode(Long id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
                        boolean collapsed, boolean autoAdd, String targetType, String targetId, String targetKey, JsonNode settings, boolean mobileTab,
                        List<MenuNode> children, String divider, String description, String linkClick, boolean shortcut, String textColor, boolean bold,
-                       String badge) {
+                       String badge, String nameStyle, MenuNameArt nameArt) {
 
     public static final String FOLDER = "FOLDER";
     public static final String ITEM = "ITEM";
+
+    /** 이름 모양 — 보통 글자(기본) */
+    public static final String NAME_STYLE_TEXT = "TEXT";
+
+    /** 이름 모양 — 로고 글꼴 그림(항목만, {@code nameArt} 필수) */
+    public static final String NAME_STYLE_LOGO = "LOGO";
 
     /** 구분선 없음 */
     public static final String DIVIDER_NONE = "NONE";
@@ -46,6 +54,16 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
     public MenuNode {
         children = children == null ? List.of() : List.copyOf(children);
         divider = divider == null ? DIVIDER_NONE : divider;
+        nameStyle = nameStyle == null ? NAME_STYLE_TEXT : nameStyle;
+    }
+
+    /** 이름 그림이 없는 노드(보통 글자) — 검사({@code MenuTreeValidator})가 요청의 칸을 다시 붙인다 */
+    public MenuNode(Long id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
+                    boolean collapsed, boolean autoAdd, String targetType, String targetId, String targetKey, JsonNode settings, boolean mobileTab,
+                    List<MenuNode> children, String divider, String description, String linkClick, boolean shortcut, String textColor, boolean bold,
+                    String badge) {
+        this(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings, mobileTab,
+                children, divider, description, linkClick, shortcut, textColor, bold, badge, NAME_STYLE_TEXT, null);
     }
 
     /** 글자 색·강조가 없는 노드 — 검사({@code MenuTreeValidator})가 요청의 칸을 다시 붙인다 */
@@ -74,7 +92,7 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
 
     public MenuNode withExtras(String newDivider, String newDescription) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, newDivider, newDescription, linkClick, shortcut, textColor, bold, badge);
+                mobileTab, children, newDivider, newDescription, linkClick, shortcut, textColor, bold, badge, nameStyle, nameArt);
     }
 
     public boolean isFolder() {
@@ -92,28 +110,39 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
 
     public MenuNode withChildren(List<MenuNode> newChildren) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, newChildren, divider, description, linkClick, shortcut, textColor, bold, badge);
+                mobileTab, newChildren, divider, description, linkClick, shortcut, textColor, bold, badge, nameStyle, nameArt);
     }
 
     public MenuNode withAutoAdd(boolean value) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, value, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge);
+                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge, nameStyle, nameArt);
     }
 
     public MenuNode withId(Long newId) {
         return new MenuNode(newId, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge);
+                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge, nameStyle, nameArt);
     }
 
     public MenuNode withShortcut(boolean value) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, value, textColor, bold, badge);
+                mobileTab, children, divider, description, linkClick, value, textColor, bold, badge, nameStyle, nameArt);
     }
 
     /** 글자 색·굵게·배지를 붙인다(정리를 마친 값) */
     public MenuNode withStyle(String newTextColor, boolean newBold, String newBadge) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children, divider, description, linkClick, shortcut, newTextColor, newBold, newBadge);
+                mobileTab, children, divider, description, linkClick, shortcut, newTextColor, newBold, newBadge, nameStyle, nameArt);
+    }
+
+    /** 이름 모양·그림을 붙인다(정리를 마친 값 — TEXT 면 그림 null) */
+    public MenuNode withNameArt(String newNameStyle, MenuNameArt newNameArt) {
+        return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
+                mobileTab, children, divider, description, linkClick, shortcut, textColor, bold, badge, newNameStyle, newNameArt);
+    }
+
+    /** 이름을 그림으로 그리는 항목인가(LOGO 이고 그림이 있음) */
+    public boolean drawsNameArt() {
+        return isItem() && NAME_STYLE_LOGO.equals(nameStyle) && nameArt != null;
     }
 
     /** 트리의 노드 수(하위 포함) */

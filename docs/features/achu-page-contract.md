@@ -10,10 +10,12 @@
 - 쪽 번호(20개씩, `BoardPager`) · 빈 화면(일간이 비면 [주간 아추! 보기], 그 밖은 [게시판 둘러보기]) · 오류(다시 시도) · 로딩 뼈대.
 - 문구는 i18n 업무 `achu`(user-web `i18n/locales/{ko,en}/achu.ts`), 규칙 `utils/util-achu.ts`, 문구 계산 `utils/util-achu-messages.ts`.
 
-## 기간 정책 (사용자 2026-11-19 — 안 A)
-- 기간은 운영자가 하이라이트로 **고른 시각**(노출 시작) 기준: 일간 = 오늘(서비스 달력 한국시간 0시~), 주간 = 이번 주(시작 요일은 인기글 설정 `weekStart`), 월간 = 이번 달 1일~.
-- 노출 중인(`visible`) 하이라이트만, 지금 볼 수 없는 글(지운·가린·권한 밖)은 뺀다. 차례 = **고른 시각 최신순**(목업 가정 — 운영자 순서로 바꿀 수 있다).
-- 한 글은 고른 시각이 든 기간에만 나온다(오늘 고른 글은 일간·주간·월간 모두에 든다 — 기간이 포함 관계라서).
+## 기간 정책 (사용자 2026-11-19 — 안 A, 서버 단계 결정 포함)
+- 대상 = **홈 하이라이트만**(`place = home` — 홈 「아추!」 가젯에 고른 글). 팁 묶음·가젯 페이지 하이라이트는 넣지 않는다.
+- **고른 날** = 노출 시작(`show_from`)이 있으면 그 시각, 없으면 만든 시각(`created_at`) — 새 DB 칸 없음. 노출을 껐다 켜도 고른 날은 그대로.
+- 일간 = 오늘(서비스 달력 한국시간 0시~), 주간 = 이번 주(시작 요일은 인기글 설정 `weekStart`), 월간 = 이번 달 1일~. 고른 날이 그 범위 안이고 지금보다 늦지 않은 것.
+- **노출 기간이 끝난 것도 남긴다**(주간·월간이 모아 보기 역할). 운영자가 노출을 끈 것(`visible = false`)·지금 볼 수 없는 글(지운·가린·권한 밖)은 뺀다.
+- 차례 = 고른 날 최신순(같으면 id 큰 것 먼저). 한 글은 고른 날이 든 기간에만 나온다(오늘 고른 글은 일간·주간·월간 모두에 든다).
 
 ## 메뉴 이름 그림 (확정)
 - **관리자 메뉴 항목 창**(`MenuItemDialog`): 영문명 아래 「이름 모양」 = `보통 글자`(기본) · `로고 글꼴 그림`. 견본(`MenuTextStyleField`)에 그림이 보인다. 안내: 이름을 고치면 저장 때 다시 만들고, 영어 화면은 영문명을 보통 글자로.
@@ -23,18 +25,20 @@
 
 ## API 후보 (서버 단계에서 확정)
 - `GET /api/highlights?period&page&size`(api, 로그인 없이) → `{ items: [{ id, post: PostFeedRow, title, summary, imageUrl, pickedAt }], page, totalPages, totalCount, hasNext, period, from, to, weekStart }` — `from`·`to` 는 그 기간 범위(ISO UTC, `to` = 다음 기간 시작). `400 VALIDATION fields.period|page|size`. 화면 타입 `composables/highlight/api/useHighlightApi.types.ts`.
-- 하이라이트에 **고른 시각** 칸(노출 시작 — 새로 고르거나 다시 노출할 때 갱신할지는 서버 단계에서 정한다). 기존 행의 값은 만든 시각으로 채운다.
+- 고른 시각 `pickedAt` = `coalesce(show_from, created_at)`(새 칸 없음).
 - 메뉴 항목 `name_style`(`TEXT`·`LOGO`) + 그림 패스 칸. 관리자 트리 요청·응답에 `nameStyle`, 공개 `GET /api/menu` 항목에 `nameArt`(LOGO 이고 그림이 있을 때만).
 - 메뉴 BUILTIN 키 `ACHU`(`/achu`, 로그인 불필요) — 서버 레지스트리·관리자 `UtilMenu.BUILTINS`·설치 프리셋(인기글 뒤, 이름 「아추!」, 이름 모양 LOGO)에 더한다.
 
-## 미확정
-- **그림을 어디서 만드나**: (가) 관리자 화면이 저장 때 opentype.js + 개구체 Gaegu 700 조각 글꼴로 만들어 보낸다(서버는 패스 글자만 검사) · (나) 서버가 저장 때 만든다(글꼴 파일을 서버에 두고 AWT 글리프 윤곽 — 리눅스 런타임 확인 필요). 설치 프리셋의 「아추!」 패스는 스크립트로 미리 굳힌다.
-- 탭 안 차례(고른 시각 최신순 vs 운영자 순서), 다시 노출한 하이라이트의 고른 시각 갱신 여부.
+## 남은 것
+- (결정 2026-11-19) 그림은 **관리자 화면이 만든다** — 저장 전에 opentype.js 로 개구체 Gaegu 700 조각 글꼴을 받아 이름을 패스로 굳혀 `nameArt` 로 보낸다. 서버는 모양 검사·저장만. 설치 프리셋의 「아추!」 패스는 스크립트로 미리 굳힌다.
 - 글꼴 고지: 개구체(Gaegu)는 OFL — 로고 글꼴 고지(`header-logo` 남은 일)와 함께.
-- 게시판 이모지 썸네일(홈 목록형 시험 브랜치의 목업)이 들어오면 이 페이지 글자 칸 앞에 이모지를 둘지.
+- 게시판 목록 이모지(develop 7ded62b1 에 들어옴)를 이 페이지 사진 칸에도 쓸지 — 홈 목록형과 같게 하면 이모지 → 첫 글자.
 
-## 화면 목업 상태 (2026-11-19, 브랜치 `claude/achu-page`)
-- ⚠ MOCK `composables/highlight/api/mock/achu-mock.ts` — 실제 최신글 30개에 고른 시각을 붙여 하이라이트처럼(앞 3개 오늘·4개 이번 주·8개 이번 달). 스위치 `?mock=achu-empty|achu-day-empty|achu-fail`.
-- ⚠ MOCK `composables/menu/api/mock/menu-achu-mock.ts`(user-web) — 받은 메뉴의 인기글 뒤·모바일 탭에 「아추!」(`ACHU`, `nameArt`)를 끼운다. `?mock=achu-text`(그림 없이) · `?mock=achu-off`.
-- ⚠ MOCK `composables/menu/api/mock/menu-name-art-mock.ts`(admin-web) — 견본 그림은 「아추!」만, `nameStyle` 은 저장 요청에 아직 싣지 않는다(`UtilMenu.toDto` 의 MOCK/REAL 줄).
-- 「아추!」 패스 원본 = `UtilAchu.TITLE_ART`(개구체 Gaegu 700).
+## 구현 결과 (2026-11-19, 브랜치 `claude/achu-page` — 실제 서버에서 아직 돌려 보지 않았다)
+- **shared V258** `menu_nodes.name_style`(TEXT 기본·LOGO, CHECK) · `name_art` jsonb(LOGO·ITEM 일 때만, CHECK). 합치기 전에 shared 마지막 번호를 다시 본다.
+- **공개 `GET /api/highlights`**(api, permitAll, `Cache-Control: no-store`) — `PublicHighlightController`·`HighlightPeriodService`·`HighlightPeriodRepositoryQDSL`, 줄은 홈 하이라이트 가젯과 같은 `HighlightPicks`(보이는 글·켜진 게시판·19금 제외). 오류 `fields.period`(`highlight.period.invalid`)·`page`(1~100)·`size`(1~50). 마지막 쪽을 넘으면 빈 `items` 에 요청한 `page`, 전체 0건이면 `page=1`. 주 시작은 `popular_settings` 행이 없으면 MONDAY.
+- **메뉴**: 관리자 트리 요청 `MenuNodeRequest`·응답 `MenuItemView` 끝에 `nameStyle`·`nameArt`(폴더는 늘 TEXT). 검사 오류 경로 `…nameStyle`·`…nameArt`·`…nameArt.d|w|h|em|sw`, 문구 `menu.nameStyle.choice`·`menu.nameArt.*`. 공개 `MenuItemNodeView.nameArt`(LOGO 이고 그림 있을 때만, 그 밖엔 null). 감사 요약 줄에 `[logo {w}x{h} #{해시}]`. `sw` 가 빠지면 null 로 저장·응답.
+- **BUILTIN `ACHU`**(`/achu`, matchPrefix, 로그인 불필요) — 서버 `MenuBuiltin`·관리자 `UtilMenu.BUILTINS`·문구 「아추!」/「Achu!」. 설치 프리셋 `neutral.json`·`irobit.structure.json` 에 인기글 뒤 「아추!」(LOGO, `UtilAchu.TITLE_ART` 그림)를 넣었다(`irobit.structure.json` 은 `name_style`·`name_art` 칸을 모든 행에 더하고 sort_order 를 밀었다).
+- **관리자 화면 그림 만들기** `composables/menu/useMenuNameArt.ts` + `utils/util-menu-name-art.ts` — `@fontsource/gaegu` 5.3.0 조각 woff(별칭 `#gaegu-font`)를 이름 글자에 맞춰 받아 `opentype.js` 1.3.4 로 패스(높이 = 잉크 높이 × 0.9/0.672, 테두리 2). 「아추!」는 `TITLE_ART` 와 같은 값이 나온다. 글꼴에 없는 글자(이모지 등)면 [적용]을 막고 안내.
+- user-web 목업은 지웠다(`/achu` 는 실제 API, 메뉴는 서버 응답 그대로). 사진 칸은 `GadgetThumb`(게시판 목록 이모지 → 첫 글자).
+- 검증: `compileJava`·`compileTestJava`(서버 셋), `typecheck`(두 앱). 테스트·로컬 DB 적용·실제 호출은 아직.

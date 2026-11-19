@@ -56,18 +56,13 @@
                 <template v-else>
                     <!--
                         글 줄 — 홈 「아추!」 가젯 모바일 목록형 줄과 같은 틀(사용자 2026-11-19): 줄마다 선 · 위아래 10px · 왼쪽 사진 칸(64 × 48, 4:3) +
-                        제목 한 줄(살짝 굵게 500 · 댓글 수) + 정보 줄(게시판 · 시간 …… 추천). 사진 = 운영자가 올린 대표 이미지 → 글 썸네일, 없으면 게시판 색 옅은 면 + 첫 글자
+                        제목 한 줄(살짝 굵게 500 · 댓글 수) + 정보 줄(게시판 · 시간 …… 추천). 사진 = 운영자가 올린 대표 이미지 → 글 썸네일, 없으면 게시판 목록 이모지 → 게시판 색 옅은 면 + 첫 글자(`GadgetThumb`, 홈 목록형과 같다)
                     -->
                     <ul class="m-0 list-none p-0" data-testid="achu-rows">
                         <li v-for="h in items" :key="h.id" class="border-b border-surface last:border-b-0">
                             <FoldedRow :reason="foldOf(h)" kind="post" class="py-2.5 text-sm" hide-class="pb-2">
                                 <NuxtLink :to="`/posts/${h.post.id}`" class="group flex items-start gap-3 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="achu-row">
-                                    <span class="relative block aspect-[4/3] w-16 shrink-0 overflow-hidden rounded bg-surface-100 dark:bg-surface-800">
-                                        <img v-if="imageOf(h) && !broken.has(h.id)" :src="imageOf(h)!" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" decoding="async" @error="markBroken(h.id)" />
-                                        <span v-else class="absolute inset-0 grid place-items-center text-lg font-semibold leading-none" :style="letterStyle(h)" aria-hidden="true" data-testid="achu-row-letter">
-                                            <span class="opacity-60">{{ UtilAchu.letterOf(boardName(h)) }}</span>
-                                        </span>
-                                    </span>
+                                    <GadgetThumb :src="imageOf(h)" :variant="variantOf(h)" ratio="4 / 3" :letter="UtilAchu.letterOf(boardName(h))" :letter-color="h.post.board.color" :emoji="h.post.board.emoji ?? null" class="w-16 shrink-0" />
                                     <div class="min-w-0 flex-1">
                                         <p class="m-0 line-clamp-1 break-words text-[0.9375rem] font-medium leading-snug group-hover:underline">
                                             <span>{{ h.title ?? h.post.title }}</span>
@@ -105,7 +100,7 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 /**
  * 아추!(아이로빗 추천) — `/achu?period=&page=`(`docs/features/achu-page-contract.md`). 운영자가 하이라이트로 **고른 날** 기준 오늘·이번 주·이번 달의 글을 쪽 번호로 본다.
  * 인기글(`/popular`, 반응 순위)과 따로다 — 인기글 페이지는 그대로 둔다. 주소의 `period`·`page` 가 화면 상태다(틀린 값은 일간·1쪽, 기본값은 주소에서 뺀다).
- * API 는 `useHighlightApi().list`(⚠ MOCK — 실제 최신글을 하이라이트처럼). 메뉴 BUILTIN `ACHU`(`/achu`)가 이곳이다(⚠ MOCK — `menu-achu-mock`).
+ * API 는 `useHighlightApi().list`(`GET /api/highlights` — 홈 하이라이트, 고른 날 = 노출 시작 또는 만든 날). 메뉴 BUILTIN `ACHU`(`/achu`)가 이곳이다.
  */
 const { t } = useI18n();
 const route = useRoute();
@@ -130,8 +125,6 @@ const TAB_OFF = 'border-transparent text-muted-color hover:text-color';
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const result = ref<AchuListResponse | null>(null);
 const errorMessage = ref('');
-/** 못 불러온 사진 — 그 줄은 글자 칸으로 */
-const broken = ref(new Set<string>());
 
 const items = computed<AchuItem[]>(() => result.value?.items ?? []);
 /** 탭 옆 범위 — 받은 응답이 보는 기간의 것일 때만 */
@@ -148,14 +141,9 @@ function boardName(h: AchuItem): string {
     return localizedName(h.post.board.name, h.post.board.nameEn);
 }
 
-/** 글자 칸 — 게시판 표시색 14% 옅은 면 + 같은 색 글자(말머리 알약과 같은 식), 표시색이 없으면 주 색상으로 */
-const PRIMARY_LETTER = { color: 'var(--p-primary-color)', background: 'color-mix(in srgb, var(--p-primary-color) 14%, var(--p-content-background))' };
-function letterStyle(h: AchuItem) {
-    return UtilBoard.tagStyle(h.post.board.color) ?? PRIMARY_LETTER;
-}
-
-function markBroken(id: string) {
-    broken.value = new Set(broken.value).add(id);
+/** 사진이 없을 때 빈 썸네일 모양 — 뉴스 게시판 글은 뉴스 면(이모지·글자가 없을 때만 쓰인다) */
+function variantOf(h: AchuItem): 'news' | 'default' {
+    return UtilBoard.isNews(h.post.board?.slug) ? 'news' : 'default';
 }
 
 function foldOf(h: AchuItem) {

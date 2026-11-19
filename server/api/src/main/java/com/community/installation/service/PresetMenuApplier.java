@@ -2,10 +2,12 @@ package com.community.installation.service;
 
 import com.community.installation.dto.BoardPreset;
 import com.community.menu.dto.MenuBoardRef;
+import com.community.menu.dto.MenuNameArt;
 import com.community.menu.dto.MenuNode;
 import com.community.menu.entity.MenuSetEntity;
 import com.community.menu.repository.master.MenuSetRepository;
 import com.community.menu.service.MenuLimits;
+import com.community.menu.service.MenuRules;
 import com.community.menu.service.MenuSnapshots;
 import com.community.menu.service.MenuTreeStore;
 import com.community.menu.service.MenuTreeValidator;
@@ -106,12 +108,21 @@ public class PresetMenuApplier {
                     continue;
                 }
                 out.add(new MenuNode(null, MenuNode.ITEM, entry.label(), entry.nameEn(), entry.visibleOrDefault(), audience, null, false, false, false,
-                        BoardMenuTargetResolver.TYPE, Long.toString(boardId), null, null, entry.tabOn(), List.of()));
+                        BoardMenuTargetResolver.TYPE, Long.toString(boardId), null, null, entry.tabOn(), List.of()).withNameArt(nameStyle(entry), nameArt(entry)));
             } else {
                 out.add(new MenuNode(null, MenuNode.ITEM, entry.label(), entry.nameEn(), entry.visibleOrDefault(), audience, null, false, false, false,
-                        BuiltinMenuTargetResolver.TYPE, null, entry.key(), null, entry.tabOn(), List.of()));
+                        BuiltinMenuTargetResolver.TYPE, null, entry.key(), null, entry.tabOn(), List.of()).withNameArt(nameStyle(entry), nameArt(entry)));
             }
         }
         return out;
+    }
+
+    /** 항목의 이름 모양(V258) — LOGO 이고 그림이 있을 때만 LOGO(모양은 프리셋 목록이 읽을 때 검사했다) */
+    private static String nameStyle(BoardPreset.MenuEntry entry) {
+        return MenuNode.NAME_STYLE_LOGO.equals(entry.nameStyle()) && entry.nameArt() != null ? MenuNode.NAME_STYLE_LOGO : MenuNode.NAME_STYLE_TEXT;
+    }
+
+    private static MenuNameArt nameArt(BoardPreset.MenuEntry entry) {
+        return MenuNode.NAME_STYLE_LOGO.equals(nameStyle(entry)) ? MenuRules.normalizeNameArt(entry.nameArt()) : null;
     }
 }

@@ -107,7 +107,11 @@ export default defineNuxtConfig({
 
     // Tabler Icons(MIT, `@tabler/icons` 3.49.0) — 패키지 `exports` 가 `icons/*` 만 열어 두어 목록 파일(`tabler-nodes-outline.json`·`icons.json`)을 이 별칭으로 연다.
     // 가젯 제목 아이콘 고르기(`utils/util-icon-catalog.ts`)가 고르기 창을 열 때만 `?raw` 로 늦게 읽는다(관리자 화면만 — 공개 사이트는 고른 아이콘의 path 만 저장해 그린다)
-    alias: { '#tabler-icons': fileURLToPath(new URL('./node_modules/@tabler/icons', import.meta.url)) },
+    // 개구체(Gaegu 700, OFL, `@fontsource/gaegu` 5.3.0) — 메뉴 이름 그림(「이름 모양 › 로고 글꼴 그림」, achu-page-contract)을 만들 때만 이름에 든 글자의 조각(woff)을 늦게 받는다(`composables/menu/useMenuNameArt.ts`)
+    alias: {
+        '#tabler-icons': fileURLToPath(new URL('./node_modules/@tabler/icons', import.meta.url)),
+        '#gaegu-font': fileURLToPath(new URL('./node_modules/@fontsource/gaegu', import.meta.url)),
+    },
 
     css: ['~/assets/css/main.css', 'primeicons/primeicons.css'],
 

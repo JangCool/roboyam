@@ -83,6 +83,14 @@ public class HighlightEntity {
         return visible && (showFrom == null || !showFrom.isAfter(now)) && (showUntil == null || showUntil.isAfter(now));
     }
 
+    /**
+     * 고른 시각 — 노출 시작이 있으면 그 시각, 없으면 만든 시각(achu-page-contract 「기간 정책」 — 새 칸 없음, 노출을 껐다 켜도 그대로).
+     * 공개 「아추!」 페이지의 일간·주간·월간 묶기 기준이고 질의({@code HighlightPeriodRepositoryQDSL})의 {@code coalesce(show_from, created_at)} 와 같다.
+     */
+    public Instant pickedAt() {
+        return showFrom != null ? showFrom : createdAt;
+    }
+
     public Long getId() {
         return id;
     }

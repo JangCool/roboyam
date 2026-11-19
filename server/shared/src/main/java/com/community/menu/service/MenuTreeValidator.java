@@ -1,5 +1,6 @@
 package com.community.menu.service;
 
+import com.community.menu.dto.MenuNameArt;
 import com.community.menu.dto.MenuNode;
 import com.community.menu.target.BoardMenuTargetResolver;
 import com.community.menu.target.MenuTargetRegistry;
@@ -30,6 +31,8 @@ import org.springframework.stereotype.Component;
  *       모르는 유형은 유형 코드 모양·이름 길이만 보고 나머지 칸은 받은 그대로 보존한다.</li>
  *   <li>공통: 영문명 · 보이는 대상 값 · {@code GRADE_MIN} 의 등급(등급 목록에 있는 키) · 글자 색({@code textColor} — 비면 기본, 12색 키 또는 {@code #RRGGBB}
  *       대문자로) · 배지({@code badge} — 앞뒤 공백 정리, 비면 없음, 4자까지, 제어 문자 금지).</li>
+ *   <li>이름 모양(V258, 항목만): {@code nameStyle} 은 빠지면 {@code TEXT}, 목록 밖은 400({@code nameStyle}). {@code LOGO} 면 그림 필수({@code nameArt})·모양 검사
+ *       ({@code nameArt.d}·{@code .w}·{@code .h}·{@code .em}·{@code .sw} — {@link MenuRules#nameArtProblems}), {@code TEXT} 면 그림을 버린다. 폴더는 늘 {@code TEXT}(받은 값은 버린다).</li>
  *   <li>트리: 노드 ≤ 80 · 모바일 탭 ≤ 10 · 자동 추가 폴더 하나 — 새로 켠 폴더가 하나면 이미 켜져 있던 것을 끄고, 새로 켠 것이 둘 이상이면 400.</li>
  *   <li>바로가기({@code shortcut}, menu-shortcut-contract): {@code BOARD} 항목만({@code targetType}) · 모바일 탭 없음({@code mobileTab}) ·
  *       「그룹 안에서 한 번」에 세지 않는다(진짜 자리끼리만). 칸 {@code targetId} 에 — 같은 그룹에 같은 게시판의 진짜 자리가 없음({@code SHORTCUT_ORIGIN_MISSING}) ·
@@ -153,8 +156,18 @@ public class MenuTreeValidator {
                     out.add(folder(node, path, depth, fieldErrors, label, nameEn, audience, minGrade, divider, textColor, badge));
                 } else {
                     fieldErrors.add("description", MenuRules.descriptionProblem(node.description()));
+                    // 이름 모양·그림(V258) — 항목만. LOGO 면 그림 필수·모양 검사, TEXT 면 그림을 버린다
+                    String nameStyle = node.nameStyle() == null ? MenuNode.NAME_STYLE_TEXT : node.nameStyle();
+                    MenuNameArt nameArt = null;
+                    if (!MenuLimits.NAME_STYLES.contains(nameStyle)) {
+                        fieldErrors.add("nameStyle", new MessageRef("menu.nameStyle.choice"));
+                    } else if (MenuNode.NAME_STYLE_LOGO.equals(nameStyle)) {
+                        MenuRules.nameArtProblems(node.nameArt()).forEach(fieldErrors::add);
+                        nameArt = MenuRules.normalizeNameArt(node.nameArt());
+                    }
                     out.add(item(node, path, prefix, depth, fieldErrors, label, nameEn, audience, minGrade)
-                            .withExtras(divider, MenuRules.stripToNull(node.description())).withStyle(textColor, node.bold(), badge));
+                            .withExtras(divider, MenuRules.stripToNull(node.description())).withStyle(textColor, node.bold(), badge)
+                            .withNameArt(nameArt == null ? MenuNode.NAME_STYLE_TEXT : MenuNode.NAME_STYLE_LOGO, nameArt));
                 }
             }
             return out;

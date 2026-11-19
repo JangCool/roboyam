@@ -399,6 +399,14 @@ public class BoardPresetCatalog {
             if (entry.tabOn()) {
                 tabs++;
             }
+            // 이름 모양(V258) — LOGO 면 그림 모양을 메뉴 검사기와 같은 규칙으로 본다
+            String nameStyle = entry.nameStyle() == null ? MenuLimits.NAME_STYLE_TEXT : entry.nameStyle();
+            if (!MenuLimits.NAME_STYLES.contains(nameStyle)) {
+                throw invalid(where, "nameStyle 은 TEXT·LOGO 중 하나다: " + nameStyle);
+            }
+            if (MenuLimits.NAME_STYLE_LOGO.equals(nameStyle) && !MenuRules.nameArtProblems(entry.nameArt()).isEmpty()) {
+                throw invalid(where, "이름 그림(nameArt)이 올바르지 않다: " + MenuRules.nameArtProblems(entry.nameArt()).keySet());
+            }
             if (BoardPreset.MenuEntry.BUILTIN.equals(entry.type())) {
                 MenuBuiltin builtin = MenuBuiltin.of(entry.key()).orElseThrow(() -> invalid(where, "모르는 앱 화면 키다: " + entry.key()));
                 if (entry.slug() != null) {

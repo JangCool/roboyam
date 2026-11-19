@@ -1,6 +1,7 @@
 package com.community.installation.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.community.menu.dto.MenuNameArt;
 import java.util.List;
 import java.util.Locale;
 
@@ -108,12 +109,14 @@ public record BoardPreset(String id, String name, String nameEn, String descript
      *   <li>{@code BOARD}: {@code slug} = 이 프리셋의 일반 게시판 주소(소모임 게시판 불가). 설치 때 만들지 못한 게시판이면 그 항목은 빠진다.</li>
      *   <li>항목 공통: {@code label}·{@code nameEn}(비우면 대상 이름) · {@code mobileTab} · {@code audience}(비우면 {@code ALL} · {@code GUEST} · {@code MEMBER} · {@code STAFF}
      *       — 등급 키는 설치마다 달라 {@code GRADE_MIN} 은 받지 않는다).</li>
+     *   <li>항목의 이름 모양(V258): {@code nameStyle}(비우면 {@code TEXT} · {@code LOGO}) · {@code nameArt}({@code LOGO} 면 필수 — {@code {d, w, h, em, sw}}, 관리자 화면이 만드는 것과 같은 개구체 패스를
+     *       미리 굳혀 둔다). 폴더는 쓰지 않는다.</li>
      *   <li>공통: {@code visible}(비우면 보임).</li>
      * </ul>
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record MenuEntry(String type, String key, String slug, String label, String nameEn, String audience, Boolean visible, Boolean mobileTab,
-                            Boolean autoAdd, Boolean collapsible, Boolean collapsed, List<MenuEntry> children) {
+                            Boolean autoAdd, Boolean collapsible, Boolean collapsed, List<MenuEntry> children, String nameStyle, MenuNameArt nameArt) {
 
         public static final String FOLDER = "FOLDER";
         public static final String BUILTIN = "BUILTIN";

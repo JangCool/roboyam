@@ -102,7 +102,7 @@ public class MenuViewComposer {
             String key = "BUILTIN".equals(node.targetType()) ? node.targetKey() : null;
             out.add(new MenuItemNodeView(id, MenuNode.ITEM, node.targetType(), key, label, nameEn, target.path(), target.matchPrefix(), target.newTab(), mobileTab,
                     boardView, target.extra(), node.divider(), node.description(), node.shortcut(), node.textColor(), node.bold(),
-                    node.badge()));
+                    node.badge(), node.drawsNameArt() ? node.nameArt() : null));
         }
         return out;
     }

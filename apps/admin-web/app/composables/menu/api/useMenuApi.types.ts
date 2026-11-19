@@ -136,9 +136,23 @@ export interface MenuItemDto extends MenuNodeBase {
      */
     shortcut?: boolean;
     /**
-     * 이름 모양 — `TEXT` 보통 글자(기본) · `LOGO` 로고 글꼴 그림(achu-page-contract). ⚠ MOCK: 서버 칸이 아직 없다 — 응답에 없으면 `TEXT`, 저장 요청에는 아직 싣지 않는다
+     * 이름 모양 — `TEXT` 보통 글자(기본) · `LOGO` 로고 글꼴 그림(achu-page-contract). 응답에 없으면 `TEXT`
      */
     nameStyle?: MenuNameStyle;
+    /** 이름 그림 — `LOGO` 일 때 저장 전에 화면이 이름으로 만들어 보낸다(`useMenuNameArt`). `TEXT` 면 null */
+    nameArt?: MenuNameArt | null;
+}
+
+/**
+ * 메뉴 이름 그림 — 이름을 캐릭터 로고 글꼴(개구체 Gaegu 700)로 굳힌 패스. `d` 는 (0,0)~(w,h) 안의 채움 패스(소수 한 자리),
+ * `em` 은 공개 메뉴에서 그릴 높이(글자 크기 배수), `sw` 는 같은 색 테두리 두께(viewBox 단위 — 획을 두껍게)
+ */
+export interface MenuNameArt {
+    d: string;
+    w: number;
+    h: number;
+    em: number;
+    sw: number | null;
 }
 
 /** 메뉴 항목 이름 모양 — 보통 글자 · 로고 글꼴 그림 */

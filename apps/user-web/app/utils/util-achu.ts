@@ -23,7 +23,7 @@ export default class UtilAchu {
     static readonly MAX_PAGE = 100;
 
     /**
-     * 「아추!」 글자 그림 — 아이로빗 캐릭터 로고 글꼴(개구체 Gaegu 700 — 헤더 「아이로빗」과 같은 글꼴)로 굳힌 패스(`robotikon/logo/build.mjs` 와 같은 방식). 페이지 제목에 쓰고, 목업 메뉴 항목의 이름 그림도 이것이다.
+     * 「아추!」 글자 그림 — 아이로빗 캐릭터 로고 글꼴(개구체 Gaegu 700 — 헤더 「아이로빗」과 같은 글꼴)로 굳힌 패스(`robotikon/logo/build.mjs` 와 같은 방식). 페이지 제목에 쓴다(설치 프리셋 메뉴 「아추!」의 그림과 같은 값 — 관리자 화면 `useMenuNameArt` 가 같은 이름으로 만드는 것과도 같다).
      * 웹 글꼴을 싣지 않으려고 글자를 그림으로 둔다(사용자 2026-11-19)
      */
     static readonly TITLE_ART: MenuNameArt = {

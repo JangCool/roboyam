@@ -1,5 +1,6 @@
 package com.community.menu.service;
 
+import com.community.menu.dto.MenuNameArt;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -18,6 +19,16 @@ public final class MenuSettingsJson {
     /** null·JSON null 은 null(칸을 비운다) */
     public static String write(JsonNode node) {
         return node == null || node.isNull() ? null : MAPPER.writeValueAsString(node);
+    }
+
+    /** 이름 그림 JSON(V258 {@code name_art}) → 그림. 비면 null */
+    public static MenuNameArt readNameArt(String json) {
+        return json == null || json.isBlank() ? null : MAPPER.readValue(json, MenuNameArt.class);
+    }
+
+    /** 그림 → JSON 글자. null 은 null */
+    public static String writeNameArt(MenuNameArt art) {
+        return art == null ? null : MAPPER.writeValueAsString(art);
     }
 
     /** {@code PATH}·{@code URL} 의 정리된 설정 — {@code {<addressKey>: 주소, newTab}} */

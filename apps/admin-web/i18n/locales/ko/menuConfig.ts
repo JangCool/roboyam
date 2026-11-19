@@ -202,6 +202,7 @@ export default {
         HOME: '홈',
         BOARDS_HUB: '게시판 모음',
         POPULAR: '인기글',
+        ACHU: '아추!',
         LATEST: '최신글',
         SEARCH: '검색',
         TRIALS: '체험단',
@@ -300,7 +301,9 @@ export default {
     },
     nameStyleTextHelp: '사이트 글꼴 그대로 보여요.',
     nameStyleLogoHelp: '이름을 아이로빗 로고 글꼴 그림으로 보여요. 이름을 고치면 저장할 때 다시 만들어요. 영어 화면에서는 영문명을 보통 글자로 보여요.',
-    nameStyleLogoPending: '저장하면 이 이름을 아이로빗 로고 글꼴 그림으로 만들어요. (목업: 지금은 「아추!」만 견본이 보여요)',
+    nameArtLoading: '로고 글꼴 그림을 만드는 중이에요…',
+    nameArtUnsupported: '로고 글꼴에 없는 글자가 있어 그림으로 만들 수 없어요. 이름을 바꾸거나 보통 글자로 해 주세요.',
+    nameArtFailed: '로고 글꼴을 받지 못해 그림을 만들지 못했어요. 잠시 뒤 다시 적용해 주세요.',
     divider: {
         NONE: '없음',
         BEFORE: '왼쪽',

@@ -1,5 +1,6 @@
 package com.community.menu.dto.response;
 
+import com.community.menu.dto.MenuNameArt;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -12,10 +13,12 @@ import tools.jackson.databind.JsonNode;
  * @param textColor 글자 색 — null = 기본, 12색 키 또는 {@code #RRGGBB}(V186)
  * @param bold     굵게(V186)
  * @param badge    이름 옆 배지 글자 — 없으면 null(V186)
+ * @param nameStyle 이름 모양 {@code TEXT} · {@code LOGO}(V258)
+ * @param nameArt  이름 그림 {@code {d, w, h, em, sw}} — {@code LOGO} 일 때만, 그 밖에는 null(V258)
  */
 public record MenuItemView(String id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, String targetType,
                            String targetId, String targetKey, JsonNode settings, boolean mobileTab, String divider, String description, Resolved resolved,
-                           boolean shortcut, String textColor, boolean bold, String badge)
+                           boolean shortcut, String textColor, boolean bold, String badge, String nameStyle, MenuNameArt nameArt)
         implements MenuTreeNodeView {
 
     /** 서버가 본 항목 상태 */

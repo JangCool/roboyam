@@ -1,5 +1,6 @@
 package com.community.menu.dto.response;
 
+import com.community.menu.dto.MenuNameArt;
 import java.util.Map;
 
 /**
@@ -18,9 +19,10 @@ import java.util.Map;
  * @param textColor 글자 색 — null = 기본, 게시판 표시색 12색 키 또는 {@code #RRGGBB}(V186)
  * @param bold      굵게(V186)
  * @param badge     이름 옆 배지 글자(4자까지) — 없으면 null(V186)
+ * @param nameArt   이름 그림(V258) — 이름 모양 LOGO 이고 그림이 있을 때만, 그 밖에는 null. 화면은 영문명을 보이는 언어면 보통 글자로 그린다
  */
 public record MenuItemNodeView(String id, String kind, String type, String key, String label, String nameEn, String path, boolean matchPrefix,
                                boolean newTab, boolean mobileTab, MenuBoardView board, Map<String, Object> extra, String divider, String description,
-                               boolean shortcut, String textColor, boolean bold, String badge)
+                               boolean shortcut, String textColor, boolean bold, String badge, MenuNameArt nameArt)
         implements MenuNodeView {
 }

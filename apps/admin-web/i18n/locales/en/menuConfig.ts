@@ -202,6 +202,7 @@ export default {
         HOME: 'Home',
         BOARDS_HUB: 'All boards',
         POPULAR: 'Popular',
+        ACHU: 'Achu!',
         LATEST: 'Latest',
         SEARCH: 'Search',
         TRIALS: 'Product trials',
@@ -300,7 +301,9 @@ export default {
     },
     nameStyleTextHelp: 'Shown in the site font.',
     nameStyleLogoHelp: "Shown as artwork in the irobit logo typeface. It's redrawn on save when you change the name. English screens show the English name as plain text.",
-    nameStyleLogoPending: 'On save, this name is drawn in the irobit logo typeface. (Mockup: only 「아추!」 has a preview.)',
+    nameArtLoading: 'Drawing the logo lettering…',
+    nameArtUnsupported: "The logo typeface doesn't have some of these characters. Change the name or use plain text.",
+    nameArtFailed: "Couldn't load the logo typeface. Try applying again in a moment.",
     divider: {
         NONE: 'None',
         BEFORE: 'Left',

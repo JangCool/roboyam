@@ -45,6 +45,23 @@ public final class MenuLimits {
     /** 메뉴 배지 글자 수(코드 포인트, V186) */
     public static final int BADGE_MAX = 4;
 
+    /** 이름 모양(V258) — 보통 글자(기본) · 로고 글꼴 그림 */
+    public static final String NAME_STYLE_TEXT = "TEXT";
+    public static final String NAME_STYLE_LOGO = "LOGO";
+    public static final List<String> NAME_STYLES = List.of(NAME_STYLE_TEXT, NAME_STYLE_LOGO);
+
+    /** 이름 그림 패스({@code nameArt.d}) 글자 수 — 이름 20자 × 개구체 한 글자 2000~3000자 */
+    public static final int NAME_ART_D_MAX = 60000;
+    /** 이름 그림 viewBox 너비·높이 최대(0 초과) */
+    public static final double NAME_ART_SIZE_MAX = 10000;
+    /** 이름 그림 그릴 높이(글자 크기 배수) 범위 */
+    public static final double NAME_ART_EM_MIN = 0.3;
+    public static final double NAME_ART_EM_MAX = 2;
+    /** 이름 그림 테두리 두께 최대(0 이상) */
+    public static final double NAME_ART_STROKE_MAX = 10;
+    /** 이름 그림 패스 글자 — 그리기 명령·숫자·공백·쉼표·마침표·빼기만 */
+    public static final Pattern NAME_ART_D = Pattern.compile("^[MLHVQCSTZmlhvqcstz0-9 .,-]+$");
+
     /** 게시판이 만들어질 때 자동 추가 폴더를 찾는 그룹 */
     public static final String MAIN_SET = "main";
 
