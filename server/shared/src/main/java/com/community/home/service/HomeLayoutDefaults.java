@@ -121,19 +121,19 @@ public final class HomeLayoutDefaults {
      * 아이로빗형 — 24칸: 본문 18칸 + 오른쪽 6칸(아이로빗 설치 프리셋 {@code irobit.structure.json} 의 홈과 같은 구성 — home-news-contract 「화면」·「홈 배치 데이터」, shared V211).
      * <pre>
      *   PC   [새소식(뉴스 게시판 · LINE · 두 열 · 첫 글 작은 사진)            ] [인기글     ]
-     *        [함께 보는 글(PC 전용 · 좁은 칸 LIST)] [최신글(PC 전용 · 모바일과 같은      ] [광고       ]
+     *        [아추!(PC 전용 · 좁은 칸 LIST)      ] [최신글(PC 전용 · 모바일과 같은      ] [광고       ]
      *        [상단 띠 배너(반 폭 배너 HALF_BANNER)]  두 줄 모양 · 핫딜 끝까지 길게)     ] [포인트 게임]
      *                                                                                    [인기 소모임]
      *        [핫딜(PC 전용 · 최신순 · 5개)        ] [                                 ]
      *        [띠 배너                                                         ]
      *        [팁과강좌] [사용기] → [영상·짤]                                     [공동구매(PC 전용)]
-     *        [함께 보는 글(모바일 전용)] [최신글(모바일 전용)] — PC 에서는 숨어 자리가 없다(배치표 맨 아래)
-     *   모바일(배치의 모바일 순서 mobileOrder — PC 배치와 따로) 새소식 → 상단 띠 배너 → 인기글 → 함께 보는 글(모바일 전용) → 최신글(모바일 전용) → 광고
+     *        [아추!(모바일 전용)] [최신글(모바일 전용)] — PC 에서는 숨어 자리가 없다(배치표 맨 아래)
+     *   모바일(배치의 모바일 순서 mobileOrder — PC 배치와 따로) 새소식 → 상단 띠 배너 → 인기글 → 최신글(모바일 전용) → 아추!(모바일 전용) → 광고
      *        → 포인트 게임 → 팁과강좌 → 사용기 → 인기 소모임 → 영상·짤 → 띠 배너
      * </pre>
      * 모바일 순서는 home-news-contract 「모바일 순서」(이미 설치된 곳은 shared V213 이 같은 순서를 넣는다). 아래 자리의 한 열 계산 차례는 모바일 순서가 없을 때(운영자가 「PC 배치 따르기」)만 쓰인다.
-     * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). PC 첫 줄 아래(2026-11-15 사용자): 최신글(PC)을 핫딜 끝까지 길게(15개),
-     * 왼쪽은 함께 보는 글 → 상단 띠 배너(반 폭) → 핫딜, 그 아래 팁과강좌·사용기. 모바일 전용 두 가젯은 PC 에서 숨으니 배치표 맨 아래에 둔다(모바일 화면 차례는 모바일 순서가 정한다 — 이미 설치된 곳은 shared V218).
+     * 자리는 겹치지 않고 위로 당겨 정리된 모양이다(관리자 저장이 겹침을 400 으로 막고 저장 때 위로 당긴다 — 저장해도 차례가 그대로). PC 첫 줄 아래(2026-11-15 사용자): 최신글(PC)을 핫딜 끝까지 길게(13개 — 2026-11-19),
+     * 왼쪽은 아추! → 상단 띠 배너(반 폭) → 핫딜, 그 아래 팁과강좌·사용기. 모바일 전용 두 가젯은 PC 에서 숨으니 배치표 맨 아래에 둔다(모바일 화면 차례는 모바일 순서가 정한다 — 이미 설치된 곳은 shared V218).
      * 최신글(PC 전용·모바일 전용)은 뉴스 게시판 글을 뺀다({@code excludeBoardIds ["news"]} — 새소식이 따로 보여 준다, 이미 설치된 곳은 shared V214).
      * 새소식은 태그 탭 {@link #IROBIT_NEWS_TAG_TABS}(post-tags-contract — 이미 설치된 곳은 shared V215).
      * 머리는 아이콘 + 제목({@code PLAIN}), 구분선은 끈다. 게시판 이름은 기본(자동 — 게시판 표시색이 있으면 그 색, 2026-11-05 사용자 결정으로 회색에서 바꿈).
@@ -153,7 +153,7 @@ public final class HomeLayoutDefaults {
                 cfg().put("sort", "POPULAR").put("rowStyle", "COMPACT").put("columns", 1).put("count", 20).put("dividers", false).put("periodTabs", true)
                         .set("meta", meta("COMMENTS")),
                 null, "/popular", 18, 0, 6, 12);
-        b.add("HIGHLIGHT", "함께 보는 글", true, false, plain("pi-sparkles").put("bottomSpace", "TIGHT"),
+        b.add("HIGHLIGHT", "아추!", true, false, plain("pi-sparkles").put("subtitle", ACHU_SUBTITLE).put("bottomSpace", "TIGHT"),
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "LIST"), null, null, 0, 12, 9, 8);
         // 최신글(PC) — 모바일 최신글과 같은 두 줄 모양(제목 / 게시판 · 시간 …… 추천), 한 열, 핫딜 끝까지 길게
         b.add("POST_LIST", "최신글", true, false, plain("pi-clock").put("bottomSpace", "TIGHT"), latestTwoLine(1, IROBIT_PC_LATEST_COUNT), null, "/latest", 9, 12, 9, 19);
@@ -174,15 +174,18 @@ public final class HomeLayoutDefaults {
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, plain("pi-shopping-bag").set("empty", noKeep()), cfg().put("sort", "DEADLINE").put("count", 5), null, null,
                 17, 50, 7, 13);
         // 모바일 전용 — PC 에서 숨으니 배치표 맨 아래(모바일 화면 차례는 아래 모바일 순서)
-        String pickMobile = b.add("HIGHLIGHT", "함께 보는 글", false, true, plain("pi-sparkles"),
+        String pickMobile = b.add("HIGHLIGHT", "아추!", false, true, plain("pi-sparkles").put("subtitle", ACHU_SUBTITLE),
                 cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 5).put("narrow", "DEFAULT"), null, null, 0, 63, 9, 8);
         String latestMobile = b.add("POST_LIST", "최신글", false, true, plain("pi-clock"), latestTwoLine(2, 10), null, "/latest", 9, 63, 9, 9);
-        // 모바일 한 열 순서(home-news-contract 「모바일 순서」) — PC 전용(함께 보는 글·최신글 PC · 공동구매)은 모바일에 안 보여 넣지 않는다
-        return b.build(List.of(news, topStrip, popular, pickMobile, latestMobile, ad, games, tips, reviews, groups, gallery, strip));
+        // 모바일 한 열 순서(home-news-contract 「모바일 순서」 — 2026-11-19 인기글 → 최신글 → 아추!) — PC 전용(아추!·최신글 PC · 공동구매)은 모바일에 안 보여 넣지 않는다
+        return b.build(List.of(news, topStrip, popular, latestMobile, pickMobile, ad, games, tips, reviews, groups, gallery, strip));
     }
 
-    /** 아이로빗 최신글(PC)의 글 수 — 왼쪽 열(함께 보는 글 + 띠 배너 + 핫딜) 높이에 두 줄 모양으로 들어가는 만큼(로컬 1920 폭에서 잼) */
-    public static final int IROBIT_PC_LATEST_COUNT = 15;
+    /** 아이로빗 최신글(PC)의 글 수 — 왼쪽 열(아추! + 띠 배너 + 핫딜) 높이에 두 줄 모양으로 들어가는 만큼(로컬 1920 폭에서 잼 — 2026-11-19 13개) */
+    public static final int IROBIT_PC_LATEST_COUNT = 13;
+
+    /** 아이로빗 하이라이트(아추! — 운영자가 고른 글, PC·모바일 두 가젯)의 부제 */
+    public static final String ACHU_SUBTITLE = "아이로빗 추천";
 
     /** 아이로빗 최신글 두 줄 모양(모바일 최신글과 같다 — 제목 한 줄 / 게시판 · 댓글 · 시간 · 추천 아이콘, 사진은 있는 글만 오른쪽에 줄 높이만큼(AUTO — 2026-11-15), 줄 간격 좁게, 뉴스 게시판 뺌) */
     private static ObjectNode latestTwoLine(int columns, int count) {
