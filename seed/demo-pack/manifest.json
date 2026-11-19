@@ -1,17 +1,17 @@
 {
   "format": 1,
   "preset": "IROBIT",
-  "builtAt": "2026-11-18T07:21:17.045Z",
+  "builtAt": "2026-11-19T02:22:17.045Z",
   "source": {
-    "sharedVersion": "256",
+    "sharedVersion": "259",
     "database": "irobit_demo_build"
   },
   "operatorIds": [
-    "116438034450124800"
+    "116725176652959744"
   ],
   "dataKey": "1:Nkfi1vUhkXnb6dM1b8wzSxEbPhDjKWCqih4IwYR9o34=",
   "data": "data.json.gz",
-  "dataSha256": "08c6b36c4e89ae00d3833ac5e1b49dd35e9065d7fc52feee469de4b9dd288670",
+  "dataSha256": "409bd2aaaa4ee0c4f20dce5b8b98f47ff2d57cb37318e78bc3f8c926f3727706",
   "patches": [
     "0001-member-titles-featured-posts.sql",
     "0002-trials-purchase-sources.mjs",

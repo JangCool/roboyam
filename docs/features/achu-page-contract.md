@@ -42,3 +42,9 @@
 - **관리자 화면 그림 만들기** `composables/menu/useMenuNameArt.ts` + `utils/util-menu-name-art.ts` — `@fontsource/gaegu` 5.3.0 조각 woff(별칭 `#gaegu-font`)를 이름 글자에 맞춰 받아 `opentype.js` 1.3.4 로 패스(높이 = 잉크 높이 × 0.9/0.672, 테두리 2). 「아추!」는 `TITLE_ART` 와 같은 값이 나온다. 글꼴에 없는 글자(이모지 등)면 [적용]을 막고 안내.
 - user-web 목업은 지웠다(`/achu` 는 실제 API, 메뉴는 서버 응답 그대로). 사진 칸은 `GadgetThumb`(게시판 목록 이모지 → 첫 글자).
 - 검증: `compileJava`·`compileTestJava`(서버 셋), `typecheck`(두 앱). 테스트·로컬 DB 적용·실제 호출은 아직.
+
+## 이미 설치된 사이트 · 새 설치 (2026-11-19)
+- **shared V259** `menu_achu_popular_hidden` — 이미 설치된 DB(설치 끝 + 설치 프리셋 적용)에서 공개 메뉴 main 에 「아추!」(BUILTIN ACHU, 이름 모양 LOGO · 프리셋과 같은 그림)가 없으면 최상위 「인기글」 바로 다음(없으면 「홈」 다음, 그것도 없으면 끝)에 넣고, 최상위 「인기글」을 숨긴다(visible false — 항목은 남김). 바꾼 게 있으면 main 트리 버전 +1. 다시 돌아도 그대로.
+- **설치 프리셋**: IROBIT 구성·중립 구성 모두 「인기글」 숨김(사용자 2026-11-19 「상단 메뉴에서 인기글 빼」). `irobit.structure.json` 의 「아추!」 `name_art` 는 **JSON 객체**로 둔다 — 문자열로 두면 jsonb 문자열이 되어 `ck_menu_nodes_name_art`(객체만)에 걸려 구조 프리셋 전체가 기본 게시판으로 물러섰다(6fa89fd7~, 2026-11-19 고침).
+- 구조 프리셋 게시판 행에 목록 이모지(`list_emoji`, V257 과 같은 값) — V257 은 그때 있던 게시판만 채우므로 새 설치(프리셋이 마이그레이션 뒤에 게시판을 만든다)도 같게.
+- 데모 팩은 V259 기준으로 갱신(refresh — 패치 5개 그대로).
