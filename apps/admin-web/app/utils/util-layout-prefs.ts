@@ -184,6 +184,21 @@ export default class UtilLayoutPrefs {
     }
 
     /**
+     * 상단 네비 바탕이 어두운가 — 상단 로고 자리가 어두운 바탕용 칸을 쓸지 정한다(`SiteBrand`). `barColors` 의 조합과 같은 규칙이다.
+     *   · 강조색으로 칠함 + 밝은 색: 라이트·다크 모두 `primary-700` 바탕(흰 글자) → 어두움
+     *   · 강조색으로 칠함 + 나머지: 라이트 `primary-600/700`(흰 글자) → 어두움 · 다크 `primary-400`(어두운 글자) → 밝음
+     *   · 칠하지 않음: 기본 면 — 라이트 흰색 → 밝음 · 다크 어두운 면 → 어두움
+     * @param {PrimaryName} name - 강조색 이름.
+     * @param {boolean} tinted - 강조색으로 칠하는가.
+     * @param {ThemeMode} theme - 화면 테마.
+     * @returns {boolean} 바탕이 어두우면 true.
+     */
+    static barIsDark(name: PrimaryName, tinted: boolean, theme: ThemeMode): boolean {
+        if (!tinted) return theme === 'dark';
+        return BRIGHT_PRIMARY.includes(name) || theme === 'light';
+    }
+
+    /**
      * 글자 크기를 한 칸 움직인다. 끝에서는 그대로다.
      * @param {TextScale} current - 지금 크기(%).
      * @param {number} by - +1(크게) 또는 -1(작게).

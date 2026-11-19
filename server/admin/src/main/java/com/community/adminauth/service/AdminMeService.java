@@ -6,6 +6,7 @@ import com.community.mfa.dto.response.AdminLoginMfa;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.site.dto.SiteBranding;
+import com.community.site.dto.SiteLogoUrls;
 import com.community.site.service.SiteAssets;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,8 +39,10 @@ public class AdminMeService {
         Optional<SiteBranding> branding = siteAssets.branding();
         String siteName = branding.map(SiteBranding::siteName).orElse(null);
         String siteLogoUrl = branding.map(SiteBranding::logoUrl).orElse(null);
+        SiteLogoUrls siteLogos = branding.map(SiteBranding::logos).orElse(SiteLogoUrls.EMPTY);
+        boolean siteNameInLogo = branding.map(SiteBranding::nameInLogo).orElse(false);
         if (actor.isEmpty()) {
-            return new AdminMeResponse(false, null, siteName, siteLogoUrl, mfa, null);
+            return new AdminMeResponse(false, null, siteName, siteLogoUrl, mfa, null, siteLogos, siteNameInLogo);
         }
         AdminActor a = actor.get();
         List<String> permissions = new ArrayList<>();
@@ -50,6 +53,6 @@ public class AdminMeService {
         }
         AdminUserView user = new AdminUserView(Long.toString(a.operatorId()), a.operatorName(), a.root() ? "ADMIN" : "STAFF", a.email(), a.root(),
                 List.copyOf(permissions));
-        return new AdminMeResponse(true, user, siteName, siteLogoUrl, mfa, recoveryCodesLeft);
+        return new AdminMeResponse(true, user, siteName, siteLogoUrl, mfa, recoveryCodesLeft, siteLogos, siteNameInLogo);
     }
 }

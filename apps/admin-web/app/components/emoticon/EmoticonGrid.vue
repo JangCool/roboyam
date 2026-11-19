@@ -13,7 +13,7 @@
             >
                 <img :src="item.imageUrl" :alt="item.alt" :width="size" :height="size" loading="lazy" decoding="async" class="block" :style="{ width: `${size}px`, height: `${size}px` }" />
                 <span v-if="markOf(item.id)" class="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white" :class="markClass(item.id)">
-                    <span class="relative -top-[0.09em]">{{ t(`emoticon.diff.mark.${markOf(item.id)}`) }}</span>
+                    <span class="chip-label">{{ t(`emoticon.diff.mark.${markOf(item.id)}`) }}</span>
                 </span>
                 <span
                     v-if="levels[item.id]"

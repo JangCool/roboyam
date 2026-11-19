@@ -535,8 +535,8 @@ onMounted(load);
     line-height: 1;
 }
 .template-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
     white-space: nowrap;
 }
 /* 색 고르기 — 메일 템플릿 띠 색 고르기·게시판 표시색 고르기와 같은 모양 */

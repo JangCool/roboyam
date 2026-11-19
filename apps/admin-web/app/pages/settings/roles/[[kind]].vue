@@ -540,17 +540,16 @@ async function confirmDelete() {
     }
 }
 
-/* 헤더의 등급 뱃지 — 옆의 `Tag`(11px 글자, 위아래 여백 2px, 줄 높이 1.5 = 높이 20.5px)와 높이를 맞춘다. 글자 크기는 같고(작은 뱃지 11px), 줄 높이 13.75px 에 위아래 여백 합 6.75px 를 줘 20.5px 로 만든다.
-   한글 글자 보정(0.045em 위로)은 `GradeBadge` 와 같은 방식 그대로 위·아래 여백의 차이로 유지한다. */
+/* 헤더의 등급 뱃지 — 옆의 `Tag`(11px 글자, 위아래 여백 2px, 줄 높이 1.5 = 높이 20.5px)와 높이를 맞춘다. 글자 크기는 같고(작은 뱃지 11px), 줄 높이 13.75px 에 위아래 여백 합 6.75px 를 줘 20.5px 로 만든다. */
 .role-grade-badge.grade-badge--small {
-    padding-top: calc(3.375px - 0.045em);
-    padding-bottom: calc(3.375px + 0.045em);
+    padding-top: 3.375px;
+    padding-bottom: 3.375px;
 }
 
-/* 뱃지(`Tag`) 글자 — 한글 글꼴은 글자가 줄 상자 중앙보다 약 0.09em 아래에 앉아 알약 안에서 아래로 붙어 보인다(실측: 11px 에서 1px). 글자만 그만큼 올려 가운데에 맞춘다 — `GradeBadge` 와 같은 보정 */
+/* 뱃지 글자 세로 가운데 — 글자 상자를 대문자 높이~기준선으로 깎고 대칭 여백을 준다(`--chip-label-pad`, main.css · components.md 2-4) */
 .role-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 
 /* 탭 줄 — 폴더 탭 모양. 모든 탭에 위·왼쪽·오른쪽 외곽선(`--line`)이 있고, 선택된 탭은 더 진한 선(`--line-strong`)에 본문 바탕색으로 채워 아래 선을 지워 본문과 이어 보이게 한다.

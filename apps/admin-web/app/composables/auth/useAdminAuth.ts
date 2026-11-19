@@ -1,5 +1,6 @@
 import type { AdminLoginMfa, AdminLoginRequest, AdminMeResponse, AdminUser } from '~/composables/auth/api/useAdminAuthApi.types';
 import UtilAdminSite from '~/utils/util-admin-site';
+import UtilSiteLogo, { type SiteLogoSet } from '~/utils/util-site-logo';
 
 /**
  * 지금 누가 로그인해 있는가 — 화면 전체가 공유하는 관리자 로그인 상태 (`useState`).
@@ -8,7 +9,7 @@ import UtilAdminSite from '~/utils/util-admin-site';
  * 화면은 "지금 누구인지"만 기억하고, 새로고침하면 `useAdminAuthApi().me()` 로 다시 받는다. 사용자 정보를 로컬 스토리지에 두지 않는다.
  * 서버와 말하는 것은 `useAdminAuthApi` 다(frontend-guide 3장). 여기는 상태만 든다.
  *
- * 사이트 이름(`siteName`)과 로고(`siteLogoUrl`)도 같은 응답에 실려 와서 여기서 함께 든다 — 비로그인에도 온다(로그인 화면의 로고·탭 제목이 쓴다).
+ * 사이트 이름(`siteName`)과 로고(`siteLogoUrl` · 로고 4칸 `siteLogos` · 이름 포함 `siteNameInLogo`)도 같은 응답에 실려 와서 여기서 함께 든다 — 비로그인에도 온다(로그인 화면의 로고·탭 제목이 쓴다).
  * 관리자 세션은 공개 사이트와 별개다(쿠키 이름·표·기한이 다르다) — 공개 사이트에 로그인해 있어도 여기서는 비로그인이다.
  */
 
@@ -24,6 +25,10 @@ export function useAdminAuth() {
     const siteName = useState<string | null>('admin-site-name', () => null);
     /** 올려 둔 로고 주소(이미지 주소 또는 SVG data URI). 없으면 null — 이름 글자만 보인다 */
     const siteLogoUrl = useState<string | null>('admin-site-logo-url', () => null);
+    /** 평소 로고 묶음 4칸 — 상단 로고 자리(`SiteBrand`)가 놓인 면에 맞는 칸을 고른다. 빈 칸은 null */
+    const siteLogos = useState<SiteLogoSet>('admin-site-logos', () => ({ ...UtilSiteLogo.EMPTY }));
+    /** 그림에 사이트 이름이 들어 있다 — 그림이 보이면 이름 글자를 붙이지 않는다 */
+    const siteNameInLogo = useState<boolean>('admin-site-name-in-logo', () => false);
     /** `me` 를 한 번이라도 받았는가. false 인 동안 null 은 "로그인 안 함"이 아니라 "아직 모름"이다 */
     const loaded = useState<boolean>('admin-auth-loaded', () => false);
     /**
@@ -45,6 +50,8 @@ export function useAdminAuth() {
         if (name) siteName.value = name;
         // 로고는 "없음(null)"이 올바른 답이라 이름과 달리 null 로도 바꾼다. 칸이 아예 없을 때(undefined)만 알던 값을 둔다
         if (res.siteLogoUrl !== undefined) siteLogoUrl.value = res.siteLogoUrl;
+        if (res.siteLogos !== undefined) siteLogos.value = res.siteLogos ?? { ...UtilSiteLogo.EMPTY };
+        if (res.siteNameInLogo !== undefined) siteNameInLogo.value = res.siteNameInLogo;
         return user.value;
     }
 
@@ -57,6 +64,12 @@ export function useAdminAuth() {
     /** 로고를 올리거나 뗀 직후(설정 메뉴의 「일반」) 상단 로고 자리가 바로 따르게 한다 */
     function setSiteLogoUrl(url: string | null): void {
         siteLogoUrl.value = url;
+    }
+
+    /** 기본 로고 묶음을 바꾼 직후(설정 「로고 보관함」) 상단 로고 자리의 4칸·이름 포함 여부를 바로 맞춘다 */
+    function setSiteLogos(logos: SiteLogoSet | null, nameInLogo: boolean): void {
+        siteLogos.value = logos ?? { ...UtilSiteLogo.EMPTY };
+        siteNameInLogo.value = nameInLogo;
     }
 
     /**
@@ -125,5 +138,5 @@ export function useAdminAuth() {
         }
     }
 
-    return { user, siteLabel, siteLogoUrl, setSiteName, setSiteLogoUrl, loaded, isLoggedIn, pendingMfa, clearPendingMfa, refresh, ensureLoaded, login, authenticate, adopt, logout };
+    return { user, siteLabel, siteLogoUrl, siteLogos, siteNameInLogo, setSiteName, setSiteLogoUrl, setSiteLogos, loaded, isLoggedIn, pendingMfa, clearPendingMfa, refresh, ensureLoaded, login, authenticate, adopt, logout };
 }

@@ -225,8 +225,8 @@
                                                 :aria-label="t('homeLayout.tagTabsSuggestAdd', { name: s.name, count: s.count })"
                                                 @click="addTag(s.name)"
                                             >
-                                                <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ s.name }}</span>
-                                                <span class="relative top-[-0.09em] text-muted-color tabular-nums" aria-hidden="true">{{ s.count.toLocaleString() }}</span>
+                                                <span class="chip-label"><span class="text-muted-color" aria-hidden="true">#</span>{{ s.name }}</span>
+                                                <span class="chip-label text-muted-color tabular-nums" aria-hidden="true">{{ s.count.toLocaleString() }}</span>
                                             </button>
                                         </li>
                                     </ul>

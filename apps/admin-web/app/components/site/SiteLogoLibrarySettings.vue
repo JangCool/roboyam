@@ -295,7 +295,7 @@ const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
-const { siteLabel, setSiteLogoUrl } = useAdminAuth();
+const { siteLabel, setSiteLogoUrl, setSiteLogos } = useAdminAuth();
 const canManage = computed(() => can('site.manage'));
 const uid = useId();
 
@@ -506,10 +506,11 @@ function setRuleEnabled(index: number, enabled: boolean): void {
     if (rule) rule.enabled = enabled;
 }
 
-/** 관리자 화면 상단 로고(`me` 의 `siteLogoUrl`)는 기본 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸)이다 — 규칙·묶음을 저장하면 바로 맞춘다 */
+/** 관리자 화면 상단 로고(`me` 의 `siteLogoUrl`)는 기본 로고 묶음의 한글·밝은 칸(비었으면 채워진 첫 칸)이다 · 상단 로고 자리는 그 묶음 4칸(`siteLogos`)에서 놓인 면에 맞는 칸 — 규칙·묶음을 저장하면 바로 맞춘다 */
 function syncAdminLogo(): void {
     const bundle = bundleOf(saved.value?.rules.defaultBundleId ?? null);
     setSiteLogoUrl(bundle ? UtilSiteLogoRule.cardPreview(bundle.logos) : null);
+    setSiteLogos(bundle ? bundle.logos : null, bundle ? bundle.nameInLogo : false);
 }
 
 /** 위 줄이 먼저다 — 한 칸 위·아래로 옮긴다 */
@@ -628,8 +629,8 @@ void loadHolidays();
 <style scoped>
 /* 한글 글자가 알약 안에서 아래로 앉는 것만 올린다(`components.md` 2-4) */
 .site-logo-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
     white-space: nowrap;
 }
 </style>

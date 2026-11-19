@@ -21,7 +21,7 @@
                 <NuxtLink to="/" class="app-brand-link" :aria-label="t('shell.homeLink', { site: siteLabel })">
                     <!-- 레일(사이드바 폭)에는 이름이 들어가지 않는다 — 올린 로고가 있으면 로고, 없으면 이름의 첫 글자만 -->
                     <Avatar v-if="brandLinked && isRail" :label="siteInitial" :image="siteLogoUrl ?? undefined" shape="square" :class="{ 'avatar-primary': !siteLogoUrl }" aria-hidden="true" />
-                    <SiteBrand v-else />
+                    <SiteBrand v-else surface="bar" />
                 </NuxtLink>
 
                 <!-- 왼쪽 사이드바가 펼쳐져 있으면 토글이 브랜드 칸 안 오른쪽 끝에 있다 -->

@@ -5,7 +5,7 @@
     -->
     <div class="relative flex min-w-0 rounded-[3px] border border-primary bg-primary-50 dark:bg-primary-950/40" :class="shapeClass" data-testid="ad-placement-slot" :data-shape="shape">
         <span class="inline-flex shrink-0 items-center justify-center rounded-sm bg-primary px-1 py-0.5 text-[0.5625rem] font-semibold leading-none text-primary-contrast" :class="tagClass">
-            <span class="relative top-[-0.09em]">{{ t('ad.previewAdTag') }}</span>
+            <span class="chip-label">{{ t('ad.previewAdTag') }}</span>
         </span>
         <span v-if="shape === 'line'" class="h-1 min-w-0 flex-1 rounded-full bg-primary-200 dark:bg-primary-800" aria-hidden="true" />
     </div>

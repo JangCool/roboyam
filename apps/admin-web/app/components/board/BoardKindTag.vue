@@ -17,7 +17,7 @@ const { t } = useI18n();
 </script>
 
 <style scoped>
-/* 뱃지 글자 상하 중앙 — 한글 글꼴이 줄 상자 중앙보다 약 0.09em 아래 앉는 것을 글자 요소에서만 보정한다(`components.md` 2-4) */
+/* 뱃지 글자 세로 가운데 — 글자 상자를 대문자 높이~기준선으로 깎고 대칭 여백을 준다(`--chip-label-pad`, main.css · components.md 2-4) */
 .board-kind-tag {
     display: inline-flex;
     align-items: center;
@@ -25,7 +25,7 @@ const { t } = useI18n();
     line-height: 1;
 }
 .board-kind-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 </style>

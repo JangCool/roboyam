@@ -44,10 +44,10 @@ const severity = computed(() => {
 </script>
 
 <style scoped>
-/* 한글 글꼴은 글자가 줄 상자 중앙보다 약 0.09em 아래에 앉는다 — 글자만 올려 가운데에 맞춘다(`GradeBadge` 와 같은 보정) */
+/* 뱃지 글자 세로 가운데 — 글자 상자를 대문자 높이~기준선으로 깎고 대칭 여백을 준다(`--chip-label-pad`, main.css · components.md 2-4) */
 .sanction-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 /* 상태의 「진행 중」 점 아이콘은 작게 */
 .sanction-tag :deep(.p-tag-icon.pi-circle-fill) {

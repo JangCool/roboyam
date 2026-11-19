@@ -82,12 +82,12 @@
                                     <span class="shrink-0 text-xs text-muted-color">{{ t('aiMember.onPost') }}</span>
                                     <span class="min-w-0 font-medium [overflow-wrap:anywhere]">{{ item.post.title }}</span>
                                     <span class="text-xs text-muted-color">— {{ item.post.author.nickname }}</span>
-                                    <span :class="[MARK, item.post.author.ai ? MARK_AI : MARK_MEMBER]"><span class="relative top-[-0.09em]">{{ item.post.author.ai ? t('aiMember.aiMark') : t('aiMember.memberMark') }}</span></span>
+                                    <span :class="[MARK, item.post.author.ai ? MARK_AI : MARK_MEMBER]"><span class="chip-label">{{ item.post.author.ai ? t('aiMember.aiMark') : t('aiMember.memberMark') }}</span></span>
                                 </p>
                                 <div v-if="item.parent" class="border-l-2 border-(--line) pl-2.5">
                                     <p class="m-0 flex flex-wrap items-center gap-1.5 text-xs text-muted-color">
                                         <span>{{ t('aiMember.toComment') }} · {{ item.parent.author.nickname }}</span>
-                                        <span :class="[MARK, item.parent.author.ai ? MARK_AI : MARK_MEMBER]"><span class="relative top-[-0.09em]">{{ item.parent.author.ai ? t('aiMember.aiMark') : t('aiMember.memberMark') }}</span></span>
+                                        <span :class="[MARK, item.parent.author.ai ? MARK_AI : MARK_MEMBER]"><span class="chip-label">{{ item.parent.author.ai ? t('aiMember.aiMark') : t('aiMember.memberMark') }}</span></span>
                                         <span v-if="item.round">· {{ t('aiMember.roundLine', { n: item.round }) }}</span>
                                     </p>
                                     <p class="m-0 mt-0.5 whitespace-pre-line [overflow-wrap:anywhere]">{{ item.parent.body }}</p>
@@ -311,8 +311,8 @@ async function submitEdit(): Promise<void> {
 <style scoped>
 /* 한글 글꼴 보정 — 알약 안에서 글자가 아래로 붙어 보이지 않게 글자만 올린다(components.md 2-4) */
 .ai-member-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 
 </style>

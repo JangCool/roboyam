@@ -40,10 +40,14 @@ public class SiteAssets {
         this.storage = storage;
     }
 
-    /** 사이트 이름과 로고 — 관리자 me · 공개 사이트의 상단 표시가 쓴다. 설정 행이 없으면(설치 전) 비어 있다 */
+    /** 사이트 이름과 로고(평소 묶음 — 대표 한 장 · 4칸 · 이름 포함 여부) — 관리자 me 가 쓴다. 설정 행이 없으면(설치 전) 비어 있다 */
     @Transactional(readOnly = true)
     public Optional<SiteBranding> branding() {
-        return settings.findById(SiteSettingEntity.ROW_ID).map(row -> new SiteBranding(row.getSiteName(), logoUrl(row).orElse(null)));
+        return settings.findById(SiteSettingEntity.ROW_ID).map(row -> {
+            Optional<SiteLogoBundleEntity> bundle = bundles.findById(row.getLogoDefaultBundleId());
+            return new SiteBranding(row.getSiteName(), bundle.flatMap(this::representativeUrl).orElse(null), bundle.map(this::logoUrls).orElse(SiteLogoUrls.EMPTY),
+                    bundle.map(SiteLogoBundleEntity::isNameInLogo).orElse(false));
+        });
     }
 
     /** 지금 로고의 {@code <img src>} — 그림 파일이면 저장소 주소, SVG 면 data URI. 로고가 없거나 설정 행이 없으면 비어 있다 */

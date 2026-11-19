@@ -3,6 +3,7 @@
  * 참고: community `docs/api-admin-auth.md` (읽기 전용 참고). 사용자 객체는 공개 사이트 `UserView` 와 같다고 적혀 있으나, 화면이 쓰는 칸만 적었다.
  * ⚠ ID 는 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
+import type { SiteLogoSet } from '~/utils/util-site-logo';
 
 /** 관리자 앱에 들어올 수 있는 역할 — `ADMIN` 최고 관리자 · `STAFF` 운영진. 일반 회원(`USER`)은 비밀번호가 맞아도 들어올 수 없다(서버가 `401 INVALID_CREDENTIALS`) */
 export type AdminRole = 'ADMIN' | 'STAFF';
@@ -32,6 +33,10 @@ export interface AdminMeResponse {
     user: AdminUser | null;
     siteName?: string | null;
     siteLogoUrl?: string | null;
+    /** 평소 로고 묶음 4칸(한글·영문 × 밝은·어두운 바탕용, SVG 는 data URI) — 상단 로고 자리가 놓인 면(강조색 상단 바·밝은 로그인 카드)에 맞는 칸을 고른다(`SiteBrand`). 비로그인에도 온다 */
+    siteLogos?: SiteLogoSet | null;
+    /** 그림에 사이트 이름이 들어 있다 — 그림이 보이면 이름 글자를 붙이지 않는다 */
+    siteNameInLogo?: boolean;
     /**
      * 2차 인증 단계(서버 `AdminLoginMfa`, `docs/features/commerce-foundation-contract.md` 「0-3」) — 칸은 늘 있고 없으면 null(2차 인증 없이 바로 들어간다).
      * `VERIFY`(등록자 — 코드 물음)·`ENROLL`(유예 끝 — 강제 등록)이면 `authenticated:false`(2차 대기 세션), `GRACE`(미등록·유예 중)면 이미 로그인됐다.

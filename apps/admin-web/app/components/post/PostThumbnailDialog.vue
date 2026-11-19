@@ -41,10 +41,10 @@
                                 >
                                     <img :src="img.url" alt="" class="size-full object-cover" loading="lazy" />
                                     <span v-if="isPicked(img.imageId)" class="absolute top-1 left-1 inline-flex items-center justify-center rounded bg-primary px-1.5 py-0.5 text-[10px] leading-none font-semibold text-primary-contrast">
-                                        <span class="relative top-[-0.09em]">{{ t('postThumbnail.pickedBadge') }}</span>
+                                        <span class="chip-label">{{ t('postThumbnail.pickedBadge') }}</span>
                                     </span>
                                     <span v-else-if="i === 0" class="absolute top-1 left-1 inline-flex items-center justify-center rounded bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white">
-                                        <span class="relative top-[-0.09em]">{{ t('postThumbnail.firstBadge') }}</span>
+                                        <span class="chip-label">{{ t('postThumbnail.firstBadge') }}</span>
                                     </span>
                                 </button>
                             </li>

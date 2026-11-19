@@ -16,7 +16,7 @@ withDefaults(defineProps<Props>(), { severity: 'secondary', icon: '' });
 </script>
 
 <style scoped>
-/* 글자만: 가운데 + 한글 글자 0.09em 올림. 아이콘과 함께: 같은 기준선 + 위 여백을 줄이고 아래를 늘려 함께 올린다(`GradeBadge.vue` 와 같은 방법) */
+/* 뱃지 글자 세로 가운데 — 글자 상자를 대문자 높이~기준선으로 깎고 대칭 여백을 준다(`--chip-label-pad`, main.css · components.md 2-4) */
 .menu-tag {
     display: inline-flex;
     align-items: center;
@@ -26,14 +26,12 @@ withDefaults(defineProps<Props>(), { severity: 'secondary', icon: '' });
     font-size: 11px;
     padding: 0.25rem 0.45rem;
 }
-.menu-tag:not(.menu-tag--icon) :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+.menu-tag :deep(.p-tag-label) {
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 .menu-tag--icon {
     align-items: baseline;
-    padding-top: calc(0.25rem - 0.09em);
-    padding-bottom: calc(0.25rem + 0.09em);
 }
 .menu-tag :deep(.p-tag-icon) {
     font-size: 10px;

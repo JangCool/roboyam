@@ -15,6 +15,7 @@ import com.community.mfa.dto.request.MfaVerifyRequest;
 import com.community.mfa.dto.response.MfaEnrollmentConfirmResponse;
 import com.community.mfa.dto.response.MfaEnrollmentView;
 import com.community.mfa.dto.response.MfaRecoveryCodesResponse;
+import com.community.site.dto.SiteLogoUrls;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import java.util.ArrayList;
@@ -126,7 +127,7 @@ class MfaLogSecrecyTest extends MfaMvcTestBase {
                 new MfaCodeRequest("654321").toString(),
                 new MfaPasswordRequest(PASSWORD).toString(),
                 new MfaEnrollmentView(secret, "otpauth://totp/x:y?secret=" + secret, "x", "y").toString(),
-                new MfaEnrollmentConfirmResponse(List.of(recovery), new AdminMeResponse(false, null, null, null, null, null)).toString(),
+                new MfaEnrollmentConfirmResponse(List.of(recovery), new AdminMeResponse(false, null, null, null, null, null, SiteLogoUrls.EMPTY, false)).toString(),
                 new MfaRecoveryCodesResponse(List.of(recovery)).toString(),
                 new MfaVerifyResult(MfaLoginMethod.TOTP, null, token, 30).toString(),
                 new OperatorMfaRow(1L, "v1:secret-cipher", null, 1L, null, "v1:pending-cipher", null, false).toString());

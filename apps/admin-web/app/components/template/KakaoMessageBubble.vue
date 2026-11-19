@@ -52,7 +52,7 @@ const { t } = useI18n();
 <style scoped>
 /* 버튼 글자 상하 중앙 + 한글 글꼴 보정(components.md 2-4) */
 .kakao-bubble__label {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 </style>

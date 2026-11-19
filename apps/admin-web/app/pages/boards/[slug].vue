@@ -1262,7 +1262,7 @@ onBeforeRouteUpdate(async () => {
     line-height: 1;
 }
 .board-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 </style>

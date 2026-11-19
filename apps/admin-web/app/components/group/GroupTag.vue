@@ -22,7 +22,7 @@ withDefaults(defineProps<Props>(), { severity: 'secondary', icon: undefined });
     white-space: nowrap;
 }
 .group-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 </style>

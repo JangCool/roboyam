@@ -9,7 +9,7 @@
         :data-title-key="title.key"
     >
         <TitleIcon :icon="title.icon" :tier="title.tier" :scale="scale" />
-        <span class="relative top-[-0.09em] truncate">{{ localizedName(title.label, title.labelEn ?? null) }}</span>
+        <span class="chip-label truncate">{{ localizedName(title.label, title.labelEn ?? null) }}</span>
     </span>
 </template>
 

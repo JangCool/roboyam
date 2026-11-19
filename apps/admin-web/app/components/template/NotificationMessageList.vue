@@ -364,8 +364,8 @@ function deleteBlockedReason(item: MessageListItemView): string {
     line-height: 1;
 }
 .message-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
     white-space: nowrap;
 }
 </style>

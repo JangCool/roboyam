@@ -64,8 +64,8 @@ const visible = ref(false);
 <style scoped>
 /* 한글 글꼴 보정 — 알약 안에서 글자가 아래로 붙어 보이지 않게 글자만 올린다(components.md 2-4) */
 .notification-secret-tag :deep(.p-tag-label) {
-    position: relative;
-    top: -0.09em;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
     white-space: nowrap;
 }
 </style>

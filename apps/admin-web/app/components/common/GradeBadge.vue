@@ -32,14 +32,14 @@ const style = computed(() => UtilGrade.badgeStyle(props.color));
 /*
  * 아이콘과 글자를 같은 기준선(baseline)에 세운다 — 가운데 맞춤(`align-items: center`)은 아이콘 상자와 글자 상자의 소수점 위치가 달라
  * 화면 세로 위치가 .25~.5 일 때 한쪽만 1px 높게 찍혔다(실측). 같은 기준선이면 둘이 항상 같이 반올림된다.
- * 한글 글꼴은 글자가 줄 상자 중앙보다 약 0.09em 아래에 앉아 알약 안에서 아래로 붙어 보이므로, 위 여백을 그만큼 줄이고 아래 여백을 늘려 둘을 함께 올린다(글자만 올리지 않는다).
+ * 글자 세로 가운데는 위아래 여백을 대칭으로 두고 글자 요소만 대문자 높이~기준선으로 깎는다(`--chip-label-pad`, main.css · components.md 2-4).
  */
 .grade-badge {
     display: inline-flex;
     align-items: baseline;
     gap: 0.3em;
     max-width: 100%;
-    padding: calc(0.2em - 0.09em) 0.7em calc(0.2em + 0.09em);
+    padding: 0.2em 0.7em;
     border-radius: 9999px;
     background: var(--gb-bg);
     color: var(--gb-fg);
@@ -49,7 +49,7 @@ const style = computed(() => UtilGrade.badgeStyle(props.color));
     white-space: nowrap;
 }
 .grade-badge--small {
-    padding: calc(0.1em - 0.045em) 0.55em calc(0.1em + 0.045em);
+    padding: 0.1em 0.55em;
     font-size: 0.6875rem;
 }
 .grade-badge__icon {
@@ -60,5 +60,7 @@ const style = computed(() => UtilGrade.badgeStyle(props.color));
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+    padding-block: var(--chip-label-pad);
 }
 </style>
