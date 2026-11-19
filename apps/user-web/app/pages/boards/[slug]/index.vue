@@ -209,7 +209,7 @@
                 <!-- 태그 거르기(post-tags-contract) — 「#태그 ✕」(누르면 거르기 풀고 1쪽). 쪽·정렬을 바꿔도 남는다. 핫딜 게시판은 태그를 거르지 않는다 -->
                 <div v-if="query.tag && !isDeal" class="mt-2 flex items-center gap-2 text-xs" role="group" :aria-label="t('postTag.filterLabel')" data-testid="board-tag-filter">
                     <span class="inline-flex min-h-7 items-center gap-0.5 rounded-full border border-primary bg-primary/10 pl-2.5 pr-0.5 font-semibold leading-none text-primary">
-                        <span class="relative top-[-0.09em]"><span class="opacity-60" aria-hidden="true">#</span>{{ query.tag }}</span>
+                        <span class="chip-label"><span class="opacity-60" aria-hidden="true">#</span>{{ query.tag }}</span>
                         <NuxtLink
                             :to="listLink({ tag: '', page: 1 })"
                             class="grid size-6 place-items-center rounded-full hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-primary"

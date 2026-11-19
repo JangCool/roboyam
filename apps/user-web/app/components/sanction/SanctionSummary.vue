@@ -5,7 +5,7 @@
             <dt class="w-20 shrink-0 text-muted-color">{{ row.label }}</dt>
             <dd class="m-0 min-w-0 flex-1 whitespace-pre-line break-words [overflow-wrap:anywhere]">
                 <span v-if="row.tone" class="inline-flex items-center justify-center rounded px-1.5 py-1 text-xs font-semibold leading-none" :class="UtilSanction.toneClass(row.tone)">
-                    <span class="relative top-[-0.09em]">{{ row.value }}</span>
+                    <span class="chip-label">{{ row.value }}</span>
                 </span>
                 <template v-else>{{ row.value }}</template>
             </dd>

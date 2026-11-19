@@ -64,7 +64,7 @@
                             :class="user.emailVerified ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'"
                             data-testid="account-email-status"
                         >
-                            <span class="relative -top-[0.09em]">{{ user.emailVerified ? t('account.verified') : t('account.unverified') }}</span>
+                            <span class="chip-label">{{ user.emailVerified ? t('account.verified') : t('account.unverified') }}</span>
                         </span>
                     </div>
 

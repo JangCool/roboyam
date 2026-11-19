@@ -4,11 +4,11 @@
           광고(사업자 글 `source BUSINESS` — 2차, 맨 앞) → 제휴(첫 부분 표시 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 「제휴·수수료」 · `SITE` 「제휴」 · null 없음, D5) → 상태(종료 / 품절 / 기간 종료 / 품절 알림 N) → 재고 얼마 안 남음 → 마감 임박(「N시간 남음」·「내일 마감」, 48시간 안) → HOT(서버 `hot`)
           → 링크 바뀜 · 가격 수정 N회(D3).
         끝난 딜은 상태 배지만(임박·HOT·재고 얼마 안 남음은 뺀다). 품절로 끝난 딜은 「종료」 대신 「품절」.
-        글자 세로 맞춤은 components.md 2-4(알약 `inline-flex items-center justify-center leading-none` + 글자 `top:-0.09em`).
+        글자 세로 맞춤은 components.md 2-4(알약 `inline-flex items-center justify-center leading-none` + 글자 `chip-label`).
     -->
     <span v-if="items.length" class="inline-flex flex-wrap items-center gap-1 align-[1px]" data-testid="hotdeal-badges">
         <span v-for="item in items" :key="item.key" class="inline-flex items-center justify-center rounded px-1.5 py-1 text-[0.6875rem] font-semibold leading-none" :class="item.tone" :data-badge="item.key">
-            <span class="relative top-[-0.09em]">{{ item.label }}</span>
+            <span class="chip-label">{{ item.label }}</span>
         </span>
     </span>
 </template>

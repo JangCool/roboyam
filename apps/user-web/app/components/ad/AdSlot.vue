@@ -15,7 +15,7 @@
             <img v-if="!imageFailed && current.imageUrl" :src="current.imageUrl" :alt="current.altText" class="block size-full object-cover" loading="lazy" decoding="async" @error="imageFailed = true" />
             <span v-else class="grid size-full place-items-center px-3 text-center text-sm text-muted-color">{{ current.altText }}</span>
             <span class="absolute right-1.5 top-1.5 inline-flex items-center justify-center rounded bg-black/60 px-1.5 py-1 text-[0.625rem] font-semibold leading-none text-white" data-testid="ad-mark">
-                <span class="relative top-[-0.09em]">{{ t('ad.mark') }}</span>
+                <span class="chip-label">{{ t('ad.mark') }}</span>
             </span>
             <span class="sr-only">{{ t('ad.newTab') }}</span>
         </a>

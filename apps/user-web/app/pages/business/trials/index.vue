@@ -24,16 +24,16 @@
             <li v-for="item in items" :key="item.id">
                 <NuxtLink :to="UtilTrial.bizDetailPath(item.id)" class="panel-card flex flex-col gap-1.5 rounded-xl border border-surface p-3 hover:border-primary" :data-testid="`business-trial-${item.id}`">
                     <p class="m-0 flex flex-wrap items-center gap-1.5">
-                        <span :class="[TAG, 'bg-surface-100 dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.status.${item.status}`) }}</span></span>
-                        <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.form.${item.form}`) }}</span></span>
+                        <span :class="[TAG, 'bg-surface-100 dark:bg-surface-800']"><span class="chip-label">{{ t(`trial.status.${item.status}`) }}</span></span>
+                        <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="chip-label">{{ t(`trial.form.${item.form}`) }}</span></span>
                         <span class="text-xs text-muted-color">{{ t(`trial.shipper.${item.shipper}`) }}</span>
                         <!-- 광고 결제 — 결제할 차례(승인·결제·입금 대기)만 눈에 띄게(V242) -->
                         <span v-if="item.paymentStatus === 'AWAITING_PAYMENT' || item.paymentStatus === 'AWAITING_DEPOSIT' || item.paymentStatus === 'AWAITING_APPROVAL'" :class="[TAG, 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200']">
-                            <span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
+                            <span class="chip-label">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
                         </span>
                         <!-- 공개 전 선결제 모집의 닫힌 결제 건(결제 기한 지남 · 반려 — 운영팀에 다시 요청) -->
                         <span v-else-if="item.status === 'DRAFT' && (item.paymentStatus === 'EXPIRED' || item.paymentStatus === 'REJECTED')" :class="[TAG, 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200']">
-                            <span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
+                            <span class="chip-label">{{ t(`trial.bizPayment.status.${item.paymentStatus}`) }}</span>
                         </span>
                     </p>
                     <span class="line-clamp-1 text-sm font-semibold">{{ item.title }}</span>

@@ -1,7 +1,7 @@
 <template>
-    <!-- 포인트 상점의 작은 딱지(사용 방식·판매 상태·보유·장착) — 글자는 상하좌우 가운데(components.md 2-4: 알약 inline-flex + leading-none, 글자에만 −0.09em) -->
+    <!-- 포인트 상점의 작은 딱지(사용 방식·판매 상태·보유·장착) — 글자는 상하좌우 가운데(components.md 2-4: 알약 inline-flex + leading-none, 글자에만 `chip-label`) -->
     <span class="inline-flex shrink-0 items-center justify-center rounded px-1.5 py-1 text-[0.6875rem] font-medium leading-none" :class="TONE[tone]">
-        <span class="relative top-[-0.09em]"><slot /></span>
+        <span class="chip-label"><slot /></span>
     </span>
 </template>
 

@@ -61,7 +61,7 @@
 
                 <div v-if="rule.example" class="rounded-lg bg-surface-100 p-3 text-sm dark:bg-surface-800">
                     <template v-if="rule.example.tag">
-                        <span class="mr-1.5 inline-flex items-center rounded bg-primary-50 px-1.5 py-0.5 text-xs font-semibold leading-none text-primary-700 dark:bg-primary-950 dark:text-primary-300"><span class="relative -top-[0.09em]">{{ rule.example.tag }}</span></span>
+                        <span class="mr-1.5 inline-flex items-center rounded bg-primary-50 px-1.5 py-0.5 text-xs font-semibold leading-none text-primary-700 dark:bg-primary-950 dark:text-primary-300"><span class="chip-label">{{ rule.example.tag }}</span></span>
                         {{ rule.example.text }}
                         <small class="mt-1 block text-xs text-muted-color">{{ rule.example.note }}</small>
                     </template>

@@ -4,7 +4,7 @@
         색은 `main.css` 「토론 입장 색」 토큰(`stance-*-soft`, admin-web 의견 관리와 같은 값 — 라이트·다크 대비 4.5:1 이상). 색만으로 가르지 않게 입장 글자를 늘 쓴다
     -->
     <span class="inline-flex shrink-0 items-center justify-center rounded px-1.5 py-1 text-[0.6875rem] font-semibold leading-none" :class="UtilDebate.softClass(stance)">
-        <span class="relative top-[-0.09em]">{{ t(`comment.stance.${stance}`) }}</span>
+        <span class="chip-label">{{ t(`comment.stance.${stance}`) }}</span>
     </span>
 </template>
 

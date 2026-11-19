@@ -1,8 +1,8 @@
 <template>
     <!-- 소모임 화면의 작은 알약 — 모집 상태·가입 방식·오프라인·모임장·승인 대기·분류 이름·AI 전용. 색만으로 가르지 않도록 글자가 늘 있다.
-         글자는 상하좌우 가운데(components.md 2-4 — 알약은 `inline-flex items-center justify-center leading-none`, 한글 글자만 `top:-0.09em`) -->
+         글자는 상하좌우 가운데(components.md 2-4 — 알약은 `inline-flex items-center justify-center leading-none`, 글자에만 `chip-label`) -->
     <span class="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded px-1.5 py-1 text-[0.6875rem] font-semibold leading-none" :class="TONE_CLASS[tone]">
-        <span class="relative top-[-0.09em] max-w-[10rem] truncate"><slot /></span>
+        <span class="chip-label max-w-[10rem] truncate"><slot /></span>
     </span>
 </template>
 

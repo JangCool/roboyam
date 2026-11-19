@@ -750,6 +750,20 @@ body {
     outline: none;
 }
 
+/*
+ * 알약·칩 안 글자의 세로 가운데(components.md 2-4) — 알약은 `inline-flex items-center leading-none`, 안쪽 글자 요소에만 이 클래스.
+ * 글자 상자를 글꼴의 대문자 높이 ~ 기준선(`text-box: cap alphabetic`)으로 깎고 위아래에 같은 여백((1em − 1cap) ÷ 2)을 돌려줘
+ * 상자 높이는 1em 그대로이고 그 가운데에 글자 몸이 온다. 글꼴마다 메트릭을 브라우저가 읽으므로 맥(Apple SD Gothic Neo)·윈도우·안드로이드(Noto Sans KR·맑은 고딕),
+ * 한글·영문 대문자(HOT) 모두 같은 규칙이다(예전 `top: -0.09em` 은 윈도우 Noto Sans KR 에서 1~2px 위로 떴다 — 사용자 2026-11-19 「칩 글자가 위에」).
+ * `text-box` 를 모르는 브라우저는 줄 상자 그대로(보정 없음).
+ */
+@supports (text-box: trim-both cap alphabetic) {
+    .chip-label {
+        text-box: trim-both cap alphabetic;
+        padding-block: calc((1em - 1cap) / 2);
+    }
+}
+
 /* 가로로 미는 줄(탭·칩)은 스크롤바를 감춘다 — 손가락으로 밀면 되고, 막대가 있으면 줄이 지저분해 보인다 */
 .no-scrollbar {
     scrollbar-width: none;

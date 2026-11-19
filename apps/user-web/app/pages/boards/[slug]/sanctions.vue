@@ -52,10 +52,10 @@
                     <li v-for="row in page.items" :key="row.id" class="border-b border-surface py-3" :data-status="row.status" data-testid="board-sanction-row">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span :class="[TAG, UtilSanction.toneClass(row.status === 'VOIDED' ? 'gray' : UtilBoardSanction.kindTone(row.kind))]">
-                                <span class="relative top-[-0.09em]">{{ UtilBoardSanctionMessages.kindLabel(t, row.kind) }}</span>
+                                <span class="chip-label">{{ UtilBoardSanctionMessages.kindLabel(t, row.kind) }}</span>
                             </span>
                             <span :class="[TAG, UtilSanction.toneClass(UtilBoardSanction.statusTone(row.kind, row.status))]">
-                                <span class="relative top-[-0.09em]">{{ UtilBoardSanctionMessages.statusLabel(t, row.kind, row.status) }}</span>
+                                <span class="chip-label">{{ UtilBoardSanctionMessages.statusLabel(t, row.kind, row.status) }}</span>
                             </span>
                             <!-- 봉인된 익명 글 작성자(`target.sealed` — anonymous-board-contract 정책 9)는 닉네임 대신 익명 아이콘 + 「익명 글 작성자」 -->
                             <b class="flex min-w-0 items-center gap-1 text-sm font-semibold"><AnonymousAuthorIcon v-if="row.target.sealed" class="text-muted-color" /><span class="truncate">{{ UtilBoardSanctionMessages.targetName(t, row.target) }}</span></b>

@@ -7,7 +7,7 @@
     <NuxtLink :to="UtilGroupBuy.detailPath(item.id)" class="gadget-hover-photo block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="home-group-buy-card">
         <GadgetThumb :src="item.thumbnailUrl" ratio="16 / 9" variant="groupBuy" class="w-full">
             <span v-if="badge" class="pointer-events-none absolute left-2 top-2 inline-flex items-center rounded bg-surface-950/75 px-1.5 py-1 text-[0.6875rem] font-bold leading-none text-surface-0">
-                <span class="relative top-[-0.09em]">{{ badge }}</span>
+                <span class="chip-label">{{ badge }}</span>
             </span>
         </GadgetThumb>
         <p class="gadget-hover-title mt-2 line-clamp-2 break-words text-[0.9375rem] font-semibold leading-snug">{{ item.title }}</p>

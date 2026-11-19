@@ -40,7 +40,7 @@
                         <img v-if="item.imageUrl" :src="item.imageUrl" alt="" class="size-full object-cover" loading="lazy" />
                         <span v-else class="grid size-full place-items-center text-muted-color" aria-hidden="true"><i class="pi pi-box text-3xl" /></span>
                         <span class="absolute left-2 top-2 inline-flex items-center justify-center rounded bg-amber-500 px-1.5 py-1 text-[0.6875rem] font-bold leading-none text-white">
-                            <span class="relative top-[-0.09em]">{{ t('trial.adBadge') }}</span>
+                            <span class="chip-label">{{ t('trial.adBadge') }}</span>
                         </span>
                     </div>
                     <div class="flex flex-1 flex-col gap-1.5 p-3">
@@ -48,7 +48,7 @@
                         <h2 class="m-0 line-clamp-2 text-[0.9375rem] font-semibold">{{ item.title }}</h2>
                         <p class="m-0 flex flex-wrap items-center gap-1.5 text-xs">
                             <span :class="[CHIP, item.form === 'GIVE' ? 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200' : 'bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-200']">
-                                <span class="relative top-[-0.09em]">{{ t(`trial.form.${item.form}`) }}</span>
+                                <span class="chip-label">{{ t(`trial.form.${item.form}`) }}</span>
                             </span>
                             <span class="tabular-nums text-muted-color">{{ t('trial.productPrice', { price: UtilTrialMessages.won(t, item.productPrice, locale) }) }}</span>
                         </p>

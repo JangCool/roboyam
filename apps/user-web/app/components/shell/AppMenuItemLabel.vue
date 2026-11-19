@@ -20,7 +20,7 @@
         </span>
         <span v-else class="[text-decoration:inherit]" :class="[truncate ? 'truncate' : '', keepWeight ? '' : UtilMenu.labelClass(node), nameClass]" :style="UtilMenu.textStyle(node)">{{ localizedName(node.label, node.nameEn) }}</span>
         <span v-if="node.badge" :class="compact ? UtilMenu.BADGE_COMPACT_CLASS : UtilMenu.BADGE_CLASS" :style="UtilMenu.badgeStyle(node)" data-testid="menu-badge">
-            <span class="relative top-[-0.09em]">{{ node.badge }}</span>
+            <span class="chip-label">{{ node.badge }}</span>
         </span>
     </span>
 </template>

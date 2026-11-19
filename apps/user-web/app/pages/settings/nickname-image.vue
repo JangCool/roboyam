@@ -67,7 +67,7 @@
                 <div class="flex items-center justify-between gap-2">
                     <h2 :id="`${uid}-pending`" class="m-0 text-sm font-semibold">
                         <span class="inline-flex items-center justify-center rounded bg-amber-100 px-1.5 py-1 text-xs leading-none text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
-                            ><span class="relative top-[-0.09em]">{{ t('nicknameImage.pendingTag') }}</span></span
+                            ><span class="chip-label">{{ t('nicknameImage.pendingTag') }}</span></span
                         >
                     </h2>
                     <small class="text-xs text-muted-color">{{ t('nicknameImage.requestedOn', { date: time.date(state.request.createdAt) }) }}</small>
@@ -96,7 +96,7 @@
                     <div class="flex items-center justify-between gap-2">
                         <h2 :id="`${uid}-rejected`" class="m-0 text-sm font-semibold">
                             <span class="inline-flex items-center justify-center rounded bg-red-100 px-1.5 py-1 text-xs leading-none text-red-900 dark:bg-red-900/40 dark:text-red-200"
-                                ><span class="relative top-[-0.09em]">{{ t('nicknameImage.rejectedTag') }}</span></span
+                                ><span class="chip-label">{{ t('nicknameImage.rejectedTag') }}</span></span
                             >
                         </h2>
                         <small class="text-xs text-muted-color">{{ t('nicknameImage.requestedOn', { date: time.date(state.request.createdAt) }) }}</small>

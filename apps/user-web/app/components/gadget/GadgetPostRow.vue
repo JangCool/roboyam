@@ -108,10 +108,10 @@
                     <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="inline-block w-[3em] shrink-0 truncate font-semibold!" :title="row.prefix!.name" />
                     <span v-else-if="cfg.meta.includes('BOARD')" class="shrink-0 text-xs font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
                     <span v-if="isNew" class="inline-flex shrink-0 items-center justify-center rounded bg-primary px-1.5 py-1 text-[0.625rem] font-bold leading-none text-primary-contrast" data-testid="home-post-new">
-                        <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.newMark') }}</span><span class="sr-only">{{ t('home.newLabel') }}</span>
+                        <span class="chip-label" aria-hidden="true">{{ t('home.newMark') }}</span><span class="sr-only">{{ t('home.newLabel') }}</span>
                     </span>
                     <span v-if="isHot" class="inline-flex shrink-0 items-center justify-center rounded bg-red-600 px-1.5 py-1 text-[0.625rem] font-bold leading-none text-white dark:bg-red-500" data-testid="home-post-hot">
-                        <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.hotMark') }}</span><span class="sr-only">{{ t('home.hotLabel') }}</span>
+                        <span class="chip-label" aria-hidden="true">{{ t('home.hotMark') }}</span><span class="sr-only">{{ t('home.hotLabel') }}</span>
                     </span>
                     <PostPurchaseChip :row="row" />
                     <span class="min-w-0 truncate leading-snug" :class="look === 'card' ? 'text-[0.9375rem]' : 'text-sm'">{{ row.title }}</span>
@@ -137,10 +137,10 @@
                         <p class="break-words leading-snug" :class="[lines === 1 ? 'line-clamp-1' : 'line-clamp-2', titleSize, rowStyle === 'COMPACT' ? ['min-w-0 flex-1', listRows && rank === 1 ? 'font-medium' : ''] : listLook ? 'font-medium' : '']">
                             <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" inline :class="prefixClass" />
                             <span v-if="isNew" class="mr-1 inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 align-[1px] text-[0.625rem] font-bold leading-none text-primary-contrast" data-testid="home-post-new">
-                                <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.newMark') }}</span><span class="sr-only">{{ t('home.newLabel') }}</span>
+                                <span class="chip-label" aria-hidden="true">{{ t('home.newMark') }}</span><span class="sr-only">{{ t('home.newLabel') }}</span>
                             </span>
                             <span v-if="isHot" class="mr-1 inline-flex items-center justify-center rounded bg-red-600 px-1.5 py-1 align-[1px] text-[0.625rem] font-bold leading-none text-white dark:bg-red-500" data-testid="home-post-hot">
-                                <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.hotMark') }}</span><span class="sr-only">{{ t('home.hotLabel') }}</span>
+                                <span class="chip-label" aria-hidden="true">{{ t('home.hotMark') }}</span><span class="sr-only">{{ t('home.hotLabel') }}</span>
                             </span>
                             <span>{{ row.title }}</span>
                             <span v-if="commentNumber" class="ml-1 text-xs font-semibold text-primary">

@@ -39,7 +39,7 @@
                                         :aria-current="chip.slug === tips.board.value ? 'page' : undefined"
                                         :data-testid="`tips-tab-${chip.slug || 'all'}`"
                                     >
-                                        <span class="relative top-[-0.09em]">{{ chip.label }}</span>
+                                        <span class="chip-label">{{ chip.label }}</span>
                                     </NuxtLink>
                                 </template>
                                 <template v-else-if="tips.overviewStatus.value === 'loading'">

@@ -39,7 +39,7 @@
                         <span v-else class="grid size-20 shrink-0 place-items-center rounded-lg bg-surface-100 text-center text-[0.6875rem] text-muted-color dark:bg-surface-800">{{ t('trial.proofPhotoPurged') }}</span>
                         <div class="min-w-0 flex-1">
                             <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <span :class="[TAG, statusClass(row.status)]"><span class="relative top-[-0.09em]">{{ t(`trial.proofStatus.${row.status}`) }}</span></span>
+                                <span :class="[TAG, statusClass(row.status)]"><span class="chip-label">{{ t(`trial.proofStatus.${row.status}`) }}</span></span>
                                 <NuxtLink v-if="row.author" :to="UtilProfile.path(row.author.id)" class="text-sm font-semibold hover:underline">{{ row.author.nickname }}</NuxtLink>
                                 <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.date(row.createdAt) }}</span>
                             </p>

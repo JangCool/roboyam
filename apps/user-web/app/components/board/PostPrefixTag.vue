@@ -12,7 +12,7 @@
         class="inline-flex items-center justify-center rounded border border-surface bg-surface-50 px-1.5 py-[3px] text-[0.6875rem] font-semibold leading-none text-muted-color dark:bg-surface-900"
         data-prefix-style="MUTED"
     >
-        <span class="relative top-[-0.09em]">{{ prefix.name }}</span>
+        <span class="chip-label">{{ prefix.name }}</span>
     </span>
     <span
         v-else
@@ -21,7 +21,7 @@
         :style="tagStyle"
         data-prefix-style="COLOR"
     >
-        <span class="relative top-[-0.09em]">{{ prefix.name }}</span>
+        <span class="chip-label">{{ prefix.name }}</span>
     </span>
 </template>
 

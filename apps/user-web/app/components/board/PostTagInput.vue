@@ -72,7 +72,7 @@
                 <ul v-if="modelValue.length" class="m-0 flex list-none flex-wrap gap-1.5 p-0" :aria-label="t('postTag.listLabel')" data-testid="post-tags-list">
                     <li v-for="(tag, i) in modelValue" :key="tag">
                         <span class="inline-flex min-h-7 items-center gap-0.5 rounded-full border border-surface bg-surface-50 pl-2.5 pr-0.5 text-xs leading-none dark:bg-surface-800">
-                            <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
+                            <span class="chip-label"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
                             <button
                                 type="button"
                                 class="grid size-6 place-items-center rounded-full text-muted-color hover:bg-surface-200 hover:text-color focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50 dark:hover:bg-surface-700"
@@ -98,7 +98,7 @@
                                 :disabled="disabled"
                                 @click="addTag(s.name)"
                             >
-                                <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ s.name }}</span>
+                                <span class="chip-label"><span class="text-muted-color" aria-hidden="true">#</span>{{ s.name }}</span>
                             </button>
                         </li>
                     </ul>

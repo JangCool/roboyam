@@ -5,7 +5,7 @@
          TEXT 12px 글자(고른 색이면 그 색, 아니면 회색 — 뒤의 말머리 글자와 「|」로 이어진다) · MUTED 회색 칩 · COLOR 색상 칩. 「어제/지난주」는 기능 표시라 늘 칩이다 -->
     <!-- 인기글에서 어제·지난주 글로 채운 줄 -->
     <span v-if="fillTag" class="inline-flex shrink-0 items-center justify-center rounded border border-surface px-1.5 py-1 text-[0.6875rem] font-medium leading-none text-muted-color" :class="chipClass" :title="fillTag.aria">
-        <span class="relative top-[-0.09em]" aria-hidden="true">{{ fillTag.label }}</span><span class="sr-only">{{ fillTag.aria }}</span>
+        <span class="chip-label" aria-hidden="true">{{ fillTag.label }}</span><span class="sr-only">{{ fillTag.aria }}</span>
     </span>
     <!-- 글자 모양 — 게시판 이름(공개로 전환된 소모임 글은 「소모임」) -->
     <span
@@ -24,7 +24,7 @@
         :class="chipClass"
         :data-testid="row.group ? 'post-group-badge' : 'post-board'"
     >
-        <span class="relative top-[-0.09em]"><span class="sr-only">{{ srText }}</span><span aria-hidden="true">{{ shownName }}</span></span>
+        <span class="chip-label"><span class="sr-only">{{ srText }}</span><span aria-hidden="true">{{ shownName }}</span></span>
     </span>
     <!-- 색상 칩 — 공개로 전환된 소모임 글은 게시판 이름 대신 「소모임」 표시(소모임 게시판은 공개 게시판 목록에 없다) -->
     <GroupTag v-else-if="row.group" tone="blue" :class="chipClass" data-testid="post-group-badge">{{ t('group.postBadge') }}</GroupTag>
@@ -36,7 +36,7 @@
         :style="boardStyle"
         data-testid="post-board"
     >
-        <span class="relative top-[-0.09em]"><span class="sr-only">{{ t('feed.boardTag', { name: boardName }) }}</span><span aria-hidden="true">{{ boardName }}</span></span>
+        <span class="chip-label"><span class="sr-only">{{ t('feed.boardTag', { name: boardName }) }}</span><span aria-hidden="true">{{ boardName }}</span></span>
     </span>
 </template>
 

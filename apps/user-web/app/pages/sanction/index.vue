@@ -134,9 +134,9 @@
                     <li v-for="row in boardRows" :key="row.id" class="border-b border-surface py-3" :data-voided="row.voided ? 'true' : 'false'" data-testid="sanction-board-row">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <NuxtLink :to="`/boards/${row.boardSlug}`" class="text-xs font-semibold text-primary hover:underline">{{ row.boardName }}</NuxtLink>
-                            <span :class="[TAG, UtilSanction.toneClass(row.voided ? 'gray' : row.kindTone)]"><span class="relative top-[-0.09em]">{{ row.title }}</span></span>
-                            <span :class="[TAG, UtilSanction.toneClass(row.statusTone)]"><span class="relative top-[-0.09em]">{{ row.statusLabel }}</span></span>
-                            <span v-if="row.needsConfirm" :class="[TAG, UtilSanction.toneClass('amber')]"><span class="relative top-[-0.09em]">{{ t('sanction.needsConfirm') }}</span></span>
+                            <span :class="[TAG, UtilSanction.toneClass(row.voided ? 'gray' : row.kindTone)]"><span class="chip-label">{{ row.title }}</span></span>
+                            <span :class="[TAG, UtilSanction.toneClass(row.statusTone)]"><span class="chip-label">{{ row.statusLabel }}</span></span>
+                            <span v-if="row.needsConfirm" :class="[TAG, UtilSanction.toneClass('amber')]"><span class="chip-label">{{ t('sanction.needsConfirm') }}</span></span>
                             <time class="ml-auto text-xs text-muted-color">{{ row.dateText }}</time>
                         </p>
 
@@ -149,7 +149,7 @@
                         <div v-if="row.appeal" class="mt-2 rounded-lg bg-surface-100 p-2.5 text-xs dark:bg-surface-800/60" data-testid="sanction-board-row-appeal">
                             <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <span class="font-medium">{{ t('sanction.appealLabel', { no: row.appeal.no }) }}</span>
-                                <span :class="[TAG, UtilSanction.toneClass(row.appeal.tone)]"><span class="relative top-[-0.09em]">{{ row.appeal.statusLabel }}</span></span>
+                                <span :class="[TAG, UtilSanction.toneClass(row.appeal.tone)]"><span class="chip-label">{{ row.appeal.statusLabel }}</span></span>
                             </p>
                             <template v-if="row.appeal.answer">
                                 <p class="mb-0 mt-2 font-medium">{{ t('sanction.answerLabel') }}</p>
@@ -196,10 +196,10 @@
                 <ul v-else class="m-0 mt-2 list-none border-t border-surface p-0">
                     <li v-for="row in rows" :key="row.id" class="border-b border-surface py-3" :data-voided="row.voided ? 'true' : 'false'" data-testid="sanction-row">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span :class="[TAG, UtilSanction.toneClass(row.voided ? 'gray' : row.kindTone)]"><span class="relative top-[-0.09em]">{{ row.title }}</span></span>
-                            <span :class="[TAG, UtilSanction.toneClass(row.statusTone)]"><span class="relative top-[-0.09em]">{{ row.statusLabel }}</span></span>
+                            <span :class="[TAG, UtilSanction.toneClass(row.voided ? 'gray' : row.kindTone)]"><span class="chip-label">{{ row.title }}</span></span>
+                            <span :class="[TAG, UtilSanction.toneClass(row.statusTone)]"><span class="chip-label">{{ row.statusLabel }}</span></span>
                             <!-- 「확인 필요」 표시는 경고 안내 화면에서만 — 정지 중에는 그 자리에서 확인할 길이 없다 -->
-                            <span v-if="screen === 'WARNING' && row.needsConfirm" :class="[TAG, UtilSanction.toneClass('amber')]"><span class="relative top-[-0.09em]">{{ t('sanction.needsConfirm') }}</span></span>
+                            <span v-if="screen === 'WARNING' && row.needsConfirm" :class="[TAG, UtilSanction.toneClass('amber')]"><span class="chip-label">{{ t('sanction.needsConfirm') }}</span></span>
                             <time class="ml-auto text-xs text-muted-color">{{ row.dateText }}</time>
                         </p>
 
@@ -212,7 +212,7 @@
                         <div v-if="row.appeal" class="mt-2 rounded-lg bg-surface-100 p-2.5 text-xs dark:bg-surface-800/60" data-testid="sanction-row-appeal">
                             <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <span class="font-medium">{{ t('sanction.appealLabel', { no: row.appeal.no }) }}</span>
-                                <span :class="[TAG, UtilSanction.toneClass(row.appeal.tone)]"><span class="relative top-[-0.09em]">{{ row.appeal.statusLabel }}</span></span>
+                                <span :class="[TAG, UtilSanction.toneClass(row.appeal.tone)]"><span class="chip-label">{{ row.appeal.statusLabel }}</span></span>
                             </p>
                             <template v-if="row.appeal.answer">
                                 <p class="mb-0 mt-2 font-medium">{{ t('sanction.answerLabel') }}</p>

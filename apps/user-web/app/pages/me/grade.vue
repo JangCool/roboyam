@@ -80,7 +80,7 @@
                             class="inline-flex items-center justify-center rounded bg-surface-100 px-1.5 py-1 text-xs font-semibold leading-none text-muted-color dark:bg-surface-800"
                             data-testid="grade-my-tag"
                         >
-                            <span class="relative top-[-0.09em]">{{ t('grade.myRuleTag') }}</span>
+                            <span class="chip-label">{{ t('grade.myRuleTag') }}</span>
                         </span>
                     </p>
                 </li>

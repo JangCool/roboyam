@@ -56,8 +56,8 @@
                             @click="emitChoice({ mode: 'IMAGE', imageId: img.imageId })"
                         >
                             <img :src="img.url" alt="" class="size-full object-cover" loading="lazy" />
-                            <span v-if="isPickedImage(img.imageId)" :class="badgeClass(true)"><span class="relative top-[-0.09em]">{{ t('postThumbnail.pickedBadge') }}</span></span>
-                            <span v-else-if="i === 0 && effective.mode === 'AUTO'" :class="badgeClass(false)"><span class="relative top-[-0.09em]">{{ t('postThumbnail.autoBadge') }}</span></span>
+                            <span v-if="isPickedImage(img.imageId)" :class="badgeClass(true)"><span class="chip-label">{{ t('postThumbnail.pickedBadge') }}</span></span>
+                            <span v-else-if="i === 0 && effective.mode === 'AUTO'" :class="badgeClass(false)"><span class="chip-label">{{ t('postThumbnail.autoBadge') }}</span></span>
                         </button>
                     </li>
                     <li v-if="modelValue.uploadUrl">
@@ -70,8 +70,8 @@
                             @click="emitChoice({ mode: 'UPLOAD' })"
                         >
                             <img :src="modelValue.uploadUrl" alt="" class="size-full object-cover" />
-                            <span v-if="effective.mode === 'UPLOAD'" :class="badgeClass(true)"><span class="relative top-[-0.09em]">{{ t('postThumbnail.pickedBadge') }}</span></span>
-                            <span v-else :class="badgeClass(false)"><span class="relative top-[-0.09em]">{{ t('postThumbnail.uploadedBadge') }}</span></span>
+                            <span v-if="effective.mode === 'UPLOAD'" :class="badgeClass(true)"><span class="chip-label">{{ t('postThumbnail.pickedBadge') }}</span></span>
+                            <span v-else :class="badgeClass(false)"><span class="chip-label">{{ t('postThumbnail.uploadedBadge') }}</span></span>
                         </button>
                     </li>
                 </ul>

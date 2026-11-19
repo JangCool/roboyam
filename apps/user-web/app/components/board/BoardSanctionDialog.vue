@@ -70,7 +70,7 @@
                             class="inline-flex shrink-0 items-center justify-center rounded bg-primary px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-contrast"
                             data-testid="board-sanction-recommended"
                         >
-                            <span class="relative top-[-0.09em]">{{ t('boardSanction.recommendedBadge') }}</span>
+                            <span class="chip-label">{{ t('boardSanction.recommendedBadge') }}</span>
                         </span>
                     </label>
                 </div>

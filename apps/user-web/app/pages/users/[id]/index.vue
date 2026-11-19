@@ -61,7 +61,7 @@
                             class="inline-flex min-w-0 max-w-[12rem] items-center rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-normal leading-none text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
                             :title="t('block.memoChipTitle', { memo: menuTarget.memo })"
                             data-testid="profile-memo"
-                            ><span class="relative top-[-0.09em] truncate">{{ t('block.memoChip', { memo: menuTarget.memo }) }}</span></span
+                            ><span class="chip-label truncate">{{ t('block.memoChip', { memo: menuTarget.memo }) }}</span></span
                         >
                     </h1>
                     <p v-if="profile.bio" class="mt-1 whitespace-pre-line break-words text-sm leading-snug" data-testid="profile-bio">{{ profile.bio }}</p>
@@ -294,7 +294,7 @@
                             >
                                 <p class="m-0 line-clamp-2 break-words text-sm leading-snug">
                                     <span v-if="item.reply" class="mr-1 inline-flex items-center justify-center rounded bg-surface-200 px-1.5 py-1 align-[1px] text-[0.6875rem] leading-none text-surface-600 dark:bg-surface-700 dark:text-surface-300">
-                                        <span class="relative top-[-0.09em]">{{ t('profile.replyTag') }}</span>
+                                        <span class="chip-label">{{ t('profile.replyTag') }}</span>
                                     </span>
                                     {{ item.bodyPreview }}
                                 </p>

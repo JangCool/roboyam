@@ -25,7 +25,7 @@
                         <p v-if="tagline" class="m-0 mt-3 max-w-[32rem] text-base font-medium leading-relaxed md:text-lg" data-testid="site-about-tagline">{{ tagline }}</p>
                         <ul class="m-0 mt-4 flex list-none flex-wrap justify-center gap-2 p-0 md:justify-start" :aria-label="t('siteAbout.heroTopicsLabel')">
                             <li v-for="topic in topics" :key="topic.key" class="about-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold leading-none">
-                                <i :class="topic.icon" class="text-[0.8125rem]" aria-hidden="true" /><span class="relative -top-[0.09em]">{{ t(topic.labelKey) }}</span>
+                                <i :class="topic.icon" class="text-[0.8125rem]" aria-hidden="true" /><span class="chip-label">{{ t(topic.labelKey) }}</span>
                             </li>
                         </ul>
                     </div>

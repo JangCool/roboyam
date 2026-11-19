@@ -27,8 +27,8 @@
         <template v-else>
             <header class="flex flex-col gap-1">
                 <p class="m-0 flex flex-wrap items-center gap-1.5">
-                    <span :class="[TAG, 'bg-surface-100 dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.status.${trial!.status}`) }}</span></span>
-                    <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.form.${trial!.form}`) }}</span></span>
+                    <span :class="[TAG, 'bg-surface-100 dark:bg-surface-800']"><span class="chip-label">{{ t(`trial.status.${trial!.status}`) }}</span></span>
+                    <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="chip-label">{{ t(`trial.form.${trial!.form}`) }}</span></span>
                     <span class="text-xs text-muted-color">{{ t(`trial.shipper.${trial!.shipper}`) }}</span>
                 </p>
                 <h1 class="m-0 text-lg font-bold">{{ trial!.title }}</h1>
@@ -43,8 +43,8 @@
             <section class="flex flex-col gap-2 rounded-xl border p-3 text-sm" :class="paymentBorder" :aria-labelledby="paymentId" data-testid="business-trial-payment" :data-status="trial!.payment.status">
                 <h2 :id="paymentId" class="m-0 flex flex-wrap items-center gap-1.5 text-base font-bold">
                     {{ t('trial.bizPayment.title') }}
-                    <span :class="[TAG, paymentTone]"><span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.status.${trial!.payment.status}`) }}</span></span>
-                    <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']" data-testid="business-trial-payment-timing"><span class="relative top-[-0.09em]">{{ t(`trial.bizPayment.timing.${trial!.payment.timing}`) }}</span></span>
+                    <span :class="[TAG, paymentTone]"><span class="chip-label">{{ t(`trial.bizPayment.status.${trial!.payment.status}`) }}</span></span>
+                    <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']" data-testid="business-trial-payment-timing"><span class="chip-label">{{ t(`trial.bizPayment.timing.${trial!.payment.timing}`) }}</span></span>
                 </h2>
                 <p v-if="trial!.payment.timing === 'PREPAID'" class="m-0 text-xs">{{ t('trial.bizPayment.prepaidRule', { n: trial!.recruitCount }) }}</p>
                 <p v-if="trial!.payment.required" class="m-0 flex flex-wrap gap-x-3 text-xs tabular-nums">

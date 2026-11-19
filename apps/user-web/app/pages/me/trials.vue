@@ -32,8 +32,8 @@
                     <span v-else class="grid size-16 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-box" /></span>
                     <div class="min-w-0 flex-1">
                         <p class="m-0 flex flex-wrap items-center gap-1.5">
-                            <span :class="[TAG, stageClass(UtilTrial.stageOf(row))]"><span class="relative top-[-0.09em]">{{ t(`trial.stage.${UtilTrial.stageOf(row)}`) }}</span></span>
-                            <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="relative top-[-0.09em]">{{ t(`trial.form.${row.trial.form}`) }}</span></span>
+                            <span :class="[TAG, stageClass(UtilTrial.stageOf(row))]"><span class="chip-label">{{ t(`trial.stage.${UtilTrial.stageOf(row)}`) }}</span></span>
+                            <span :class="[TAG, 'bg-surface-100 text-muted-color dark:bg-surface-800']"><span class="chip-label">{{ t(`trial.form.${row.trial.form}`) }}</span></span>
                             <span class="text-xs text-muted-color">{{ row.trial.advertiserName }}</span>
                             <Button v-if="row.canCancel" type="button" :label="t('trial.cancelApply')" size="small" severity="danger" variant="text" class="ml-auto" :loading="busyId === row.applicationId" @click="cancel(row)" />
                         </p>

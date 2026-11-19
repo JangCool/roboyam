@@ -2,7 +2,7 @@
     <!--
         칭호 칩 — 도트 그림(`TitleIcon`) + 칭호 이름(시안 `member-title-icons-mockup.html` 의 `.tt` 알약). 칩 색은 서버 `chip`(보라 = 수여·심사 · 초록 = 자동).
         크기: 작성자 줄 1배(`scale` 1, 글자 11px) · 공개 프로필·내 정보 2배(`scale` 2, 글자 13px). 같은 칭호 여러 번이면 「이달의 작가 ×4」(`count`).
-        읽는 프로그램은 칩 글자(칭호 이름)를 읽고 그림은 장식이다. 글자는 한글이 아래로 앉는 만큼(0.09em) 올린다(`components.md` 2-4).
+        읽는 프로그램은 칩 글자(칭호 이름)를 읽고 그림은 장식이다. 글자는 `chip-label` 로 세로 가운데(`components.md` 2-4).
     -->
     <span
         class="inline-flex max-w-full shrink-0 items-center rounded-md font-medium leading-none whitespace-nowrap"
@@ -11,7 +11,7 @@
         data-testid="title-chip"
     >
         <TitleIcon :icon="title.icon" :tier="title.tier" :scale="scale" />
-        <span class="relative top-[-0.09em] truncate">{{ text }}</span>
+        <span class="chip-label truncate">{{ text }}</span>
     </span>
 </template>
 

@@ -19,7 +19,7 @@
                         <span><i class="pi pi-image mb-1 block text-lg" aria-hidden="true" />{{ t('business.ad.previewImageEmpty') }}</span>
                     </span>
                     <span class="absolute right-1.5 top-1.5 inline-flex items-center justify-center rounded bg-black/60 px-1.5 py-1 text-[0.625rem] font-semibold leading-none text-white">
-                        <span class="relative top-[-0.09em]">{{ t('business.ad.adMark') }}</span>
+                        <span class="chip-label">{{ t('business.ad.adMark') }}</span>
                     </span>
                 </component>
             </div>

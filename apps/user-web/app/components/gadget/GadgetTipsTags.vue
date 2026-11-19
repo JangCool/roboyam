@@ -19,7 +19,7 @@
                         :aria-current="active(tag.name) ? 'true' : undefined"
                         data-testid="tips-tag"
                     >
-                        <span class="relative top-[-0.09em]">#{{ tag.name }}</span>
+                        <span class="chip-label">#{{ tag.name }}</span>
                     </NuxtLink>
                 </li>
             </ul>

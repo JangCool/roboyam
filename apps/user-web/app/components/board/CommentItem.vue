@@ -18,7 +18,7 @@
             <header class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-color">
                 <i v-if="reply" class="pi pi-reply rotate-180 text-xs" aria-hidden="true" />
                 <span v-if="best" class="inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-contrast">
-                    <span class="relative top-[-0.09em]">{{ t('comment.bestBadge') }}</span>
+                    <span class="chip-label">{{ t('comment.bestBadge') }}</span>
                 </span>
                 <!-- 고정한 의견(토론 구획 맨 위) -->
                 <span
@@ -26,7 +26,7 @@
                     class="inline-flex items-center justify-center gap-1 rounded bg-surface-200 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-color dark:bg-surface-700"
                     data-testid="comment-pinned"
                 >
-                    <i class="pi pi-thumbtack text-[0.625rem]" aria-hidden="true" /><span class="relative top-[-0.09em]">{{ t('comment.pinned') }}</span>
+                    <i class="pi pi-thumbtack text-[0.625rem]" aria-hidden="true" /><span class="chip-label">{{ t('comment.pinned') }}</span>
                 </span>
                 <!-- 찬반 토론의 입장 배지(지금 입장 — 입장을 바꾸면 따라 바뀐다) -->
                 <DebateStanceBadge v-if="comment.stance" :stance="comment.stance" />
@@ -38,13 +38,13 @@
                         v-if="comment.author.anonymous?.op"
                         class="inline-flex shrink-0 items-center justify-center rounded bg-primary-50 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-700 dark:bg-primary-950 dark:text-primary-300"
                         data-testid="comment-anonymous-op"
-                        ><span class="relative top-[-0.09em]">{{ t('anonymous.opChip') }}</span></span
+                        ><span class="chip-label">{{ t('anonymous.opChip') }}</span></span
                     >
                     <span
                         v-if="comment.mine"
                         class="inline-flex shrink-0 items-center justify-center rounded bg-surface-200 px-1.5 py-1 text-[0.6875rem] font-medium leading-none text-muted-color dark:bg-surface-700"
                         data-testid="comment-anonymous-mine"
-                        ><span class="relative top-[-0.09em]">{{ t('anonymous.mineChip') }}</span></span
+                        ><span class="chip-label">{{ t('anonymous.mineChip') }}</span></span
                     >
                 </template>
                 <span aria-hidden="true">·</span>

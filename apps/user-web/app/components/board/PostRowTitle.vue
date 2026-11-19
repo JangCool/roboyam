@@ -26,7 +26,7 @@
         <span v-if="commentCount && row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
             <span class="sr-only">{{ t('board.commentCountLabel') }}</span><template v-if="plainCount">{{ row.commentCount }}</template><template v-else>[{{ row.commentCount }}]</template>
         </span>
-        <!-- 새 글 「N」 — 제목 글자 줄의 세로 가운데(`align-middle` 은 소문자 가운데라 1px 올린다, 확정 시안), 안의 「N」 은 라틴 대문자라 한글 보정(`top:-0.09em`) 없이 원의 가운데(mobile-nav-prefix-style-contract 5절) -->
+        <!-- 새 글 「N」 — 제목 글자 줄의 세로 가운데(`align-middle` 은 소문자 가운데라 1px 올린다, 확정 시안), 안의 「N」 은 라틴 대문자라 글자 보정(`chip-label`) 없이 원의 가운데(mobile-nav-prefix-style-contract 5절) -->
         <span v-if="isNew" class="relative -top-px ml-1 inline-flex size-4 items-center justify-center rounded-full bg-primary align-middle text-[0.5625rem] font-bold leading-none text-primary-contrast" :title="t('board.newMark')">
             <span aria-hidden="true">N</span>
             <span class="sr-only">{{ t('board.newMark') }}</span>

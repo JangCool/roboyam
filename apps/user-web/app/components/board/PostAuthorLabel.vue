@@ -66,10 +66,10 @@
             class="inline-flex min-w-0 max-w-[8rem] shrink items-center rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-normal leading-none text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
             :title="t('block.memoChipTitle', { memo })"
             data-testid="author-memo"
-            ><span class="relative top-[-0.09em] truncate">{{ t('block.memoChip', { memo }) }}</span></span
+            ><span class="chip-label truncate">{{ t('block.memoChip', { memo }) }}</span></span
         >
         <span v-if="guest" class="inline-flex shrink-0 items-center justify-center rounded border border-surface px-1.5 py-1 text-[0.6875rem] font-medium leading-none text-muted-color">
-            <span class="relative top-[-0.09em]">{{ t('board.guestBadge') }}</span>
+            <span class="chip-label">{{ t('board.guestBadge') }}</span>
         </span>
         <!-- 비회원 작성 IP 앞 두 묶음 — 서버가 가려서 준다(IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`) -->
         <span v-if="guest && showIp && author.ipMasked" class="shrink-0 text-xs text-muted-color" :aria-label="t('board.guestIp', { ip: author.ipMasked })">({{ author.ipMasked }})</span>

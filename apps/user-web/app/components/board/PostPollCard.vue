@@ -15,10 +15,10 @@
                 <i class="pi pi-chart-bar text-sm text-muted-color" aria-hidden="true" />{{ t('poll.title') }}
             </h2>
             <span v-if="poll.closed" class="inline-flex items-center justify-center rounded-full bg-surface-200 px-2 py-1 text-[0.6875rem] font-semibold leading-none text-surface-700 dark:bg-surface-700 dark:text-surface-100" data-testid="poll-closed-tag">
-                <span class="relative top-[-0.09em]">{{ t('poll.closedTag') }}</span>
+                <span class="chip-label">{{ t('poll.closedTag') }}</span>
             </span>
             <span v-if="poll.multiple" class="inline-flex items-center justify-center rounded-full border border-surface px-2 py-1 text-[0.6875rem] leading-none text-muted-color">
-                <span class="relative top-[-0.09em]">{{ t('poll.multipleTag') }}</span>
+                <span class="chip-label">{{ t('poll.multipleTag') }}</span>
             </span>
             <span class="text-xs text-muted-color" data-testid="poll-closes">{{ closeText }}</span>
         </div>

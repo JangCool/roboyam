@@ -63,7 +63,7 @@
                                     class="inline-flex max-w-[45%] shrink-0 items-center justify-center rounded-full border border-surface px-2 py-1 text-[0.6875rem] leading-none text-muted-color"
                                     :title="row.license"
                                 >
-                                    <span class="relative top-[-0.09em] truncate">{{ row.license }}</span>
+                                    <span class="chip-label truncate">{{ row.license }}</span>
                                 </span>
                             </button>
                         </h2>

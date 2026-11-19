@@ -144,7 +144,7 @@
                             </span>
                             <!-- 지금 하이라이트로 노출 중인 글 -->
                             <span v-if="post.highlighted" class="inline-flex items-center justify-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" data-testid="post-highlighted">
-                                <span class="relative top-[-0.09em]">{{ t('post.highlighted') }}</span>
+                                <span class="chip-label">{{ t('post.highlighted') }}</span>
                             </span>
                         </div>
                         <!-- 접힌 글은 제목(말머리)을 가린다 — 글의 이름표(`aria-labelledby`)는 접힌 까닭으로 둔다(아래 접힌 줄이 같은 글자를 보이므로 화면에서는 숨김) -->
@@ -314,10 +314,10 @@
                                     :aria-label="t('postTag.viewLink', { name: tag })"
                                     data-testid="post-tag"
                                 >
-                                    <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
+                                    <span class="chip-label"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
                                 </NuxtLink>
                                 <span v-else class="inline-flex min-h-7 items-center rounded-full border border-surface px-2.5 text-xs leading-none text-color" data-testid="post-tag">
-                                    <span class="relative top-[-0.09em]"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
+                                    <span class="chip-label"><span class="text-muted-color" aria-hidden="true">#</span>{{ tag }}</span>
                                 </span>
                             </li>
                         </ul>

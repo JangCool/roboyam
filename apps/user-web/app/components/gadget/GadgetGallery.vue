@@ -35,7 +35,7 @@
                     <GadgetThumb :src="item.thumbnailUrl" ratio="4 / 3" class="w-full">
                         <!-- 사진 위 표시 — 반투명 어두운 바탕 + 밝은 글자(사진 색과 무관하게 읽히게) -->
                         <span v-if="item.kind" class="pointer-events-none absolute left-1.5 top-1.5 inline-flex items-center rounded bg-surface-950/75 px-1.5 py-1 text-[0.6875rem] font-bold leading-none text-surface-0">
-                            <span class="relative top-[-0.09em]">{{ item.kind === 'GIF' ? t('home.badgeGif') : t('home.badgeVideo') }}</span>
+                            <span class="chip-label">{{ item.kind === 'GIF' ? t('home.badgeGif') : t('home.badgeVideo') }}</span>
                         </span>
                         <span v-if="item.kind === 'VIDEO'" class="pointer-events-none absolute bottom-1.5 right-1.5 grid size-[1.375rem] place-items-center rounded-full bg-surface-950/70 text-surface-0" aria-hidden="true">
                             <i class="pi pi-play text-[0.625rem]" />

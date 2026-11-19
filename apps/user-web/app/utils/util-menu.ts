@@ -944,7 +944,7 @@ export default class UtilMenu {
         return node.bold === true ? 'font-semibold' : '';
     }
 
-    /** 이름 뒤 배지(알약)의 클래스 — 글자 11px · 위아래 대칭 여백 · 줄 높이 1(components.md 2-4). 안쪽 글자는 `top-[-0.09em]` 으로 한글 내려앉음을 보정한다 */
+    /** 이름 뒤 배지(알약)의 클래스 — 글자 11px · 위아래 대칭 여백 · 줄 높이 1(components.md 2-4). 안쪽 글자는 `chip-label` 로 세로 가운데에 둔다 */
     static readonly BADGE_CLASS = 'ml-1.5 inline-flex shrink-0 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none';
 
     /** 좁은 칸(모바일 상단 탭·로고 옆 링크)의 작은 배지 — 글자 10px · 여백을 줄여 줄 높이를 거의 늘리지 않는다. 칸이 `whitespace-nowrap`·`shrink-0` 이라 줄바꿈 없이 옆으로 민다 */

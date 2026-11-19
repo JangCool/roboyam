@@ -62,10 +62,10 @@
                     <li v-for="row in page.items" :key="row.id" class="border-b border-surface py-3" :data-kind="row.kind" data-testid="board-action-row">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span :class="[TAG, UtilSanction.toneClass(row.restored ? 'gray' : UtilBoardStaffAction.kindTone(row.kind))]">
-                                <span class="relative top-[-0.09em]">{{ UtilBoardStaffActionMessages.kindLabel(t, row.kind) }}</span>
+                                <span class="chip-label">{{ UtilBoardStaffActionMessages.kindLabel(t, row.kind) }}</span>
                             </span>
                             <span v-if="row.restored" :class="[TAG, UtilSanction.toneClass('green')]" data-testid="board-action-restored-badge">
-                                <span class="relative top-[-0.09em]">{{ t('boardStaffAction.restoredBadge') }}</span>
+                                <span class="chip-label">{{ t('boardStaffAction.restoredBadge') }}</span>
                             </span>
                             <span class="text-xs text-muted-color">{{ UtilBoardStaffActionMessages.reasonLabel(t, row.reasonCode) }}</span>
                             <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.full(row.createdAt) }}</span>

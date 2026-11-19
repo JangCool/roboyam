@@ -66,7 +66,7 @@
                             <span class="flex items-center gap-1.5">
                                 {{ t('point.todayAttendance') }}
                                 <span v-if="summary.today.attended" class="inline-flex shrink-0 items-center justify-center rounded bg-green-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-green-800 dark:bg-green-950 dark:text-green-300">
-                                    <span class="relative top-[-0.09em]">{{ t('point.attendDone') }}</span>
+                                    <span class="chip-label">{{ t('point.attendDone') }}</span>
                                 </span>
                             </span>
                             <span v-if="summary.today.attended" class="tabular-nums text-muted-color" data-testid="points-today-attend-reward">
@@ -311,7 +311,7 @@
                                     <p class="flex flex-wrap items-center gap-1.5 font-medium">
                                         <!-- 소멸·사용 취소는 사유 이름 앞에 작은 딱지 -->
                                         <span v-if="kindTagKey(row.kind)" class="inline-flex shrink-0 items-center justify-center rounded bg-surface-200 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-muted-color dark:bg-surface-700" data-testid="ledger-kind-tag">
-                                            <span class="relative top-[-0.09em]">{{ t(kindTagKey(row.kind)) }}</span>
+                                            <span class="chip-label">{{ t(kindTagKey(row.kind)) }}</span>
                                         </span>
                                         <span>{{ row.reason }}</span>
                                     </p>

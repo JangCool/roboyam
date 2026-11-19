@@ -71,7 +71,7 @@
                     <div class="min-w-0 flex-1">
                         <p class="m-0 flex flex-wrap items-center gap-1.5">
                             <b class="text-sm font-semibold">{{ localizedName(item.label, item.labelEn ?? null) }}</b>
-                            <span :class="[TAG, UtilMemberTitle.chipClass(item.chip)]"><span class="relative top-[-0.09em]">{{ UtilMemberTitleMessages.method(t, item.method) }}</span></span>
+                            <span :class="[TAG, UtilMemberTitle.chipClass(item.chip)]"><span class="chip-label">{{ UtilMemberTitleMessages.method(t, item.method) }}</span></span>
                         </p>
                         <p class="m-0 mt-1 text-xs leading-snug text-muted-color">{{ item.howTo }}</p>
                         <p class="m-0 mt-1.5 text-xs tabular-nums">{{ t('memberTitle.holders', { count: item.holders.toLocaleString() }) }} · {{ UtilMemberTitleMessages.ratio(t, item.ratio) }}</p>

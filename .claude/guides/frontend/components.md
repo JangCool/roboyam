@@ -38,7 +38,7 @@ components/
 ### 2-4. 뱃지·태그 글자 정렬
 * **뱃지(PrimeVue `Tag`·`Badge`, 직접 만든 알약 모양 포함) 안의 글자는 상하좌우 중앙에 놓는다.** 글자가 뱃지 아래쪽으로 붙어 어긋나 보이면 안 된다(폰트 줄 높이가 위아래로 비대칭이라 기본 줄 높이에서 자주 생긴다).
     * 뱃지 자체를 `inline-flex items-center justify-center` 로 두고 `leading-none`(줄 높이 1)을 준다. 위아래 여백은 `py-*` 로 **대칭**으로만 주고, 글자에 `pt-*`·`mt-*` 같은 한쪽 여백 보정을 넣지 않는다.
-    * **한글 글꼴은 글자가 줄 상자 중앙보다 약 0.09em 아래에 앉는다**(실측: 11px 에서 약 1px, 알약 안에서 글자가 아래로 붙어 보이는 주원인). 줄 상자만 가운데에 맞춰서는 해결되지 않으므로 **글자 요소(`GradeBadge` 의 `__label`, PrimeVue `.p-tag-label`)에만** `position: relative; top: -0.09em` 을 준다. 뱃지 전체나 여백을 옮기지 않고, 이 보정은 이 방법 하나로만 한다(`GradeBadge.vue` 참고).
+    * **글자가 줄 상자 가운데에 앉는 자리는 글꼴·문자마다 다르다**(한글은 맥 Apple SD Gothic Neo 에서 아래로, 윈도우 Noto Sans KR 에서는 거의 가운데 · 영문 대문자는 위로). 그래서 고정 em 값으로 올리지 않는다. **user-web 은 글자 요소에만 `chip-label`**(`main.css` — `text-box: trim-both cap alphabetic` + 위아래 `(1em − 1cap) ÷ 2` 여백, 상자 높이는 1em 그대로)을 단다. 뱃지 전체나 여백을 옮기지 않는다. 예전 `relative top-[-0.09em]` 은 윈도우에서 글자가 1~2px 위로 떠 2026-11-19 에 user-web 에서 모두 `chip-label` 로 바꿨다(admin-web 의 `top: -0.09em`·`GradeBadge` 여백 보정은 아직 옛 방식).
     * 뱃지 안에 아이콘·개수·글자를 함께 넣을 때도 안쪽 래퍼를 `inline-flex gap-*` 로 묶고 안쪽 글자는 기본 `line-height` 를 따로 키우지 않는다. **아이콘과 글자가 함께 있으면 `items-center` 가 아니라 `items-baseline`(같은 기준선)** 으로 세운다 — 아이콘 상자와 글자 상자는 소수점 위치가 달라, 뱃지가 화면 소수점 위치(.25~.5)에 놓이면 가운데 맞춤은 한쪽만 1px 높게 찍힌다(실측). 같은 기준선이면 둘이 항상 같이 반올림된다. 이때 한글 글자가 내려앉는 보정은 글자가 아니라 **위 여백을 줄이고 아래 여백을 같은 만큼 늘려** 아이콘과 함께 올린다(`GradeBadge.vue` 참고).
     * **텍스트 옆·뒤에 뱃지를 붙이는 줄**은 부모를 `inline-flex`/`flex` + `items-center` 로 둔다. 베이스라인 정렬(`items-baseline`, 기본 inline 배치)에 맡기지 않는다. 뱃지가 글자 줄 아래로 처지는 원인이다.
     * 같은 모양의 뱃지는 화면마다 클래스를 새로 쓰지 않고 공통 부품(`GradeBadge` `StaffBadge` 등)이나 같은 클래스 조합을 쓴다 → 위 "모양이 같으면 컴포넌트도 하나다".

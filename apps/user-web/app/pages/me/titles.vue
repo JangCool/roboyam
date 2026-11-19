@@ -70,7 +70,7 @@
                             <TitleIcon :icon="item.icon" :scale="2" />
                             <b class="min-w-0 flex-1 text-sm font-semibold">{{ localizedName(item.label, item.labelEn ?? null) }}</b>
                             <span v-if="item.pending || pendingOf(item.key)" :class="TAG" class="bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                                <span class="relative top-[-0.09em]">{{ UtilMemberTitleMessages.status(t, 'PENDING') }}</span>
+                                <span class="chip-label">{{ UtilMemberTitleMessages.status(t, 'PENDING') }}</span>
                             </span>
                             <Button
                                 v-else
@@ -102,7 +102,7 @@
                 <ul class="m-0 mt-2 list-none p-0">
                     <li v-for="row in mine.applications" :key="row.id" class="border-b border-surface py-2.5 last:border-b-0">
                         <p class="m-0 flex flex-wrap items-center gap-2 text-sm">
-                            <span :class="[TAG, statusClass(row.status)]"><span class="relative top-[-0.09em]">{{ UtilMemberTitleMessages.status(t, row.status) }}</span></span>
+                            <span :class="[TAG, statusClass(row.status)]"><span class="chip-label">{{ UtilMemberTitleMessages.status(t, row.status) }}</span></span>
                             <b class="font-semibold">{{ localizedName(row.label, row.labelEn ?? null) }}</b>
                             <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.date(row.createdAt) }}</span>
                         </p>

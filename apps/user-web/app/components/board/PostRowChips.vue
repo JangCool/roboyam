@@ -19,13 +19,13 @@
             class="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded border border-surface px-1.5 py-[3px] text-[0.6875rem] font-medium leading-none text-muted-color"
             data-testid="post-row-prefix-none"
         >
-            <span class="relative top-[-0.09em]">{{ t('board.prefixNone') }}</span>
+            <span class="chip-label">{{ t('board.prefixNone') }}</span>
         </span>
         <PostStatusTag v-if="row.processStatus" :status="row.processStatus" :class="chipClass" />
         <!-- 구입 경로(trial-group-contract — 체험단 · 구매 인증 · 직접 구매 · 협찬). 서버가 주는 글만(구입 경로 받는 게시판) -->
         <PostPurchaseChip :row="row" :inline="inline" />
         <span v-if="row.adult" class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[0.5625rem] font-bold leading-none text-white" :class="chipClass" :title="t('board.adultMark')">
-            <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
+            <span class="chip-label" aria-hidden="true">19</span>
             <span class="sr-only">{{ t('board.adultMark') }}</span>
         </span>
     </component>

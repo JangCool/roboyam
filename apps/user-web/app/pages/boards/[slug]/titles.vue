@@ -44,7 +44,7 @@
                     <li v-for="row in page.items" :key="row.id" class="border-b border-surface py-3" :data-status="row.status" data-testid="board-title-row">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <TitleChip :title="row.title" />
-                            <span :class="[TAG, statusClass(row.status)]"><span class="relative top-[-0.09em]">{{ UtilMemberTitleMessages.status(t, row.status) }}</span></span>
+                            <span :class="[TAG, statusClass(row.status)]"><span class="chip-label">{{ UtilMemberTitleMessages.status(t, row.status) }}</span></span>
                             <NuxtLink :to="UtilProfile.path(row.member.id)" class="min-w-0 truncate text-sm font-semibold hover:underline">{{ row.member.nickname }}</NuxtLink>
                             <span class="ml-auto text-xs tabular-nums text-muted-color">{{ time.date(row.createdAt) }}</span>
                         </p>

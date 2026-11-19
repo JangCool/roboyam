@@ -6,7 +6,7 @@
     -->
     <span v-if="chip" :class="[BASE, toneClass, inline ? 'mr-1 align-[1px]' : '']" :data-purchase="chip" data-testid="post-row-purchase">
         <i v-if="chip === 'PROOF'" class="pi pi-verified text-[0.5625rem]" aria-hidden="true" />
-        <span class="relative top-[-0.09em]">{{ t(`trial.chip.${chip}`) }}</span>
+        <span class="chip-label">{{ t(`trial.chip.${chip}`) }}</span>
     </span>
 </template>
 

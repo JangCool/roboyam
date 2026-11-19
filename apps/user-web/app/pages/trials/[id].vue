@@ -27,7 +27,7 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <p class="m-0 flex items-center gap-1.5 text-xs text-muted-color">
-                        <span class="inline-flex items-center justify-center rounded bg-amber-500 px-1.5 py-1 text-[0.6875rem] font-bold leading-none text-white"><span class="relative top-[-0.09em]">{{ t('trial.adBadge') }}</span></span>
+                        <span class="inline-flex items-center justify-center rounded bg-amber-500 px-1.5 py-1 text-[0.6875rem] font-bold leading-none text-white"><span class="chip-label">{{ t('trial.adBadge') }}</span></span>
                         {{ t('trial.byAdvertiser', { name: card!.advertiserName }) }}
                     </p>
                     <h1 :id="titleId" class="m-0 text-lg font-bold">{{ card!.title }}</h1>
