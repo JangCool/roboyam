@@ -16,7 +16,43 @@
     -->
     <GadgetFrame :gadget="gadget" :empty="gadget.empty || picks.length === 0" empty-icon="pi pi-star">
         <!-- 한 열(모바일) + 템플릿 한 열 모양(아이로빗) — 모든 글을 옆으로 밀어 넘기는 슬라이드(한 장씩 스냅, 다음 장이 조금 보인다). 사진은 낮게(5:2) 해 화면을 덜 차지한다(2026-11-05 사용자 결정) -->
-        <ul v-if="split && cfg.lead === 'HERO' && restScroll" class="gadget-scroll-row pt-1" :style="SLIDE" :aria-label="t('home.scrollRowLabel', { name: gadget.title })" data-testid="home-highlight-slides">
+        <!--
+            모바일 목록형(템플릿 `mobile.listRows`) — 최신글 줄과 같은 틀(사용자 2026-11-19 「아추 최신글처럼」): 줄마다 선 · 위아래 10px · 왼쪽 사진 칸(64 × 48, 4:3) +
+            제목 한 줄(살짝 굵게 500 · 댓글 수) + 정보 줄(게시판 · 시간 …… 추천). 사진이 없으면 최신글처럼 게시판 이모지, 없으면 옅은 첫 글자
+        -->
+        <ul v-if="listRows" class="m-0 list-none p-0" data-testid="home-highlight-rows">
+            <li v-for="h in picks" :key="h.id" class="border-b border-surface last:border-b-0">
+                <FoldedRow :reason="foldOf(h)" kind="post" class="py-2.5 text-sm" hide-class="pb-2">
+                    <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover flex items-start gap-3 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-highlight-row">
+                        <GadgetThumb
+                            v-if="cfg.thumbs !== 'NONE'"
+                            :src="imageOf(h)"
+                            :variant="variantOf(h)"
+                            ratio="4 / 3"
+                            :letter="boardLetterOf(h)"
+                            :letter-color="h.post.board.color"
+                            :emoji="h.post.board.emoji ?? null"
+                            class="w-16 shrink-0"
+                        />
+                        <div class="min-w-0 flex-1">
+                            <p class="m-0 line-clamp-1 break-words text-[0.9375rem] font-medium leading-snug">
+                                <span>{{ titleOf(h) }}</span>
+                                <span v-if="h.post.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
+                                    <span class="sr-only">{{ t('home.commentCount', { n: h.post.commentCount }) }}</span><span aria-hidden="true">{{ h.post.commentCount }}</span>
+                                </span>
+                            </p>
+                            <p class="m-0 mt-1.5 flex items-center gap-x-1 text-xs text-muted-color">
+                                <span class="min-w-0 truncate">{{ localizedName(h.post.board.name, h.post.board.nameEn) }}</span>
+                                <span aria-hidden="true">·</span>
+                                <PostListDate :iso="h.post.createdAt" :mode="display.dateDisplay" class="shrink-0" />
+                                <PostRowStats :row="h.post" :views="false" class="ml-auto" />
+                            </p>
+                        </div>
+                    </NuxtLink>
+                </FoldedRow>
+            </li>
+        </ul>
+        <ul v-else-if="split && cfg.lead === 'HERO' && restScroll" class="gadget-scroll-row pt-1" :style="SLIDE" :aria-label="t('home.scrollRowLabel', { name: gadget.title })" data-testid="home-highlight-slides">
             <li v-for="h in picks" :key="h.id">
                 <FoldedRow :reason="foldOf(h)" kind="post" class="py-3 text-sm" hide-class="pb-2">
                     <NuxtLink :to="`/posts/${h.post.id}`" class="gadget-hover-photo block rounded-lg pb-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" data-testid="home-highlight-slide">
@@ -182,6 +218,13 @@ const split = options.heroSplit;
 /** 한 열(모바일)이고 템플릿이 골랐을 때만 — 나머지 글은 가로로 미는 카드 줄 · 큰 글 사진은 카드 끝까지 */
 const stacked = useGadgetStacked();
 const restScroll = computed(() => stacked.value && options.mobile.highlightScroll);
+/** 모바일 목록형(템플릿 `mobile.listRows`, 한 열일 때만) — 켜면 큰 글·슬라이드 대신 글 줄 */
+const listRows = useGadgetListRows();
+const { display } = useBoardDisplay();
+/** 사진 없는 줄의 빈 썸네일 글자 — 게시판 이름 첫 글자 하나(최신글 줄과 같다) */
+function boardLetterOf(h: HomeHighlight): string {
+    return (Array.from(localizedName(h.post.board.name, h.post.board.nameEn).trim())[0] ?? '?').toUpperCase();
+}
 /** 슬라이드 한 장 폭 — 다음 장이 조금 보여 밀 수 있다는 걸 알린다 */
 const SLIDE = { '--row-item': '88%' };
 

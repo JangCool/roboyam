@@ -157,9 +157,11 @@ public class BoardService {
         String layout = request == null ? null : request.layout();
         String kind = request == null || request.kind() == null || request.kind().isBlank() ? BoardFields.KIND_GENERAL : request.kind().strip();
         String rawCategoryId = BoardRules.stripToNull(request == null ? null : request.groupCategoryId());
+        String listEmoji = BoardRules.stripToNull(request == null ? null : request.listEmoji());
 
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         nameProblem(name).ifPresent(problem -> invalid.put("name", problem));
+        listEmojiProblem(listEmoji).ifPresent(problem -> invalid.put("listEmoji", problem));
         if (slug.isEmpty()) {
             invalid.put("slug", new MessageRef("board.slug.required"));
         } else if (slug.length() < BoardFields.SLUG_MIN || slug.length() > BoardFields.SLUG_MAX) {
@@ -215,6 +217,7 @@ public class BoardService {
         // 핫딜 게시판은 말머리를 비워 넘긴다 — BoardCreator 가 공통을 끈 채 고유 말머리 로봇·AI·메이킹·기타로 만든다
         BoardEntity board = creator.create(new NewBoard(slug, name, null, description, kind, layout, !"CARD".equals(layout), null, false,
                 deal ? dealWriteMin() : null, deal ? Set.of() : new HashSet<>(BoardFields.COMMON_PREFIXES), List.of()), nextOrder, actor.operatorId(), now);
+        board.changeListEmoji(listEmoji); // 목록 이모지(V257) — 첫 flush 의 INSERT 에 실린다
         flushOrDuplicated();
         if (category != null) {
             // 같은 트랜잭션으로 분류 끝에 할당하고 그 분류의 updatedAt 을 올린다
@@ -226,6 +229,9 @@ public class BoardService {
         after.put("name", name);
         after.put("layout", layout);
         after.put("kind", kind);
+        if (listEmoji != null) {
+            after.put("listEmoji", listEmoji);
+        }
         if (category != null) {
             after.put("groupCategoryId", Long.toString(category.getId()));
         }
@@ -276,7 +282,8 @@ public class BoardService {
                 | diff(before, after, "chipPosition", board.getChipPosition(), in.chipPosition)
                 | diff(before, after, "prefixStyle", board.getPrefixStyle(), in.prefixStyle)
                 | diff(before, after, "detailList", board.getDetailList(), in.detailList)
-                | diff(before, after, "adultOnly", board.isAdultOnly(), in.adultOnly);
+                | diff(before, after, "adultOnly", board.isAdultOnly(), in.adultOnly)
+                | diff(before, after, "listEmoji", board.getListEmoji(), in.listEmoji);
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
@@ -394,6 +401,8 @@ public class BoardService {
         if (!BoardFields.DETAIL_LISTS.contains(in.detailList)) {
             invalid.put("detailList", new MessageRef("board.field.choice"));
         }
+        // 목록 이모지(V257) — null(게시판 이름 첫 글자) 또는 16자(코드 포인트)까지
+        listEmojiProblem(in.listEmoji).ifPresent(problem -> invalid.put("listEmoji", problem));
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -442,6 +451,7 @@ public class BoardService {
         board.changeChipPosition(in.chipPosition);
         board.changePrefixStyle(in.prefixStyle);
         board.changeDetailList(in.detailList);
+        board.changeListEmoji(in.listEmoji);
         boolean adultTurnedOn = in.adultOnly && !board.isAdultOnly();
         board.changeAdultOnly(in.adultOnly);
         board.changePolicy(in.policy);
@@ -596,6 +606,8 @@ public class BoardService {
         String authorMode;
         /** 성인 전용 게시판(V226) — 요청에 없으면 지금 값 */
         boolean adultOnly;
+        /** 목록 이모지(V257) — 요청에 없으면 지금 값, 앞뒤 공백을 뗀 값, 빈 글자면 null(게시판 이름 첫 글자) */
+        String listEmoji;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -623,6 +635,7 @@ public class BoardService {
                 : request.prefixStyle().isBlank() ? null : request.prefixStyle().strip().toUpperCase(Locale.ROOT);
         in.detailList = request.detailList() == null ? board.getDetailList() : request.detailList().strip().toUpperCase(Locale.ROOT);
         in.adultOnly = request.adultOnly() == null ? board.isAdultOnly() : request.adultOnly();
+        in.listEmoji = request.listEmoji() == null ? board.getListEmoji() : BoardRules.stripToNull(request.listEmoji());
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());
@@ -745,6 +758,14 @@ public class BoardService {
     private static java.util.Optional<MessageRef> descriptionProblem(String description) {
         if (description.length() > BoardFields.DESCRIPTION_MAX || BoardRules.hasControl(description)) {
             return java.util.Optional.of(new MessageRef("board.description.length", String.valueOf(BoardFields.DESCRIPTION_MAX)));
+        }
+        return java.util.Optional.empty();
+    }
+
+    /** 목록 이모지(V257) — null 은 통과(게시판 이름 첫 글자), 16자(코드 포인트 — DB varchar(16) 과 같은 셈)를 넘거나 제어 문자가 있으면 거절 */
+    private static java.util.Optional<MessageRef> listEmojiProblem(String listEmoji) {
+        if (listEmoji != null && (BoardRules.length(listEmoji) > BoardFields.LIST_EMOJI_MAX || BoardRules.hasControl(listEmoji))) {
+            return java.util.Optional.of(new MessageRef("board.listEmoji.length", String.valueOf(BoardFields.LIST_EMOJI_MAX)));
         }
         return java.util.Optional.empty();
     }

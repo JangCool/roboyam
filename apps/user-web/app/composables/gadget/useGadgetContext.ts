@@ -1,4 +1,4 @@
-import type { InjectionKey, Ref, VNode } from 'vue';
+import type { ComputedRef, InjectionKey, Ref, VNode } from 'vue';
 import type { GadgetLook, GadgetLookInput, GadgetLookOptions, GadgetShared } from '~/composables/gadget/useGadgetContext.types';
 import UtilGadget from '~/utils/util-gadget';
 
@@ -17,7 +17,7 @@ const BOARD_BODY_KEY: InjectionKey<() => VNode[] | undefined> = Symbol('board-la
 const DEFAULT_LOOK_OPTIONS: Readonly<GadgetLookOptions> = {
     heroSplit: false,
     galleryColumns: 3,
-    mobile: { order: 'reading', highlightScroll: false, heroBleed: false, galleryScroll: false, groupBuyScroll: false, groupsScroll: false, boardCardsScroll: false },
+    mobile: { order: 'reading', highlightScroll: false, heroBleed: false, galleryScroll: false, groupBuyScroll: false, groupsScroll: false, boardCardsScroll: false, listRows: false },
 };
 /** 홈 격자 밖(한 열을 모른다) — 늘 false */
 const NOT_STACKED: Readonly<Ref<boolean>> = shallowRef(false);
@@ -92,6 +92,24 @@ export function useGadgetLook(): GadgetLook {
  */
 export function useGadgetLookOptions(): Readonly<GadgetLookOptions> {
     return inject(LOOK_OPTIONS_KEY, DEFAULT_LOOK_OPTIONS);
+}
+
+/**
+ * 글 목록·하이라이트 가젯이 부른다 — 한 열이고 템플릿이 「목록형」(`mobile.listRows`)을 골랐는가. 어느 줄을 바꿀지(뉴스형 한 줄은 그대로 등)는 가젯이 정한다.
+ * @returns {ComputedRef<boolean>} 목록형인가.
+ */
+export function useGadgetListRows(): ComputedRef<boolean> {
+    const stacked = useGadgetStacked();
+    const on = useGadgetLookOptions().mobile.listRows;
+    return computed(() => stacked.value && on);
+}
+
+/**
+ * 글 목록 가젯이 부른다 — 템플릿이 「목록형」을 골랐는가(폭과 무관 — 최신글 줄의 왼쪽 사진·빈 썸네일 글자는 데스크톱 최신글 가젯도 같게, 사용자 2026-11-19).
+ * @returns {boolean} 목록형인가.
+ */
+export function useGadgetListLook(): boolean {
+    return useGadgetLookOptions().mobile.listRows;
 }
 
 /**

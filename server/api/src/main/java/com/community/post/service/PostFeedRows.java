@@ -90,7 +90,7 @@ public class PostFeedRows {
                 continue;
             }
             out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id()), thumbs, false, purchaseInfo.get(r.id())),
-                    new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId()),
+                    new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color(), b.listEmoji()), r.groupId() == null ? null : groupRefs.get(r.groupId()),
                     debates.get(r.id())));
         }
         return out;

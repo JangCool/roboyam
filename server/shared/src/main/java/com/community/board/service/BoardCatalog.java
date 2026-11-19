@@ -171,7 +171,9 @@ public class BoardCatalog implements CacheReloader {
                 or(p.indexable(), d.indexable()), or(p.searchable(), d.searchable()), or(p.inHome(), d.inHome()),
                 // 구입 경로 받기 · 체험단 사용기 받기(V241) — 일반 게시판만(그 밖 늘 끔)
                 BoardFields.KIND_GENERAL.equals(b.getKind()) ? or(p.purchaseSourceMode(), d.purchaseSourceMode()) : BoardFields.PURCHASE_OFF,
-                BoardFields.KIND_GENERAL.equals(b.getKind()) && or(p.trialReviewsEnabled(), d.trialReviewsEnabled()));
+                BoardFields.KIND_GENERAL.equals(b.getKind()) && or(p.trialReviewsEnabled(), d.trialReviewsEnabled()),
+                // 목록 이모지(V257) — 게시판 값 그대로
+                b.getListEmoji());
     }
 
     private static <T> T or(T value, T fallback) {

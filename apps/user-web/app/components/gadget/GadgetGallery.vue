@@ -5,7 +5,31 @@
         사진 위에 GIF·영상 표시(글자 「GIF」/「영상」 — 색만으로 알리지 않는다)와 영상 재생 표시를 얹는다. 칸 전체가 글 링크다. 마우스 올림 효과(설정 `hover`)는 사진 카드라 제목 밑줄(`gadget-hover-photo`, `main.css`).
     -->
     <GadgetFrame :gadget="gadget" :empty="gadget.empty || items.length === 0" empty-icon="pi pi-images">
-        <ul :class="scroll ? 'gadget-scroll-row' : ['m-0 grid list-none grid-cols-2 gap-x-3 gap-y-3.5 p-0 pt-1', columnsClass]" :style="scroll ? ROW : undefined" :aria-label="label" data-testid="home-gallery">
+        <!--
+            모바일 목록형(템플릿 `mobile.listRows`) — 최신글·아추! 줄과 같은 틀(사용자 2026-11-19 「영상·짤도 동일한 UI」): 줄마다 선 · 왼쪽 사진 칸(64 × 48, 4:3 — GIF·영상 표시는 사진 위 그대로) +
+            제목 한 줄(살짝 굵게 500) + 정보 줄(게시판 · 시간 …… 추천). 갤러리는 사진 있는 글만 오지만 사진을 못 불러오면 옅은 첫 글자
+        -->
+        <ul v-if="listRows" class="m-0 list-none p-0" :aria-label="t('home.galleryLabel')" data-testid="home-gallery-rows">
+            <li v-for="item in items" :key="item.postId" class="border-b border-surface last:border-b-0">
+                <NuxtLink :to="`/posts/${item.postId}`" class="gadget-hover flex items-start gap-3 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-gallery-row">
+                    <GadgetThumb :src="item.thumbnailUrl" ratio="4 / 3" :letter="letterOf(item)" class="w-16 shrink-0">
+                        <span v-if="item.kind" class="pointer-events-none absolute left-1 top-1 inline-flex items-center rounded bg-surface-950/75 px-1 py-0.5 text-[0.5625rem] font-bold leading-none text-surface-0">
+                            {{ item.kind === 'GIF' ? t('home.badgeGif') : t('home.badgeVideo') }}
+                        </span>
+                    </GadgetThumb>
+                    <div class="min-w-0 flex-1">
+                        <p class="m-0 line-clamp-1 break-words text-[0.9375rem] font-medium leading-snug">{{ item.title }}</p>
+                        <p class="m-0 mt-1.5 flex items-center gap-x-1 text-xs text-muted-color">
+                            <span v-if="item.board.name" class="min-w-0 truncate">{{ localizedName(item.board.name, item.board.nameEn) }}</span>
+                            <span v-if="item.board.name" aria-hidden="true">·</span>
+                            <PostListDate :iso="item.createdAt" :mode="display.dateDisplay" class="shrink-0" />
+                            <PostRowStats :row="{ likeCount: item.likeCount, viewCount: 0 }" :views="false" class="ml-auto" />
+                        </p>
+                    </div>
+                </NuxtLink>
+            </li>
+        </ul>
+        <ul v-else :class="scroll ? 'gadget-scroll-row' : ['m-0 grid list-none grid-cols-2 gap-x-3 gap-y-3.5 p-0 pt-1', columnsClass]" :style="scroll ? ROW : undefined" :aria-label="label" data-testid="home-gallery">
             <li v-for="item in items" :key="item.postId" class="min-w-0" data-testid="home-gallery-item">
                 <NuxtLink :to="`/posts/${item.postId}`" class="gadget-hover-photo block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                     <GadgetThumb :src="item.thumbnailUrl" ratio="4 / 3" class="w-full">
@@ -31,6 +55,7 @@
 
 <script setup lang="ts">
 import type { Gadget } from '~/composables/gadget/api/useGadgetApi.types';
+import type { GalleryItem } from '~/composables/gadget/api/useGadgetApi.types';
 import UtilGadget from '~/utils/util-gadget';
 
 interface Props {
@@ -50,5 +75,12 @@ const columnsClass = options.galleryColumns === 4 ? '@min-[36rem]:grid-cols-4' :
 const stacked = useGadgetStacked();
 const scroll = computed(() => stacked.value && options.mobile.galleryScroll);
 const ROW = { '--row-item': '42%' };
+/** 모바일 목록형(템플릿 `mobile.listRows`, 한 열일 때만) — 켜면 가로로 미는 줄 대신 최신글 같은 글 줄 */
+const listRows = useGadgetListRows();
+const { display } = useBoardDisplay();
+/** 사진 없는 줄의 빈 썸네일 글자 — 게시판 이름 첫 글자 하나 */
+function letterOf(item: GalleryItem): string {
+    return (Array.from(localizedName(item.board.name, item.board.nameEn).trim())[0] ?? '?').toUpperCase();
+}
 const label = computed(() => (scroll.value ? t('home.scrollRowLabel', { name: props.gadget.title || t('home.galleryLabel') }) : t('home.galleryLabel')));
 </script>

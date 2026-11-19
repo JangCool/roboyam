@@ -176,7 +176,7 @@ public class TipsService {
     }
 
     private static PostBoardRefView ref(EffectiveBoard b) {
-        return new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color());
+        return new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color(), b.listEmoji());
     }
 
     /** 글 ID(문자열) → 요약 — 가려진 글·19금 글은 넣지 않는다(본문을 읽지 않는다) */

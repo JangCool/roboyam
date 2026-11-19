@@ -33,6 +33,8 @@ public class BoardEntity {
     private String layout;
     private boolean viewToggle;
     private String color;
+    /** 목록 이모지(V257) — 사진 없는 글의 썸네일 자리에 보이는 이모지 한 개, NULL = 게시판 이름 첫 글자(mobile-home-list-contract) */
+    private String listEmoji;
     private boolean allowAdult;
     /** 「이 게시판에 광고 숨김」(V117) — 목록 한 줄·글 보기·핫딜 노출 광고 없음. 게시판마다의 값 */
     private boolean adsHidden;
@@ -150,6 +152,11 @@ public class BoardEntity {
         this.color = color;
         this.allowAdult = allowAdult;
         this.investmentNotice = investmentNotice;
+    }
+
+    /** 목록 이모지를 바꾼다 — null 이면 게시판 이름 첫 글자(값 정리는 부르는 쪽이 끝냈다) */
+    public void changeListEmoji(String listEmoji) {
+        this.listEmoji = listEmoji;
     }
 
     /** 「광고 숨김」을 바꾼다 */
@@ -307,6 +314,10 @@ public class BoardEntity {
 
     public String getColor() {
         return color;
+    }
+
+    public String getListEmoji() {
+        return listEmoji;
     }
 
     public boolean isAllowAdult() {

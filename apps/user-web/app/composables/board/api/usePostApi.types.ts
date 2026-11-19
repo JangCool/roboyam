@@ -349,6 +349,8 @@ export interface PostBoardRef {
     nameEn: string | null;
     /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동) */
     color: string | null;
+    /** 게시판 목록 이모지(관리자 게시판 기본 정보, mobile-home-list-contract) — 사진 없는 글 줄의 썸네일 자리. 없으면 null(게시판 이름 첫 글자). 옛 응답에는 칸이 없다 */
+    emoji?: string | null;
 }
 
 /**

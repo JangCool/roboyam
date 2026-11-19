@@ -154,6 +154,8 @@ public final class BoardFields {
     public static final List<String> SLUG_RESERVED = List.of("defaults", "order", "new", "writable");
     public static final int NAME_MAX = 40;
     public static final int NAME_EN_MAX = 40;
+    /** 목록 이모지 최대 글자 수(코드 포인트 — {@code boards.list_emoji varchar(16)}, V257) */
+    public static final int LIST_EMOJI_MAX = 16;
     public static final int DESCRIPTION_MAX = 200;
     public static final int TEXT_MAX = 500;
     /** 글 양식(`boards.write_template`)의 보이는 글자 수 상한(V153) */

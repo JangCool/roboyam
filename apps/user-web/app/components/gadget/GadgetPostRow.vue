@@ -8,8 +8,16 @@
         차단한 회원·단어의 글은 다른 목록과 같은 접힌 줄(`FoldedRow`) — 순위 칸은 남겨 순서가 밀리지 않는다. 줄 전체가 글 링크라 작성자 이름은 링크가 아니다(`<a>` 중첩 금지).
         마우스 올림 효과(설정 `hover`, `main.css`): 보통 줄은 옅은 바탕(`gadget-hover` — 좌우로 8px 넓힘), 순위 줄은 줄 전체(`gadget-rank-row` — 순위 번호 + 글, 2026-11-16), 큰 글은 제목 밑줄.
     -->
-    <li :class="[cfg.dividers ? 'border-b border-surface last:border-b-0' : '', rank !== null ? 'gadget-rank-row flex items-start' : '']" :style="rowVars" data-testid="home-post-row">
-        <span v-if="rank !== null" class="relative w-6 shrink-0 text-left font-extrabold leading-snug tabular-nums" :class="[rankSize, rank > 3 ? 'text-muted-color' : '', rankPad]" :style="rankStyle" data-testid="home-post-rank">
+    <!-- 모바일 목록형 인기글(한 줄 촘촘 줄) — 순위 칸과 글 줄을 줄 가운데로 맞춘다(`rankCenter`, 위아래 여백이 같은 한 줄이라 순위가 제목과 수직 가운데) -->
+    <li :class="[cfg.dividers ? 'border-b border-surface last:border-b-0' : '', rank !== null ? ['gadget-rank-row flex', rankCenter ? 'items-center' : 'items-start'] : '']" :style="rowVars" data-testid="home-post-row">
+        <!-- 모바일 목록형 인기글 — 1~3위 숫자는 빨간색(인기 표시, 사용자 2026-11-19 — 동그라미는 뺐다) -->
+        <span
+            v-if="rank !== null"
+            class="relative w-6 shrink-0 text-left font-extrabold tabular-nums"
+            :class="[rankCenter ? 'flex items-center text-[0.9375rem] leading-none' : ['leading-snug', rankSize, rankPad], rank > 3 ? 'text-muted-color' : rankRed ? 'text-red-600 dark:text-red-400' : '']"
+            :style="rankRed ? undefined : rankStyle"
+            data-testid="home-post-rank"
+        >
             <span aria-hidden="true">{{ rank }}</span><span class="sr-only">{{ t('feed.rank', { n: rank }) }}</span>
         </span>
         <div class="min-w-0 flex-1">
@@ -37,7 +45,7 @@
                 <!-- 첫 글 사진 줄 — 뉴스형 한 줄 목록(`LINE`)의 한 열(모바일, 2026-11-15 사용자 「사진이 커서 제목이 안 보인다」): 제목이 맨 위에서 가로를 다 쓰고(한 줄 — 넘치면 …),
                      아래에 줄인 사진 + 본문 앞부분 세 줄(사진 높이 = 세 줄), 그 아래 정보 줄(가로 전체) = 왼쪽 말머리·추천(늘)·댓글 수 …… 오른쪽 날짜 -->
                 <NuxtLink v-else-if="leadThumb && rowStyle === 'LINE' && stacked" :to="`/posts/${row.id}`" class="gadget-hover block py-0.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-lead-thumb">
-                    <p class="m-0 truncate text-base font-bold leading-snug tracking-tight">{{ row.title }}</p>
+                    <p class="m-0 truncate text-base leading-snug tracking-tight" :class="listRows ? 'font-medium' : 'font-bold'">{{ row.title }}</p>
                     <div class="mt-2 flex items-start gap-3">
                         <!-- 사진 높이 = 본문 세 줄(0.8125rem × 1.375 × 3) — 글자 크기 배율(`--text-scale`)을 같이 곱해 글자를 키워도 세 줄 높이를 따라간다, 폭은 16:10 -->
                         <GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="w-[calc(5.375rem*var(--text-scale,1))] shrink-0 rounded-md" />
@@ -93,8 +101,9 @@
                     </div>
                 </NuxtLink>
 
+                <!-- 모바일 목록형은 위아래 8px(인기글 줄과 같게, 사용자 2026-11-19) -->
                 <!-- 뉴스형 한 줄(`LINE`) — [추천 고정 칸(`likes: LEAD`)] [말머리 색 글자(칩 배경 없음) — 글자 3자 고정 폭, 넘치면 …(말머리가 없으면 게시판 이름)] 한 줄 제목 + 댓글 수 …… [추천] [날짜](오른쪽 끝 — 켠 것만) -->
-                <NuxtLink v-else-if="rowStyle === 'LINE'" :to="`/posts/${row.id}`" class="gadget-hover flex items-center gap-2 py-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="home-post-line">
+                <NuxtLink v-else-if="rowStyle === 'LINE'" :to="`/posts/${row.id}`" class="gadget-hover flex items-center gap-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="listRows ? 'py-2' : 'py-1'" data-testid="home-post-line">
                     <GadgetHighlightMeta v-if="likesLead" tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="w-10 shrink-0" data-testid="home-post-likes-lead" />
                     <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" mode="TEXT" class="inline-block w-[3em] shrink-0 truncate font-semibold!" :title="row.prefix!.name" />
                     <span v-else-if="cfg.meta.includes('BOARD')" class="shrink-0 text-xs font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
@@ -118,13 +127,14 @@
                 <NuxtLink v-else :to="`/posts/${row.id}`" class="gadget-hover flex items-start gap-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" :class="[rowPad, thumbRoom]">
                     <!-- 줄 사진은 글 두 줄(제목 + 메타) 높이를 넘지 않는다 — 제목 한 줄이면 그 높이에 꼭 맞추고(thumbFit), 두 줄이면 64×40(2026-11-06·11-15 사용자) -->
                     <span v-if="thumb === 'LEFT' && thumbFit" class="absolute left-0 block aspect-[16/10]" :class="thumbInset"><GadgetThumb :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="size-full" /></span>
-                    <GadgetThumb v-else-if="thumb === 'LEFT'" :src="row.thumbnailUrl" :variant="thumbVariant" ratio="16 / 10" class="w-16 shrink-0" />
+                    <GadgetThumb v-else-if="thumb === 'LEFT'" :src="row.thumbnailUrl" :variant="thumbVariant" :ratio="listLook ? '4 / 3' : '16 / 10'" :letter="listLook ? boardLetter : null" :letter-color="row.board.color" :emoji="listLook ? boardEmoji : null" class="w-16 shrink-0" />
                     <!-- 촘촘(`COMPACT`)은 한 줄 — 제목 오른쪽에 메타(게시판·추천·시간)를 나란히 둔다(좁은 칸에 글 10개가 들어가게, 2026-11-06).
                          인기글(기간 탭, `dense`)만 한 줄 약 27px(글자 13px · 줄 높이 1.3 · 위아래 5px) — 하이라이트 가젯 높이에 10개가 들어가고, 덜 찬 쪽(11~15)도 줄 간격이 같다. 그 밖의 촘촘 목록은 위아래 4px(2026-11-06 사용자) -->
                     <div class="min-w-0 flex-1" :class="rowStyle === 'COMPACT' ? 'flex items-baseline gap-2' : ''">
                         <!-- 추천 제목 앞 고정 칸(`likes: LEAD` — 엄지 아이콘 + 숫자, 줄마다 같은 자리) -->
                         <GadgetHighlightMeta v-if="likesLead" tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="w-10 shrink-0" data-testid="home-post-likes-lead" />
-                        <p class="break-words leading-snug" :class="[lines === 1 ? 'line-clamp-1' : 'line-clamp-2', titleSize, rowStyle === 'COMPACT' ? 'min-w-0 flex-1' : '']">
+                        <!-- 목록형 제목 살짝 굵게(500, 사용자 2026-11-19) — 두 줄 줄(최신글)은 모두, 모바일 인기글은 1위만 -->
+                        <p class="break-words leading-snug" :class="[lines === 1 ? 'line-clamp-1' : 'line-clamp-2', titleSize, rowStyle === 'COMPACT' ? ['min-w-0 flex-1', listRows && rank === 1 ? 'font-medium' : ''] : listLook ? 'font-medium' : '']">
                             <PostPrefixTag v-if="prefixShown" :prefix="row.prefix!" inline :class="prefixClass" />
                             <span v-if="isNew" class="mr-1 inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 align-[1px] text-[0.625rem] font-bold leading-none text-primary-contrast" data-testid="home-post-new">
                                 <span class="relative top-[-0.09em]" aria-hidden="true">{{ t('home.newMark') }}</span><span class="sr-only">{{ t('home.newLabel') }}</span>
@@ -137,15 +147,19 @@
                                 <span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ look === 'card' ? row.commentCount : `[${row.commentCount}]` }}</span>
                             </span>
                         </p>
-                        <p v-if="metaParts.length || bubble" class="flex items-center gap-x-1 gap-y-0.5 text-xs text-muted-color" :class="rowStyle === 'COMPACT' ? 'shrink-0 flex-nowrap' : 'mt-1 flex-wrap'">
-                            <template v-for="(part, i) in metaParts" :key="part">
+                        <p v-if="metaParts.length || bubble" class="flex items-center gap-x-1 gap-y-0.5 text-xs text-muted-color" :class="rowStyle === 'COMPACT' ? 'shrink-0 flex-nowrap' : [listLook ? 'mt-1.5' : 'mt-1', 'flex-wrap']">
+                            <template v-for="(part, i) in inlineParts" :key="part">
                                 <span v-if="i > 0" aria-hidden="true">·</span>
-                                <span v-if="part === 'board'" class="shrink-0 font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
+                                <!-- 목록형은 게시판 이름을 강조하지 않는다(보통 굵기 · 회색 — 사용자 2026-11-19) -->
+                                <span v-if="part === 'board' && listLook" class="shrink-0">{{ boardName }}</span>
+                                <span v-else-if="part === 'board'" class="shrink-0 font-semibold" :class="boardClass" :style="boardStyle">{{ boardName }}</span>
                                 <PostAuthorLabel v-else-if="part === 'author'" :author="row.author" :avatar="rowStyle !== 'COMPACT'" menu />
                                 <GadgetHighlightMeta v-else-if="part === 'likes' && likesIcon" tag="span" :post="row" order="author" :board="false" :comments="false" :author="false" :date="false" class="shrink-0" />
                                 <span v-else-if="part === 'likes'" class="shrink-0">{{ t('board.likesShort', { n: row.likeCount }) }}</span>
                                 <PostListDate v-else-if="part === 'time'" :iso="row.createdAt" :mode="display.dateDisplay" class="shrink-0" />
                             </template>
+                            <!-- 목록형 — 추천은 정보 줄 오른쪽 끝, 함께 보는 글 줄과 같은 크기·모양(`PostRowStats`, 사용자 2026-11-19) -->
+                            <PostRowStats v-if="likesEnd" :row="row" :views="false" class="ml-auto" data-testid="home-post-likes-end" />
                             <span v-if="bubble" class="ml-auto inline-flex shrink-0 items-baseline gap-1" data-testid="home-post-bubble">
                                 <i class="pi pi-comment text-[0.6875rem]" aria-hidden="true" /><span class="sr-only">{{ t('home.commentCount', { n: row.commentCount }) }}</span><span aria-hidden="true">{{ row.commentCount }}</span>
                             </span>
@@ -200,6 +214,13 @@ const rowStyle = computed(() => props.cfg.rowStyle);
 /** 한 열(모바일)인가 */
 const stacked = useGadgetStacked();
 /**
+ * 목록형(폭과 무관 — 데스크톱 최신글도 같게, 사용자 2026-11-19) — 두 줄 줄: 제목과 정보 줄 사이 4px → 6px · 추천은 정보 줄 오른쪽 끝 ·
+ * 왼쪽 사진은 보통 칸(64 × 48) · 사진 없는 글은 게시판 이모지, 없으면 옅은 게시판 색 + 첫 글자
+ */
+const listLook = useGadgetListLook();
+/** 모바일 목록형(한 열일 때만) — 촘촘 줄(인기글) 위아래 여백 */
+const listRows = useGadgetListRows();
+/**
  * 제목·순위 글자 크기 — 인기글 촘촘(`dense`)은 PC 에서 한 단계 작게(카드 테마 15px → 14px, 그 밖 14px → 13px — 하이라이트 높이에 10개).
  * 한 열(모바일)에서는 높이를 맞출 옆 가젯이 없어 다른 글 목록(최신글)과 같은 크기(사용자 2026-11-15)
  */
@@ -239,7 +260,8 @@ const timeShown = computed(() => props.cfg.meta.includes('TIME'));
  * 사진 칸은 줄 위·아래 여백 안쪽에 붙인 절대 위치(높이가 정해져 폭이 16:10 으로 따라온다 — flex 의 늘이기는 폭을 계산하지 않는다), 글 쪽은 그만큼 비운다(`thumbRoom`, rem — 글자 크기 설정을 따라간다).
  * 제목 두 줄이거나 촘촘(한 줄)이면 지금처럼 64×40.
  */
-const thumbFit = computed(() => lines.value === 1 && rowStyle.value !== 'COMPACT');
+// 모바일 목록형은 함께 보는 글 줄처럼 사진을 보통 칸(64 × 48, 4:3)으로 두고 제목·정보 줄은 그 오른쪽에서 시작한다(겹쳐 놓는 절대 위치를 쓰지 않는다, 사용자 2026-11-19)
+const thumbFit = computed(() => lines.value === 1 && rowStyle.value !== 'COMPACT' && !listLook);
 /** 사진 칸 위·아래 — 줄 여백(`rowPad`)과 같게 */
 const thumbInset = computed(() => (props.cfg.rowSpacing === 'TIGHT' ? 'top-[7px] bottom-[7px]' : 'top-2.5 bottom-2.5'));
 /** 사진 자리 비우기 — 글 두 줄 높이(약 2.54rem)의 16:10 폭 + 간격 0.75rem */
@@ -251,6 +273,10 @@ const thumbRoom = computed(() => {
 });
 /** 보통 줄 위아래 여백 — 촘촘은 4px(인기글 기간 탭 5px), 두 줄 줄은 10px · 줄 간격 좁게(`rowSpacing: TIGHT`) 7px */
 const rowPad = computed(() => {
+    // PC 목록형 두 줄 줄(최신글)은 위아래 약 8px(8.2 — 카드 아래 안 여백 20px 와 맞춘 값) — 가젯 높이에 13줄이 빈 여백 없이 들어가게(사용자 2026-11-19 「여백 살짝 줄이고 하나 더」), 모바일은 보통 10px
+    if (listLook && !listRows.value && rowStyle.value !== 'COMPACT' && rowStyle.value !== 'LINE') return 'py-[8.2px]';
+    // 모바일 목록형의 촘촘 줄(인기글 — 줄마다 선)은 위아래 8px(사용자 2026-11-19 「행 높이 여백 살짝」)
+    if (rowStyle.value === 'COMPACT' && listRows.value) return 'py-2';
     if (rowStyle.value === 'COMPACT') return props.dense ? 'py-[5px]' : 'py-1';
     return props.cfg.rowSpacing === 'TIGHT' ? 'py-[7px]' : 'py-2.5';
 });
@@ -271,8 +297,16 @@ const metaParts = computed(() => {
     if (props.cfg.meta.includes('TIME')) out.push('time');
     return out;
 });
+/** 모바일 목록형의 두 줄 줄 — 추천을 정보 줄 오른쪽 끝으로 옮긴다(나머지는 「·」로 잇는 왼쪽 묶음) */
+/** 목록형 두 줄 줄 — 추천은 정보 줄 오른쪽 끝(함께 보는 글과 같은 크기, 사용자 2026-11-19) */
+const likesEnd = computed(() => listLook && rowStyle.value !== 'COMPACT' && metaParts.value.includes('likes'));
+const inlineParts = computed(() => (likesEnd.value ? metaParts.value.filter((part) => part !== 'likes') : metaParts.value));
 
 const boardName = computed(() => localizedName(props.row.board.name, props.row.board.nameEn));
+/** 목록형 빈 썸네일 글자 — 게시판 이름 첫 글자 하나(영문이면 대문자, 사용자 2026-11-19 「한 글자만」) */
+const boardLetter = computed(() => (Array.from(boardName.value.trim())[0] ?? '?').toUpperCase());
+/** 게시판 목록 이모지(관리자 게시판 기본 정보) — 없으면 첫 글자 칸 */
+const boardEmoji = computed(() => props.row.board.emoji ?? null);
 /** 사진이 없을 때 빈 썸네일 모양 — 뉴스 게시판 글은 뉴스 면(남색 · 신문 아이콘), 그 밖은 일반 글 */
 const thumbVariant = computed<'news' | 'default'>(() => (UtilBoard.isNews(props.row.board?.slug) ? 'news' : 'default'));
 /** 게시판 이름 색 — 자동은 운영자가 고른 표시색(없으면 본문 글자색), 고정은 고른 색(`--gx-bc`), 회색은 흐린 글자 */
@@ -291,6 +325,10 @@ const boardClass = computed(() => {
 /** 색 변수 — 게시판 이름 고정 색(`--gx-bc`)과 순위 색(`--gx-rk`) */
 const rowVars = computed(() => ({ ...UtilGadget.colorVar('--gx-bc', props.cfg.badge.color), ...UtilGadget.colorVar('--gx-rk', props.cfg.rank.color) }));
 /** 1~3위 강조색 — 고른 순위 색이 있으면 그것, 없으면 주 색상 */
+/** 모바일 목록형의 1~3위 — 빨간 숫자(사용자 2026-11-19) */
+const rankRed = computed(() => listRows.value && rowStyle.value === 'COMPACT' && props.rank !== null && props.rank <= 3);
+/** 모바일 목록형의 촘촘 줄 — 순위 칸을 글 줄과 가운데 정렬 */
+const rankCenter = computed(() => listRows.value && rowStyle.value === 'COMPACT');
 const rankStyle = computed(() => {
     if (props.rank === null || props.rank > 3) return undefined;
     return { color: props.cfg.rank.color !== null ? 'var(--gx-rk)' : 'var(--p-primary-color)' };

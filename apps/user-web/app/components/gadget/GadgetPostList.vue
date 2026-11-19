@@ -82,7 +82,7 @@
                         :rank="ranked ? p * cfg.mobilePageSize + i + 1 : null"
                         :hero="hero && p === 0 && i === 0"
                         :lead-thumb="leadThumb && i === 0"
-                        :class="leadThumb && i === 0 ? LEAD_THUMB_CLASS : ''"
+                        :class="leadThumb && i === 0 ? leadThumbClass : ''"
                     />
                 </ul>
             </div>
@@ -120,7 +120,7 @@
                 :hero="hero && i === 0"
                 :lead-thumb="leadThumb && i === 0"
                 :dense="!!periods"
-                :class="[(hero || leadThumb) && i === 0 ? 'col-span-full' : '', leadThumb && i === 0 ? LEAD_THUMB_CLASS : '', i === leftColumnEnd ? '@min-[28rem]:border-b-0!' : '']"
+                :class="[(hero || leadThumb) && i === 0 ? 'col-span-full' : '', leadThumb && i === 0 ? leadThumbClass : '', i === leftColumnEnd ? '@min-[28rem]:border-b-0!' : '']"
             />
         </ul>
     </GadgetFrame>
@@ -142,7 +142,22 @@ const props = withDefaults(defineProps<Props>(), {});
 const { t } = useI18n();
 const uid = useId();
 
-const cfg = computed(() => UtilGadget.postList(props.gadget.config));
+/** 템플릿이 고른 모바일 「목록형」(`mobile.listRows`, 한 열일 때만 — 사용자 2026-11-19 시험) */
+const listRows = useGadgetListRows();
+/** 「목록형」(폭과 무관) — 두 줄 줄(최신글)은 데스크톱도 같은 줄 */
+const listLook = useGadgetListLook();
+/**
+ * 글 목록 설정(정규화) — 목록형이면 최신글 줄(줄마다 구분선 · 왼쪽 사진 칸 + 제목 한 줄 + 정보 줄 …… 추천 · 보통 줄 간격). 뉴스형 한 줄(`LINE`)은 모바일에서 선만.
+ * 촘촘 줄(`COMPACT` — 인기글 순위)은 모바일(한 열)에서 줄마다 선만 더한다(줄 위아래 8px — `GadgetPostRow`). 인기글을 최신글 줄로 바꿔 봤다가 처음 모양으로 되돌림(사용자 2026-11-19)
+ */
+const cfg = computed(() => {
+    const base = UtilGadget.postList(props.gadget.config);
+    if (!listLook) return base;
+    // 촘촘 줄(인기글)·뉴스형 한 줄(뉴스)은 모바일(한 열)에서 줄마다 선만 더한다(사용자 2026-11-19 「뉴스 가젯에도 아래 목록 선」)
+    if (base.rowStyle === 'COMPACT' || base.rowStyle === 'LINE') return listRows.value ? { ...base, dividers: true } : base;
+    // 두 줄 줄(최신글 — 모바일·데스크톱 같게) — 줄 위아래 여백 보통(10px) · 제목 한 줄 + 왼쪽 사진 칸(사진 없는 글은 게시판 이모지 · 없으면 첫 글자)
+    return { ...base, dividers: true, rowSpacing: 'NORMAL' as const, thumbnail: 'LEFT' as const, titleLines: 1 as const };
+});
 /** 기간 탭의 기간별 글 — 없으면 탭 없이 `items` */
 const periods = computed(() => UtilGadget.postPeriods(props.gadget.data));
 /** 보이는 기간 탭(받은 기간만, 실시간 · 어제 · 이번 주 순) */
@@ -215,6 +230,8 @@ const hero = computed(() => cfg.value.lead === 'HERO' && shown.value.length > 0)
 const leadThumb = computed(() => cfg.value.lead === 'THUMB' && shown.value.length > 0);
 /** 첫 글 사진 줄 아래 구분선 */
 const LEAD_THUMB_CLASS = 'mb-2.5 border-b border-surface pb-2.5';
+/** 모바일 목록형(줄마다 선)은 첫 글 사진 줄 아래도 다른 줄과 같은 여백 — 선 아래 바깥 여백 없이 안 여백 8px(사용자 2026-11-19 「상단 영역 여백을 아래 행들과 맞춰」) */
+const leadThumbClass = computed(() => (listRows.value ? 'border-b border-surface pb-2' : LEAD_THUMB_CLASS));
 /** 첫 글이 두 칸을 차지하는가(크게 · 작은 사진 줄) — 그러면 두 열은 가로로 채운다 */
 const wideFirst = computed(() => hero.value || leadThumb.value);
 
