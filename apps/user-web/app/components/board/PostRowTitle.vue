@@ -26,9 +26,10 @@
         <span v-if="commentCount && row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
             <span class="sr-only">{{ t('board.commentCountLabel') }}</span><template v-if="plainCount">{{ row.commentCount }}</template><template v-else>[{{ row.commentCount }}]</template>
         </span>
-        <!-- 새 글 「N」 — 제목 글자 줄의 세로 가운데(`align-middle` 은 소문자 가운데라 1px 올린다, 확정 시안), 안의 「N」 은 라틴 대문자라 글자 보정(`chip-label`) 없이 원의 가운데(mobile-nav-prefix-style-contract 5절) -->
-        <span v-if="isNew" class="relative -top-px ml-1 inline-flex size-4 items-center justify-center rounded-full bg-primary align-middle text-[0.5625rem] font-bold leading-none text-primary-contrast" :title="t('board.newMark')">
-            <span aria-hidden="true">N</span>
+        <!-- 새 글 「N」 — 원의 가운데를 제목 글자의 대문자 높이 가운데(`new-mark`)에 둔다(글꼴이 달라도 같다 — `align-middle` 은 소문자 가운데라 글꼴마다 위로 떴다).
+             바깥 원은 제목 글자 크기를 그대로 받아야 `cap` 이 제목 기준이 되므로 「N」 글자 크기는 안쪽에만 준다. 안의 「N」 은 라틴 대문자라 글자 보정(`chip-label`) 없이 원의 가운데(mobile-nav-prefix-style-contract 5절) -->
+        <span v-if="isNew" class="new-mark ml-1 rounded-full bg-primary" :title="t('board.newMark')">
+            <span class="flex size-full items-center justify-center text-[0.5625rem] font-bold leading-none text-primary-contrast" aria-hidden="true">N</span>
             <span class="sr-only">{{ t('board.newMark') }}</span>
         </span>
     </span>
@@ -69,3 +70,16 @@ const { t } = useI18n();
 const titleParts = computed(() => UtilSearchRules.highlightParts(props.row.title, props.tokens));
 const isNew = computed(() => UtilPost.isNew(props.row.createdAt, props.newPostHours, Date.now()));
 </script>
+
+<style scoped>
+/* 새 글 「N」 원(1rem) — 넘침을 가린 인라인 블록은 아래 끝이 기준선이라, 기준선에서 (제목 대문자 높이 / 2 − 원 반지름)만큼 올리면 원의 가운데가 대문자 가운데에 온다.
+   `cap` 단위를 모르는 브라우저는 두 번째 선언을 버리고 `middle` 을 쓴다 */
+.new-mark {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    overflow: hidden;
+    vertical-align: middle;
+    vertical-align: calc(0.5cap - 0.5rem);
+}
+</style>
