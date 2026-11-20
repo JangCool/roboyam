@@ -84,11 +84,14 @@
                         <dt class="text-muted-color">{{ t('report.col.board') }}</dt>
                         <dd class="m-0">{{ localizedName(c.board.name, c.board.nameEn ?? null) }}</dd>
                     </template>
-                    <dt class="text-muted-color">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.col.author') }}</dt>
-                    <dd class="m-0">
-                        <AnonymousSealedAuthor v-if="c.author.sealed" />
-                        <template v-else>{{ UtilReportMessages.author(t, c.author) }}</template>
-                    </dd>
+                    <!-- 짤 사건은 작성자 칸이 없다(파일 단위 — 올린 사람·담은 사람을 보이지 않는다, my-jjal-contract) -->
+                    <template v-if="c.targetType !== 'JJAL'">
+                        <dt class="text-muted-color">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.col.author') }}</dt>
+                        <dd class="m-0">
+                            <AnonymousSealedAuthor v-if="c.author.sealed" />
+                            <template v-else>{{ UtilReportMessages.author(t, c.author) }}</template>
+                        </dd>
+                    </template>
                     <dt class="text-muted-color">{{ t('report.targetStateLabel') }}</dt>
                     <dd class="m-0"><ReportTargetStateTag :target="c.target" lines /></dd>
                     <dt class="text-muted-color">{{ t('report.firstReported') }}</dt>
@@ -105,14 +108,34 @@
                         <dd class="m-0">{{ detail.group.category?.name ?? '—' }}</dd>
                     </template>
                 </dl>
+                <!-- 짤 사건(목업) — 신고된 짤 미리 보기 · 크기 · 움짤 · 내려감 -->
+                <div v-if="c.targetType === 'JJAL' && c.target.jjal" class="flex flex-col gap-2 rounded-lg border border-(--line) p-3" data-testid="report-drawer-jjal">
+                    <p class="m-0 flex flex-wrap items-center gap-1.5 text-xs font-medium">
+                        {{ t('report.jjalPreview') }}
+                        <span class="font-normal tabular-nums text-muted-color">{{ t('report.jjalSize', { width: c.target.jjal.width, height: c.target.jjal.height }) }}</span>
+                        <Tag v-if="c.target.jjal.animated" :value="t('report.jjalAnimated')" severity="secondary" class="text-[11px]!" />
+                    </p>
+                    <div class="grid place-items-center rounded-md bg-(--p-content-hover-background) p-2">
+                        <img
+                            :src="c.target.jjal.url"
+                            alt=""
+                            :width="c.target.jjal.width"
+                            :height="c.target.jjal.height"
+                            class="h-auto max-h-64 max-w-full object-contain"
+                            :class="c.target.jjal.blocked ? 'opacity-40 grayscale' : ''"
+                        />
+                    </div>
+                    <Message v-if="c.target.jjal.blocked" severity="error" size="small" :closable="false">{{ t('report.jjalBlocked') }}</Message>
+                    <p class="m-0 text-xs text-muted-color">{{ t('report.jjalNote') }}</p>
+                </div>
                 <template v-if="c.targetType === 'GROUP' && detail.group">
                     <Message v-if="detail.group.offline" severity="warn" size="small" :closable="false">{{ t('report.groupOffline') }}</Message>
                     <Message v-if="detail.group.stockNotice" severity="warn" size="small" :closable="false">{{ t('report.groupStock') }}</Message>
                 </template>
             </section>
 
-            <!-- 지금 원문 + 신고 당시 -->
-            <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-body`">
+            <!-- 지금 원문 + 신고 당시 — 짤 사건은 위 미리 보기가 대신한다 -->
+            <section v-if="c.targetType !== 'JJAL'" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-body`">
                 <div class="flex flex-wrap items-center gap-2">
                     <h3 :id="`${titleId}-body`" class="text-sm font-semibold">{{ t('report.bodyNow') }}</h3>
                     <Tag v-if="changed" :value="t('report.editedAfterReport')" icon="pi pi-pencil" severity="warn" class="text-[11px]!" />
@@ -165,8 +188,8 @@
                 </ol>
             </section>
 
-            <!-- 작성자 -->
-            <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-author`">
+            <!-- 작성자 — 짤 사건은 없다 -->
+            <section v-if="c.targetType !== 'JJAL'" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-author`">
                 <h3 :id="`${titleId}-author`" class="text-sm font-semibold">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.authorTitle') }}</h3>
                 <div class="flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2">
                     <!-- 익명 게시판 글·댓글(`author.sealed` — anonymous-board-contract) — 자물쇠 + 「익명 · 작성자 봉인됨」, [이 글(댓글) 작성자 제재](`sanction.manage`) · [작성자 열람](`anonymous-author.reveal`) -->
@@ -269,8 +292,10 @@
                         @click="emit('act', kind)"
                     />
                 </div>
-                <div v-else-if="canReopen" class="flex flex-wrap justify-end gap-2">
-                    <Button type="button" :label="t('report.reopen')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" :loading="busy" :disabled="loading" @click="emit('reopen')" />
+                <div v-else-if="canReopen || canRestoreJjal" class="flex flex-wrap justify-end gap-2">
+                    <Button v-if="canReopen" type="button" :label="t('report.reopen')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" :loading="busy" :disabled="loading" @click="emit('reopen')" />
+                    <!-- 짤 되돌림(목업) — 내린 짤을 다시 보이게. 사건은 닫힌 그대로 -->
+                    <Button v-if="canRestoreJjal" type="button" :label="t('report.jjalRestore')" icon="pi pi-undo" size="small" severity="secondary" variant="outlined" :loading="busy" :disabled="loading" data-testid="report-drawer-jjal-restore" @click="emit('jjal-restore')" />
                 </div>
             </div>
         </template>
@@ -343,6 +368,8 @@ const emit = defineEmits<{
     'sealed-sanction': [];
     /** [작성자 열람] — 열람 창은 부른 화면이 연다 */
     'sealed-reveal': [];
+    /** [되돌림] — 내린 짤을 다시 보이게(확인·호출은 부른 화면) */
+    'jjal-restore': [];
 }>();
 
 const { t } = useI18n();
@@ -376,6 +403,11 @@ const reports = computed(() => props.detail?.reports ?? []);
 const closure = computed(() => (props.detail && !UtilReport.isOpen(props.detail.case.status) ? UtilReport.closure(props.detail) : null));
 const actionList = computed(() => UtilReport.actionList(props.actions));
 const canReopen = computed(() => props.canManage && props.detail?.case.status === 'DISMISSED');
+/** 짤 되돌림 — 닫힌 짤 사건이고 짤이 내려가 있을 때(`report.manage`) */
+const canRestoreJjal = computed(() => {
+    const item = props.detail?.case;
+    return Boolean(props.canManage && item && item.targetType === 'JJAL' && item.target.jjal?.blocked && !UtilReport.isOpen(item.status));
+});
 /** 핫딜 글 사건 — 딜 상태를 알면(서버 `deal`, 계약 밖) 함께 보인다 */
 const dealCase = computed(() => (props.detail ? UtilReport.isDealCase(props.detail.case) : false));
 const dealViewLabel = computed(() => {

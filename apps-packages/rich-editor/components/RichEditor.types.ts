@@ -1,4 +1,5 @@
 import type { RichEmoticonResolve } from '#layers/rich-editor/utils/util-rich-emoticon';
+import type { RichJjalResolve } from '#layers/rich-editor/utils/util-rich-jjal';
 
 /**
  * `RichEditor` 의 계약 타입 — 쓰는 앱(글쓰기·댓글·나중에 관리자 메일 템플릿)이 명시적으로 import 한다(`#layers/rich-editor/components/RichEditor.types`).
@@ -40,6 +41,16 @@ export type RichImageUploader = (file: File, options: RichImageUploadOptions) =>
 export interface RichEmoticonSource {
     resolve: RichEmoticonResolve;
     version?: number;
+}
+
+/**
+ * 내 짤 그림 찾기 — 쓰는 앱이 자기 짤 정보로 만들어 준다(레이어는 서버를 부르지 않는다). 주면 짤 노드가 켜진다(`editor/jjalInline.ts`, user-web 만).
+ * `version` 이 바뀌면(짤 정보를 늦게 받았을 때) 본문의 짤을 다시 그린다. `blockedLabel` = 내려간 짤 자리 글(앱이 번역).
+ */
+export interface RichJjalSource {
+    resolve: RichJjalResolve;
+    version?: number;
+    blockedLabel?: string;
 }
 
 /** 에디터의 첨부 상태 — 부모가 「올리는 중·실패한 이미지가 있으면 저장 막기」에 쓴다 */

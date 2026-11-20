@@ -15,11 +15,12 @@
             :invalid="Boolean(contentError)"
             :disabled="submitting"
             :emoticons="emoticonSource"
+            :jjals="jjalSource"
             :video-links="UtilPost.COMMENT_VIDEO_MAX"
         >
-            <!-- 이모티콘 고르기 — 이모지는 글자로, 이모티콘은 그림 노드로(저장은 토큰 글자) -->
+            <!-- 이모티콘 고르기 — 이모지는 글자로, 이모티콘·짤은 그림 노드로(저장은 토큰 글자). 짤 탭은 게시판 `commentJjalAllowed` 일 때만 -->
             <template #tools>
-                <EmoticonPicker icon :disabled="submitting" @emoji="editorRef?.insertText($event)" @emoticon="editorRef?.insertEmoticon($event)" />
+                <EmoticonPicker icon :jjal="jjalAllowed" :disabled="submitting" @emoji="editorRef?.insertText($event)" @emoticon="editorRef?.insertEmoticon($event)" @jjal="insertJjal" />
             </template>
         </RichEditor>
         <Textarea
@@ -36,7 +37,7 @@
             auto-resize
         />
         <!-- 평문 입력칸의 이모티콘은 토큰 글자로 들어간다 — 넣은 것을 그림 칩으로 미리 보인다 -->
-        <EmoticonTokenPreview v-if="format !== 'HTML'" :text="content" @remove="removeToken" />
+        <EmoticonTokenPreview v-if="format !== 'HTML'" :text="content" @remove="removeToken" @remove-jjal="removeJjalToken" />
         <p v-if="contentError" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ contentError }}</p>
         <p v-else-if="linkWarning" class="text-xs text-amber-700 dark:text-amber-400">{{ linkWarning }}</p>
 
@@ -55,7 +56,7 @@
         <Message v-if="formError" severity="error" variant="simple" size="small" role="alert">{{ formError }}</Message>
 
         <div class="flex items-center justify-between gap-2">
-            <EmoticonPicker v-if="format !== 'HTML'" :disabled="submitting" @emoji="insertAtCursor" @emoticon="insertAtCursor(UtilRichEmoticon.token($event))" />
+            <EmoticonPicker v-if="format !== 'HTML'" :jjal="jjalAllowed" :disabled="submitting" @emoji="insertAtCursor" @emoticon="insertAtCursor(UtilRichEmoticon.token($event))" @jjal="insertJjal" />
             <span class="mr-auto text-xs tabular-nums" :class="length > maxLength ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ length.toLocaleString() }} / {{ maxLength.toLocaleString() }}</span>
             <div class="flex gap-2">
                 <Button v-if="cancelable" type="button" :label="t('common.cancel')" severity="secondary" variant="text" size="small" @click="$emit('cancel')" />
@@ -73,6 +74,8 @@ import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
+import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
+import UtilJjal from '~/utils/util-jjal';
 
 interface Props {
     board: BoardDetail;
@@ -124,12 +127,29 @@ const { t } = useI18n();
 /** 이 폼의 본문 형식 — 게시판 댓글 에디터 설정(폼이 만들어질 때 정해진다. 설정이 바뀌면 부르는 쪽이 폼을 새로 만든다) */
 const format: ContentFormat = UtilBoard.commentFormat(props.board);
 const content = ref(UtilPost.convertContent(props.initialContent, props.initialFormat, format));
-const editorRef = ref<{ focus: () => void; insertText: (text: string) => void; insertEmoticon: (id: string) => void } | null>(null);
+const editorRef = ref<{ focus: () => void; insertText: (text: string) => void; insertEmoticon: (id: string) => void; insertJjal: (id: string) => void } | null>(null);
 const textareaRef = ref<{ $el: HTMLTextAreaElement } | null>(null);
 /** 에디터의 이모티콘 그림 찾기(카탈로그) — 고치는 댓글에 토큰이 있으면 그림으로 보이게 미리 받는다 */
 const catalog = useEmoticonCatalog();
 const emoticonSource = catalog.editorSource;
 if (UtilRichEmoticon.has(props.initialContent)) void catalog.ensureLoaded();
+/** 에디터의 짤 그림 찾기 — 고치는 댓글에 짤 토큰이 있으면 정보를 미리 받는다(늦게 오면 에디터가 다시 그린다) */
+const jjalCatalog = useJjalCatalog();
+const jjalSource = jjalCatalog.editorSource;
+if (UtilRichJjal.has(props.initialContent)) void jjalCatalog.ensure(UtilRichJjal.ids(props.initialContent));
+/** 짤 탭 — 게시판 댓글 짤 허용(`commentJjalAllowed`) */
+const jjalAllowed = computed(() => UtilJjal.commentAllowed(props.board));
+const toast = useAppToast();
+
+/** 고른 짤을 넣는다 — 댓글은 1개까지(서버 규칙 — 넘으면 넣지 않고 알린다). 에디터는 그림 노드, 평문은 토큰 글자 */
+function insertJjal(id: string): void {
+    if (UtilRichJjal.count(content.value) >= UtilJjal.MAX_PER_COMMENT) {
+        toast.show(t('jjal.tooManyComment', { max: UtilJjal.MAX_PER_COMMENT }));
+        return;
+    }
+    if (format === 'HTML') editorRef.value?.insertJjal(id);
+    else insertAtCursor(UtilRichJjal.token(id));
+}
 
 /** 평문 입력칸의 커서 자리에 글자(이모지·토큰)를 넣는다 — 고른 글자가 있으면 바꾼다 */
 function insertAtCursor(text: string): void {
@@ -148,6 +168,11 @@ function insertAtCursor(text: string): void {
 /** 미리보기 칩의 ✕ — 본문의 n번째 토큰을 지운다 */
 function removeToken(index: number): void {
     content.value = UtilRichEmoticon.removeAt(content.value, index);
+}
+
+/** 짤 칩의 ✕ — 본문의 n번째 짤 토큰을 지운다 */
+function removeJjalToken(index: number): void {
+    content.value = UtilRichJjal.removeAt(content.value, index);
 }
 // 고치기·답글 폼은 열리자마자 입력할 수 있게 — 에디터는 autofocus 속성이 없어 직접 초점을 준다
 onMounted(() => {

@@ -814,6 +814,48 @@ body {
         }
     }
 
+    /*
+     * 내 짤(글·댓글 본문 · 에디터 노드) — 토큰 `:jjal-ID:` 를 그린 `<img class="jjal">`(`EmoticonText` · `UtilRichJjal`, docs/features/my-jjal-contract.md).
+     * 저장본은 긴 변 300px 이하 — 글줄 안에서는 긴 변 200px(모바일 160px)까지 줄여 보인다(가로·세로 비율 그대로). 누르면(휴대폰은 길게) 짤 메뉴라 휴대폰 기본 길게 누르기 메뉴를 끈다.
+     * 내려간 짤은 그림 대신 점선 자리 `.jjal-blocked`(「내려간 짤」).
+     */
+    img.jjal {
+        display: inline-block;
+        width: auto;
+        height: auto;
+        max-width: min(100%, 200px);
+        max-height: 200px;
+        object-fit: contain;
+        vertical-align: bottom;
+        margin: 2px 1px;
+        border-radius: 4px;
+        cursor: pointer;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    .jjal-blocked {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 72px;
+        margin: 2px 1px;
+        vertical-align: bottom;
+        border: 1px dashed var(--p-content-border-color);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--p-text-color) 4%, transparent);
+        color: var(--p-text-muted-color);
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+    @media (max-width: 767.98px) {
+        img.jjal {
+            max-width: min(100%, 160px);
+            max-height: 160px;
+        }
+    }
+
     .scroll-row-track {
         position: absolute;
         inset-inline: 0;

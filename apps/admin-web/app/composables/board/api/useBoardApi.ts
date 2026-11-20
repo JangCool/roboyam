@@ -21,6 +21,7 @@ import type {
     BoardStaffCandidate,
     BoardStaffMember,
 } from '~/composables/board/api/useBoardApi.types';
+import { mockFillJjalBoard, mockFillJjalDefaults, mockRememberJjalBoard, mockRememberJjalDefaults } from '~/composables/board/api/mock/board-jjal-mock';
 
 /**
  * 게시판 관리 API — 서버 주소 문자열(`/api/admin/boards…`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -74,11 +75,17 @@ export function useBoardApi() {
     return {
         /** 기본 설정 + 기본값을 따르는/따로 정한 게시판 */
         defaults: (): Promise<BoardDefaultsResponse> =>
-            client.get<BoardDefaultsResponse>(PATH.defaults),
+            // MOCK: 댓글 짤 허용 칸을 채운다(my-jjal-contract) — 서버가 칸을 주면 `.then(...)` 을 지운다
+            client.get<BoardDefaultsResponse>(PATH.defaults).then(mockFillJjalDefaults),
+        // REAL: client.get<BoardDefaultsResponse>(PATH.defaults),
 
         /** 기본 설정을 한 번에 저장한다 */
-        saveDefaults: (body: BoardDefaultsSaveRequest): Promise<BoardDefaultsResponse> =>
-            client.put<BoardDefaultsResponse>(PATH.defaults, body),
+        saveDefaults: (body: BoardDefaultsSaveRequest): Promise<BoardDefaultsResponse> => {
+            // MOCK: 댓글 짤 허용 칸은 서버에 없다 — 메모리에 기억하고 응답에 채운다
+            mockRememberJjalDefaults(body);
+            return client.put<BoardDefaultsResponse>(PATH.defaults, body).then(mockFillJjalDefaults);
+            // REAL: return client.put<BoardDefaultsResponse>(PATH.defaults, body);
+        },
 
         /** 게시판 목록 — 순서대로, 꺼진 것 포함 */
         list: (): Promise<BoardListResponse> =>
@@ -89,10 +96,16 @@ export function useBoardApi() {
             client.post<BoardListItem>(PATH.boards, body),
 
         /** 게시판 하나(설정 화면) — 화면 주소의 slug 로 */
-        bySlug: (slug: string): Promise<BoardDetail> => client.get<BoardDetail>(PATH.bySlug(slug)),
+        // MOCK: 댓글 짤 허용 칸을 채운다 — REAL: client.get<BoardDetail>(PATH.bySlug(slug))
+        bySlug: (slug: string): Promise<BoardDetail> => client.get<BoardDetail>(PATH.bySlug(slug)).then(mockFillJjalBoard),
 
         /** 기본 정보 + 정책 + 말머리를 한 번에 저장한다 */
-        save: (id: string, body: BoardSaveRequest): Promise<BoardDetail> => client.put<BoardDetail>(PATH.board(id), body),
+        save: (id: string, body: BoardSaveRequest): Promise<BoardDetail> => {
+            // MOCK: 댓글 짤 허용 칸은 서버에 없다 — 메모리에 기억하고 응답에 채운다
+            mockRememberJjalBoard(id, body);
+            return client.put<BoardDetail>(PATH.board(id), body).then(mockFillJjalBoard);
+            // REAL: return client.put<BoardDetail>(PATH.board(id), body);
+        },
 
         /** 게시판을 켜고 끈다 */
         setActive: (id: string, active: boolean): Promise<BoardListItem> =>

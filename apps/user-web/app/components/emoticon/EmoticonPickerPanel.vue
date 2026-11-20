@@ -1,7 +1,7 @@
 <template>
     <!--
         이모티콘 고르기 창의 내용 — 데스크톱 팝오버·모바일 하단 시트(`EmoticonPicker`)가 같이 넣는다.
-        탭: 「이모지」(유니코드 글자 — 최근 사용 + 묶음, 누구나) + 받은 팩마다 한 탭(대표 그림, 64px 격자 — 누르면 토큰).
+        탭: 「이모지」(유니코드 글자 — 최근 사용 + 묶음, 누구나) + 「짤」(내 짤 — 회원이고 그 자리가 짤을 받을 때만, `jjal`) + 받은 팩마다 한 탭(대표 그림, 64px 격자 — 누르면 토큰).
         운영자 회원 계정(`useMyEmoticons().allPacks`)이면 가진 팩 뒤에 나머지 판매 중 팩을 더하고 작은 「운영자」 표시를 붙인다(판매 중단 팩은 가진 것만).
         받은 팩이 없으면 상점 링크, 로그인하지 않았으면 이모지 탭만 + 로그인 안내 한 줄.
     -->
@@ -21,6 +21,22 @@
                 @click="tab = EMOJI"
             >
                 <span aria-hidden="true">😀</span><span class="sr-only">{{ t('emoticon.emojiTab') }}</span>
+            </button>
+            <!-- 내 짤(my-jjal-contract) — 😀 다음, 받은 팩 앞. 비회원·짤을 받지 않는 자리(게시판 설정)는 탭 없음 -->
+            <button
+                v-if="jjalShown"
+                :id="`${uid}-tab-jjal`"
+                type="button"
+                role="tab"
+                :aria-selected="tab === JJAL"
+                :aria-controls="`${uid}-panel`"
+                class="grid h-10 shrink-0 place-items-center rounded-lg px-2.5 text-sm font-bold focus-visible:outline-2 focus-visible:outline-primary"
+                :class="tab === JJAL ? 'bg-surface-200 dark:bg-surface-700' : 'hover:bg-surface-100 dark:hover:bg-surface-800'"
+                :title="t('jjal.tabTitle')"
+                data-testid="picker-tab-jjal"
+                @click="tab = JJAL"
+            >
+                {{ t('jjal.tab') }}
             </button>
             <button
                 v-for="pack in packList"
@@ -59,7 +75,7 @@
             </NuxtLink>
         </div>
 
-        <div :id="`${uid}-panel`" role="tabpanel" :aria-labelledby="`${uid}-tab-${tab === EMOJI ? 'emoji' : tab}`" class="h-72 overflow-y-auto px-2 py-2">
+        <div :id="`${uid}-panel`" role="tabpanel" :aria-labelledby="`${uid}-tab-${tab === EMOJI ? 'emoji' : tab === JJAL ? 'jjal' : tab}`" class="h-72 overflow-y-auto px-2 py-2">
             <!-- 이모지 -->
             <template v-if="tab === EMOJI">
                 <section v-if="recentList.length" class="mb-2" :aria-labelledby="`${uid}-recent`">
@@ -80,6 +96,9 @@
                     <NuxtLink :to="UtilEmoticon.PATH" class="font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click="$emit('navigate')">{{ t('emoticon.pickerEmptyLink') }}</NuxtLink>
                 </p>
             </template>
+
+            <!-- 내 짤 — 첫 칸 올리기 + 최근 쓴 차례 -->
+            <JjalPickerGrid v-else-if="tab === JJAL && jjalShown" @pick="$emit('jjal', $event)" @upload="startUpload" />
 
             <!-- 받은 팩 — 64px 격자 -->
             <template v-else-if="currentPack">
@@ -121,12 +140,23 @@ interface PickerPack {
     operator: boolean;
 }
 
+interface Props {
+    /** 「짤」 탭을 보인다 — 글 본문은 게시판 `postJjalAllowed`, 댓글은 `commentJjalAllowed`(부르는 쪽이 정한다). 비회원은 늘 없다 */
+    jjal?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    jjal: false,
+});
+
 const emit = defineEmits<{
     /** 유니코드 이모지 한 글자(그대로 넣는다) */
     emoji: [value: string];
     /** 이모티콘 ID(토큰으로 넣는다) */
     emoticon: [id: string];
-    /** 상점 링크로 나간다 — 창을 닫는다 */
+    /** 내 짤 ID(토큰 `:jjal-ID:` 로 넣는다) */
+    jjal: [id: string];
+    /** 상점 링크로 나간다·올리기 창을 연다 — 창을 닫는다 */
     navigate: [];
 }>();
 
@@ -139,9 +169,19 @@ const catalog = useEmoticonCatalog();
 const recent = useRecentEmoji();
 
 const EMOJI = '__emoji__';
+const JJAL = '__jjal__';
 const EMOJI_CELL = 'grid aspect-square place-items-center rounded-lg text-[1.375rem] leading-none hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800';
 
 const loggedIn = computed(() => Boolean(user.value));
+/** 짤 탭 — 회원이고 이 자리가 짤을 받을 때 */
+const jjalShown = computed(() => loggedIn.value && props.jjal);
+const jjalUi = useJjalUi();
+
+/** 짤 탭의 「올리기」 — 고르기 창을 닫고 올리기 창(처음이면 안내 창 먼저)을 연다 */
+function startUpload(): void {
+    emit('navigate');
+    jjalUi.openUpload();
+}
 const loaded = computed(() => mine.packs.value !== undefined);
 
 /** 운영자 회원 계정의 나머지 판매 중 팩 — 그림은 카탈로그에서 팩 ID 로 묶는다(카탈로그에 그림이 없는 팩은 뺀다) */

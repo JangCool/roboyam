@@ -1,4 +1,5 @@
 import type { ReportRequest } from '~/composables/report/api/useReportApi.types';
+import { mockReportJjal } from '~/composables/jjal/api/mock/jjal-mock';
 
 /**
  * 신고 API — 서버 주소(`/api/reports`)가 있는 유일한 곳. 상태는 없다. 글·댓글(이후 프로필·쪽지)이 같이 쓴다.
@@ -21,6 +22,10 @@ export function useReportApi() {
 
     return {
         /** 신고 — 회원만. 204 */
-        report: (body: ReportRequest): Promise<void> => client.post<void>(PATH.reports, body),
+        report: (body: ReportRequest): Promise<void> => {
+            // MOCK: 짤 신고(대상 종류 `JJAL`)는 아직 서버에 없다 — 서버가 받으면 이 줄을 지운다
+            if (body.targetType === 'JJAL') return mockReportJjal(body);
+            return client.post<void>(PATH.reports, body);
+        },
     };
 }

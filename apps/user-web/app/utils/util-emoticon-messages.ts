@@ -10,6 +10,7 @@ import UtilEmoticon from '~/utils/util-emoticon';
 import UtilIdentityMessages from '~/utils/util-identity-messages';
 import UtilEmoticonSpec from '~/utils/util-emoticon-spec';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
+import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
 
 /**
  * 이모티콘 화면의 계산이 낀 문구 — 규격 문제(값이 들어간다)·칸 문제·상태 이름·오류 한 줄·한 줄 요약. 상수 문구는 화면이 `t('emoticon.…')` 를 직접 부른다.
@@ -219,13 +220,15 @@ export default class UtilEmoticonMessages {
     }
 
     /**
-     * 한 줄 요약 — 토큰을 「(이모티콘)」으로(목록 미리보기·알림).
+     * 한 줄 요약 — 토큰을 「(이모티콘)」·「(짤)」으로(목록 미리보기·알림).
      * @param {Translate} t - 번역 함수.
      * @param {string | null | undefined} text - 글자.
      * @returns {string} 바꾼 글자.
      */
     static summary(t: Translate, text: string | null | undefined): string {
         if (!text) return '';
-        return UtilRichEmoticon.has(text) ? UtilRichEmoticon.summarize(text, t('emoticon.summaryWord')) : text;
+        const withEmoticons = UtilRichEmoticon.has(text) ? UtilRichEmoticon.summarize(text, t('emoticon.summaryWord')) : text;
+        // 내 짤 토큰(my-jjal-contract)도 「(짤)」로
+        return UtilRichJjal.has(withEmoticons) ? UtilRichJjal.summarize(withEmoticons, t('jjal.summaryWord')) : withEmoticons;
     }
 }

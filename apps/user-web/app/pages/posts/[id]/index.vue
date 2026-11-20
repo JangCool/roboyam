@@ -269,7 +269,7 @@
                             그린 뒤 유튜브(누르면 youtube-nocookie iframe)·이미지(실패 자리표시)는 `UtilRichBody.enhance` 가 DOM API 로만 손질한다. 평문 글은 아래처럼 글자로 그린다
                         -->
                         <!-- eslint-disable-next-line vue/no-v-html -->
-                        <div v-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-html="post.content" />
+                        <div v-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-on="jjalPress" v-html="post.content" />
                         <div v-else class="py-5 text-[0.9375rem] leading-relaxed" data-testid="post-body">
                             <p v-for="(lines, i) in paragraphs" :key="i" class="mb-4 break-words last:mb-0">
                                 <template v-for="(line, j) in lines" :key="j">
@@ -602,6 +602,8 @@ import type { PollCardActions } from '~/components/board/PostPollCard.types';
 import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
+import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
+import UtilJjal from '~/utils/util-jjal';
 import UtilAd from '~/utils/util-ad';
 import UtilAdultBoard from '~/utils/util-adult-board';
 import UtilBlockMessages from '~/utils/util-block-messages';
@@ -711,6 +713,8 @@ const adultVerifying = ref(false);
 /** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 서버 `DealSellerHiddenException`, `applicationId` 는 작성자에게만) */
 const sellerHidden = ref<{ state: 'PAUSED' | 'STOPPED'; boardSlug: string; boardName: string; boardNameEn: string | null; applicationId: string | null } | null>(null);
 const board = ref<BoardDetail | null>(null);
+/** 19금 게시판(성인 전용)의 글·댓글 짤은 「내 짤에 담기」 없음(my-jjal-contract 정책 5) — 이 글 화면 아래의 짤 메뉴가 읽는다 */
+provideJjalContext(() => UtilJjal.collectableIn(board.value));
 /** 글 보기 머리의 말머리 모양 — 게시판 정보의 `prefixStyle`(서버가 사이트 기본까지 푼 값), 칸이 없으면 글자(mobile-nav-prefix-style-contract 1절) */
 const headPrefixStyle = computed(() => UtilBoard.prefixStyle(board.value?.prefixStyle));
 const pageState = ref<PageState>('loading');
@@ -1103,6 +1107,20 @@ watch(
         if (!el || !UtilRichEmoticon.has(post.value?.content)) return;
         void emoticonCatalog.ensureLoaded();
         UtilRichEmoticon.replaceIn(el, emoticonCatalog.resolve);
+    },
+    { flush: 'post' },
+);
+/** 글 본문의 내 짤 토큰 — 이모티콘과 같은 방식. 누르면 짤 메뉴(`useJjalPress` — 평문 글·댓글은 `EmoticonText` 안에서) */
+const jjalCatalog = useJjalCatalog();
+const jjalPress = useJjalPress();
+watch(
+    [htmlBody, () => post.value?.content, jjalCatalog.version],
+    () => {
+        const el = htmlBody.value;
+        const content = post.value?.content;
+        if (!el || !UtilRichJjal.has(content)) return;
+        void jjalCatalog.ensure(UtilRichJjal.ids(content));
+        UtilRichJjal.replaceIn(el, jjalCatalog.image, t('jjal.blockedLabel'));
     },
     { flush: 'post' },
 );

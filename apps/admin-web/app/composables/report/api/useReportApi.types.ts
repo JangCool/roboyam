@@ -12,6 +12,9 @@ import type { SanctionLine, SanctionPreview, SanctionWithReport } from '~/compos
  *   - `board` = 그 소모임의 게시판 · `author` = 신고 당시 모임장 · `content` = `TEXT` 소개 · 스냅샷 `title` = 신고 당시 이름, `body` = 소개, `authorName` = 모임장 · 상세 `group` = 지금 소모임 값.
  *   - 조치는 `DEACTIVATE`(소모임 비활성화 — 관리자 소모임 관리의 비활성화와 같은 서비스, 모임장 알림, 비활성 기록에 이 사건, **글 1~200자**)와 무시뿐. 사유 코드는 소모임 사유 4종(섞으면 400 `fields.reasonCode`).
  *   - 목록 거르기 `targetType=GROUP` · `groupId`(그 소모임 사건), 제목 검색(`searchField=TITLE`)은 지금 소모임 이름도 찾는다. 자동 숨김은 없다.
+ *
+ * **짤 대상(`JJAL`, my-jjal-contract 「신고」 — 아직 서버에 없다, 목업)**: 파일 단위 사건. `target.jjal` = 그림·크기·내려감, `postId`·`commentId` null, `title` = 「짤 {ID}」(가정), `state` = `PUBLIC`(보임)·`HIDDEN`(내림).
+ *   조치는 `JJAL_BLOCK`(짤 내림 — 모든 보관함·글·댓글에서 「내려간 짤」, 같은 해시 다시 올리기 거절)과 무시, 닫은 뒤 [되돌림](`POST /{id}/jjal-restore` — 가정). 권한은 지금 신고 처리 권한 그대로(`report.manage`).
  */
 
 /** 사건 상태 — 대기 · 검토 중(누가 열어 봄) · 처리됨(조치) · 무시 */
@@ -20,7 +23,7 @@ export type ReportCaseStatus = 'PENDING' | 'IN_REVIEW' | 'RESOLVED' | 'DISMISSED
 /** 상태 거르기 — `OPEN`(기본) = 대기 + 검토 중 */
 export type ReportStatusFilter = 'OPEN' | 'PENDING' | 'IN_REVIEW' | 'RESOLVED' | 'DISMISSED' | 'ALL';
 
-export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP';
+export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP' | 'JJAL';
 
 /**
  * 신고 사유 코드 — 글·댓글은 게시판 신고 정책(`BoardReportReason`)과 같은 6종, 소모임은 홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집 · 기타(서버 `ReportReasons.GROUP_ALL`).
@@ -59,7 +62,7 @@ export type ReportHiddenReason = 'REPORTED' | 'ILLEGAL' | 'RIGHTS' | 'STAFF';
  * `SPONSOR_LABEL`(협찬 표시 붙임 — 체험단 「확인할 일」의 협찬 숨김 확인에서 닫은 사건, 점검 D2)은 기록에만 남는 조치다(처리 대화창에서 고르지 않는다).
  * `DEAL_END`(hotdeal-contract 「신고 사건 조치」): 그 글의 딜을 운영진 종료로 바꾸고(작성자 알림에 처리 글이 사유로 간다) 사건을 처리됨으로 닫는다(처리 글 1~200자, 글은 숨기지 않는다 — 핫딜 글이 아니면 `409 REPORT_ACTION_INVALID`).
  */
-export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'SANCTION_ONLY' | 'SPONSOR_LABEL' | 'DISMISS';
+export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'JJAL_BLOCK' | 'SANCTION_ONLY' | 'SPONSOR_LABEL' | 'DISMISS';
 
 /**
  * 처리 대화창의 조치 — `SANCTION_ONLY`(제재만 — 대상은 그대로 두고 작성자만 제재, member-sanction-contract 결정 4)는 요청에서 `action: 'NONE'` + `sanction` 필수다.
@@ -91,6 +94,19 @@ export interface ReportTarget {
     hiddenReason: ReportHiddenReason | null;
     /** 권리침해 임시조치면 다시 보이는 시각 */
     hiddenUntil: string | null;
+    /** 짤 대상이면 그 짤(그림 미리 보기), 그 밖 null·없음 */
+    jjal?: ReportJjal | null;
+}
+
+/** 짤 사건의 대상 짤(파일 단위) — my-jjal-contract */
+export interface ReportJjal {
+    id: string;
+    url: string;
+    width: number;
+    height: number;
+    animated: boolean;
+    /** 내려간 짤(모든 보관함·글·댓글에서 「내려간 짤」) */
+    blocked: boolean;
 }
 
 export interface ReportBoardRef {

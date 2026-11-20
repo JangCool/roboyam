@@ -262,7 +262,7 @@
                 </AppGadget>
 
                 <!-- 2. 글쓰기·댓글 -->
-                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', ...RULE_FIELDS, 'writeLock', 'secretMode', 'statusEnabled'])">
+                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'postJjalAllowed', 'commentEditor', 'commentJjalAllowed', ...RULE_FIELDS, 'writeLock', 'secretMode', 'statusEnabled'])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
                         <BoardSettingField v-for="field in WRITE_FIELDS" :key="field" v-bind="policyBind(field)" :allow-guest="UtilBoard.guestAllowed(saved.kind)" :exclude-grades="field === 'writeMin' && saved.kind === 'DEAL' && firstGradeKey ? [firstGradeKey] : []" :inactive="writeInactive(field)" :note="writeNote(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
                         <!-- 글 규칙 — 말머리 필수·태그 필수(ai-news-reporter-contract 「뉴스 게시판 글 규칙」, 회원·AI 공통). 정책 칸이라 사이트 기본 따르기·켬·끔 -->
@@ -649,7 +649,8 @@ const canStaffLimit = computed(() => can('board.staff.limit'));
 const canStaffManage = computed(() => can('board.staff.manage'));
 const canDelete = computed(() => can('board.delete'));
 
-const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
+/** 쓰기 칸 — 본문 짤 허용(`postJjalAllowed`)은 이미지 올리기 옆, 댓글 짤 허용(`commentJjalAllowed`)은 댓글 에디터 옆(my-jjal-contract). 짤 칸은 에디터 수준과 상관없이 늘 바꿀 수 있다 */
+const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'postJjalAllowed', 'commentEditor', 'commentJjalAllowed'] as const;
 /** 글 규칙 — 말머리 필수·태그 필수(쓰기 구획) */
 const RULE_FIELDS = ['prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled'] as const;
 /** 글 상세 맨 아래 탭의 PC·휴대폰 표시(기본 정보 구획 — 글 상세 아래 목록 옆) */

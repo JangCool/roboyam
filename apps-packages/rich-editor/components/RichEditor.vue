@@ -61,7 +61,7 @@
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import type { Editor, Extensions } from '@tiptap/vue-3';
 import type { EditorView } from '@tiptap/pm/view';
-import type { RichEditorLevel, RichEditorMediaState, RichEmoticonSource, RichImageUploader, RichImageUploadResult } from '#layers/rich-editor/components/RichEditor.types';
+import type { RichEditorLevel, RichEditorMediaState, RichEmoticonSource, RichImageUploader, RichImageUploadResult, RichJjalSource } from '#layers/rich-editor/components/RichEditor.types';
 import { richFormatExtensions } from '#layers/rich-editor/editor/richExtensions';
 import { IMAGE_TEXT_MAX, ImageBlock } from '#layers/rich-editor/editor/imageBlock';
 import { YoutubeBlock } from '#layers/rich-editor/editor/youtubeBlock';
@@ -70,6 +70,8 @@ import type { EmbedBlockLabels } from '#layers/rich-editor/editor/embedBlock';
 import type { RichEmbed, RichEmbedProvider } from '#layers/rich-editor/utils/util-rich-media';
 import { EmoticonInline } from '#layers/rich-editor/editor/emoticonInline';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
+import { JjalInline } from '#layers/rich-editor/editor/jjalInline';
+import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
 import { UploadSlots, releaseSlot, reserveSlot, takeSlot } from '#layers/rich-editor/editor/uploadSlots';
 import { countMedia } from '#layers/rich-editor/editor/mediaCount';
 import UtilRichFormats from '#layers/rich-editor/utils/util-rich-formats';
@@ -92,6 +94,8 @@ interface Props {
     compact?: boolean;
     /** 이모티콘 그림 찾기 — 주면 이모티콘 노드가 켜진다(user-web 만). 켜고 끄는 것은 만들 때 정해진다(그림은 `version` 이 바뀌면 다시 찾는다) */
     emoticons?: RichEmoticonSource | null;
+    /** 내 짤 그림 찾기 — 주면 짤 노드가 켜진다(user-web 만, 계약 my-jjal-contract). 이모티콘과 같이 만들 때 정해진다(그림은 `version` 이 바뀌면 다시 찾는다) */
+    jjals?: RichJjalSource | null;
     /**
      * 간단 수준에서 영상 주소(유튜브·치지직 클립·SOOP 다시보기·틱톡·인스타그램)를 붙여 넣으면 영상 카드로 바꾸는 최대 수(0 = 끔, 댓글 — 사용자 결정 2026-11-06).
      * 넘으면 링크로 붙는다. 고급 수준은 도구 모음의 유튜브 넣기를 쓴다
@@ -111,6 +115,7 @@ const props = withDefaults(defineProps<Props>(), {
     ariaLabel: '',
     compact: false,
     emoticons: null,
+    jjals: null,
     videoLinks: 0,
 });
 
@@ -171,21 +176,26 @@ function refreshCounts(): void {
 /** 빈 문서는 `''` — 「비었는가」·「고쳤는가」가 평문과 같게. 색은 `#rrggbb` 로 되돌린다(TipTap 이 `rgb(...)` 로 직렬화한다). 이모티콘은 표식을 벗겨 토큰 글자로 */
 function htmlOf(e: Pick<Editor, 'isEmpty' | 'getHTML'>): string {
     if (e.isEmpty) return '';
-    const html = emoticonOn ? UtilRichEmoticon.fromEditorHtml(e.getHTML()) : e.getHTML();
+    const raw = emoticonOn ? UtilRichEmoticon.fromEditorHtml(e.getHTML()) : e.getHTML();
+    const html = jjalOn ? UtilRichJjal.fromEditorHtml(raw) : raw;
     return advanced ? UtilRichFormats.normalizeColors(html) : html;
 }
 
 /** 이모티콘이 켜졌다 — 만들 때 한 번 정한다(확장은 만들 때 정해진다) */
 const emoticonOn = props.emoticons !== null;
+/** 짤이 켜졌다 — 이모티콘과 같이 만들 때 한 번 정한다 */
+const jjalOn = props.jjals !== null;
 
 /** 에디터에 넣는 HTML — 이모티콘이 켜졌으면 토큰 글자를 노드 표식으로 바꿔 넣는다 */
 function editorContent(value: string): string {
-    return emoticonOn ? UtilRichEmoticon.toEditorHtml(value) : value;
+    const withEmoticons = emoticonOn ? UtilRichEmoticon.toEditorHtml(value) : value;
+    return jjalOn ? UtilRichJjal.toEditorHtml(withEmoticons) : withEmoticons;
 }
 
 function extensions(): Extensions {
     const list = richFormatExtensions(props.level);
     if (emoticonOn) list.push(EmoticonInline.configure({ resolve: (id) => props.emoticons?.resolve(id) ?? null }));
+    if (jjalOn) list.push(JjalInline.configure({ resolve: (id) => props.jjals?.resolve(id) ?? null, blockedLabel: props.jjals?.blockedLabel ?? '' }));
     if (!advanced) return videoLinksOn ? [...list, ...videoBlocks()] : list;
     return [
         ...list,
@@ -452,12 +462,12 @@ watch(html, (value) => {
     }
 });
 
-/* 카탈로그가 늦게 왔다 — 본문의 이모티콘 노드를 다시 그린다(노드 화면은 만들 때 그림을 찾는다) */
+/* 카탈로그(이모티콘·짤)가 늦게 왔다 — 본문의 이모티콘·짤 노드를 다시 그린다(노드 화면은 만들 때 그림을 찾는다) */
 watch(
-    () => props.emoticons?.version,
+    () => [props.emoticons?.version, props.jjals?.version],
     () => {
         const e = editor.value;
-        if (!e || !emoticonOn) return;
+        if (!e || (!emoticonOn && !jjalOn)) return;
         e.commands.setContent(editorContent(htmlOf(e)), { emitUpdate: false });
     },
 );
@@ -484,6 +494,11 @@ defineExpose({
     insertEmoticon: (id: string) => {
         if (props.disabled || !editor.value || !emoticonOn) return;
         editor.value.chain().focus().insertContent({ type: 'emoticon', attrs: { id } }).run();
+    },
+    /** 커서 자리에 짤 노드를 넣는다(짤이 켜졌을 때만) — 저장 모양은 토큰 글자 `:jjal-ID:` */
+    insertJjal: (id: string) => {
+        if (props.disabled || !editor.value || !jjalOn) return;
+        editor.value.chain().focus().insertContent({ type: 'jjal', attrs: { id } }).run();
     },
     /** 커서가 있는 문단 바로 뒤에 글자 한 줄짜리 새 문단을 넣는다(메일 템플릿의 「버튼」 자리 `{{button}}`) */
     insertParagraph: (text: string) => {

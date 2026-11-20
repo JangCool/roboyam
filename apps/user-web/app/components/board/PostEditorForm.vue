@@ -97,6 +97,7 @@
                     ref="editorRef"
                     :model-value="modelValue.content"
                     :emoticons="emoticonSource"
+                    :jjals="jjalSource"
                     :level="editorLevel"
                     :image-upload="imageOn"
                     :upload="upload"
@@ -109,9 +110,9 @@
                     @ready="$emit('editorReady', $event)"
                     @media="media = $event"
                 >
-                    <!-- 이모티콘 고르기(이모지 탭 + 받은 팩) — 이모티콘은 그림 노드, 저장은 토큰 글자 `:emo-ID:` -->
+                    <!-- 이모티콘 고르기(이모지 탭 + 짤 탭 + 받은 팩) — 이모티콘·짤은 그림 노드, 저장은 토큰 글자 `:emo-ID:`·`:jjal-ID:`. 짤 탭은 게시판 `postJjalAllowed` 일 때만 -->
                     <template #tools>
-                        <EmoticonPicker icon :disabled="submitting" @emoji="editorRef?.insertText($event)" @emoticon="editorRef?.insertEmoticon($event)" />
+                        <EmoticonPicker icon :jjal="jjalAllowed" :disabled="submitting" @emoji="editorRef?.insertText($event)" @emoticon="editorRef?.insertEmoticon($event)" @jjal="insertJjal" />
                     </template>
                 </RichEditor>
                 <Textarea
@@ -203,6 +204,8 @@ import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
+import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
+import UtilJjal from '~/utils/util-jjal';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
 
 interface Props {
@@ -309,7 +312,7 @@ const editorLevel = computed(() => UtilBoard.postEditor(props.board));
 /** 에디터 이미지 올리기 — 고급 + 게시판 허용 + 회원(비회원 글쓰기·비회원 글 고치기는 감춘다) + 올리기 함수 */
 const imageOn = computed(() => props.upload !== null && UtilBoard.imageUploadOn(props.board, props.guestMode || props.guestRules || props.board.viewer.guest));
 /** 에디터 — 이모티콘 고르기 창이 커서 자리에 넣는다 */
-const editorRef = ref<{ insertText: (text: string) => void; insertEmoticon: (id: string) => void } | null>(null);
+const editorRef = ref<{ insertText: (text: string) => void; insertEmoticon: (id: string) => void; insertJjal: (id: string) => void } | null>(null);
 /** 에디터의 이모티콘 그림 찾기(카탈로그) — 고치는 글에 토큰이 있으면 그림으로 보이게 미리 받는다(늦게 오면 에디터가 다시 그린다) */
 const catalog = useEmoticonCatalog();
 const emoticonSource = catalog.editorSource;
@@ -320,6 +323,28 @@ watch(
     },
     { immediate: true },
 );
+/** 에디터의 짤 그림 찾기 — 고치는 글에 짤 토큰이 있으면 정보를 미리 받는다(늦게 오면 에디터가 다시 그린다) */
+const jjalCatalog = useJjalCatalog();
+const jjalSource = jjalCatalog.editorSource;
+watch(
+    () => UtilRichJjal.ids(props.modelValue.content).join(','),
+    (ids) => {
+        if (ids) void jjalCatalog.ensure(ids.split(','));
+    },
+    { immediate: true },
+);
+/** 짤 탭 — 게시판 본문 짤 허용(`postJjalAllowed` — 이미지 올리기 허용과 따로) */
+const jjalAllowed = computed(() => UtilJjal.postAllowed(props.board));
+const jjalToast = useAppToast();
+
+/** 고른 짤을 넣는다 — 글은 5개까지(서버 규칙 — 넘으면 넣지 않고 알린다) */
+function insertJjal(id: string): void {
+    if (UtilRichJjal.count(props.modelValue.content) >= UtilJjal.MAX_PER_POST) {
+        jjalToast.show(t('jjal.tooManyPost', { max: UtilJjal.MAX_PER_POST }));
+        return;
+    }
+    editorRef.value?.insertJjal(id);
+}
 /** 에디터의 첨부 상태 — 올리는 중·실패한 이미지가 있으면 등록을 막는다 */
 const media = ref<RichEditorMediaState>({ images: 0, videos: 0, uploading: 0, failed: 0 });
 const mediaProblem = computed(() => (media.value.uploading > 0 ? t('post.imagesUploading') : media.value.failed > 0 ? t('post.imagesFailed') : ''));

@@ -288,6 +288,7 @@
             @retry-sanction="detail.reload(false)"
             @act="onDrawerAct"
             @reopen="reopen"
+            @jjal-restore="restoreJjal"
             @prev="neighbors.prev && openCase(neighbors.prev)"
             @next="neighbors.next && openCase(neighbors.next)"
             @closed="onDrawerClosed"
@@ -786,6 +787,26 @@ async function reopen(): Promise<void> {
     }
     acting.value = false;
     toast.success(t('report.done.REOPEN'));
+    await afterChange(item.id, result);
+}
+
+/** 짤 되돌림(my-jjal-contract — 목업) — 내린 짤을 모든 곳에서 다시 보이게. 사건은 닫힌 그대로 */
+async function restoreJjal(): Promise<void> {
+    const item = detail.detail.value?.case;
+    if (!item || acting.value) return;
+    const ok = await confirm({ title: t('report.jjalRestoreTitle'), message: t('report.jjalRestoreText'), confirmLabel: t('report.jjalRestore') });
+    if (!ok) return;
+    acting.value = true;
+    let result: ReportCaseDetail;
+    try {
+        result = await api.restoreJjal(item.id);
+    } catch (e) {
+        acting.value = false;
+        toast.error(errorOf(e).message, 8000);
+        return;
+    }
+    acting.value = false;
+    toast.success(t('report.done.JJAL_RESTORE'));
     await afterChange(item.id, result);
 }
 

@@ -58,6 +58,8 @@
         <LazyIdentityGateDialog v-if="opened.identityGate" />
         <LazyIdentityFakeDialog v-if="opened.identityFake" />
         <LazyAppConfirm v-if="opened.confirm" />
+        <!-- 짤 메뉴·처음 안내·올리기·크게 보기·짤 신고(my-jjal-contract) — 글·댓글의 짤을 누르거나 고르기 창의 「올리기」를 누를 때(`useJjalUi`) -->
+        <LazyJjalHost v-if="opened.jjal" />
         <!-- 칭호 축하 창(member-title-contract) — 로그인한 회원이면 첫 화면 뒤에 코드를 받고, 새로 받은 칭호(`unseen`)가 있을 때만 뜬다 -->
         <LazyTitleCelebrationDialog v-if="titleCheck && user" />
         <AppToaster :with-tabs="!inner" />
@@ -96,16 +98,17 @@ void ensureLoaded();
 void useMenu().ensureLoaded();
 
 /**
- * 처음 열 때 코드를 받는 대화상자·시트 — 각 상태(`useState` 키는 그 composable 과 같다: `useLoginPrompt`·`useMemoSheet`·`useIdentityGate`·`useIdentity().fake`)가
+ * 처음 열 때 코드를 받는 대화상자·시트 — 각 상태(`useState` 키는 그 composable 과 같다: `useLoginPrompt`·`useMemoSheet`·`useIdentityGate`·`useIdentity().fake`·`useJjalUi`)가
  * 한 번이라도 열리면 그린다. 상태만 키로 읽어 composable 코드도 첫 화면에 싣지 않는다.
  */
-const opened = reactive({ loginPrompt: false, memo: false, identityGate: false, identityFake: false, confirm: false });
+const opened = reactive({ loginPrompt: false, memo: false, identityGate: false, identityFake: false, confirm: false, jjal: false });
 const lazyStates = {
     confirm: useState<{ open?: boolean } | undefined>('app-confirm'),
     loginPrompt: useState<{ open?: boolean } | undefined>('login-prompt'),
     memo: useState<{ open?: boolean } | undefined>('memo-sheet'),
     identityGate: useState<{ open?: boolean } | undefined>('identity-gate'),
     identityFake: useState<{ open?: boolean } | undefined>('identity-fake'),
+    jjal: useState<{ open?: boolean } | undefined>('jjal-ui'),
 };
 watchEffect(() => {
     for (const [key, state] of Object.entries(lazyStates) as [keyof typeof opened, Ref<{ open?: boolean } | undefined>][]) {

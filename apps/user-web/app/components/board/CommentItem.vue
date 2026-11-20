@@ -76,7 +76,7 @@
                 <div v-else-if="comment.contentFormat === 'HTML'" class="mt-1 break-words text-sm">
                     <span v-if="comment.replyTo" class="float-left mr-1 font-semibold leading-[1.75] text-primary">@{{ comment.replyTo.name }}</span>
                     <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div ref="htmlBody" class="rich-text [--rt-video-max:30rem]" v-html="comment.content ?? ''" />
+                    <div ref="htmlBody" class="rich-text [--rt-video-max:30rem]" v-on="jjalPress" v-html="comment.content ?? ''" />
                 </div>
                 <!-- 평문 댓글 — 이모티콘 토큰은 조각으로 나눠 그림으로(`EmoticonText`, v-html 없음) -->
                 <p v-else class="mt-1 whitespace-pre-line break-words text-sm leading-relaxed">
@@ -165,6 +165,7 @@ import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilCommentDelayMessages from '~/utils/util-comment-delay-messages';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilRichEmoticon from '#layers/rich-editor/utils/util-rich-emoticon';
+import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
 
 interface Props {
     comment: CommentView;
@@ -245,6 +246,19 @@ watch(
         if (!UtilRichEmoticon.has(props.comment.content)) return;
         void catalog.ensureLoaded();
         UtilRichEmoticon.replaceIn(el, catalog.resolve);
+    },
+    { flush: 'post' },
+);
+/** 에디터 댓글 본문의 내 짤 — 이모티콘과 같은 방식(글자 노드의 토큰만 그림으로). 정보가 늦게 오면(`version`) 다시 바꾼다. 누르면 짤 메뉴(`useJjalPress`) */
+const jjalCatalog = useJjalCatalog();
+const jjalPress = useJjalPress();
+watch(
+    [htmlBody, () => props.comment.content, jjalCatalog.version],
+    () => {
+        const el = htmlBody.value;
+        if (!el || !UtilRichJjal.has(props.comment.content)) return;
+        void jjalCatalog.ensure(UtilRichJjal.ids(props.comment.content));
+        UtilRichJjal.replaceIn(el, jjalCatalog.image, t('jjal.blockedLabel'));
     },
     { flush: 'post' },
 );

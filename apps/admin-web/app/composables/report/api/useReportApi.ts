@@ -9,6 +9,17 @@ import type {
     ReportResolveRequest,
     ReportSummary,
 } from '~/composables/report/api/useReportApi.types';
+import {
+    isMockJjalCase,
+    mockJjalCasesFor,
+    mockJjalDismiss,
+    mockJjalGet,
+    mockJjalList,
+    mockJjalReopen,
+    mockJjalResolve,
+    mockJjalRestore,
+    mockJjalSummary,
+} from '~/composables/report/api/mock/report-jjal-mock';
 
 /**
  * 신고 관리 API — 서버 주소(`/api/admin/reports…`)가 있는 **유일한 곳**이다. 상태는 없다. 계약: `docs/features/report-admin-contract.md` 「API」.
@@ -27,6 +38,8 @@ import type {
  *   같은 트랜잭션 — 제재 오류(409 `SANCTION_*` · 403 `PERMISSION_DENIED` · 400 `fields["sanction.kind|reason|skipStep|confirmNickname"]`)면 조치도 일어나지 않는다. 비회원·탈퇴 작성자는 404 `SANCTION_TARGET_NOT_FOUND`,
  *   `NONE` 인데 `sanction` 이 없으면 400 `fields.sanction`, `SANCTION_ONLY` 를 직접 보내면 400 `fields.action`. 응답 상세의 `issuedSanction` = 이 처리에서 준 제재(없으면 null).
  * 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
+ * 짤 사건(대상 종류 `JJAL`, my-jjal-contract — **목업**): 목록 첫 쪽에 목업 사건을 끼우고(짤 거르기면 목업만), 그 사건의 상세·조치(`JJAL_BLOCK` 짤 내림)·무시·다시 열기와
+ *   `POST /{id}/jjal-restore`(되돌림 — 가정)는 목업이 받는다. 서버가 붙으면 MOCK 줄과 `mock/report-jjal-mock.ts` 를 지운다.
  */
 const ROOT = '/api/admin/reports';
 const PATH = {
@@ -35,7 +48,7 @@ const PATH = {
     boardOptions: `${ROOT}/board-options`,
     bulkDismiss: `${ROOT}/dismiss`,
     one: (id: string) => `${ROOT}/${encodeURIComponent(id)}`,
-    act: (id: string, action: 'resolve' | 'dismiss' | 'reopen') => `${ROOT}/${encodeURIComponent(id)}/${action}`,
+    act: (id: string, action: 'resolve' | 'dismiss' | 'reopen' | 'jjal-restore') => `${ROOT}/${encodeURIComponent(id)}/${action}`,
 };
 
 export function useReportApi() {
@@ -44,43 +57,81 @@ export function useReportApi() {
 
     return {
         /** 사건 목록 — 빈 조건은 보내지 않는다 */
-        list: (query: ReportCaseQuery, signal?: AbortSignal): Promise<ReportCaseListView> =>
-            client.get<ReportCaseListView>(PATH.list, {
-                query: {
-                    status: query.status && query.status !== 'OPEN' ? query.status : undefined,
-                    targetType: query.targetType || undefined,
-                    reason: query.reason || undefined,
-                    q: query.q || undefined,
-                    searchField: query.q ? query.searchField : undefined,
-                    from: query.from || undefined,
-                    to: query.to || undefined,
-                    board: query.board || undefined,
-                    postId: query.postId || undefined,
-                    groupId: query.groupId || undefined,
-                    sort: query.sort,
-                    page: query.page,
-                    size: query.size,
-                },
-                signal,
-            }),
+        list: (query: ReportCaseQuery, signal?: AbortSignal): Promise<ReportCaseListView> => {
+            // MOCK: 짤 거르기는 서버에 없다 — 목업 사건만
+            if (query.targetType === 'JJAL') return mockJjalList(query);
+            return client
+                .get<ReportCaseListView>(PATH.list, {
+                    query: {
+                        status: query.status && query.status !== 'OPEN' ? query.status : undefined,
+                        targetType: query.targetType || undefined,
+                        reason: query.reason || undefined,
+                        q: query.q || undefined,
+                        searchField: query.q ? query.searchField : undefined,
+                        from: query.from || undefined,
+                        to: query.to || undefined,
+                        board: query.board || undefined,
+                        postId: query.postId || undefined,
+                        groupId: query.groupId || undefined,
+                        sort: query.sort,
+                        page: query.page,
+                        size: query.size,
+                    },
+                    signal,
+                })
+                // MOCK: 첫 쪽에 짤 목업 사건을 끼운다 — REAL: 위 `client.get(...)` 만
+                .then((view) => {
+                    const extra = mockJjalCasesFor(query);
+                    return extra.length ? { ...view, total: view.total + extra.length, items: [...extra, ...view.items] } : view;
+                });
+        },
 
         /** 대기·검토 중 건수 */
-        summary: (): Promise<ReportSummary> => client.get<ReportSummary>(PATH.summary),
+        // MOCK: 짤 목업 사건 수를 더한다 — REAL: client.get<ReportSummary>(PATH.summary)
+        summary: (): Promise<ReportSummary> => client.get<ReportSummary>(PATH.summary).then(mockJjalSummary),
 
         /** 게시판 고르개 — 게시판·말머리(모양은 게시글 관리 선택지와 같다) */
         boardOptions: (): Promise<AdminPostBoardOptionsView> => client.get<AdminPostBoardOptionsView>(PATH.boardOptions),
 
         /** 사건 하나 — 대기 사건은 열람과 함께 검토 중이 된다 */
-        get: (id: string): Promise<ReportCaseDetail> => client.get<ReportCaseDetail>(PATH.one(id)),
+        // MOCK: `isMockJjalCase(id) ? … :` 를 지운다
+        get: (id: string): Promise<ReportCaseDetail> => (isMockJjalCase(id) ? mockJjalGet(id) : client.get<ReportCaseDetail>(PATH.one(id))),
 
         /** 조치 — 핫딜 글 사건은 `DEAL_END`(핫딜 종료)도, 작성자 제재 곁들이기(`sanction`)·제재만(`NONE`) */
-        resolve: (id: string, body: ReportResolveRequest): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'resolve'), { ...body, sanction: body.sanction ?? undefined }),
+        resolve: (id: string, body: ReportResolveRequest): Promise<ReportCaseDetail> =>
+            // MOCK: 짤 사건(짤 내림 `JJAL_BLOCK`)은 목업
+            isMockJjalCase(id) ? mockJjalResolve(id, body) : client.post<ReportCaseDetail>(PATH.act(id, 'resolve'), { ...body, sanction: body.sanction ?? undefined }),
 
-        dismiss: (id: string, body: ReportDismissRequest): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'dismiss'), body),
+        // MOCK: 짤 사건은 목업
+        dismiss: (id: string, body: ReportDismissRequest): Promise<ReportCaseDetail> => (isMockJjalCase(id) ? mockJjalDismiss(id, body) : client.post<ReportCaseDetail>(PATH.act(id, 'dismiss'), body)),
 
-        reopen: (id: string): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'reopen')),
+        // MOCK: 짤 사건은 목업
+        reopen: (id: string): Promise<ReportCaseDetail> => (isMockJjalCase(id) ? mockJjalReopen(id) : client.post<ReportCaseDetail>(PATH.act(id, 'reopen'))),
+
+        /** 짤 되돌림 — 내린 짤을 다시 보이게(사건은 닫힌 그대로, 권한 `report.manage`) */
+        restoreJjal: (id: string): Promise<ReportCaseDetail> =>
+            // MOCK:
+            mockJjalRestore(id),
+        // REAL: client.post<ReportCaseDetail>(PATH.act(id, 'jjal-restore')),
 
         /** 일괄 무시 — 사건마다 따로 처리하고 못 한 사건만 까닭과 함께 */
-        bulkDismiss: (body: ReportBulkDismissRequest): Promise<ReportBulkResult> => client.post<ReportBulkResult>(PATH.bulkDismiss, body),
+        bulkDismiss: async (body: ReportBulkDismissRequest): Promise<ReportBulkResult> => {
+            // MOCK: 짤 목업 사건은 하나씩 목업으로 무시하고 나머지만 서버에 — REAL: client.post<ReportBulkResult>(PATH.bulkDismiss, body)
+            const mockIds = body.ids.filter(isMockJjalCase);
+            const realIds = body.ids.filter((id) => !isMockJjalCase(id));
+            const done: string[] = [];
+            const failed: ReportBulkResult['failed'] = [];
+            for (const id of mockIds) {
+                try {
+                    await mockJjalDismiss(id, { falseReport: body.falseReport, note: body.note });
+                    done.push(id);
+                } catch {
+                    failed.push({ id, code: 'REPORT_CASE_CLOSED' });
+                }
+            }
+            if (realIds.length === 0) return { done, failed };
+            const real = await client.post<ReportBulkResult>(PATH.bulkDismiss, { ...body, ids: realIds });
+            return { done: [...done, ...real.done], failed: [...failed, ...real.failed] };
+        },
     };
 }

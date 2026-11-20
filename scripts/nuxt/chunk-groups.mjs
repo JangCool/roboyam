@@ -53,6 +53,8 @@ const VENDOR = pkg([
 ]);
 const EDITOR = pkg(['@tiptap', 'prosemirror-[a-z-]+', 'yjs', 'lib0', 'y-protocols', 'linkifyjs', 'orderedmap', 'rope-sequence', 'w3c-keyname', '@floating-ui']);
 const CHART = pkg(['echarts', 'zrender', 'vue-echarts', 'tslib']);
+// 짤 올리기 창의 GIF 풀기·만들기(my-jjal-contract) — 올리기 창을 열 때만 받는다. 작지만 제 묶음에 가둬 다른 조각에 도우미가 섞이지 않게
+const GIF = pkg(['gifenc', 'omggif']);
 const SHELL = new RegExp(`${SEP}app${SEP}(?:layouts${SEP}|components${SEP}(?:shell|themes)${SEP})`);
 
 const CODE_SPLITTING = {
@@ -60,6 +62,7 @@ const CODE_SPLITTING = {
         { name: 'vendor', test: VENDOR, priority: 30 },
         { name: 'editor', test: EDITOR, priority: 28 },
         { name: 'chart', test: CHART, priority: 28 },
+        { name: 'gif', test: GIF, priority: 28 },
         { name: 'shell', test: SHELL, priority: 20 },
     ],
 };

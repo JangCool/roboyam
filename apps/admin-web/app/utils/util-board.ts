@@ -181,7 +181,11 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     commentMin: { field: 'commentMin', kind: 'commentMin', overridable: true, permission: 'board.settings' },
     postEditor: { field: 'postEditor', kind: 'choice', choices: ['NONE', 'SIMPLE', 'ADVANCED'], overridable: true, permission: 'board.settings' },
     imageUploadAllowed: { field: 'imageUploadAllowed', kind: 'bool', overridable: true, permission: 'board.settings' },
+    // 본문 짤 허용(my-jjal-contract) — 이미지 칸과 따로, 에디터 수준과 상관없이 늘 바꿀 수 있다. 게시판은 「기본값 따르기」 가능, 기본값 켬
+    postJjalAllowed: { field: 'postJjalAllowed', kind: 'bool', overridable: true, permission: 'board.settings' },
     commentEditor: { field: 'commentEditor', kind: 'choice', choices: ['NONE', 'SIMPLE'], overridable: true, permission: 'board.settings' },
+    // 댓글 짤 허용(my-jjal-contract) — 게시판은 「기본값 따르기」 가능, 기본값 켬
+    commentJjalAllowed: { field: 'commentJjalAllowed', kind: 'bool', overridable: true, permission: 'board.settings' },
     postGapSeconds: { field: 'postGapSeconds', kind: 'number', min: 0, max: 3600, unit: 'seconds', overridable: false, permission: 'board.settings' },
     postDailyLimit: { field: 'postDailyLimit', kind: 'number', min: 1, max: 1000, unit: 'count', overridable: false, permission: 'board.settings' },
     commentGapSeconds: { field: 'commentGapSeconds', kind: 'number', min: 0, max: 3600, unit: 'seconds', overridable: false, permission: 'board.settings' },
@@ -301,7 +305,7 @@ export type BoardTabForm<T> = { [K in keyof T]: T[K] extends number ? string : T
 /** 기본 설정 화면의 구획 — 구획 주소(`anchor`) → 칸들. 「고정 규칙」 구획은 칸이 없어 여기 없다 */
 const DEFAULT_SECTIONS = {
     'defaults-display': ['dateDisplay', 'listChipPosition', 'listPrefixStyle', 'listLikeHighlight', 'listViewHighlight', 'listHighlightColor'],
-    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled'],
+    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'postJjalAllowed', 'commentEditor', 'commentJjalAllowed', 'prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
     // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
     'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable', 'detailFeedTabsPc', 'detailFeedTabsMobile'],
@@ -872,7 +876,7 @@ export default class UtilBoard {
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,
-            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
+            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'postJjalAllowed', 'commentEditor', 'commentJjalAllowed', 'prefixRequired', 'tagRequired', 'sourcesEnabled', 'purchaseSourceMode', 'trialReviewsEnabled']) + diff(form.writeLock, base.writeLock) + diff(form.secretMode, base.secretMode) + diff(form.statusEnabled, base.statusEnabled),
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText) + diff(form.writeTemplate, base.writeTemplate),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸

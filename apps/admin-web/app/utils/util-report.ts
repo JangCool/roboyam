@@ -86,7 +86,7 @@ const NUMERIC_ID = /^\d{1,19}$/;
 const SEARCH_FIELDS: readonly ReportSearchField[] = ['TITLE', 'AUTHOR', 'CASE_NO'];
 /** 상태 라디오 차례 — 열린 사건(대기 + 검토 중, 기본) · 대기 · 검토 중 · 처리됨 · 무시 · 전체 */
 const STATUS_FILTERS: readonly ReportStatusFilter[] = ['OPEN', 'PENDING', 'IN_REVIEW', 'RESOLVED', 'DISMISSED', 'ALL'];
-const TARGET_TYPES: readonly ReportTargetType[] = ['POST', 'COMMENT', 'GROUP'];
+const TARGET_TYPES: readonly ReportTargetType[] = ['POST', 'COMMENT', 'GROUP', 'JJAL'];
 /** 글·댓글 신고 사유 차례 — 게시판 신고 정책 화면의 사유 표와 같다 */
 const POST_REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
 /** 소모임 신고 사유 차례(서버 `ReportReasons.GROUP_ALL`) */
@@ -158,7 +158,7 @@ export default class UtilReport {
     static readonly REASONS = REASONS;
     static readonly SORTS = SORTS;
     /** 처리 단추의 차례 */
-    static readonly ACT_ORDER: readonly ReportActKind[] = ['DEAL_END', 'HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'SANCTION_ONLY', 'DISMISS'];
+    static readonly ACT_ORDER: readonly ReportActKind[] = ['DEAL_END', 'JJAL_BLOCK', 'HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'SANCTION_ONLY', 'DISMISS'];
 
     /* ── 주소 ↔ 필터 ── */
 
@@ -376,7 +376,7 @@ export default class UtilReport {
     }
 
     static noActions(): ReportActions {
-        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DEAL_END: false, SANCTION_ONLY: false, DISMISS: false };
+        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DEAL_END: false, JJAL_BLOCK: false, SANCTION_ONLY: false, DISMISS: false };
     }
 
     /**
@@ -390,6 +390,11 @@ export default class UtilReport {
         const actions = UtilReport.noActions();
         if (!canManage || !UtilReport.isOpen(item.status)) return actions;
         actions.DISMISS = true;
+        // 짤(my-jjal-contract — 목업): 짤 내림 = 아직 내려가지 않은 짤만 · 무시. 올린 사람은 보이지 않으므로 제재는 없다(가정)
+        if (item.targetType === 'JJAL') {
+            actions.JJAL_BLOCK = !(item.target.jjal?.blocked ?? false);
+            return actions;
+        }
         actions.SANCTION_ONLY = canSanction && UtilReport.canSanctionAuthor(item.author);
         if (item.targetType === 'GROUP') {
             actions.DEACTIVATE = item.target.state === 'PUBLIC';
@@ -407,7 +412,7 @@ export default class UtilReport {
      * 댓글 사건은 `commentId`, 글 사건은 `postId`
      */
     static anonymousTarget(item: Pick<ReportCaseItem, 'author' | 'target' | 'targetType'>): AnonymousTarget | null {
-        if (!item.author.sealed || item.targetType === 'GROUP') return null;
+        if (!item.author.sealed || item.targetType === 'GROUP' || item.targetType === 'JJAL') return null;
         if (item.targetType === 'COMMENT') return item.target.commentId ? { postId: null, commentId: item.target.commentId } : null;
         return item.target.postId ? { postId: item.target.postId, commentId: null } : null;
     }
@@ -424,7 +429,7 @@ export default class UtilReport {
 
     /** 이 조치에 작성자 제재를 곁들일 수 있나 — 무시에는 없다, 제재만은 늘(필수) */
     static allowsSanction(kind: ReportActKind | null | undefined): boolean {
-        return Boolean(kind) && kind !== 'DISMISS';
+        return Boolean(kind) && kind !== 'DISMISS' && kind !== 'JJAL_BLOCK';
     }
 
     static actionList(actions: ReportActions): ReportActKind[] {
@@ -437,17 +442,17 @@ export default class UtilReport {
 
     /** 위험한 처리 — 빨강 단추 */
     static isDanger(kind: ReportActKind): boolean {
-        return kind === 'HIDE' || kind === 'DELETE' || kind === 'DEACTIVATE';
+        return kind === 'HIDE' || kind === 'DELETE' || kind === 'DEACTIVATE' || kind === 'JJAL_BLOCK';
     }
 
     static actIcon(kind: ReportActKind): string {
-        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DEAL_END: 'pi pi-stop-circle', SANCTION_ONLY: 'pi pi-user-minus', DISMISS: 'pi pi-times-circle' };
+        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DEAL_END: 'pi pi-stop-circle', JJAL_BLOCK: 'pi pi-eye-slash', SANCTION_ONLY: 'pi pi-user-minus', DISMISS: 'pi pi-times-circle' };
         return icons[kind];
     }
 
-    /** 대상 종류 칩의 색 — 글 파랑 · 댓글 회색 · 소모임 주황 */
+    /** 대상 종류 칩의 색 — 글 파랑 · 댓글 회색 · 소모임 주황 · 짤 진한 색 */
     static targetTypeSeverity(type: ReportTargetType): Severity {
-        return type === 'POST' ? 'info' : type === 'GROUP' ? 'warn' : 'secondary';
+        return type === 'POST' ? 'info' : type === 'GROUP' ? 'warn' : type === 'JJAL' ? 'contrast' : 'secondary';
     }
 
     /**
