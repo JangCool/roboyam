@@ -164,7 +164,7 @@
                                         :class="data.target.title === null ? 'font-normal text-muted-color' : data.target.state === 'DELETED' ? 'text-muted-color line-through' : ''"
                                         @click.stop="openCase(data)"
                                     >
-                                        {{ data.target.title ?? t('report.targetPurged') }}
+                                        {{ UtilReportMessages.targetTitle(t, data) }}
                                     </button>
                                 </div>
                                 <p v-if="data.targetType !== 'POST' && data.target.excerpt" class="m-0 line-clamp-2 text-xs text-muted-color">{{ data.target.excerpt }}</p>
@@ -593,7 +593,7 @@ async function submitBulk(payload: { note: string; falseReport: boolean }): Prom
     bulkFieldError.value = '';
     try {
         const result = await api.bulkDismiss({ ids: targets.map((item) => item.id), falseReport: payload.falseReport, note: payload.note || undefined });
-        bulkTitles.value = Object.fromEntries(targets.map((item) => [item.id, `${UtilReportMessages.caseNo(t, item)} ${item.target.title ?? t('report.targetPurged')}`]));
+        bulkTitles.value = Object.fromEntries(targets.map((item) => [item.id, `${UtilReportMessages.caseNo(t, item)} ${UtilReportMessages.targetTitle(t, item)}`]));
         bulkResult.value = { done: result.done ?? [], failed: result.failed ?? [] };
         selection.value = [];
         toast.show(UtilReportMessages.bulkSummary(t, bulkResult.value), { tone: bulkResult.value.failed.length === 0 ? 'success' : 'default', life: 6000 });
@@ -790,7 +790,10 @@ async function reopen(): Promise<void> {
     await afterChange(item.id, result);
 }
 
-/** 짤 되돌림(my-jjal-contract — 목업) — 내린 짤을 모든 곳에서 다시 보이게. 사건은 닫힌 그대로 */
+/** 되돌림이 그 사이 바뀐 상태 때문에 막혔다 — 이미 다시 보임(`JJAL_NOT_BLOCKED`) · 불법촬영물로 지움(`JJAL_PURGED`). 서버 문구로 알리고 새로 받는다 */
+const JJAL_RESTORE_STALE_CODES = new Set(['JJAL_NOT_BLOCKED', 'JJAL_PURGED', 'REPORT_CASE_NOT_FOUND']);
+
+/** 짤 되돌림(my-jjal-contract) — 내린 짤을 모든 곳에서 다시 보이게. 사건은 닫힌 그대로 */
 async function restoreJjal(): Promise<void> {
     const item = detail.detail.value?.case;
     if (!item || acting.value) return;
@@ -802,7 +805,10 @@ async function restoreJjal(): Promise<void> {
         result = await api.restoreJjal(item.id);
     } catch (e) {
         acting.value = false;
-        toast.error(errorOf(e).message, 8000);
+        const error = errorOf(e);
+        const stale = JJAL_RESTORE_STALE_CODES.has(error.code);
+        toast.error(stale ? t('report.staleFailed', { reason: error.message }) : error.message, 8000);
+        if (stale) await afterChange(item.id, null);
         return;
     }
     acting.value = false;

@@ -1,5 +1,4 @@
 import type { ReportRequest } from '~/composables/report/api/useReportApi.types';
-import { mockReportJjal } from '~/composables/jjal/api/mock/jjal-mock';
 
 /**
  * 신고 API — 서버 주소(`/api/reports`)가 있는 유일한 곳. 상태는 없다. 글·댓글(이후 프로필·쪽지)이 같이 쓴다.
@@ -9,7 +8,9 @@ import { mockReportJjal } from '~/composables/jjal/api/mock/jjal-mock';
  * 핫딜 글 전용 사유 `DEAL_FALSE_PRICE`·`DEAL_HIDDEN_AD` — 핫딜 글이 아닌 글·댓글에 보내면 `400 fields.reason`(`hotdeal-contract.md`, 서버 2단계).
  * D4: `DEAL_FALSE_PRICE` 신고도 204 — 서버가 안에서 종료 요청 `PRICE_CHANGED` 1건으로 바꿔 접수한다(이미 알렸거나 자격 미달이면 신고만 조용히 받는다).
  *
- * 서버 연결됨(2026-10-22).
+ * 짤 `JJAL`(my-jjal-contract — `targetId` = 짤 공개 ID, 파일 단위): 없는 짤·이미 내려간 짤 `404 REPORT_TARGET_NOT_FOUND`, 그 밖 오류는 글·댓글과 같다. 올린 사람 판정이 없어 `CANNOT_REPORT_OWN` 은 오지 않는다.
+ *
+ * 서버 연결됨(2026-10-22, 짤 2026-11-20).
  */
 const PATH = {
     reports: '/api/reports',
@@ -22,10 +23,6 @@ export function useReportApi() {
 
     return {
         /** 신고 — 회원만. 204 */
-        report: (body: ReportRequest): Promise<void> => {
-            // MOCK: 짤 신고(대상 종류 `JJAL`)는 아직 서버에 없다 — 서버가 받으면 이 줄을 지운다
-            if (body.targetType === 'JJAL') return mockReportJjal(body);
-            return client.post<void>(PATH.reports, body);
-        },
+        report: (body: ReportRequest): Promise<void> => client.post<void>(PATH.reports, body),
     };
 }

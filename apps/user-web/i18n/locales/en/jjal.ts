@@ -66,6 +66,8 @@ export default {
     uploadSubmit: 'Upload',
     uploaded: 'Uploaded to my GIFs {count} / {limit}',
     uploadFull: 'Your {limit} GIF slots are full. Remove some first.',
+    fileTooLarge: 'Files must be {max} or smaller. Try a shorter GIF.',
+    retryIn: 'You can upload again in {time}.',
 
     // Resize problems
     problem: {

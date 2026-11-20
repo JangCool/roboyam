@@ -76,6 +76,12 @@
   3. **이메일 미인증**은 코드 `EMAIL_NOT_VERIFIED` 그대로, 짤 문구 키 `error.EMAIL_NOT_VERIFIED.jjal`.
 - **서버에서 정한 것**: 고치기는 새 토큰만 검사(이미 있던 짤은 보관함에서 뺐거나 칸을 꺼도 그대로) · 짤 신고 기준 숨김은 대상 종류 설정을 보지 않고 기준 수만 · 하루 50장 = 최근 24시간 · AI 회원 글쓰기에는 짤 검사 없음(없는 ID 는 글자로 남는다).
 
+## 화면 연동 결과 (2026-11-20, 브랜치 `claude/my-jjal`, 타입 검사만 — 실제 호출 미확인)
+- user-web·admin-web 짤 호출은 모두 실제 API로 전환했고 목업 파일(`jjal-mock.ts`·`board-jjal-mock.ts`·`report-jjal-mock.ts`)은 지웠다.
+- **담기 가능 캐시**: 그림 정보는 짤 ID 하나로 전역 캐시, `collectable` 만 `글 ID → 짤 ID` 로 따로 둔다(`useJjalCatalog.ensure(ids, postId?)`). 글 상세가 `provideJjalContext`, 댓글이 `provideJjalCommentContext` 로 맥락을 놓고 짤 메뉴가 `{ jjalId, postId, commentId? }` 로 담는다. 글 맥락이 없는 곳에는 「담기」가 없다.
+- `url: null` 은 내려간 짤로 그린다(고르기 창에서는 뺀다). 오류는 서버 문구를 쓰고, 화면은 `JJAL_RATE_LIMITED`·`JJAL_DAILY_LIMIT` 에 남은 시간, `FILE_TOO_LARGE` 에 짤 문구만 덧붙인다. 글·댓글 저장 때의 짤 오류는 본문 칸 아래(`UtilJjalMessages.bodyError`).
+- admin 짤 사건 제목은 「짤 {ID}」(`UtilReportMessages.targetTitle`). 불법촬영물로 지운 짤(`url: null`)은 그림 대신 안내를 보이고 [되돌림] 을 숨긴다(화면 연동 때 정함).
+
 ## 미확정
 - ~~움짤 줄이기~~ → **정함(2026-11-20)**: 위 「올리기」. WebP 로 저장해 용량 줄이기는 후속.
 - **운영 설정(미실행)**: R2/S3 공개 도메인(`publicBaseUrl`)은 앱을 거치지 않으므로 버킷·Cloudflare 규칙으로 `/private/*` 를 막는다. 내린 짤의 CDN 캐시 지우기는 연결 자리 `JjalStorageSync#onPublicKeyRetired(key)`(지금은 로그만) — 운영 구성(`ops-deploy-contract.md`)에서 정한다.

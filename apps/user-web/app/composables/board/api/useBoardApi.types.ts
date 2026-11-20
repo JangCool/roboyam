@@ -386,11 +386,11 @@ export interface BoardDetail extends BoardView {
     trialReviewsEnabled?: boolean;
     /**
      * 글 본문에 내 짤을 붙일 수 있다(유효 정책 `postJjalAllowed` — my-jjal-contract 「게시판별 사용」, 게시판 값 ?? 기본값, 기본 켬). 「이미지 올리기 허용」과 따로다.
-     * 꺼져 있으면 글 고르기 창의 「짤」 탭만 숨긴다. 아직 서버가 주지 않는다(목업 — 없으면 켬, `UtilJjal.postAllowed`)
+     * 꺼져 있으면 글 고르기 창의 「짤」 탭만 숨긴다(서버는 새로 넣은 짤 토큰을 `422 JJAL_NOT_ALLOWED` 로 거절한다 — `UtilJjal.postAllowed`)
      */
-    postJjalAllowed?: boolean;
-    /** 댓글에 내 짤을 붙일 수 있다(유효 정책 `commentJjalAllowed` — 게시판 값 ?? 기본값, 기본 켬). 아직 서버가 주지 않는다(목업 — 없으면 켬, `UtilJjal.commentAllowed`) */
-    commentJjalAllowed?: boolean;
+    postJjalAllowed: boolean;
+    /** 댓글에 내 짤을 붙일 수 있다(유효 정책 `commentJjalAllowed` — 게시판 값 ?? 기본값, 기본 켬). 꺼져 있으면 댓글 고르기 창의 「짤」 탭만 숨긴다(`UtilJjal.commentAllowed`) */
+    commentJjalAllowed: boolean;
     /**
      * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
      * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)

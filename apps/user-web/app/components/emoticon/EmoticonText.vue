@@ -53,7 +53,9 @@ const { t } = useI18n();
 const catalog = useEmoticonCatalog();
 const resolve = catalog.resolve;
 const jjal = useJjalCatalog();
-const jjalPress = useJjalPress();
+/** 위에서 놓은 짤의 글 맥락(글 상세·댓글) — 그 글 맥락으로 담기 가능을 묻는다. 없으면 그림만 */
+const jjalContext = useJjalContext();
+const jjalPress = useJjalPress(jjalContext);
 
 /** 이모티콘으로 먼저 나누고, 남은 글자 조각을 짤로 한 번 더 나눈다 */
 const segments = computed<(RichEmoticonSegment | RichJjalSegment)[]>(() =>
@@ -73,7 +75,7 @@ const jjalIds = computed(() => segments.value.flatMap((s) => (s.kind === 'jjal' 
 watch(
     () => jjalIds.value.join(','),
     () => {
-        if (jjalIds.value.length) void jjal.ensure(jjalIds.value);
+        if (jjalIds.value.length) void jjal.ensure(jjalIds.value, jjalContext?.postId());
     },
     { immediate: true },
 );

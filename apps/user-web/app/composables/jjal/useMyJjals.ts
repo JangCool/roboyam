@@ -1,4 +1,4 @@
-import type { JjalSaveResult, JjalUploadRequest, MyJjalListResponse } from '~/composables/jjal/api/useJjalApi.types';
+import type { JjalCollectRequest, JjalSaveResult, JjalUploadRequest, MyJjalListResponse } from '~/composables/jjal/api/useJjalApi.types';
 
 /**
  * 내 짤 보관함 — 고르기 창 「짤」 탭·짤 메뉴(담기)·올리기 창·내 로보티콘 「내 짤」 칸이 같이 본다. 올리거나 담으면 바로 고르기 창에 보인다.
@@ -67,9 +67,9 @@ export function useMyJjals() {
         return result;
     }
 
-    /** 담기 — 실패(이미 있음·꽉 참·내려간 짤)는 부르는 쪽이 알린다 */
-    async function collect(jjalId: string): Promise<JjalSaveResult> {
-        const result = await api.collect({ jjalId });
+    /** 담기 — 짤이 보이는 글·댓글과 함께. 실패(이미 있음·꽉 참·내려간 짤·19금·안 쓰인 짤)는 부르는 쪽이 알린다 */
+    async function collect(body: JjalCollectRequest): Promise<JjalSaveResult> {
+        const result = await api.collect(body);
         applySaved(result);
         return result;
     }

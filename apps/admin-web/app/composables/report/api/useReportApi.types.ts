@@ -13,8 +13,8 @@ import type { SanctionLine, SanctionPreview, SanctionWithReport } from '~/compos
  *   - 조치는 `DEACTIVATE`(소모임 비활성화 — 관리자 소모임 관리의 비활성화와 같은 서비스, 모임장 알림, 비활성 기록에 이 사건, **글 1~200자**)와 무시뿐. 사유 코드는 소모임 사유 4종(섞으면 400 `fields.reasonCode`).
  *   - 목록 거르기 `targetType=GROUP` · `groupId`(그 소모임 사건), 제목 검색(`searchField=TITLE`)은 지금 소모임 이름도 찾는다. 자동 숨김은 없다.
  *
- * **짤 대상(`JJAL`, my-jjal-contract 「신고」 — 아직 서버에 없다, 목업)**: 파일 단위 사건. `target.jjal` = 그림·크기·내려감, `postId`·`commentId` null, `title` = 「짤 {ID}」(가정), `state` = `PUBLIC`(보임)·`HIDDEN`(내림).
- *   조치는 `JJAL_BLOCK`(짤 내림 — 모든 보관함·글·댓글에서 「내려간 짤」, 같은 해시 다시 올리기 거절)과 무시, 닫은 뒤 [되돌림](`POST /{id}/jjal-restore` — 가정). 권한은 지금 신고 처리 권한 그대로(`report.manage`).
+ * **짤 대상(`JJAL`, my-jjal-contract 「서버 구현 결과」 — 서버 V261)**: 파일 단위 사건. `target.jjal` = 그림·크기·내려감, `postId`·`commentId` null, `title` = 짤 공개 ID(화면이 「짤」을 앞에 붙인다), `state` = `PUBLIC`(보임)·`HIDDEN`(내림)·`DELETED`(파일 없음 — `jjal` null), `board` null, 작성자 칸 null.
+ *   조치는 `JJAL_BLOCK`(짤 내림 — 모든 보관함·글·댓글에서 「내려간 짤」, 같은 해시 다시 올리기 거절)과 무시, 닫은 뒤 [되돌림](`POST /{id}/jjal-restore` — `409 JJAL_NOT_BLOCKED`·`JJAL_PURGED`). 권한은 지금 신고 처리 권한 그대로(`report.manage`).
  */
 
 /** 사건 상태 — 대기 · 검토 중(누가 열어 봄) · 처리됨(조치) · 무시 */
@@ -98,10 +98,14 @@ export interface ReportTarget {
     jjal?: ReportJjal | null;
 }
 
-/** 짤 사건의 대상 짤(파일 단위) — my-jjal-contract */
+/** 짤 사건의 대상 짤(파일 단위, 서버 `ReportJjalView`) — my-jjal-contract */
 export interface ReportJjal {
     id: string;
-    url: string;
+    /**
+     * 운영자가 볼 그림 주소 — 공개 위치면 공개 주소(`/media/…`), 내려 비공개 위치로 옮긴 짤이면 관리자 주소 `/api/admin/reports/{사건 ID}/jjal-image`(같은 출처 세션 쿠키 — `<img>` 로 그대로),
+     * 불법촬영물로 확정해 지운 짤은 null
+     */
+    url: string | null;
     width: number;
     height: number;
     animated: boolean;

@@ -126,7 +126,7 @@
                             :class="[item.blocked ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/40' : 'border-surface bg-surface-0 dark:bg-surface-900', orderDragId === item.id ? 'opacity-40' : '']"
                             data-testid="my-jjals-order-item"
                         >
-                            <img v-if="!item.blocked" :src="item.url" alt="" class="pointer-events-none size-full object-contain" draggable="false" loading="lazy" decoding="async" />
+                            <img v-if="!item.blocked && item.url" :src="item.url" alt="" class="pointer-events-none size-full object-contain" draggable="false" loading="lazy" decoding="async" />
                             <span v-else class="flex flex-col items-center gap-1 text-[0.6875rem] font-semibold text-red-600 dark:text-red-400">
                                 <i class="pi pi-eye-slash text-sm" aria-hidden="true" />{{ t('jjal.blockedCell') }}
                             </span>
@@ -176,7 +176,7 @@
                             :data-testid="item.blocked ? 'my-jjals-item-blocked' : 'my-jjals-item'"
                             @click="toggleJjal(item.id)"
                         >
-                            <img v-if="!item.blocked" :src="item.url" alt="" class="size-full object-contain" loading="lazy" decoding="async" />
+                            <img v-if="!item.blocked && item.url" :src="item.url" alt="" class="size-full object-contain" loading="lazy" decoding="async" />
                             <span v-else class="flex flex-col items-center gap-1 text-[0.6875rem] font-semibold text-red-600 dark:text-red-400">
                                 <i class="pi pi-eye-slash text-sm" aria-hidden="true" />{{ t('jjal.blockedCell') }}
                             </span>
@@ -283,7 +283,7 @@ import { ApiError } from '~/composables/common/useApiClient';
  *   산 팩은 빼기 단추가 없다(서버도 `409 EMOTICON_PACK_PAID`). 그 오류가 오면(그새 산 경우) 가진 팩을 다시 받는다.
  * - 내가 만든 팩(`mine` — 후속 결정 1, 사지 않아도 가진다): 「내가 만든 팩」 딱지 · 「상점에 나옴」 날짜 · 빼기 단추 없음(서버 `409 EMOTICON_PACK_OWNED` `reason: "CREATOR"`).
  * - 운영자 회원 계정(`allPacks`)이면 맨 아래에 「상점의 판매 중 팩을 모두 쓸 수 있어요」 한 줄(목록에는 실제로 가진 팩만).
- * - 내 짤(my-jjal-contract — 목업): 격자(내가 정한 순서) + `n / 50` · 올리기(처음이면 안내 창) · 순서 바꾸기(끌어 옮기기 + 앞으로·뒤로 단추 → 저장·취소, `409` 면 다시 받기) ·
+ * - 내 짤(my-jjal-contract): 격자(내가 정한 순서) + `n / 50` · 올리기(처음이면 안내 창) · 순서 바꾸기(끌어 옮기기 + 앞으로·뒤로 단추 → 저장·취소, `409` 면 다시 받기) ·
  *   고르기 → 빼기(확인 창 — 내 보관함 줄만 빠진다) · 내려간 짤은 빨간 칸 + 안내. 상태는 고르기 창과 같다(`useMyJjals`).
  * - 모양은 내 아이템(`/me/items`)과 같다. 내 정보 메뉴의 「내 로보티콘」 줄(`useMeMenu`)이 오는 화면이라 그 틀(`meMenu`) 안에 둔다.
  */

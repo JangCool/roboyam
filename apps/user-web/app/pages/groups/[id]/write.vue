@@ -77,6 +77,7 @@ import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEdi
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
+import UtilJjalMessages from '~/utils/util-jjal-messages';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilPoll from '~/utils/util-poll';
@@ -260,6 +261,8 @@ async function submit(): Promise<void> {
             fieldErrors.value = { content: e.message };
         } else if (UtilEmoticonMessages.bodyError(t, e, emoticonLabel)) {
             fieldErrors.value = { content: UtilEmoticonMessages.bodyError(t, e, emoticonLabel) ?? '' }; // 가지지 않은 팩의 로보티콘 — 본문 칸 아래
+        } else if (UtilJjalMessages.bodyError(e)) {
+            fieldErrors.value = { content: UtilJjalMessages.bodyError(e) ?? '' }; // 짤을 막은 게시판·내 보관함에 없는 짤·내려간 짤 — 본문 칸 아래에 서버 문구
         } else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };
         } else {

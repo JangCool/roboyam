@@ -67,6 +67,8 @@ export default {
     uploadSubmit: '올리기',
     uploaded: '내 짤에 올렸어요 {count} / {limit}',
     uploadFull: '내 짤 {limit}개가 꽉 찼어요. 정리한 뒤에 올려 주세요.',
+    fileTooLarge: '{max} 이하 파일만 올릴 수 있어요. 더 짧은 움짤로 해 주세요.',
+    retryIn: '{time} 뒤에 다시 올릴 수 있어요.',
 
     // 줄이기 문제
     problem: {

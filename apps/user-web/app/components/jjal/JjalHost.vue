@@ -28,7 +28,7 @@
     <Dialog v-model:visible="viewerOpen" modal dismissable-mask :header="t('jjal.viewTitle')" :draggable="false" :style="{ width: 'min(40rem, calc(100vw - 2rem))' }" data-testid="jjal-viewer">
         <div v-if="viewing" class="grid place-items-center">
             <img
-                :src="viewing.url"
+                :src="viewing.url ?? undefined"
                 alt=""
                 :width="viewing.width || undefined"
                 :height="viewing.height || undefined"
@@ -64,8 +64,8 @@
 
 <script setup lang="ts">
 import type { ReportReason } from '~/composables/report/api/useReportApi.types';
-import type { JjalUiRequest } from '~/composables/jjal/useJjalUi';
-import type { JjalView } from '~/composables/jjal/api/useJjalApi.types';
+import type { JjalMenuTarget, JjalUiRequest } from '~/composables/jjal/useJjalUi';
+import type { JjalCollectRequest, JjalView } from '~/composables/jjal/api/useJjalApi.types';
 import UtilJjalMessages from '~/utils/util-jjal-messages';
 import { ApiError } from '~/composables/common/useApiClient';
 
@@ -78,7 +78,7 @@ interface JjalMenuItem {
 }
 
 /** 처음 안내 다음에 할 일 */
-type IntroNext = { kind: 'collect'; id: string } | { kind: 'upload' };
+type IntroNext = { kind: 'collect'; request: JjalCollectRequest } | { kind: 'upload' };
 
 const INTRO_LINES = [
     { key: 'jjal.introPrivate', icon: 'pi pi-lock' },
@@ -101,13 +101,17 @@ const introCheckId = useId();
 /* ── 짤 메뉴 ── */
 const menu = ref<{ show: (event: Event, target?: Element | null) => void; hide: () => void } | null>(null);
 const sheetOpen = ref(false);
-const target = ref<{ id: string; collectable: boolean } | null>(null);
+const target = ref<JjalMenuTarget | null>(null);
 
 const menuItems = computed<JjalMenuItem[]>(() => {
     const current = target.value;
     if (!current) return [];
     const items: JjalMenuItem[] = [];
-    if (current.collectable) items.push({ key: 'collect', label: t('jjal.menuCollect'), icon: 'pi pi-bookmark', command: () => run(() => void collectFlow(current.id)) });
+    const postId = current.postId;
+    if (current.collectable && postId) {
+        const request: JjalCollectRequest = { jjalId: current.id, postId, ...(current.commentId ? { commentId: current.commentId } : {}) };
+        items.push({ key: 'collect', label: t('jjal.menuCollect'), icon: 'pi pi-bookmark', command: () => run(() => void collectFlow(request)) });
+    }
     items.push({ key: 'view', label: t('jjal.menuView'), icon: 'pi pi-search-plus', command: () => run(() => openViewer(current.id)) });
     items.push({ key: 'report', label: t('jjal.menuReport'), icon: 'pi pi-flag', command: () => run(() => openReport(current.id)) });
     return items;
@@ -120,7 +124,7 @@ function run(task: () => void): void {
     task();
 }
 
-async function openMenu(next: { id: string; collectable: boolean }): Promise<void> {
+async function openMenu(next: JjalMenuTarget): Promise<void> {
     target.value = next;
     if (!desktop.value) {
         sheetOpen.value = true;
@@ -167,7 +171,7 @@ async function confirmIntro(): Promise<void> {
         introOpen.value = false;
         const next = introNext;
         introNext = null;
-        if (next?.kind === 'collect') await actions.collect(next.id);
+        if (next?.kind === 'collect') await actions.collect(next.request);
         else if (next?.kind === 'upload') openUploadDialog();
     } catch (e) {
         introError.value = UtilJjalMessages.error(t, e);
@@ -188,15 +192,15 @@ async function introReady(): Promise<boolean | null> {
 }
 
 /* ── 담기 ── */
-async function collectFlow(id: string): Promise<void> {
+async function collectFlow(request: JjalCollectRequest): Promise<void> {
     if (!user.value) {
         prompt('scrap', undefined, { title: t('jjal.loginTitle'), description: t('jjal.loginText') });
         return;
     }
     const ready = await introReady();
     if (ready === null) return;
-    if (!ready) openIntro({ kind: 'collect', id });
-    else await actions.collect(id);
+    if (!ready) openIntro({ kind: 'collect', request });
+    else await actions.collect(request);
 }
 
 /* ── 올리기 ── */

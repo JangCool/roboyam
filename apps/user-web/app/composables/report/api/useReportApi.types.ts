@@ -35,7 +35,7 @@ export const GROUP_REPORT_REASONS: readonly ReportReason[] = ['PROMOTION', 'OFFL
  * 신고 대상 — 글 · 댓글 · 소모임(`targetId` = 소모임 ID — 열린 소모임만(그 밖 `404 REPORT_TARGET_NOT_FOUND`), 모임장 본인은 `400 CANNOT_REPORT_OWN`).
  * 소모임은 서버 `ReportService`(V95, community `docs/api-report.md` 1절)와 같다 — 자동 숨김은 없다.
  * 공구 질문 `GROUP_BUY_QUESTION`·공구 리뷰 `GROUP_BUY_REVIEW`(2b-6 V106 — 사유는 글·댓글 체계, 처리는 운영자 숨김과 같은 길).
- * 짤 `JJAL`(my-jjal-contract 「신고」 — `targetId` = 짤 공개 ID, 파일 단위. 사유는 글·댓글 6종 그대로). 아직 서버에 없다(목업 — `useReportApi` 의 MOCK 줄).
+ * 짤 `JJAL`(my-jjal-contract 「신고」 — `targetId` = 짤 공개 ID, 파일 단위. 사유는 글·댓글 6종 그대로 — 서버 `ReportService.reportJjal`).
  */
 export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP' | 'GROUP_BUY_QUESTION' | 'GROUP_BUY_REVIEW' | 'JJAL';
 

@@ -251,13 +251,15 @@ watch(
 );
 /** 에디터 댓글 본문의 내 짤 — 이모티콘과 같은 방식(글자 노드의 토큰만 그림으로). 정보가 늦게 오면(`version`) 다시 바꾼다. 누르면 짤 메뉴(`useJjalPress`) */
 const jjalCatalog = useJjalCatalog();
-const jjalPress = useJjalPress();
+/** 이 댓글의 짤 맥락(글 ID + 댓글 ID) — 담기 요청과 담기 가능 판정에 쓴다. 평문 댓글의 `EmoticonText` 도 이 맥락을 받는다 */
+const jjalContext = provideJjalCommentContext(() => ({ postId: props.comment.postId, id: props.comment.id }));
+const jjalPress = useJjalPress(jjalContext);
 watch(
     [htmlBody, () => props.comment.content, jjalCatalog.version],
     () => {
         const el = htmlBody.value;
         if (!el || !UtilRichJjal.has(props.comment.content)) return;
-        void jjalCatalog.ensure(UtilRichJjal.ids(props.comment.content));
+        void jjalCatalog.ensure(UtilRichJjal.ids(props.comment.content), jjalContext.postId());
         UtilRichJjal.replaceIn(el, jjalCatalog.image, t('jjal.blockedLabel'));
     },
     { flush: 'post' },

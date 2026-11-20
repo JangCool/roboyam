@@ -77,6 +77,7 @@ const { t } = useI18n();
 const uid = useId();
 const mine = useMyJjals();
 const toast = useAppToast();
+const values = useDisplayValues();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const dragging = ref(false);
@@ -152,7 +153,7 @@ async function submit(): Promise<void> {
         toast.success(t('jjal.uploaded', { count: saved.count, limit: saved.limit }));
         open.value = false;
     } catch (e) {
-        serverError.value = e instanceof ApiError && e.code === 'JJAL_LIMIT_REACHED' ? t('jjal.uploadFull', { limit: limit.value }) : UtilJjalMessages.error(t, e);
+        serverError.value = e instanceof ApiError && e.code === 'JJAL_LIMIT_REACHED' ? t('jjal.uploadFull', { limit: limit.value }) : UtilJjalMessages.error(t, e, values.value.language);
     } finally {
         uploading.value = false;
     }

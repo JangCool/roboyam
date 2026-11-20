@@ -390,7 +390,7 @@ export default class UtilReport {
         const actions = UtilReport.noActions();
         if (!canManage || !UtilReport.isOpen(item.status)) return actions;
         actions.DISMISS = true;
-        // 짤(my-jjal-contract — 목업): 짤 내림 = 아직 내려가지 않은 짤만 · 무시. 올린 사람은 보이지 않으므로 제재는 없다(가정)
+        // 짤(my-jjal-contract): 짤 내림 = 아직 내려가지 않은 짤만 · 무시. 올린 사람은 보이지 않으므로 제재는 없다(서버: 조치는 `JJAL_BLOCK` 만, 작성자 칸 null)
         if (item.targetType === 'JJAL') {
             actions.JJAL_BLOCK = !(item.target.jjal?.blocked ?? false);
             return actions;

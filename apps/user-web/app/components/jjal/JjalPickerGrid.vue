@@ -37,7 +37,7 @@
                 data-testid="jjal-picker-item"
                 @click="pick(item)"
             >
-                <img :src="item.url" alt="" class="size-16 object-contain" loading="lazy" decoding="async" />
+                <img :src="item.url ?? undefined" alt="" class="size-16 object-contain" loading="lazy" decoding="async" />
             </button>
         </div>
         <p v-if="list && items.length === 0" class="m-0 px-1 text-xs text-muted-color" data-testid="jjal-picker-empty">{{ t('jjal.pickerEmpty') }}</p>

@@ -6,26 +6,65 @@ import UtilRichJjal from '#layers/rich-editor/utils/util-rich-jjal';
  * 데스크톱은 누르기(클릭), 휴대폰(터치)은 길게 누르기(0.5초 — 움직이면 취소). 짧게 톡 누르기는 아무 일도 하지 않는다(스크롤과 겹치지 않게).
  * 내려간 짤(`.jjal-blocked`)은 그림이 아니라 메뉴가 뜨지 않는다(담기·크게 보기·신고 모두 할 것이 없다).
  *
- * 「담기」를 보일지: 서버 `collectable` && 그리는 화면의 문맥(`provideJjalContext` — 글 상세가 19금 게시판이면 false). 문맥이 없으면 서버 값만 본다.
+ * 「담기」를 보일지: 그 글 맥락의 서버 `collectable`(`useJjalCatalog.collectableAt`) && 화면 판정(`JjalContext.collectable` — 19금 게시판이면 false).
+ * 담기는 짤이 보이는 글·댓글을 함께 보낸다(서버 판정) — 그래서 글 맥락(`provideJjalContext`)이 없는 곳에서는 「담기」를 보이지 않는다.
  */
-const CONTEXT: InjectionKey<() => boolean> = Symbol('jjal-context');
+
+/** 짤이 그려지는 글 맥락 — 글 상세가 놓고(`provideJjalContext`), 댓글이 자기 ID 를 더한다(`provideJjalCommentContext`) */
+export interface JjalContext {
+    /** 짤이 보이는 글 ID(글을 아직 못 받았으면 null) */
+    postId: () => string | null;
+    /** 댓글 안이면 그 댓글 ID(글 본문이면 null) */
+    commentId: () => string | null;
+    /** 화면 판정 — 담기를 보여도 되면 참(19금 게시판이면 false, `UtilJjal.collectableIn`) */
+    collectable: () => boolean;
+}
+
+const CONTEXT: InjectionKey<JjalContext> = Symbol('jjal-context');
 const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE_PX = 10;
 /** 터치 뒤 따라오는 클릭을 무시하는 시간 */
 const TOUCH_CLICK_GUARD_MS = 800;
 
 /**
- * 이 화면 아래에서 그린 짤의 「담기」 가능 여부를 정한다 — 글 상세가 게시판을 받은 뒤 부른다(`UtilJjal.collectableIn(board)`).
- * @param collectable - 담기를 보여도 되면 참(읽는 순간에 푼다).
+ * 이 화면 아래에서 그린 짤의 글 맥락을 놓는다 — 글 상세가 부른다. 같은 화면의 `useJjalPress` 에는 돌려받은 값을 넘긴다(자기가 놓은 값은 자기가 `inject` 하지 못한다).
+ * @param context - 글 ID · 화면의 담기 판정(댓글 ID 는 비운다).
+ * @returns 놓은 맥락.
  */
-export function provideJjalContext(collectable: () => boolean): void {
-    provide(CONTEXT, collectable);
+export function provideJjalContext(context: Omit<JjalContext, 'commentId'>): JjalContext {
+    const value: JjalContext = { postId: context.postId, commentId: () => null, collectable: context.collectable };
+    provide(CONTEXT, value);
+    return value;
 }
 
-export function useJjalPress() {
+/**
+ * 댓글 하나 아래의 맥락 — 위 글 맥락에 그 댓글 ID 를 더해 놓는다(`CommentItem`). 위 맥락이 없으면 댓글의 글 ID 로 채운다(화면 판정은 켬).
+ * @param comment - 댓글의 글 ID·댓글 ID(읽는 순간에 푼다).
+ * @returns 놓은 맥락(같은 컴포넌트의 `useJjalPress` 에 넘긴다).
+ */
+export function provideJjalCommentContext(comment: () => { postId: string; id: string }): JjalContext {
+    const parent = inject(CONTEXT, null);
+    const value: JjalContext = {
+        postId: () => parent?.postId() ?? comment().postId,
+        commentId: () => comment().id,
+        collectable: () => (parent ? parent.collectable() : true),
+    };
+    provide(CONTEXT, value);
+    return value;
+}
+
+/** 위에서 놓은 글 맥락(없으면 null) — 짤을 그리는 곳이 `ensure(ids, postId)` 에 쓴다 */
+export function useJjalContext(): JjalContext | null {
+    return inject(CONTEXT, null);
+}
+
+/**
+ * @param own - 이 컴포넌트가 놓은 맥락(`provideJjalContext`·`provideJjalCommentContext` 의 반환값). 없으면 위에서 놓은 맥락을 쓴다.
+ */
+export function useJjalPress(own?: JjalContext | null) {
     const ui = useJjalUi();
     const catalog = useJjalCatalog();
-    const context = inject(CONTEXT, null);
+    const context = own ?? inject(CONTEXT, null);
     let timer: ReturnType<typeof setTimeout> | null = null;
     let startX = 0;
     let startY = 0;
@@ -41,7 +80,10 @@ export function useJjalPress() {
         if (!id) return;
         const view = catalog.resolve(id);
         if (!view || view.blocked) return;
-        ui.openMenu({ id, collectable: view.collectable && (context ? context() : true) }, el, event);
+        const postId = context?.postId() ?? null;
+        const commentId = context?.commentId() ?? null;
+        const collectable = Boolean(postId) && catalog.collectableAt(id, postId) && (context ? context.collectable() : false);
+        ui.openMenu({ id, collectable, postId, commentId }, el, event);
     }
 
     function clear(): void {

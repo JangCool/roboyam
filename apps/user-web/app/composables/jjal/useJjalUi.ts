@@ -7,8 +7,12 @@
 /** 짤 메뉴의 대상 — 누른 짤 */
 export interface JjalMenuTarget {
     id: string;
-    /** 「내 짤에 담기」를 보일까(서버 `collectable` && 19금 게시판이 아님 — 내려간 짤은 메뉴가 뜨지 않는다) */
+    /** 「내 짤에 담기」를 보일까(그 글 맥락의 서버 `collectable` && 19금 게시판이 아님 — 내려간 짤은 메뉴가 뜨지 않는다) */
     collectable: boolean;
+    /** 짤이 보이는 글 — 담기 요청에 함께 보낸다(글 맥락이 없으면 null, 그때는 담기가 없다) */
+    postId: string | null;
+    /** 댓글의 짤이면 그 댓글(글 본문이면 null) */
+    commentId: string | null;
 }
 
 export type JjalUiRequest = { kind: 'menu'; target: JjalMenuTarget } | { kind: 'upload' };

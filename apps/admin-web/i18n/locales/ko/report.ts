@@ -181,6 +181,8 @@ export default {
     jjalAnimated: '움짤',
     jjalBlocked: '내려간 짤이에요 — 모든 보관함·글·댓글에서 「내려간 짤」로 보여요.',
     jjalNote: '짤은 파일 단위 사건이에요. 올린 사람·담은 사람은 보이지 않아요.',
+    jjalTitle: '짤 {id}',
+    jjalPurged: '불법촬영물로 확정해 파일을 지웠어요. 그림은 볼 수 없고 되돌릴 수도 없어요.',
     jjalRestore: '되돌림',
     jjalRestoreTitle: '이 짤을 되돌릴까요?',
     jjalRestoreText: '모든 보관함·글·댓글에서 다시 보여요. 같은 파일 다시 올리기 거절도 풀려요.',

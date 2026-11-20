@@ -108,14 +108,14 @@ export interface BoardDefaults {
     imageUploadAllowed: boolean;
     /**
      * 본문 짤 허용(my-jjal-contract 「게시판별 사용」) — 글 고르기 창의 「짤」 탭과 서버의 새 짤 토큰 검사. 전체 기본값 `true`(`board_defaults` NOT NULL).
-     * 「이미지 올리기 허용」과 따로다(이미지 칸은 고급 에디터에서만 쓰이지만 이 칸은 늘 바꿀 수 있다). 아직 서버에 없다(목업 — `useBoardApi` 의 MOCK 줄이 채운다)
+     * 「이미지 올리기 허용」과 따로다(이미지 칸은 고급 에디터에서만 쓰이지만 이 칸은 늘 바꿀 수 있다). 서버 V261(`board_defaults.post_jjal_allowed`·`boards.post_jjal_allowed`)
      */
     postJjalAllowed: boolean;
     /** 댓글 에디터 — 평문 · 간단. 전체 기본값 `NONE` */
     commentEditor: BoardCommentEditor;
     /**
      * 댓글 짤 허용(my-jjal-contract 「게시판별 사용」) — 댓글 고르기 창의 「짤」 탭과 서버의 새 짤 토큰 검사. 전체 기본값 `true`(`board_defaults` NOT NULL).
-     * 글 본문 짤은 따로 칸 `postJjalAllowed`. 아직 서버에 없다(목업 — `useBoardApi` 의 MOCK 줄이 채운다)
+     * 글 본문 짤은 따로 칸 `postJjalAllowed`. 서버 V261(`comment_jjal_allowed`)
      */
     commentJjalAllowed: boolean;
     /** 글 작성 간격(초) 0~3600 */

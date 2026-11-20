@@ -337,6 +337,7 @@ import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilCommentDelayMessages from '~/utils/util-comment-delay-messages';
 import UtilEmoticonMessages from '~/utils/util-emoticon-messages';
+import UtilJjalMessages from '~/utils/util-jjal-messages';
 import UtilBoardSanction from '~/utils/util-board-sanction';
 import UtilBoardStaffAction from '~/utils/util-board-staff-action';
 import UtilDebate from '~/utils/util-debate';
@@ -719,6 +720,12 @@ function showError(e: unknown, action: 'comment' | 'reply' | 'opinion'): void {
     const emoticonError = UtilEmoticonMessages.bodyError(t, e, emoticonLabel);
     if (emoticonError) {
         fieldErrors.value = { content: emoticonError };
+        return;
+    }
+    // 짤을 막은 게시판(`422 JJAL_NOT_ALLOWED`)·내 보관함에 없는 짤(`409 JJAL_NOT_IN_BOX`)·내려간 짤(`409 JJAL_BLOCKED`) — 서버 문구를 본문 칸 아래로
+    const jjalError = UtilJjalMessages.bodyError(e);
+    if (jjalError) {
+        fieldErrors.value = { content: jjalError };
         return;
     }
     if (e instanceof ApiError && e.fields && Object.keys(e.fields).length) {

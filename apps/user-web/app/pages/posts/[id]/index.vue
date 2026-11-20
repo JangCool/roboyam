@@ -713,8 +713,8 @@ const adultVerifying = ref(false);
 /** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 서버 `DealSellerHiddenException`, `applicationId` 는 작성자에게만) */
 const sellerHidden = ref<{ state: 'PAUSED' | 'STOPPED'; boardSlug: string; boardName: string; boardNameEn: string | null; applicationId: string | null } | null>(null);
 const board = ref<BoardDetail | null>(null);
-/** 19금 게시판(성인 전용)의 글·댓글 짤은 「내 짤에 담기」 없음(my-jjal-contract 정책 5) — 이 글 화면 아래의 짤 메뉴가 읽는다 */
-provideJjalContext(() => UtilJjal.collectableIn(board.value));
+/** 짤의 글 맥락 — 담기는 이 글(댓글이면 그 댓글)과 함께 보내고, 19금 게시판(성인 전용)의 글·댓글 짤은 「내 짤에 담기」 없음(my-jjal-contract 정책 5). 이 글 화면 아래의 짤 메뉴가 읽는다 */
+const jjalContext = provideJjalContext({ postId: () => post.value?.id ?? null, collectable: () => UtilJjal.collectableIn(board.value) });
 /** 글 보기 머리의 말머리 모양 — 게시판 정보의 `prefixStyle`(서버가 사이트 기본까지 푼 값), 칸이 없으면 글자(mobile-nav-prefix-style-contract 1절) */
 const headPrefixStyle = computed(() => UtilBoard.prefixStyle(board.value?.prefixStyle));
 const pageState = ref<PageState>('loading');
@@ -1112,14 +1112,14 @@ watch(
 );
 /** 글 본문의 내 짤 토큰 — 이모티콘과 같은 방식. 누르면 짤 메뉴(`useJjalPress` — 평문 글·댓글은 `EmoticonText` 안에서) */
 const jjalCatalog = useJjalCatalog();
-const jjalPress = useJjalPress();
+const jjalPress = useJjalPress(jjalContext);
 watch(
     [htmlBody, () => post.value?.content, jjalCatalog.version],
     () => {
         const el = htmlBody.value;
         const content = post.value?.content;
         if (!el || !UtilRichJjal.has(content)) return;
-        void jjalCatalog.ensure(UtilRichJjal.ids(content));
+        void jjalCatalog.ensure(UtilRichJjal.ids(content), post.value?.id);
         UtilRichJjal.replaceIn(el, jjalCatalog.image, t('jjal.blockedLabel'));
     },
     { flush: 'post' },

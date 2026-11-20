@@ -14,7 +14,7 @@
             <div v-if="item" class="flex flex-col gap-0.5 rounded-lg border border-(--line) px-3 py-2">
                 <div class="flex min-w-0 items-center gap-1.5">
                     <Tag :value="t(`report.targetType.${item.targetType}`)" :severity="UtilReport.targetTypeSeverity(item.targetType)" class="shrink-0 text-[11px]!" />
-                    <p class="m-0 min-w-0 truncate text-sm font-medium" :class="item.target.title === null ? 'font-normal text-muted-color' : ''">{{ item.target.title ?? t('report.targetPurged') }}</p>
+                    <p class="m-0 min-w-0 truncate text-sm font-medium" :class="item.target.title === null ? 'font-normal text-muted-color' : ''">{{ UtilReportMessages.targetTitle(t, item) }}</p>
                 </div>
                 <p v-if="item.targetType !== 'POST' && item.target.excerpt" class="m-0 truncate text-xs text-muted-color">{{ item.target.excerpt }}</p>
                 <p class="m-0 text-xs text-muted-color">{{ UtilReportMessages.caseNo(t, item) }} · {{ t('report.reportCountValue', { n: item.reportCount }) }}</p>

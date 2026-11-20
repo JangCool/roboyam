@@ -181,6 +181,8 @@ export default {
     jjalAnimated: 'Animated',
     jjalBlocked: 'This GIF is taken down — it shows as "GIF removed" everywhere.',
     jjalNote: 'GIF cases are per file. Uploaders and savers are not shown.',
+    jjalTitle: 'GIF {id}',
+    jjalPurged: 'The file was deleted as confirmed illegal footage. It cannot be viewed or restored.',
     jjalRestore: 'Restore',
     jjalRestoreTitle: 'Restore this GIF?',
     jjalRestoreText: 'It becomes visible again everywhere, and the same file can be uploaded again.',

@@ -25,7 +25,7 @@
         <template #header>
             <div class="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div class="flex min-w-0 items-start gap-2">
-                    <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words [overflow-wrap:anywhere]">{{ item ? (item.target.title ?? t('report.targetPurged')) : t('report.drawerTitle') }}</h2>
+                    <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words [overflow-wrap:anywhere]">{{ item ? UtilReportMessages.targetTitle(t, item) : t('report.drawerTitle') }}</h2>
                     <div class="flex shrink-0 items-center gap-0.5">
                         <Button v-tooltip.bottom="t('report.prevCase')" type="button" icon="pi pi-chevron-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('report.prevCase')" :disabled="!hasPrev" @click="emit('prev')" />
                         <Button v-tooltip.bottom="t('report.nextCase')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('report.nextCase')" :disabled="!hasNext" @click="emit('next')" />
@@ -108,14 +108,15 @@
                         <dd class="m-0">{{ detail.group.category?.name ?? '—' }}</dd>
                     </template>
                 </dl>
-                <!-- 짤 사건(목업) — 신고된 짤 미리 보기 · 크기 · 움짤 · 내려감 -->
+                <!-- 짤 사건 — 신고된 짤 미리 보기 · 크기 · 움짤 · 내려감. 내린 짤은 서버가 관리자 주소(`/api/admin/reports/{id}/jjal-image`, 세션 쿠키)를 준다 · 불법촬영물로 지운 짤은 주소 없음 -->
                 <div v-if="c.targetType === 'JJAL' && c.target.jjal" class="flex flex-col gap-2 rounded-lg border border-(--line) p-3" data-testid="report-drawer-jjal">
                     <p class="m-0 flex flex-wrap items-center gap-1.5 text-xs font-medium">
                         {{ t('report.jjalPreview') }}
                         <span class="font-normal tabular-nums text-muted-color">{{ t('report.jjalSize', { width: c.target.jjal.width, height: c.target.jjal.height }) }}</span>
                         <Tag v-if="c.target.jjal.animated" :value="t('report.jjalAnimated')" severity="secondary" class="text-[11px]!" />
                     </p>
-                    <div class="grid place-items-center rounded-md bg-(--p-content-hover-background) p-2">
+                    <Message v-if="!c.target.jjal.url" severity="error" size="small" :closable="false" data-testid="report-drawer-jjal-purged">{{ t('report.jjalPurged') }}</Message>
+                    <div v-else class="grid place-items-center rounded-md bg-(--p-content-hover-background) p-2">
                         <img
                             :src="c.target.jjal.url"
                             alt=""
@@ -125,7 +126,7 @@
                             :class="c.target.jjal.blocked ? 'opacity-40 grayscale' : ''"
                         />
                     </div>
-                    <Message v-if="c.target.jjal.blocked" severity="error" size="small" :closable="false">{{ t('report.jjalBlocked') }}</Message>
+                    <Message v-if="c.target.jjal.blocked && c.target.jjal.url" severity="error" size="small" :closable="false">{{ t('report.jjalBlocked') }}</Message>
                     <p class="m-0 text-xs text-muted-color">{{ t('report.jjalNote') }}</p>
                 </div>
                 <template v-if="c.targetType === 'GROUP' && detail.group">
@@ -294,7 +295,7 @@
                 </div>
                 <div v-else-if="canReopen || canRestoreJjal" class="flex flex-wrap justify-end gap-2">
                     <Button v-if="canReopen" type="button" :label="t('report.reopen')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" :loading="busy" :disabled="loading" @click="emit('reopen')" />
-                    <!-- 짤 되돌림(목업) — 내린 짤을 다시 보이게. 사건은 닫힌 그대로 -->
+                    <!-- 짤 되돌림 — 내린 짤을 다시 보이게. 사건은 닫힌 그대로 -->
                     <Button v-if="canRestoreJjal" type="button" :label="t('report.jjalRestore')" icon="pi pi-undo" size="small" severity="secondary" variant="outlined" :loading="busy" :disabled="loading" data-testid="report-drawer-jjal-restore" @click="emit('jjal-restore')" />
                 </div>
             </div>
@@ -403,10 +404,10 @@ const reports = computed(() => props.detail?.reports ?? []);
 const closure = computed(() => (props.detail && !UtilReport.isOpen(props.detail.case.status) ? UtilReport.closure(props.detail) : null));
 const actionList = computed(() => UtilReport.actionList(props.actions));
 const canReopen = computed(() => props.canManage && props.detail?.case.status === 'DISMISSED');
-/** 짤 되돌림 — 닫힌 짤 사건이고 짤이 내려가 있을 때(`report.manage`) */
+/** 짤 되돌림 — 닫힌 짤 사건이고 짤이 내려가 있을 때(`report.manage`). 불법촬영물로 확정해 지운 짤(주소 없음)은 되돌릴 수 없다(서버 `409 JJAL_PURGED`) */
 const canRestoreJjal = computed(() => {
     const item = props.detail?.case;
-    return Boolean(props.canManage && item && item.targetType === 'JJAL' && item.target.jjal?.blocked && !UtilReport.isOpen(item.status));
+    return Boolean(props.canManage && item && item.targetType === 'JJAL' && item.target.jjal?.blocked && item.target.jjal.url && !UtilReport.isOpen(item.status));
 });
 /** 핫딜 글 사건 — 딜 상태를 알면(서버 `deal`, 계약 밖) 함께 보인다 */
 const dealCase = computed(() => (props.detail ? UtilReport.isDealCase(props.detail.case) : false));

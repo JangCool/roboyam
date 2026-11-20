@@ -52,6 +52,18 @@ export default class UtilReportMessages {
         return reporter.withdrawn ? t('report.withdrawnAuthor', { name: reporter.name }) : reporter.name;
     }
 
+    /**
+     * 사건 대상의 제목 한 줄 — 원문을 파기했거나 없으면 「원문 파기됨」. 짤 사건은 서버가 짤 공개 ID 만 주므로 「짤 {ID}」로 붙인다(my-jjal-contract).
+     * @param {Translate} t - 번역 함수.
+     * @param {Pick<ReportCaseItem, 'targetType' | 'target'>} item - 사건 줄.
+     * @returns {string} 제목 글.
+     */
+    static targetTitle(t: Translate, item: Pick<ReportCaseItem, 'targetType' | 'target'>): string {
+        const title = item.target.title;
+        if (title === null) return t('report.targetPurged');
+        return item.targetType === 'JJAL' ? t('report.jjalTitle', { id: title }) : title;
+    }
+
     /** 사건 번호 */
     static caseNo(t: Translate, item: Pick<ReportCaseItem, 'caseNo'>): string {
         return t('report.caseNoValue', { no: String(item.caseNo) });

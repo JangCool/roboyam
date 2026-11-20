@@ -49,17 +49,15 @@ export default class UtilJjal {
     static readonly MY_SECTION_PATH = `/me/robotikon#${UtilJjal.MY_SECTION_ID}`;
 
     /**
-     * 글 본문 고르기 창에 「짤」 탭을 보이나 — 공개 게시판 칸 `postJjalAllowed`(본문 짤 허용 — 게시판 값 ?? 기본값, 이미지 올리기 허용과 따로).
-     * 서버가 아직 칸을 주지 않으면 켠 것으로 본다(목업 — 계약 기본값 켜짐).
+     * 글 본문 고르기 창에 「짤」 탭을 보이나 — 공개 게시판 칸 `postJjalAllowed`(본문 짤 허용 — 서버가 게시판 값 ?? 기본값으로 푼 유효값, 이미지 올리기 허용과 따로).
+     * 게시판이 아직 없으면(글쓰기에서 고르기 전 등) 켠 것으로 본다 — 저장 때 서버가 판정한다(`422 JJAL_NOT_ALLOWED`).
      */
     static postAllowed(board: Pick<BoardDetail, 'postJjalAllowed'> | null | undefined): boolean {
-        // MOCK: 서버가 칸을 주면 `?? true` 를 지운다(옛 응답 대비가 필요하면 남긴다)
         return board?.postJjalAllowed ?? true;
     }
 
-    /** 댓글 고르기 창에 「짤」 탭을 보이나 — 공개 게시판 칸 `commentJjalAllowed`(게시판 값 ?? 기본값). 서버가 아직 칸을 주지 않으면 켠 것으로 본다(목업) */
+    /** 댓글 고르기 창에 「짤」 탭을 보이나 — 공개 게시판 칸 `commentJjalAllowed`(서버가 게시판 값 ?? 기본값으로 푼 유효값). 게시판이 아직 없으면 켠 것으로 본다 */
     static commentAllowed(board: Pick<BoardDetail, 'commentJjalAllowed'> | null | undefined): boolean {
-        // MOCK: 서버가 칸을 주면 `?? true` 를 지운다
         return board?.commentJjalAllowed ?? true;
     }
 
@@ -68,9 +66,9 @@ export default class UtilJjal {
         return board?.adultOnly !== true;
     }
 
-    /** 고르기 창 칸 — 내가 정한 순서 그대로, 내려간 짤만 뺀다(자리는 내 짤 칸에 남는다) */
+    /** 고르기 창 칸 — 내가 정한 순서 그대로, 내려간 짤(서버가 `url: null` 로 준다)만 뺀다(자리는 내 짤 칸에 남는다) */
     static forPicker(items: readonly MyJjalItem[]): MyJjalItem[] {
-        return items.filter((i) => !i.blocked);
+        return items.filter((i) => !i.blocked && Boolean(i.url));
     }
 
     /**
