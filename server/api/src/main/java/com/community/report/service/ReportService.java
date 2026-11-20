@@ -336,7 +336,7 @@ public class ReportService {
      */
     private void reportJjal(String publicId, String reason, String detail, long userId, BoardActor actor, BoardCatalogSnapshot s, BoardReportValues policy,
                             Instant now) {
-        JjalFileEntity file = jjalFiles.findByPublicId(publicId).filter(f -> !f.isBlockedAt(now)).orElseThrow(ReportTargetNotFoundException::new);
+        JjalFileEntity file = jjalFiles.findByPublicId(publicId).filter(f -> !f.isBlockedAt(now)).orElseThrow(ReportTargetNotFoundException::jjal);
         long fileId = file.getId();
 
         counters.lockWriter("report:" + userId);
@@ -373,7 +373,7 @@ public class ReportService {
         if (hideReason == null) {
             return;
         }
-        JjalFileEntity locked = jjalFiles.findWithLockById(fileId).orElseThrow(ReportTargetNotFoundException::new);
+        JjalFileEntity locked = jjalFiles.findWithLockById(fileId).orElseThrow(ReportTargetNotFoundException::jjal);
         if (!locked.blockAutomatically(hideReason, until, now)) {
             return;
         }

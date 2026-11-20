@@ -11,8 +11,8 @@ SSH_USER=rocky
 SSH_KEY=/root/.ssh/irobit-was.pem
 
 # ── 도메인 (Cloudflare 에 등록된 호스트) ──────────────────────────────────
-DOMAINS="irobit.com www.irobit.com"   # 첫 값이 PUBLIC_URL
-ADMIN_DOMAIN=admin.irobit.com
+DOMAINS="irobit.kr www.irobit.kr"   # 첫 값이 PUBLIC_URL
+ADMIN_DOMAIN=admin.irobit.kr
 ADMIN_ALLOW=""                          # 관리자 앱을 이 방문자 IP 대역에서만(예 "1.2.3.4/32") — 비우면 제한 없음
 
 # Cloudflare Origin CA 인증서(SSL/TLS › Origin Server 에서 발급) — 이 폴더 기준 상대 경로 가능
@@ -24,7 +24,7 @@ ORIGIN_KEY=certs/origin.key
 STORAGE=r2
 R2_ACCOUNT_ID=                                          # r2: Cloudflare › R2 › 개요의 계정 ID — API 주소·지역(auto)은 앱이 채운다
 S3_BUCKET=irobit-media
-S3_PUBLIC_URL=https://media.irobit.com                 # 버킷에 연결한 R2 사용자 도메인(Cloudflare CDN). 비우면 앱이 /media/** 로 내보낸다
+S3_PUBLIC_URL=https://media.irobit.kr                 # 버킷에 연결한 R2 사용자 도메인(Cloudflare CDN). 비우면 앱이 /media/** 로 내보낸다
 S3_ACCESS_KEY=                                          # R2 › API 토큰(이 버킷 객체 읽기·쓰기)의 Access Key ID(r2 필수) — 비밀 키는 실행할 때 묻는다
 # S3_REGION=                                            # s3 필수(예 ap-northeast-2). r2 는 비우면 auto
 # S3_ENDPOINT=                                          # 직접 줄 때만(R2 계정 ID 보다 이긴다). s3 에서 비우면 AWS S3, MinIO 는 http://<호스트>:9000

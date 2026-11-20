@@ -57,7 +57,7 @@ export default class UtilPostMessages {
         } else if (item.state === 'HIDDEN') {
             const reason = item.hiddenReason ? t(`post.hiddenReason.${item.hiddenReason}`) : t('post.hiddenReasonUnknown');
             lines.push(item.hiddenAt ? t('post.hiddenLine', { reason, at: time.listLabel(item.hiddenAt) }) : reason);
-            if (item.hiddenUntil) lines.push(t('post.hiddenUntil', { at: time.listLabel(item.hiddenUntil) }));
+            if (item.hiddenUntil) lines.push(t('post.hiddenUntil', { at: time.full(item.hiddenUntil) }));
         }
         if (item.deleteScheduledAt && item.state !== 'DELETED') lines.push(t('post.deleteScheduled', { at: time.listLabel(item.deleteScheduledAt) }));
         if (item.purged) lines.push(t('post.purged'));
@@ -100,7 +100,7 @@ export default class UtilPostMessages {
         const hiddenReason = text(d.hiddenReason);
         if (hiddenReason && HIDDEN_REASONS.includes(hiddenReason)) lines.push({ key: 'hiddenReason', text: t('post.eventDetail.hiddenReason', { reason: t(`post.hiddenReason.${hiddenReason}`) }) });
         const hiddenUntil = text(d.hiddenUntil);
-        if (hiddenUntil) lines.push({ key: 'hiddenUntil', text: t('post.eventDetail.hiddenUntil', { at: time.listLabel(hiddenUntil) }) });
+        if (hiddenUntil) lines.push({ key: 'hiddenUntil', text: t('post.eventDetail.hiddenUntil', { at: time.full(hiddenUntil) }) });
         const question = text(d.question);
         if (question) lines.push({ key: 'poll', text: t('post.eventDetail.poll', { question }) });
         const voters = count(d.voterCount);

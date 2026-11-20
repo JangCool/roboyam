@@ -94,7 +94,7 @@ export default {
     removeConfirmTitle: 'Remove {count} GIF(s) from your collection?',
     removeConfirmText: 'They are only removed from your collection. GIFs already used in posts and comments stay.',
     removed: 'Removed {count} from your GIFs.',
-    blockedNote: '{count} hidden — removed after a rights complaint. They also show as "GIF removed" in your comments.',
+    blockedNote: '{count} hidden — taken down after a report or by moderators. They also show as "Removed" in your posts and comments.',
     blockedCell: 'Removed',
     myReorder: 'Reorder',
     myReorderHint: 'Drag a tile or use the earlier/later buttons. The picker shows GIFs in this order too.',

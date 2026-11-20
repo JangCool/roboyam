@@ -10,8 +10,8 @@ Docker 설치형(`installer/`)·compose(`docker/`)와 별개다.
 
 ```
 방문자 ─HTTPS→ Cloudflare (DNS·CDN·로드밸런싱·방문자 인증서, SSL Full (strict))
-                 ├─ irobit.com ──→ 로드밸런싱 풀 [WAS1, WAS2]   상태 확인 /actuator/health/readiness
-                 └─ admin.irobit.com ──→ WAS1
+                 ├─ irobit.kr ──→ 로드밸런싱 풀 [WAS1, WAS2]   상태 확인 /actuator/health/readiness
+                 └─ admin.irobit.kr ──→ WAS1
 WAS1 (t4g.small, 공인 IP)  Caddy:443 → api :8080 (NODE_ID 1) + admin :8081 (NODE_ID 3)
 WAS2 (t4g.small, 공인 IP)  Caddy:443 → api :8080 (NODE_ID 2)
 DB   (t4g.medium, 공인 IP) PostgreSQL 18 + pg_cron :5432 — 원스톱 스크립트를 여기서 돌린다
@@ -53,7 +53,7 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
    DB 비밀번호(와 `S3_ACCESS_KEY` 를 줬으면 S3 비밀 키)를 한 번 묻는다. 그다음은 자동이다:
    `[1/3]` DB 설치 → `[2/3]` WAS1 묶음 전송·설치·admin→api 기동(readiness 확인) → DB 배치 등록 확인 → `[3/3]` WAS1 의 `irobit.env` 를 WAS2 로 넘겨 설치·기동 → 앱 서버의 임시 폴더 삭제.
    끝에 설치 마법사 주소·토큰이 나온다. **WAS1 의 `/etc/irobit/irobit.env` 를 서버 밖에 백업**한다.
-4. **Cloudflare** — SSL 「Full (strict)」, 로드밸런싱 풀(WAS1·WAS2 공인 IP, 상태 확인 `GET /actuator/health/readiness` 200, Host `irobit.com`), `admin` 은 WAS1.
+4. **Cloudflare** — SSL 「Full (strict)」, 로드밸런싱 풀(WAS1·WAS2 공인 IP, 상태 확인 `GET /actuator/health/readiness` 200, Host `irobit.kr`), `admin` 은 WAS1.
 5. **배포(이후)** — 새 묶음을 DB 서버에 풀고:
    ```bash
    sudo ./irobit-install.sh --deploy
@@ -92,9 +92,9 @@ SSH 키: 앱 서버용 `.pem` 을 DB 서버 `/root/.ssh/` 에 두거나(600), �
 `r2`·`s3` 는 같은 S3 호환 구현이고 기본값만 다르다. 앱 서버 두 대와 관리자 앱이 같은 버킷을 읽고 쓰므로 WAS1 에서 올린 이미지를 WAS2 도 보인다.
 
 1. **버킷** — Cloudflare › R2 › 버킷 만들기(예 `irobit-media`, 위치 자동 또는 APAC). 개요 화면의 **계정 ID** 를 적어 둔다.
-2. **공개 주소** — 버킷 › 설정 › 사용자 도메인에 `media.irobit.com` 연결(Cloudflare CDN 이 캐시한다 — 객체에 1년 immutable 캐시 머리글이 붙는다). `r2.dev` 주소는 속도 제한이 있어 운영에 쓰지 않는다.
+2. **공개 주소** — 버킷 › 설정 › 사용자 도메인에 `media.irobit.kr` 연결(Cloudflare CDN 이 캐시한다 — 객체에 1년 immutable 캐시 머리글이 붙는다). `r2.dev` 주소는 속도 제한이 있어 운영에 쓰지 않는다.
 3. **API 토큰** — R2 › API 토큰 관리 › 「객체 읽기 및 쓰기」, **이 버킷만**. Access Key ID 는 `install.conf` 의 `S3_ACCESS_KEY`, Secret Access Key 는 설치할 때 입력한다(WAS1 에서 `ENC(...)` 로 암호화).
-4. `install.conf`: `STORAGE=r2`, `R2_ACCOUNT_ID`, `S3_BUCKET`, `S3_PUBLIC_URL=https://media.irobit.com`, `S3_ACCESS_KEY`.
+4. `install.conf`: `STORAGE=r2`, `R2_ACCOUNT_ID`, `S3_BUCKET`, `S3_PUBLIC_URL=https://media.irobit.kr`, `S3_ACCESS_KEY`.
 
 앱은 설정이 틀리면(버킷·지역·계정 ID 없음, 키 한쪽만, r2 인데 키 없음) **뜨지 않는다**(로그에 칸 이름). 버킷에 닿지 못하는 것은 경고만 남기고 뜬 뒤 올리기·읽기가 503 이다.
 앱은 `/media/**` 도 계속 연다 — 공개 주소 없이 쓰거나, 예전에 글 본문에 저장된 `/media/…` 주소를 버킷에서 읽어 준다.

@@ -19,11 +19,11 @@
 # 사용법 (WAS1 — 처음 설치, 공통 환경 파일을 새로 만든다)
 #   ./irobit-app-install.sh --with-admin --node-id 1 --admin-node-id 3 \
 #       --api-jar irobit-api.jar --admin-jar irobit-admin.jar \
-#       --db-host 10.0.1.20 --domain irobit.com --domain www.irobit.com --admin-domain admin.irobit.com \
+#       --db-host 10.0.1.20 --domain irobit.kr --domain www.irobit.kr --admin-domain admin.irobit.kr \
 #       --origin-cert origin.pem --origin-key origin.key --swap 2G
 # 사용법 (WAS2 — WAS1 의 /etc/irobit/irobit.env 를 복사해 와서)
 #   ./irobit-app-install.sh --node-id 2 --shared-env irobit.env --api-jar irobit-api.jar \
-#       --domain irobit.com --domain www.irobit.com --origin-cert origin.pem --origin-key origin.key
+#       --domain irobit.kr --domain www.irobit.kr --origin-cert origin.pem --origin-key origin.key
 # Cloudflare IP 대역만 새로 받아 Caddy 에 반영
 #   ./irobit-app-install.sh --refresh-cloudflare-ips
 #

@@ -8,6 +8,15 @@ import org.springframework.http.HttpStatus;
 public class ReportTargetNotFoundException extends CommonException {
 
     public ReportTargetNotFoundException() {
-        super(HttpStatus.NOT_FOUND, "REPORT_TARGET_NOT_FOUND", new MessageRef("error.REPORT_TARGET_NOT_FOUND"));
+        this("error.REPORT_TARGET_NOT_FOUND");
+    }
+
+    private ReportTargetNotFoundException(String messageKey) {
+        super(HttpStatus.NOT_FOUND, "REPORT_TARGET_NOT_FOUND", new MessageRef(messageKey));
+    }
+
+    /** 짤 신고 — 없는 짤·내려간 짤(코드는 같고 문구만 짤용) */
+    public static ReportTargetNotFoundException jjal() {
+        return new ReportTargetNotFoundException("error.REPORT_TARGET_NOT_FOUND.jjal");
     }
 }

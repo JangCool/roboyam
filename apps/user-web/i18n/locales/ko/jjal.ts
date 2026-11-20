@@ -95,7 +95,7 @@ export default {
     removeConfirmTitle: '고른 짤 {count}개를 내 짤에서 뺄까요?',
     removeConfirmText: '내 보관함에서만 빠져요. 이미 쓴 글·댓글의 짤은 그대로 보여요.',
     removed: '내 짤에서 {count}개를 뺐어요.',
-    blockedNote: '숨겨진 짤 {count}개 — 권리 침해 신고로 내려갔어요. 쓴 댓글에서도 「내려간 짤」로 보여요.',
+    blockedNote: '숨겨진 짤 {count}개 — 신고나 운영 정책으로 내려갔어요. 쓴 글과 댓글에서도 「내려간 짤」로 보여요.',
     blockedCell: '내려간 짤',
     myReorder: '순서 바꾸기',
     myReorderHint: '칸을 끌어 옮기거나 앞으로·뒤로 단추로 순서를 바꿔요. 고르기 창에도 이 순서로 보여요.',

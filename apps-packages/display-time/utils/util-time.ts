@@ -79,7 +79,7 @@ export type ListLabelOptions = { compact?: boolean; now?: number };
 export type DisplayTime = {
     /** 이 객체가 묶은 표시 값(바꿀 수 없는 사본) — 언어는 정리한 값(`ko`·`en`)이다 */
     readonly display: DisplayValues;
-    /** 목록 한 줄의 시간 — 오늘은 시각, 어제는 "어제", 올해는 짧은 날짜, 그 전 해는 연 포함 */
+    /** 목록 한 줄의 시간 — 오늘은 시각, 어제는 "어제", 올해는 짧은 날짜, 그 전 해는 연 포함(내일 이후 앞날도 날짜) */
     listLabel(iso: string | null | undefined, options?: ListLabelOptions): string;
     /** 글 상세의 시간 — "방금" · "오늘 11:30" · "어제 21:10" · "09.27 14:20" · "2025.09.27 14:20" */
     detail(iso: string | null | undefined, now?: number): string;
@@ -252,7 +252,8 @@ function listLabelAt(iso: string | null | undefined, display: TimeValues, option
     const then = zonedParts(ms, r.zoneId);
     const diff = daysAgo(then, now);
     const words = UtilTimeWords.of(r.language);
-    if (diff <= 0) return options.compact ? timeText(then.h, then.mi, r) : `${words.today} ${timeText(then.h, then.mi, r)}`;
+    // 앞날(기한·끝나는 날)은 "오늘"이 아니라 날짜로 — diff < 0 은 아래 날짜 줄로 간다
+    if (diff === 0) return options.compact ? timeText(then.h, then.mi, r) : `${words.today} ${timeText(then.h, then.mi, r)}`;
     if (diff === 1) return words.yesterday;
     return then.y === now.y ? shortDateText(then.mo, then.d, r.dateFormat) : dateText(then.y, then.mo, then.d, r.dateFormat);
 }

@@ -33,7 +33,7 @@ export default class UtilReportMessages {
         const lines: string[] = [];
         if (target.state === 'HIDDEN') {
             lines.push(target.hiddenReason ? t(`report.hiddenReason.${target.hiddenReason}`) : t('report.hiddenReasonUnknown'));
-            if (target.hiddenUntil) lines.push(t('report.hiddenUntil', { at: time.listLabel(target.hiddenUntil) }));
+            if (target.hiddenUntil) lines.push(t('report.hiddenUntil', { at: time.full(target.hiddenUntil) }));
         }
         return lines;
     }
@@ -122,7 +122,7 @@ export default class UtilReportMessages {
         if (d.bulk === true) lines.push(t('report.eventDetail.bulk'));
         if (d.falseReportCleared === true) lines.push(t('report.eventDetail.falseReportCleared'));
         if (typeof d.hiddenReason === 'string' && ['REPORTED', 'ILLEGAL', 'RIGHTS', 'STAFF'].includes(d.hiddenReason)) lines.push(t(`report.hiddenReason.${d.hiddenReason}`));
-        if (typeof d.hiddenUntil === 'string' && d.hiddenUntil) lines.push(t('report.hiddenUntil', { at: time.listLabel(d.hiddenUntil) }));
+        if (typeof d.hiddenUntil === 'string' && d.hiddenUntil) lines.push(t('report.hiddenUntil', { at: time.full(d.hiddenUntil) }));
         return lines;
     }
 
