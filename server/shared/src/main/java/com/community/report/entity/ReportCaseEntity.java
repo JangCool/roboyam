@@ -41,6 +41,8 @@ public class ReportCaseEntity {
     public static final String ACTION_SANCTION_ONLY = "SANCTION_ONLY";
     /** 조치: 협찬 표시 붙임(V243 점검 D2 — 체험단 「확인할 일」의 협찬 숨김 확인에서 닫은 사건. 글의 구입 경로가 협찬으로 고정된다, 대상은 숨기지 않는다) */
     public static final String ACTION_SPONSOR_LABEL = "SPONSOR_LABEL";
+    /** 조치: 짤 내림(짤 사건만 — V261, my-jjal-contract). 파일을 BLOCKED(STAFF)로 — 모든 보관함·글·댓글에서 「내려간 짤」, 같은 해시 다시 올리기 거절 */
+    public static final String ACTION_JJAL_BLOCK = "JJAL_BLOCK";
     /** 무시 */
     public static final String ACTION_DISMISS = "DISMISS";
 
@@ -58,6 +60,7 @@ public class ReportCaseEntity {
     private Long targetId;
     /** 대상 글(댓글 사건이면 그 댓글의 글) — 소모임 사건이면 null(V95) */
     private Long postId;
+    /** 대상의 게시판 — 짤 사건이면 null(V261 — 짤은 여러 게시판에 쓰인다) */
     private Long boardId;
     private Long targetAuthorId;
     private String status;
@@ -79,7 +82,7 @@ public class ReportCaseEntity {
     }
 
     /** 새 사건(신고 0건 — 이어서 {@link #reportAdded}) */
-    public static ReportCaseEntity open(long id, String targetType, long targetId, Long postId, long boardId, Long targetAuthorId, Instant now) {
+    public static ReportCaseEntity open(long id, String targetType, long targetId, Long postId, Long boardId, Long targetAuthorId, Instant now) {
         ReportCaseEntity c = new ReportCaseEntity();
         c.id = id;
         c.targetType = targetType;
@@ -96,7 +99,7 @@ public class ReportCaseEntity {
     }
 
     /** 신고가 하나 더 붙었다 — 글의 게시판이 옮겨졌을 수 있어 글·게시판도 지금 값으로(소모임 사건은 글 null) */
-    public void reportAdded(Long postId, long boardId, Instant now) {
+    public void reportAdded(Long postId, Long boardId, Instant now) {
         this.reportCount++;
         this.lastReportedAt = now;
         this.postId = postId;
@@ -165,6 +168,11 @@ public class ReportCaseEntity {
 
     public boolean isComment() {
         return ReportEntity.COMMENT.equals(targetType);
+    }
+
+    /** 짤 사건(V261) — 글·게시판·작성자가 없다 */
+    public boolean isJjal() {
+        return ReportEntity.JJAL.equals(targetType);
     }
 
     /** 소모임 사건(V95) — 글이 없다 */

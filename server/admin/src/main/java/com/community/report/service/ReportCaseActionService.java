@@ -12,6 +12,11 @@ import com.community.group.service.GroupAdminService;
 import com.community.hotdeal.service.DealModeration;
 import com.community.hotdeal.service.HotdealAdminQueryService;
 import com.community.hotdeal.service.HotdealModerationService;
+import com.community.jjal.entity.JjalFileEntity;
+import com.community.jjal.exception.JjalNotBlockedException;
+import com.community.jjal.exception.JjalPurgedException;
+import com.community.jjal.repository.master.JjalFileRepository;
+import com.community.jjal.service.JjalStorageSync;
 import com.community.membernotification.service.MemberNotificationMessages;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.permission.dto.AdminActor;
@@ -81,6 +86,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       <b>소모임 사건</b>(V95)은 DEACTIVATE 만(그 밖 조치·글·댓글 사건의 DEACTIVATE 는 409 REPORT_ACTION_INVALID) — 열린 소모임을 관리자 소모임 관리와 같은 서비스로 비활성화한다
  *       ({@code groups.deactivate_case_id} = 사건 ID, 감사 GROUP_DEACTIVATE, 모임장 알림 GROUP_DEACTIVATED — note 가 사유로 가므로 1~200자). 이미 비활성·해산이면 409 REPORT_ACTION_INVALID.
  *       {@code reasonCode} 는 사건 대상의 사유 체계(소모임 사유 · 글·댓글 사유)여야 한다(400 {@code fields.reasonCode}).</li>
+ *   <li><b>짤 사건</b>(V261 — my-jjal-contract): 조치는 {@code JJAL_BLOCK}(짤 내림 — 파일 행 잠금 뒤 STAFF 로 내리고, 자동 숨김 중이면 운영자 내림으로 확정 · 이미 운영자가 내렸으면 409 REPORT_ACTION_INVALID)
+ *       와 무시뿐(그 밖 조치·제재 곁들이기·「제재만」은 409 REPORT_ACTION_INVALID — 작성자를 보이지 않는다). 사유는 글·댓글 6종. 무시하면 자동 숨김을 푼다.
+ *       사유 코드가 {@code ILLEGAL_FILMING} 이면 불법촬영물 확정 — 파일을 지우고 해시 행만 남긴다(되돌림 없음). 내린 파일은 커밋 뒤 공개 주소에서 뺀다({@code JjalStorageSync}).
+ *       닫은 사건의 <b>되돌림</b>({@link #restoreJjal}, {@code POST /{id}/jjal-restore}): 내려간 짤을 새 무작위 공개 키로 다시 보이게(불법촬영물로 지운 짤 409 JJAL_PURGED ·
+ *       안 내려가 있으면 409 JJAL_NOT_BLOCKED, 열린 사건·짤 사건이 아니면
+ *       409 REPORT_ACTION_INVALID). 사건 상태는 그대로이고 기록 RESOLVED(덧붙임 {@code action JJAL_RESTORE}·{@code jjalRestored})·감사 {@code REPORT_JJAL_RESTORE}.</li>
  *   <li><b>무시</b>({@link #dismiss}): {@code reasonCode} 고르면 신고 사유 코드 · {@code note} 500자까지 · {@code falseReport}. 대상이 자동 숨김 중이면 <b>복구</b>(글은 조치 기록 UNHIDDEN,
  *       댓글은 댓글 수 +1), 운영자 숨김(STAFF)은 그대로. 신고들은 허위 표시면 REJECTED(신고 남용 차단이 센다), 아니면 DISMISSED.</li>
  *   <li><b>일괄 무시</b>({@link #bulkDismiss}): 사건 ID 1~50개(같은 ID 는 한 번, 400 {@code fields.ids}) · 글(400 {@code fields.note}). 사건마다 따로 트랜잭션 — 없음 REPORT_CASE_NOT_FOUND ·
@@ -102,7 +113,9 @@ public class ReportCaseActionService {
     static final String TARGET = "REPORT_CASE";
     static final int BULK_MAX = 50;
     static final List<String> ACTIONS = List.of(ReportCaseEntity.ACTION_HIDE, ReportCaseEntity.ACTION_DELETE, ReportCaseEntity.ACTION_KEEP_HIDDEN,
-            ReportCaseEntity.ACTION_DEACTIVATE, ReportCaseEntity.ACTION_DEAL_END);
+            ReportCaseEntity.ACTION_DEACTIVATE, ReportCaseEntity.ACTION_DEAL_END, ReportCaseEntity.ACTION_JJAL_BLOCK);
+    /** 되돌림 기록의 덧붙임 {@code action} */
+    static final String JJAL_RESTORE = "JJAL_RESTORE";
 
     private final ReportCaseRepository cases;
     private final AdminReportRepositoryQDSL caseQueries;
@@ -124,13 +137,20 @@ public class ReportCaseActionService {
     private final MemberSanctionService sanctions;
     private final AdminSanctionService sanctionAdmin;
     private final com.community.trial.service.SponsorReviewService sponsorReviews;
+    /** 짤 사건의 대상 짤 파일(V261) */
+    private final JjalFileRepository jjalFiles;
+    /** 짤 저장 위치를 커밋 뒤 맞춘다(내림 → 비공개 위치 · 되돌림 → 새 공개 키 · 불법촬영물 확정 → 파일 삭제) */
+    private final JjalStorageSync jjalStorage;
 
     public ReportCaseActionService(ReportCaseRepository cases, AdminReportRepositoryQDSL caseQueries, ReportRepositoryQDSL reports, ReportCaseLog caseLog,
                                    PostRepository posts, CommentRepository comments, PostCounterQueries counters, AdminPostModerationService postModeration,
                                    PostModerationLog moderation, PointService points, MemberNotificationPublisher memberNotices, BoardCatalog catalog,
                                    AuditLogService audit, PlatformTransactionManager txManager, GroupAdminService groupAdmin, HotdealAdminQueryService hotdeals,
                                    DealModeration dealModeration, MemberSanctionService sanctions, AdminSanctionService sanctionAdmin,
-                                   com.community.trial.service.SponsorReviewService sponsorReviews) {
+                                   com.community.trial.service.SponsorReviewService sponsorReviews, JjalFileRepository jjalFiles,
+                                   JjalStorageSync jjalStorage) {
+        this.jjalStorage = jjalStorage;
+        this.jjalFiles = jjalFiles;
         this.sponsorReviews = sponsorReviews;
         this.sanctions = sanctions;
         this.sanctionAdmin = sanctionAdmin;
@@ -198,6 +218,9 @@ public class ReportCaseActionService {
         if (!sanctionOnly && c.isGroup() != ReportCaseEntity.ACTION_DEACTIVATE.equals(action)) {
             throw new ReportActionInvalidException(); // 소모임 사건은 비활성화만, 글·댓글 사건은 비활성화 없음
         }
+        if (c.isJjal() ? sanctionOnly || sanction != null || !ReportCaseEntity.ACTION_JJAL_BLOCK.equals(action) : ReportCaseEntity.ACTION_JJAL_BLOCK.equals(action)) {
+            throw new ReportActionInvalidException(); // 짤 사건은 짤 내림만(작성자가 없어 제재도 없다), 그 밖 사건은 짤 내림 없음
+        }
         if (ReportCaseEntity.ACTION_DEAL_END.equals(action) && !dealPost) {
             throw new ReportActionInvalidException(); // 핫딜 종료는 핫딜 글 사건만(일반 글·댓글 사건 409)
         }
@@ -216,6 +239,16 @@ public class ReportCaseActionService {
             if (!groupAdmin.deactivateForReport(actor, c.getTargetId(), note, c.getId())) {
                 throw new ReportActionInvalidException(); // 이미 비활성·해산
             }
+            revoked = 0;
+        } else if (c.isJjal()) {
+            // 짤 내림 — 파일 행 잠금(차례: 사건 → 파일). 모든 보관함·글·댓글에서 「내려간 짤」, 같은 해시 다시 올리기 거절
+            // 사유 코드가 불법촬영물이면 확정 — 파일을 지우고 해시 행만 남긴다(되돌림 없음, 사용자 결정 2026-11-20). 그 밖은 운영자 내림(STAFF)
+            JjalFileEntity file = jjalFiles.findWithLockById(c.getTargetId()).orElseThrow(ReportActionInvalidException::new);
+            boolean done = ReportReasons.ILLEGAL_FILMING.equals(reasonCode) ? file.purgeAsIllegal(now) : file.blockByStaff(now);
+            if (!done) {
+                throw new ReportActionInvalidException(); // 이미 운영자가 내렸다 · 이미 불법촬영물로 지웠다
+            }
+            jjalStorage.afterCommit(file.getId()); // 커밋 뒤 비공개 위치로 옮기거나(내림) 저장소에서 지운다(불법촬영물)
             revoked = 0;
         } else if (ReportCaseEntity.ACTION_DEAL_END.equals(action)) {
             // 운영진 종료와 같은 길(shared DealModeration — 보상 · 작성자 알림 DEAL_MANAGER_ENDED, 처리 글이 사유) · 글은 숨기지 않는다. 신고 조치 권한(report.manage)이 담당을 대신한다
@@ -489,6 +522,14 @@ public class ReportCaseActionService {
         if (c.isGroup()) {
             return false; // 소모임 신고에는 자동 숨김이 없다(V95)
         }
+        if (c.isJjal()) {
+            JjalFileEntity file = jjalFiles.findWithLockById(c.getTargetId()).orElse(null);
+            if (file == null || !file.unblockAutomatic(now)) {
+                return false; // 자동 숨김(REPORTED · ILLEGAL · RIGHTS)만 — 운영자 내림·불법촬영물 확정은 그대로
+            }
+            jjalStorage.afterCommit(file.getId()); // 커밋 뒤 새 무작위 공개 키로(옛 주소는 죽은 채)
+            return true;
+        }
         if (c.isComment()) {
             CommentEntity comment = comments.findWithLockByPostIdAndId(c.getPostId(), c.getTargetId()).orElse(null);
             if (comment == null || comment.isDeleted() || !comment.unhideReported(now)) {
@@ -539,6 +580,38 @@ public class ReportCaseActionService {
         auditDetail.putAll(targetFacts(c));
         record(actor, AuditActions.REPORT_REOPEN, Long.toString(c.getId()), auditDetail);
         log.info("신고 다시 열기 caseId={} by operatorId={}", c.getId(), actor.operatorId());
+    }
+
+    // ── 짤 되돌림(V261) ─────────────────────────────────────────────────────
+
+    /** 닫은 짤 사건의 내려간 짤을 다시 보이게 — 규칙은 클래스 설명 「짤 사건」 */
+    @Transactional
+    public void restoreJjal(AdminActor actor, String idText) {
+        ReportCaseEntity c = lock(idText);
+        if (!c.isJjal() || c.isOpen()) {
+            throw new ReportActionInvalidException(); // 짤 사건이 아니다 · 열린 사건은 조치·무시로 닫는다
+        }
+        Instant now = Instant.now();
+        JjalFileEntity file = jjalFiles.findWithLockById(c.getTargetId()).orElseThrow(JjalNotBlockedException::new);
+        if (file.isPurged()) {
+            throw new JjalPurgedException(); // 불법촬영물로 확정해 지운 짤 — 되돌림 없음
+        }
+        String before = file.blockedReasonAt(now);
+        if (!file.unblock(now)) {
+            throw new JjalNotBlockedException();
+        }
+        jjalFiles.flush();
+        jjalStorage.afterCommit(file.getId()); // 커밋 뒤 새 무작위 공개 키로(옛 주소는 죽은 채)
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("action", JJAL_RESTORE);
+        detail.put("jjalRestored", true);
+        detail.put("blockedReason", before);
+        caseLog.operator(c.getId(), ReportEventEntity.RESOLVED, actor.operatorId(), detail, now);
+        Map<String, Object> auditDetail = new LinkedHashMap<>(detail);
+        auditDetail.putAll(targetFacts(c));
+        auditDetail.put("jjalId", file.getPublicId());
+        record(actor, AuditActions.REPORT_JJAL_RESTORE, Long.toString(c.getId()), auditDetail);
+        log.info("짤 되돌림 caseId={} fileId={} by operatorId={}", c.getId(), file.getId(), actor.operatorId());
     }
 
     // ── 협찬 숨김 확인할 일(점검 D2 — 체험단 「확인할 일」 → 신고 사건) ─────────────────────────────

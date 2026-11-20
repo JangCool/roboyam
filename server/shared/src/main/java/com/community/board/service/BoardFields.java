@@ -171,7 +171,8 @@ public final class BoardFields {
     /** 일반 기본 설정의 칸(화면 순서) */
     public static final Map<String, Spec> DEFAULTS;
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
-    public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
+    public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "postJjalAllowed", "commentEditor",
+            "commentJjalAllowed", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "pointMinLengthApplied", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
             "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "authorThumbnailEnabled", "tagsEnabled", "detailFeedTabsPc", "detailFeedTabsMobile", "prefixRequired", "tagRequired", "sourcesEnabled", "purchaseSourceMode", "trialReviewsEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
             "staffSanctionDailyLimit");
@@ -221,7 +222,10 @@ public final class BoardFields {
         put(d, new Spec("commentMin", Kind.COMMENT_MIN, 0, 0, List.of(), true, false));
         choice(d, "postEditor", true, false, EDITOR_NONE, EDITOR_SIMPLE, EDITOR_ADVANCED);
         bool(d, "imageUploadAllowed", true);
+        // 본문 짤 허용 · 댓글 짤 허용(V261 — my-jjal-contract 「게시판별 사용」, 기본 켬). 이미지 칸과 따로다
+        bool(d, "postJjalAllowed", true);
         choice(d, "commentEditor", true, false, EDITOR_NONE, EDITOR_SIMPLE);
+        bool(d, "commentJjalAllowed", true);
         number(d, "postGapSeconds", 0, 3600, false, false);
         number(d, "postDailyLimit", 1, 1000, false, false);
         number(d, "commentGapSeconds", 0, 3600, false, false);

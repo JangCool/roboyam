@@ -19,6 +19,7 @@ import java.util.Map;
  * {@code prefixRequired}·{@code tagRequired}(V226) = 말머리 필수·태그 필수 사이트 기본(false) — 게시판별 정책 칸(null = 이 값), ai-news-reporter-contract.
  * {@code sourcesEnabled}(V232) = 「출처 칸 쓰기」 사이트 기본(false) — 게시판별 정책 칸(null = 이 값).
  * {@code purchaseSourceMode}·{@code trialReviewsEnabled}(V241) = 「구입 경로 받기」 사이트 기본(OFF) · 「체험단 사용기 받기」 사이트 기본(false) — 게시판별 정책 칸(null = 이 값), trial-group-contract.
+ * {@code postJjalAllowed}·{@code commentJjalAllowed}(V261) = 본문 짤 허용 · 댓글 짤 허용 사이트 기본(true) — 게시판별 정책 칸(null = 이 값), my-jjal-contract.
  * 요청으로 받을 때 빠진 칸을 알아보려고 감싼 타입(Integer·Boolean)을 쓴다 — 저장된 값은 모두 채워져 있다. 칸 이름·범위의 원천은 {@link com.community.board.service.BoardFields}.
  */
 public record BoardDefaultsValues(String dateDisplay, String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor,
@@ -33,7 +34,8 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   String listChipPosition, Integer listLikeHighlight, Integer listViewHighlight, String listHighlightColor,
                                   String listPrefixStyle, String commentDelayNotice, Integer pinRequestMinLikes, Boolean authorThumbnailEnabled,
                                   Boolean tagsEnabled, Boolean detailFeedTabsPc, Boolean detailFeedTabsMobile, Boolean prefixRequired, Boolean tagRequired,
-                                  Boolean sourcesEnabled, String purchaseSourceMode, Boolean trialReviewsEnabled) {
+                                  Boolean sourcesEnabled, String purchaseSourceMode, Boolean trialReviewsEnabled, Boolean postJjalAllowed,
+                                  Boolean commentJjalAllowed) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 화면 기본 이름) */
     public BoardDefaultsValues {
@@ -43,7 +45,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
     }
 
     /**
-     * 나중에 생긴 칸(V169 칩 위치 · V170 숫자 강조 · V195 말머리 모양 · V199 댓글 지연 안내 · V200 고정 요청 최소 추천 · V206 글쓴이 대표 이미지 · V215 태그 쓰기 · V226 상세 탭·말머리 필수·태그 필수 · V232 출처 칸)을 채운 사본 — 저장 요청에 칸이 없으면(null) 지금 값({@code current})을
+     * 나중에 생긴 칸(V169 칩 위치 · V170 숫자 강조 · V195 말머리 모양 · V199 댓글 지연 안내 · V200 고정 요청 최소 추천 · V206 글쓴이 대표 이미지 · V215 태그 쓰기 · V226 상세 탭·말머리 필수·태그 필수 · V232 출처 칸 · V261 짤 허용)을 채운 사본 — 저장 요청에 칸이 없으면(null) 지금 값({@code current})을
      * 그대로 둔다(이 칸들을 모르는 예전 화면·호출과 맞추려고). 칩 위치·말머리 모양·지연 안내는 대문자, 강조 색은 소문자로 맞춘다(앞뒤 공백 뗌 — 모양·범위는 검사에서 400).
      */
     public BoardDefaultsValues filledFrom(BoardDefaultsValues current) {
@@ -63,12 +65,15 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         Boolean sources = sourcesEnabled == null ? current.sourcesEnabled() : sourcesEnabled;
         String purchase = purchaseSourceMode == null ? current.purchaseSourceMode() : purchaseSourceMode.strip().toUpperCase(Locale.ROOT);
         Boolean trialReviews = trialReviewsEnabled == null ? current.trialReviewsEnabled() : trialReviewsEnabled;
+        Boolean postJjal = postJjalAllowed == null ? current.postJjalAllowed() : postJjalAllowed;
+        Boolean commentJjal = commentJjalAllowed == null ? current.commentJjalAllowed() : commentJjalAllowed;
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit,
                 commentGapSeconds, commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays,
                 pointMode, pointMinLengthApplied, commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes,
                 commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, pinRequestReviewers, debateEnabled,
                 pollEnabled, bestCommentMinLikes, managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, chip, like, view,
-                color, prefixStyle, delayNotice, pinMinLikes, authorThumbnail, tags, feedPc, feedMobile, prefixReq, tagReq, sources, purchase, trialReviews);
+                color, prefixStyle, delayNotice, pinMinLikes, authorThumbnail, tags, feedPc, feedMobile, prefixReq, tagReq, sources, purchase, trialReviews,
+                postJjal, commentJjal);
     }
 
     /** 단추 이름 정리 — 앞뒤 공백을 자르고 비면 null */
@@ -123,6 +128,8 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("sourcesEnabled", sourcesEnabled);
         map.put("purchaseSourceMode", purchaseSourceMode);
         map.put("trialReviewsEnabled", trialReviewsEnabled);
+        map.put("postJjalAllowed", postJjalAllowed);
+        map.put("commentJjalAllowed", commentJjalAllowed);
         map.put("bestCommentMinLikes", bestCommentMinLikes);
         map.put("managerMax", managerMax);
         map.put("staffMax", staffMax);

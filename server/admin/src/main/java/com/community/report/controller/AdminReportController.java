@@ -108,6 +108,23 @@ public class AdminReportController {
         return noStore(actions.bulkDismiss(actor, body));
     }
 
+    /** 짤 사건의 그림(내려 비공개 위치로 옮긴 짤도 — 운영자 전용, {@code no-store}). 짤 사건이 아니거나 파일이 없으면 404 REPORT_CASE_NOT_FOUND */
+    @RequirePermission(Permission.REPORT_READ)
+    @GetMapping("/{id}/jjal-image")
+    public ResponseEntity<byte[]> jjalImage(@PathVariable String id) {
+        AdminReportQueryService.JjalImage image = queries.jjalImage(id);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(org.springframework.http.MediaType.parseMediaType(image.contentType()))
+                .header("X-Content-Type-Options", "nosniff").body(image.data());
+    }
+
+    /** 내린 짤 되돌림(짤 사건 — V261, my-jjal-contract) — 닫은 짤 사건의 내려간 짤을 다시 보이게. 안 내려가 있으면 409 JJAL_NOT_BLOCKED */
+    @RequirePermission(Permission.REPORT_MANAGE)
+    @PostMapping("/{id}/jjal-restore")
+    public ResponseEntity<ApiResponse<ReportCaseDetailView>> restoreJjal(@PathVariable String id, AdminActor actor) {
+        actions.restoreJjal(actor, id);
+        return noStore(queries.detail(id));
+    }
+
     /** 무시한 사건 다시 열기 */
     @RequirePermission(Permission.REPORT_MANAGE)
     @PostMapping("/{id}/reopen")

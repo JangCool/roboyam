@@ -173,7 +173,9 @@ public class BoardCatalog implements CacheReloader {
                 BoardFields.KIND_GENERAL.equals(b.getKind()) ? or(p.purchaseSourceMode(), d.purchaseSourceMode()) : BoardFields.PURCHASE_OFF,
                 BoardFields.KIND_GENERAL.equals(b.getKind()) && or(p.trialReviewsEnabled(), d.trialReviewsEnabled()),
                 // 목록 이모지(V257) — 게시판 값 그대로
-                b.getListEmoji());
+                b.getListEmoji(),
+                // 본문 짤 허용 · 댓글 짤 허용(V261) — 게시판 값 ?? 기본값
+                or(p.postJjalAllowed(), d.postJjalAllowed()), or(p.commentJjalAllowed(), d.commentJjalAllowed()));
     }
 
     private static <T> T or(T value, T fallback) {

@@ -105,6 +105,9 @@ public class BoardEntity {
     /** 「구입 경로 받기」 OFF·OPTIONAL·REQUIRED · 「체험단 사용기 받기」(V241, NULL = 기본값 따름) — trial-group-contract */
     private String purchaseSourceMode;
     private Boolean trialReviewsEnabled;
+    /** 본문 짤 허용 · 댓글 짤 허용(V261, NULL = 기본값 따름) — my-jjal-contract 「게시판별 사용」 */
+    private Boolean postJjalAllowed;
+    private Boolean commentJjalAllowed;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -247,6 +250,8 @@ public class BoardEntity {
         this.sourcesEnabled = policy.sourcesEnabled();
         this.purchaseSourceMode = policy.purchaseSourceMode();
         this.trialReviewsEnabled = policy.trialReviewsEnabled();
+        this.postJjalAllowed = policy.postJjalAllowed();
+        this.commentJjalAllowed = policy.commentJjalAllowed();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -277,7 +282,7 @@ public class BoardEntity {
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
                 commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit, authorThumbnailEnabled, tagsEnabled, detailFeedTabsPc, detailFeedTabsMobile, prefixRequired,
-                tagRequired, sourcesEnabled, purchaseSourceMode, trialReviewsEnabled);
+                tagRequired, sourcesEnabled, purchaseSourceMode, trialReviewsEnabled, postJjalAllowed, commentJjalAllowed);
     }
 
     public Long getId() {

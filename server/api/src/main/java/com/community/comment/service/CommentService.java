@@ -51,6 +51,7 @@ import com.community.group.service.GroupPostGate;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.emoticon.service.EmoticonGuard;
+import com.community.jjal.service.JjalGuard;
 import com.community.point.service.PointService;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.entity.PostEntity;
@@ -157,6 +158,8 @@ public class CommentService {
     private final BoardStaffActionService staffActions;
     /** 로보티콘 토큰 검사(개수 400 → 자격 409 — emoticon-contract 목업 5차) */
     private final EmoticonGuard emoticons;
+    /** 짤 토큰 검사(개수 400 → 게시판 422 · 내려감·보관함 409)·쓰임 기록 — my-jjal-contract */
+    private final JjalGuard jjals;
     /** 답글 대상·본문 칸·작성 간격·하루 한도 — shared 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드) */
     private final CommentWriteRules writeRules;
     /** 익명 글·댓글의 글쓴이 표시·글 안 번호(V184 — anonymous-board-contract 정책 3) */
@@ -168,7 +171,8 @@ public class CommentService {
                           ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
                           GroupPostGate groupGate, GroupMemberRepository groupMembers, GroupPostQueries groupPosts, Messages messages,
                           PlatformTransactionManager txManager, BoardStaffActionService staffActions, EmoticonGuard emoticons, CommentWriteRules writeRules,
-                          AnonymousAuthors anonymousAuthors) {
+                          AnonymousAuthors anonymousAuthors, JjalGuard jjals) {
+        this.jjals = jjals;
         this.anonymousAuthors = anonymousAuthors;
         this.writeRules = writeRules;
         this.emoticons = emoticons;
@@ -555,10 +559,12 @@ public class CommentService {
             guestName = body.guest() == null ? null : ContentRules.normalize(body.guest().name());
         }
         EmoticonGuard.countInto(content.content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께)
+        jjals.countInto(content.content(), JjalGuard.Place.COMMENT, "content", fields); // 짤 토큰 1개까지(my-jjal-contract)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
         emoticons.requireOwned(actor.guest() ? null : actor.userId(), content.content()); // 가지지 않은 팩의 로보티콘 409 — 금지어·속도 제한 앞
+        jjals.requireAllowed(actor.guest() ? null : actor.userId(), content.content(), null, b.commentJjalAllowed()); // 댓글 짤 꺼짐 422 · 내려감·보관함에 없음 409
         Optional<String> word = ContentRules.blockedWord(sec, content.wordsHaystack(), guestName);
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -589,6 +595,7 @@ public class CommentService {
             }
             comments.persist(comment);
             emoticons.recordUse(authorId, content.content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3)
+            jjals.recordUses(post.getId(), id, masked.content()); // 짤 쓰임(정리 배치·담기 검사가 본다)
             counters.addCommentCount(post.getId(), 1);
             Map<Long, CommentEntity> byId = new HashMap<>();
             if (replyTo != null) {
@@ -684,10 +691,12 @@ public class CommentService {
         int max = comment.getStance() == null ? ContentRules.COMMENT_MAX : DebateReader.OPINION_MAX; // 의견이면 의견 한도 — 배지는 고칠 때 바뀌지 않는다
         ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer, sec, max, fields);
         EmoticonGuard.countInto(content.content(), "content", fields);
+        jjals.countInto(content.content(), JjalGuard.Place.COMMENT, "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
         emoticons.requireOwned(comment.getAuthorId(), content.content()); // 고칠 때도 본문 전체를 다시 본다
+        jjals.requireAllowed(comment.getAuthorId(), content.content(), comment.getContent(), b.commentJjalAllowed()); // 짤은 새로 넣은 것만 본다
         Optional<String> word = ContentRules.blockedWord(sec, content.wordsHaystack());
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -702,6 +711,7 @@ public class CommentService {
             }
             locked.edit(masked.format(), masked.content(), now);
             emoticons.recordUse(locked.getAuthorId(), content.content());
+            jjals.recordUses(locked.getPostId(), locked.getId(), masked.content());
             Map<Long, CommentEntity> byId = new HashMap<>();
             if (locked.getReplyToId() != null) {
                 comments.findByPostIdAndId(locked.getPostId(), locked.getReplyToId()).ifPresent(t -> byId.put(t.getId(), t));

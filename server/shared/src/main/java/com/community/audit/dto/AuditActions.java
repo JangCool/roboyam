@@ -333,6 +333,8 @@ public final class AuditActions {
     public static final String REPORT_BULK_DISMISS = "REPORT_BULK_DISMISS";
     /** 무시한 사건 다시 열기 — {@code caseNo} */
     public static final String REPORT_REOPEN = "REPORT_REOPEN";
+    /** 내린 짤 되돌림(짤 사건 — V261, my-jjal-contract) — {@code caseNo}·{@code targetType}·{@code targetId}(짤 파일 ID)·{@code jjalId}(공개 ID)·{@code blockedReason}(풀기 전 까닭) */
+    public static final String REPORT_JJAL_RESTORE = "REPORT_JJAL_RESTORE";
 
     // ── 커머스 0-4 (본인인증·기능 제한·탈퇴 대비) ──
     /** 기능 제한 부여 — 대상 MEMBER, {@code restrictionId}·{@code source}(OPERATOR · AUTO — 자동은 행위자 SYSTEM)·{@code type}·{@code until}(무기한이면 {@code indefinite})·{@code autoRule} */

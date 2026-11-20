@@ -14,6 +14,7 @@ import java.util.Map;
  * {@code prefixRequired}·{@code tagRequired}(V226) = 말머리 필수·태그 필수(ai-news-reporter-contract 「뉴스 게시판 글 규칙」) — 같은 이유로 끝({@link #toMap} 차례는 {@code tagsEnabled} 다음).
  * {@code sourcesEnabled}(V232) = 「출처 칸 쓰기」(글에 출처 목록 — ai-news-reporter-contract 「본문 꼬리」) — 같은 이유로 끝({@link #toMap} 차례는 {@code tagRequired} 다음).
  * {@code purchaseSourceMode}·{@code trialReviewsEnabled}(V241) = 「구입 경로 받기」 OFF·OPTIONAL·REQUIRED · 「체험단 사용기 받기」(trial-group-contract) — 같은 이유로 끝({@link #toMap} 차례는 {@code sourcesEnabled} 다음).
+ * {@code postJjalAllowed}·{@code commentJjalAllowed}(V261) = 본문 짤 허용 · 댓글 짤 허용(my-jjal-contract 「게시판별 사용」) — 같은 이유로 끝({@link #toMap} 차례는 {@code trialReviewsEnabled} 다음).
  */
 public record BoardPolicyValues(String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor, Integer listSize, Integer pinnedMax, Boolean indexable,
                                 Boolean searchable, Boolean inHome, String pointMode, Boolean pointMinLengthApplied, Integer commentProtectMin, Boolean commentProtectEdit,
@@ -22,7 +23,8 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
                                 Boolean debateEnabled, Boolean pollEnabled, Integer managerMax,
                                 Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit, Boolean authorThumbnailEnabled,
                                 Boolean tagsEnabled, Boolean detailFeedTabsPc, Boolean detailFeedTabsMobile, Boolean prefixRequired, Boolean tagRequired,
-                                Boolean sourcesEnabled, String purchaseSourceMode, Boolean trialReviewsEnabled) {
+                                Boolean sourcesEnabled, String purchaseSourceMode, Boolean trialReviewsEnabled, Boolean postJjalAllowed,
+                                Boolean commentJjalAllowed) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 기본값 따름) */
     public BoardPolicyValues {
@@ -34,7 +36,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
     /** 모두 기본값을 따르는 정책 */
     public static BoardPolicyValues empty() {
         return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** 칸 이름 → 값(칸 순서대로, null 포함) */
@@ -73,6 +75,8 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
         map.put("sourcesEnabled", sourcesEnabled);
         map.put("purchaseSourceMode", purchaseSourceMode);
         map.put("trialReviewsEnabled", trialReviewsEnabled);
+        map.put("postJjalAllowed", postJjalAllowed);
+        map.put("commentJjalAllowed", commentJjalAllowed);
         map.put("managerMax", managerMax);
         map.put("staffPostDailyLimit", staffPostDailyLimit);
         map.put("staffCommentDailyLimit", staffCommentDailyLimit);

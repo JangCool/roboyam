@@ -196,6 +196,18 @@ public enum BatchCatalog implements BatchDefinition {
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 
     /**
+     * 내 짤 정리 — 지운 글·댓글의 짤 쓰임 줄, 보관함 줄도 쓰임도 없이 하루가 지난 짤 파일(저장소·장부), 2일 지난 올리기 속도 기록을 지운다(Java 배치 {@code JjalCleanupJob} —
+     * 저장소 파일을 지우므로 DB 배치가 아니다, my-jjal-contract 정책 4). 하루 한 번(새벽 03:55). 내려간 짤 파일은 지우지 않는다
+     */
+    JJAL_CLEANUP("jjal-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 55 3 * * *", true),
+
+    /**
+     * 짤 저장 위치 맞추기 — 내려간 짤을 비공개 위치로, 다시 보일 짤(임시조치 끝 포함)을 새 무작위 공개 키로, 불법촬영물로 확정한 짤 파일은 지운다(Java 배치 {@code JjalStorageSyncJob} —
+     * 업무가 커밋 뒤 바로 옮기고 이 배치는 놓친 것·시각이 지나 바뀐 것을 맞춘다). 10분마다
+     */
+    JJAL_STORAGE_SYNC("jjal-storage-sync", BatchCategory.SYSTEM, BatchSource.JAVA, "0 */10 * * * *", true),
+
+    /**
      * 글 이미지 썸네일 만들기 — 이미 올라간(쓰는 중) 글 이미지·대표 썸네일 그림 중 목록 썸네일이 없는 것을 id 순으로 만든다(Java 배치 {@code PostImageThumbnailBackfillJob} —
      * 그림을 디코딩하므로 DB 배치가 아니다, docs/features/list-thumbnail-contract.md). 사람이 적은 시간에 「지금 실행」하는 배치라 <b>예약은 기본 꺼짐</b>(켜면 매일 04:15).
      */

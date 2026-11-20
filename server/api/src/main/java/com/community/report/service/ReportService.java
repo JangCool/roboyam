@@ -34,6 +34,10 @@ import com.community.report.dto.request.ReportRequest;
 import com.community.groupbuy.feedback.GroupBuyUgcReportService;
 import com.community.hotdeal.service.DealStateService;
 import com.community.hotdeal.service.DealWriter;
+import com.community.jjal.entity.JjalFileEntity;
+import com.community.jjal.repository.master.JjalFileRepository;
+import com.community.jjal.service.JjalGuard;
+import com.community.jjal.service.JjalStorageSync;
 import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.report.entity.ReportEventEntity;
@@ -85,6 +89,10 @@ import org.springframework.transaction.annotation.Transactional;
  * ({@code 400 fields.reason}), 모임장 본인 {@code 400 CANNOT_REPORT_OWN}. 한도·중복·사건·운영자 알림은 글·댓글과 같고 <b>자동 숨김은 없다</b>.
  * 스냅샷: 제목 = 소모임 이름, 본문 = 소개(앞 2,000자), 작성자 = 모임장 닉네임. 사건의 글은 비고(null) 게시판은 그 소모임의 게시판, 대상 작성자 = 신고 당시 모임장.
  *
+ * <p><b>짤 신고</b>({@code targetType: JJAL}, V261 — my-jjal-contract 「신고」): 대상 = 짤 파일(파일 단위 — {@code targetId} 는 짤 공개 ID), 내려간 짤·없는 짤은 404 REPORT_TARGET_NOT_FOUND,
+ * 사유는 글·댓글 6종. 한도·중복·사건·운영자 알림은 글·댓글과 같다. 사건·신고의 글·게시판·작성자는 비고(올린 사람·담은 사람을 드러내지 않는다 — 정책 2) 스냅숏도 없다. 내 것 검사는 없다.
+ * 자동 숨김은 글·댓글 규칙과 같게 파일을 내린다(불법촬영물 1건 즉시 · 권리침해 임시조치 · 기준 숨김 — 기준 숨김의 대상 종류 설정은 보지 않는다, 운영자 작성물 제외는 해당 없음).
+ *
  * <p><b>자동 숨김</b>(같은 트랜잭션, 대상 행 잠금): 불법촬영물 사유는 1건으로 즉시 숨김(ILLEGAL, 끌 수 없음) · 권리침해 사유는 임시조치 기간 동안 숨김(RIGHTS, 기간이 끝나면 다시 보인다 — 가정)
  * · 그 밖에는 자동 숨김 기준(<b>열린 사건의</b> 서로 다른 회원 수, 신고 당시 최소 등급 이상인 신고만 센다)에 닿으면 숨김(REPORTED). 기준 숨김은 대상 종류(POST·COMMENT·BOTH)를 따르고,
  * 「운영자 작성물·공지 제외」가 켜져 있으면 고정 공지와 그 게시판 매니저·스텝이 쓴 글·댓글은 기준 숨김에서 뺀다. 숨긴 댓글은 글의 댓글 수에서 뺀다.
@@ -128,13 +136,20 @@ public class ReportService {
     private final PointService points;
     /** 협찬 숨김 신고 확인 줄(V241 — trial-group-contract) */
     private final com.community.trial.service.SponsorReviewService sponsorReviews;
+    /** 짤 파일(V261 — 짤 신고) */
+    private final JjalFileRepository jjalFiles;
+    /** 내린 짤을 커밋 뒤 비공개 위치로(사용자 결정 2026-11-20) */
+    private final JjalStorageSync jjalStorage;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
                          SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate,
                          GroupRepository groups, GroupBuyUgcReportService groupBuyReports, DealStateService dealStates, PointService points,
-                         com.community.trial.service.SponsorReviewService sponsorReviews) {
+                         com.community.trial.service.SponsorReviewService sponsorReviews, JjalFileRepository jjalFiles,
+                         JjalStorageSync jjalStorage) {
+        this.jjalStorage = jjalStorage;
+        this.jjalFiles = jjalFiles;
         this.sponsorReviews = sponsorReviews;
         this.points = points;
         this.dealStates = dealStates;
@@ -199,11 +214,14 @@ public class ReportService {
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String type = body.targetType();
-        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type) && !GroupBuyUgcReportService.TYPES.contains(type)) {
+        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type) && !ReportEntity.JJAL.equals(type)
+                && !GroupBuyUgcReportService.TYPES.contains(type)) {
             fields.put("targetType", new MessageRef("board.report.targetType"));
         }
-        Long targetId = PostQueryService.parseId(body.targetId());
-        if (targetId == null) {
+        boolean jjal = ReportEntity.JJAL.equals(type);
+        String jjalId = jjal && body.targetId() != null ? body.targetId().strip() : null;
+        Long targetId = jjal ? null : PostQueryService.parseId(body.targetId()); // 짤은 공개 ID(영문·숫자 1~32자)
+        if (jjal ? !JjalGuard.validPublicId(jjalId) : targetId == null) {
             fields.put("targetId", new MessageRef("board.report.target"));
         }
         String reason = body.reason();
@@ -225,6 +243,10 @@ public class ReportService {
         Instant now = Instant.now();
         if (GroupBuyUgcReportService.TYPES.contains(type)) { // 공구 질문·리뷰(2b-6) — 공구 신고 표로(게시판·사건이 없다), 처리는 운영자 숨김
             groupBuyReports.report(type, targetId, userId, reason, detail);
+            return;
+        }
+        if (jjal) {
+            reportJjal(jjalId, reason, detail, userId, actor, s, policy, now);
             return;
         }
         if (ReportEntity.GROUP.equals(type)) {
@@ -308,6 +330,60 @@ public class ReportService {
         notifyOperators(policy, reportCase);
     }
 
+    /**
+     * 짤 신고(V261) — 보이는(내려가지 않은) 짤만. 잠금·한도·중복·사건은 글·댓글 신고와 같은 차례(신고자 잠금 → 대상 잠금 → 사건 행 → 파일 행).
+     * 사건·신고의 글·게시판·작성자·스냅숏은 비운다(파일 단위 — 누가 올렸는지 드러내지 않는다).
+     */
+    private void reportJjal(String publicId, String reason, String detail, long userId, BoardActor actor, BoardCatalogSnapshot s, BoardReportValues policy,
+                            Instant now) {
+        JjalFileEntity file = jjalFiles.findByPublicId(publicId).filter(f -> !f.isBlockedAt(now)).orElseThrow(ReportTargetNotFoundException::new);
+        long fileId = file.getId();
+
+        counters.lockWriter("report:" + userId);
+        checkLimits(policy, userId, now);
+        if (reports.existsByTargetTypeAndTargetIdAndReporterId(ReportEntity.JJAL, fileId, userId)) {
+            throw new AlreadyReportedException();
+        }
+
+        Integer minLevel = s.gradeLevel(policy.autoHideMinGrade());
+        boolean counted = minLevel == null || actor.gradeLevel() >= minLevel;
+        ReportCaseEntity reportCase = openCase(ReportEntity.JJAL, fileId, null, null, null, now);
+        long reportId = ids.nextId();
+        reports.persist(ReportEntity.create(reportId, reportCase.getId(), ReportEntity.JJAL, fileId, null, null, userId, null, reason, detail.isEmpty() ? null : detail,
+                null, null, null, counted, now));
+        reportCase.reportAdded(null, null, now);
+        caseLog.reported(reportCase.getId(), reportId, reason, now);
+        reports.flush();
+        autoHideJjal(fileId, reportCase.getId(), reason, policy, now);
+        notifyOperators(policy, reportCase);
+    }
+
+    /** 짤 자동 숨김 — 파일 행을 잠그고 판정한다(글·댓글과 같은 까닭·기한, 기준 숨김은 열린 사건의 신고만 센다). 작성자 알림은 없다(올린 사람을 드러내지 않는다) */
+    private void autoHideJjal(long fileId, long caseId, String reason, BoardReportValues policy, Instant now) {
+        String hideReason = null;
+        Instant until = null;
+        if (ReportReasons.ILLEGAL_FILMING.equals(reason)) {
+            hideReason = ReportReasons.HIDDEN_ILLEGAL;
+        } else if (ReportReasons.RIGHTS.equals(reason)) {
+            hideReason = ReportReasons.HIDDEN_RIGHTS;
+            until = now.plus(Duration.ofDays(policy.rightsTempMeasureDays()));
+        } else if (policy.autoHideThreshold() > 0 && reportQueries.countedReporters(caseId) >= policy.autoHideThreshold()) {
+            hideReason = ReportReasons.HIDDEN_REPORTED;
+        }
+        if (hideReason == null) {
+            return;
+        }
+        JjalFileEntity locked = jjalFiles.findWithLockById(fileId).orElseThrow(ReportTargetNotFoundException::new);
+        if (!locked.blockAutomatically(hideReason, until, now)) {
+            return;
+        }
+        Map<String, Object> hidden = new LinkedHashMap<>();
+        hidden.put("hiddenReason", hideReason);
+        hidden.put("hiddenUntil", until == null ? null : until.toString());
+        caseLog.system(caseId, ReportEventEntity.AUTO_HIDDEN, hidden, now);
+        jjalStorage.afterCommit(fileId); // 커밋 뒤 공개 주소에서 뺀다(비공개 위치의 새 무작위 키로)
+    }
+
     /** 운영자 알림 REPORT_RECEIVED — PER_CASE 면 사건의 첫 신고에만, PER_REPORT 면 신고마다 */
     private void notifyOperators(BoardReportValues policy, ReportCaseEntity reportCase) {
         if (!"PER_CASE".equals(policy.notifyOperatorScope()) || reportCase.getReportCount() == 1) {
@@ -321,7 +397,7 @@ public class ReportService {
      *
      * @param postId 대상 글(소모임 사건이면 null)
      */
-    private ReportCaseEntity openCase(String type, long targetId, Long postId, long boardId, Long authorId, Instant now) {
+    private ReportCaseEntity openCase(String type, long targetId, Long postId, Long boardId, Long authorId, Instant now) {
         counters.lockWriter(ReportCaseEntity.lockKey(type, targetId));
         return cases.findWithLockByTargetTypeAndTargetIdAndStatusIn(type, targetId, ReportCaseEntity.OPEN).orElseGet(() -> {
             ReportCaseEntity opened = ReportCaseEntity.open(ids.nextId(), type, targetId, postId, boardId, authorId, now);

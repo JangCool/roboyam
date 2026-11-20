@@ -37,6 +37,8 @@ import java.util.List;
  * @param purchaseSourceMode   글쓰기 「어떻게 구했나요」(V241 — trial-group-contract): OFF 안 보임 · OPTIONAL 고를 수 있음 · REQUIRED 꼭 골라야 함(일반 게시판만, 그 밖 OFF)
  * @param trialReviewsEnabled  「체험단 사용기 받기」 — 켜져 있으면 뽑힌 체험단 사용기로 쓸 수 있다(V241)
  * @param sourcesEnabled       글쓰기·고치기에 「출처」 칸을 보이는가(유효 정책 「출처 칸 쓰기」, 기본 false — V232). 꺼져 있으면 서버가 {@code sources} 를 무시한다
+ * @param postJjalAllowed      글 본문에 내 짤을 붙일 수 있는가(유효 정책 「본문 짤 허용」, 기본 true — V261, my-jjal-contract). 꺼져 있으면 서버가 새로 넣은 짤 토큰을 거절한다
+ * @param commentJjalAllowed   댓글에 내 짤을 붙일 수 있는가(유효 정책 「댓글 짤 허용」, 기본 true — V261)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -48,5 +50,6 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               String secretMode, boolean statusEnabled, String chipPosition, String authorMode, String prefixStyle,
                               boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc, boolean detailFeedTabsMobile,
                               boolean prefixRequired, boolean tagRequired, boolean adultOnly, boolean sourcesEnabled, boolean indexable,
-                              BoardPointTierView pointTier, String purchaseSourceMode, boolean trialReviewsEnabled) {
+                              BoardPointTierView pointTier, String purchaseSourceMode, boolean trialReviewsEnabled,
+                              boolean postJjalAllowed, boolean commentJjalAllowed) {
 }

@@ -14,6 +14,10 @@ import com.community.group.repository.master.GroupRepository;
 import com.community.group.service.GroupCategoryLookup;
 import com.community.group.service.GroupPeople;
 import com.community.hotdeal.service.HotdealAdminQueryService;
+import com.community.jjal.entity.JjalFileEntity;
+import com.community.jjal.repository.master.JjalFileRepository;
+import com.community.media.service.ImageStorage;
+import com.community.report.dto.response.ReportJjalView;
 import com.community.report.dto.response.ReportDealView;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
@@ -83,7 +87,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 신고 관리 읽기({@code report.read}) — 사건 목록 · 열린 사건 요약 · 사건 상세. docs/features/report-admin-contract.md.
  *
  * <ul>
- *   <li><b>목록 거르기</b>: {@code status} OPEN(기본 — 대기+검토 중) · PENDING · IN_REVIEW · RESOLVED · DISMISSED · ALL(모르는 값은 OPEN) · {@code targetType} POST · COMMENT · GROUP(모르는 값은 무시)
+ *   <li><b>목록 거르기</b>: {@code status} OPEN(기본 — 대기+검토 중) · PENDING · IN_REVIEW · RESOLVED · DISMISSED · ALL(모르는 값은 OPEN) · {@code targetType} POST · COMMENT · GROUP · JJAL(모르는 값은 무시)
  *       · {@code groupId} 그 소모임을 대상으로 한 사건(V95, 깨진 ID 는 「아무것도 안 맞음」)
  *       · {@code reason} 신고 사유 코드(그 사유 신고가 하나라도 있는 사건, 모르는 값은 무시) · {@code board} 게시판 ID · {@code postId} 그 글과 그 글의 댓글 사건(깨진 ID 는 「아무것도 안 맞음」).</li>
  *   <li><b>검색</b>: {@code searchField} TITLE(기본 — 대상 글 제목, 댓글 사건은 그 댓글의 글, 소모임 사건은 지금 소모임 이름) · AUTHOR(대상 작성자 닉네임 · 비회원 이름) — 앞뒤 공백을 뗀 2자 이상(한 글자는 무시, 50자에서 자른다)
@@ -144,11 +148,17 @@ public class AdminReportQueryService {
     private final GroupPeople groupPeople;
     private final HotdealAdminQueryService hotdeals;
     private final SanctionViews sanctionViews;
+    /** 짤 사건의 대상 짤(V261) */
+    private final JjalFileRepository jjalFiles;
+    private final ImageStorage storage;
 
     public AdminReportQueryService(AdminReportRepositoryQDSL search, ReportCaseRepository cases, ReportRepositoryQDSL reports, ReportEventRepository events,
                                    ReportCaseLog caseLog, PostRepository posts, CommentRepository comments, ProfileRepository profiles, UserRepository users,
                                    OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, GroupRepository groups,
-                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals, SanctionViews sanctionViews) {
+                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals, SanctionViews sanctionViews,
+                                   JjalFileRepository jjalFiles, ImageStorage storage) {
+        this.jjalFiles = jjalFiles;
+        this.storage = storage;
         this.sanctionViews = sanctionViews;
         this.hotdeals = hotdeals;
         this.groups = groups;
@@ -225,7 +235,9 @@ public class AdminReportQueryService {
         ReportSnapshotView snapshot = first == null ? null : new ReportSnapshotView(first.getSnapshotTitle(), first.getSnapshotContent(),
                 sealed(c, post, comment) ? null : first.getSnapshotAuthorName());
         ReportContentView content;
-        if (c.isGroup()) {
+        if (c.isJjal()) {
+            content = new ReportContentView(ContentFormat.TEXT.name(), null, snapshot); // 짤 사건은 본문이 없다(대상 칸의 jjal 이 그림)
+        } else if (c.isGroup()) {
             content = new ReportContentView(ContentFormat.TEXT.name(), group == null ? null : group.getDescription(), snapshot); // 소모임 소개(일반 글자)
         } else if (c.isComment()) {
             content = comment == null ? new ReportContentView(ContentFormat.TEXT.name(), null, snapshot)
@@ -250,8 +262,9 @@ public class AdminReportQueryService {
 
     // ── 한 줄 만들기 ──────────────────────────────────────────────────────
 
-    /** 사건의 대상 글·댓글(지운 것 포함)·소모임(V95 — 해산한 것 포함) */
-    private record Targets(Map<Long, PostEntity> posts, Map<Long, CommentEntity> comments, Map<Long, GroupEntity> groups, Map<Long, String> dealViews) {
+    /** 사건의 대상 글·댓글(지운 것 포함)·소모임(V95 — 해산한 것 포함)·짤 파일(V261 — 정리된 것은 없다) */
+    private record Targets(Map<Long, PostEntity> posts, Map<Long, CommentEntity> comments, Map<Long, GroupEntity> groups, Map<Long, String> dealViews,
+                           Map<Long, JjalFileEntity> jjals) {
     }
 
     private Targets targets(List<ReportCaseEntity> rows) {
@@ -266,7 +279,10 @@ public class AdminReportQueryService {
                 : groups.findAllById(groupIds).stream().collect(Collectors.toMap(GroupEntity::getId, Function.identity(), (a, b) -> a));
         // 글 사건의 대상이 핫딜 글이면 딜 상태(hotdeal-contract — ReportCaseItem.deal)
         List<Long> postTargets = rows.stream().filter(r -> ReportEntity.POST.equals(r.getTargetType())).map(ReportCaseEntity::getTargetId).distinct().toList();
-        return new Targets(postById, commentById, groupById, hotdeals.dealViews(postTargets));
+        List<Long> jjalIds = rows.stream().filter(ReportCaseEntity::isJjal).map(ReportCaseEntity::getTargetId).distinct().toList();
+        Map<Long, JjalFileEntity> jjalById = jjalIds.isEmpty() ? Map.of()
+                : jjalFiles.findAllById(jjalIds).stream().collect(Collectors.toMap(JjalFileEntity::getId, Function.identity(), (a, b) -> a));
+        return new Targets(postById, commentById, groupById, hotdeals.dealViews(postTargets), jjalById);
     }
 
     /** 작성자·검토자·처리자 이름 */
@@ -313,7 +329,14 @@ public class AdminReportQueryService {
         PostEntity post = c.getPostId() == null ? null : targets.posts().get(c.getPostId());
         ReportTargetView target;
         String guestName;
-        if (c.isGroup()) {
+        if (c.isJjal()) {
+            JjalFileEntity f = targets.jjals().get(c.getTargetId());
+            guestName = null;
+            boolean blocked = f != null && f.isBlockedAt(now);
+            target = new ReportTargetView(null, null, f == null ? null : f.getPublicId(), null, f == null ? DELETED : blocked ? HIDDEN : PUBLIC,
+                    blocked ? f.getBlockedReason() : null, blocked ? f.getBlockedUntil() : null, null,
+                    f == null ? null : new ReportJjalView(f.getPublicId(), jjalUrl(c, f), f.getWidth(), f.getHeight(), f.isAnimated(), blocked));
+        } else if (c.isGroup()) {
             GroupEntity group = targets.groups().get(c.getTargetId());
             guestName = null;
             target = new ReportTargetView(null, null, group == null ? null : group.getName(), group == null ? null : excerpt(group.getDescription()), groupState(group),
@@ -332,11 +355,14 @@ public class AdminReportQueryService {
                     post == null || post.isPurged() ? null : excerpt(plain(post.getContentFormat(), post.plainContent())), postState(post, now),
                     hidden ? post.getHiddenReason() : null, hidden ? post.getHiddenUntil() : null, null);
         }
-        EffectiveBoard b = s.board(c.getBoardId()).orElse(null);
-        ReportBoardRefView board = new ReportBoardRefView(Long.toString(c.getBoardId()), b == null ? null : b.name());
+        EffectiveBoard b = c.getBoardId() == null ? null : s.board(c.getBoardId()).orElse(null);
+        // 짤 사건은 게시판이 없다(V261 — 파일 단위)
+        ReportBoardRefView board = c.getBoardId() == null ? null : new ReportBoardRefView(Long.toString(c.getBoardId()), b == null ? null : b.name());
 
         ReportAuthorView author;
-        if (sealed(c, post, c.isComment() ? targets.comments().get(c.getTargetId()) : null)) {
+        if (c.isJjal()) {
+            author = new ReportAuthorView(null, null, null, false); // 짤 사건은 작성자를 보이지 않는다(올린 사람·담은 사람 — 정책 2)
+        } else if (sealed(c, post, c.isComment() ? targets.comments().get(c.getTargetId()) : null)) {
             author = ReportAuthorView.SEALED; // 익명 글·댓글(V184) — 봉인
         } else if (c.getTargetAuthorId() == null) {
             author = new ReportAuthorView(GUEST, null, guestName == null ? "" : guestName, false);
@@ -354,6 +380,39 @@ public class AdminReportQueryService {
                 c.getReportCount(), reasonViews, c.getFirstReportedAt(), c.getLastReportedAt(), operatorRef(c.getReviewerId(), names.operators()), c.getClosedAt(),
                 operatorRef(c.getClosedBy(), names.operators()), c.getAction(), c.getReasonCode(), c.getNote(), c.isFalseReport(),
                 ReportEntity.POST.equals(c.getTargetType()) && targets.dealViews().containsKey(c.getTargetId()) ? new ReportDealView(targets.dealViews().get(c.getTargetId())) : null);
+    }
+
+    /** 짤 사건 경로 — 비공개 위치의 그림을 운영자에게 내보내는 주소의 몸통 */
+    public static final String JJAL_IMAGE_PATH = "/api/admin/reports/%s/jjal-image";
+
+    /**
+     * 운영자에게 보일 짤 그림 주소 — 공개 위치면 그 공개 주소, 비공개 위치(내린 짤)면 관리자 전용 주소({@code GET /api/admin/reports/{id}/jjal-image}, {@code report.read} — 세션 쿠키),
+     * 불법촬영물로 지운 짤은 null
+     */
+    private String jjalUrl(ReportCaseEntity c, JjalFileEntity f) {
+        if (f.getStorageKey() == null) {
+            return null;
+        }
+        return JjalFileEntity.privateKey(f.getStorageKey()) ? String.format(JJAL_IMAGE_PATH, c.getId()) : storage.publicUrl(f.getStorageKey());
+    }
+
+    /** 짤 사건의 그림 바이트(운영자 전용) */
+    public record JjalImage(byte[] data, String contentType) {
+    }
+
+    /** 짤 사건의 그림 — 짤 사건이 아니거나 파일이 없으면(불법촬영물로 지움 포함) 404 REPORT_CASE_NOT_FOUND. 읽기는 감사 기록에 남기지 않는다(상세 읽기와 같다) */
+    public JjalImage jjalImage(String idText) {
+        Long id = parseId(idText);
+        ReportCaseEntity c = id == null ? null : cases.findById(id).orElse(null);
+        if (c == null || !c.isJjal()) {
+            throw new ReportCaseNotFoundException();
+        }
+        JjalFileEntity f = jjalFiles.findById(c.getTargetId()).orElseThrow(ReportCaseNotFoundException::new);
+        if (f.getStorageKey() == null) {
+            throw new ReportCaseNotFoundException();
+        }
+        byte[] data = storage.readBytes(f.getStorageKey()).orElseThrow(ReportCaseNotFoundException::new);
+        return new JjalImage(data, f.getContentType());
     }
 
     private static ReportOperatorRefView operatorRef(Long id, Map<Long, String> names) {
@@ -412,7 +471,7 @@ public class AdminReportQueryService {
 
     /** 사건 대상이 익명 글·댓글(V184)인가 — 익명 글의 댓글은 모두 익명이라 댓글이 없어졌으면 글을 본다 */
     static boolean sealed(ReportCaseEntity c, PostEntity post, CommentEntity comment) {
-        if (c.isGroup()) {
+        if (c.isGroup() || c.isJjal()) {
             return false;
         }
         if (c.isComment() && comment != null) {
@@ -423,6 +482,9 @@ public class AdminReportQueryService {
 
     private ReportAuthorCardView authorCard(ReportCaseEntity c, PostEntity post, CommentEntity comment, ReportEntity first, Instant now) {
         Long authorId = c.getTargetAuthorId();
+        if (c.isJjal()) {
+            return new ReportAuthorCardView(null, "", null, null, new ReportClosedCasesView(0, 0), null); // 짤 사건 — 작성자 없음(제재 곁들이기 없음)
+        }
         if (sealed(c, post, comment)) {
             return ReportAuthorCardView.sealed(authorId == null ? null : sanctionViews.previewSealedOrNull(authorId)); // 봉인(V184)
         }
@@ -456,7 +518,7 @@ public class AdminReportQueryService {
 
     /** 공개 사이트의 대상 주소 — 글·댓글 사건은 그 글, 소모임 사건은 그 소모임 */
     private String publicUrlOf(ReportCaseEntity c) {
-        String path = c.isGroup() ? "/groups/" + c.getTargetId() : c.getPostId() == null ? null : "/posts/" + c.getPostId();
+        String path = c.isJjal() ? null : c.isGroup() ? "/groups/" + c.getTargetId() : c.getPostId() == null ? null : "/posts/" + c.getPostId();
         if (path == null) {
             return null;
         }
@@ -549,7 +611,7 @@ public class AdminReportQueryService {
             default -> ReportCaseEntity.OPEN;
         };
         String type = trim(targetType) == null ? null : trim(targetType).toUpperCase(Locale.ROOT);
-        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type)) {
+        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type) && !ReportEntity.JJAL.equals(type)) {
             type = null;
         }
         String reasonCode = trim(reason) == null ? null : trim(reason).toUpperCase(Locale.ROOT);

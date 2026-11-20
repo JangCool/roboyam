@@ -9,6 +9,13 @@ package com.community.media.service;
  */
 public interface ImageStorage {
 
+    /**
+     * 서빙하지 않는 키 머리 — {@code /media/**} 는 이 머리로 시작하는 키를 내보내지 않는다(404, {@code MediaResourceConfig}). 신고로 내린 짤처럼 공개 주소에서 뺄 파일을 같은 저장소에
+     * 둘 때 쓴다(무작위 새 키 — 주소를 짐작할 수 없다). S3·R2 버킷에 공개 사용자 도메인({@code publicBaseUrl})을 붙였으면 그 도메인은 앱을 거치지 않으므로
+     * 버킷·CDN 규칙으로 이 머리를 막아야 한다(운영 설정).
+     */
+    String PRIVATE_PREFIX = "private/";
+
     /** 파일을 저장한다. 같은 키가 있으면 덮어쓴다. 쓰지 못하면 {@code StorageUnavailableException}(503) */
     void put(String key, byte[] data);
 

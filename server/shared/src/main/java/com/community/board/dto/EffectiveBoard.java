@@ -53,6 +53,8 @@ import java.util.Set;
  * @param inHome             홈·인기·최신 포함(게시판 값 ?? 기본값, 기본 켬) — 끄면 {@link #excludedFrom} 이 모든 가젯에 참(최신글·인기글 모음과 「전체 게시판」 가젯에서 빠진다)
  *                           세 칸은 관리자 화면에만 있고 공개 쪽이 읽지 않았다(관리자 QA 2026-11-17 F-7)
  * @param listEmoji          목록 이모지(게시판 값 그대로 — V257, mobile-home-list-contract). 없으면 null(화면이 게시판 이름 첫 글자를 쓴다)
+ * @param postJjalAllowed    글 본문에 짤 토큰을 새로 넣을 수 있는가(게시판 값 ?? 기본값, 기본 true — V261, my-jjal-contract 「게시판별 사용」). 이미지 칸과 따로다
+ * @param commentJjalAllowed 댓글에 짤 토큰을 새로 넣을 수 있는가(게시판 값 ?? 기본값, 기본 true — V261)
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -67,7 +69,7 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              String prefixStyle, boolean authorThumbnailEnabled, boolean tagsEnabled, String detailList, boolean detailFeedTabsPc,
                              boolean detailFeedTabsMobile, boolean prefixRequired, boolean tagRequired, boolean adultOnly,
                              boolean sourcesEnabled, boolean indexable, boolean searchable, boolean inHome, String purchaseSourceMode,
-                             boolean trialReviewsEnabled, String listEmoji) {
+                             boolean trialReviewsEnabled, String listEmoji, boolean postJjalAllowed, boolean commentJjalAllowed) {
 
     public EffectiveBoard {
         secretMode = secretMode == null ? BoardFields.SECRET_OFF : secretMode;

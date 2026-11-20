@@ -60,6 +60,23 @@
   - admin: `BoardDefaults.postJjalAllowed`·`commentJjalAllowed`(NOT NULL 기본 true), 게시판 `policy.*`(null = 따름). 신고 사건 `targetType: 'JJAL'` + `target.jjal{id, url, width, height, animated, blocked}`, 조치 `JJAL_BLOCK`(기존 처리 창 — 사유·처리 글), 되돌림 `POST /api/admin/reports/{id}/jjal-restore`. 권한은 기존 `report.manage`(`jjal.moderate` 는 만들지 않는다).
 - **화면에서 정한 것**: 내려간 짤은 메뉴가 뜨지 않는다 · 휴대폰은 길게 누르기(0.5초)만 메뉴 · 글 에디터 `NONE` 게시판은 본문 짤 불가 · admin 짤 사건은 작성자를 보이지 않아 「제재만」·제재 곁들이기 없음 · 보관함 개수에 내려간 짤도 센다 · 알림·목록 한 줄 요약에서 짤 토큰은 「(짤)」 · 브라우저가 받는 원본 상한 20MB(가정) · 영어 화면 용어 "GIFs".
 
+## 서버 구현 결과 (2026-11-20, 브랜치 `claude/my-jjal`, 테스트 미실행)
+- **DB** shared `V261__my_jjal.sql`: `jjal_files`(원본 SHA-256 유일 · 공개 ID 무작위 16자 · 저장소 키 무작위 · `ACTIVE|BLOCKED` · 내려간 까닭 `REPORTED|ILLEGAL|RIGHTS|STAFF`·기한) · `jjal_box_items`((회원, 파일) 유일 · `UPLOAD|COLLECT` · 순서) · `jjal_member_states`(처음 안내 판·시각) · `jjal_upload_events`(속도 한도) · `jjal_uses`(짤을 쓰는 글·댓글). `boards`·`board_defaults` 에 `post_jjal_allowed`·`comment_jjal_allowed`. `reports`·`report_cases` 대상 `JJAL`(글 ID·게시판 ID NULL 허용 — 짤일 때만), 조치 `JJAL_BLOCK`. ⚠ 다른 세션과 합칠 때 신고 표 CHECK 합집합 확인.
+- **화면 목업과 달라진 API(연결 때 고칠 것)**:
+  1. 담기 `POST /api/me/jjals/collect { jjalId, postId, commentId? }` — 서버가 보이는 글·댓글·19금·그 글에 쓰인 짤인지 판정(없으면 `400`, 쓰이지 않은 짤 `404 JJAL_NOT_FOUND`, `403 JJAL_NOT_COLLECTABLE`).
+  2. 짤 정보 `GET /api/jjals?ids=a,b&postId=`(선택 — 주면 그 글 맥락의 `collectable`, 100개까지, 비회원 허용). 화면 `useJjalCatalog` 는 짤 ID 하나로 전역 캐시라 글 맥락별로 나누거나 화면의 19금 판정을 유지해야 한다.
+  3. 내려간 짤은 `url: null`(보관함·조회 모두).
+  4. 새 오류 코드: `409 JJAL_NOT_IN_BOX`(최상위 `jjalId`) · `422 JJAL_NOT_ALLOWED`(게시판 칸 꺼짐) · `403 JJAL_NOT_COLLECTABLE` · `429 JJAL_RATE_LIMITED`·`JJAL_DAILY_LIMIT`(+`retryAfterSeconds`) · `403 EMAIL_NOT_VERIFIED`. 10MB 초과는 multipart 한도 `413 FILE_TOO_LARGE`.
+  5. 올리기·담기 응답 `201`.
+  - admin 신고 사건 `target.title` = 짤 공개 ID(앞 글자 「짤」은 화면이 붙인다), `board: null`, 작성자 칸 null. 조치는 `JJAL_BLOCK` 만(그 밖 `409 REPORT_ACTION_INVALID`). 되돌림은 닫힌 짤 사건만(`409 JJAL_NOT_BLOCKED`), 기록 `RESOLVED` 이벤트 + `action: JJAL_RESTORE`, 감사 `REPORT_JJAL_RESTORE`.
+- **위치**: api `MyJjalService`(회원 단위 어드바이저리 잠금 `jjal-box:<회원>` — 상한·속도·순서, DB 로 세서 서버 여러 대에서도 맞음)·`JjalLookupService`·`JjalPostContext`, shared `JjalImageProcessor`(`ImageCodec.gifFrames` 추가)·`JjalGuard`(글·댓글 저장 검사 — 로보티콘 검사 옆)·`JjalProperties`(`irobit.jjal.*`), 신고 `ReportService.reportJjal`(파일 단위 자동 숨김), admin `AdminReportQueryService`·`ReportCaseActionService`·`AdminReportController`, 배치 `jjal-cleanup`(shared `JjalCleanupJob`, 매일 03:55, admin 실행기 — 쓰임 없는 ACTIVE 파일 24시간 뒤 삭제, 올리기 기록 2일).
+- **추가 결정(사용자 확정 2026-11-20)**:
+  1. **내린 짤은 공개 주소에서 뺀다** — 같은 저장소의 서빙하지 않는 접두사 `private/jjal/…`(`/media/private/**` 는 늘 404 — `MediaResourceConfig`·`BucketMediaResolver`), 옮길 때마다 새 무작위 키(옛 주소는 죽음). 되돌림·임시조치 끝도 새 공개 키로. 저장소 작업은 커밋 뒤 `JjalStorageSync`, 놓친 것·임시조치 끝은 배치 `jjal-storage-sync`(10분마다, admin) — 옮기기 전(최대 10분)에는 내려간 짤처럼 보인다. 운영자는 `GET /api/admin/reports/{id}/jjal-image`(`report.read`, no-store)로 본다(사건 응답 `target.jjal.url` 을 서버가 채움). **불법촬영물은 운영자가 `JJAL_BLOCK` 을 사유 `ILLEGAL_FILMING` 으로 확정했을 때** 파일 삭제·해시만 남김·되돌림 `409 JJAL_PURGED`(신고 1건 자동 숨김은 비공개로 옮기기만 — 허위 신고로 영구 삭제되지 않게).
+  2. **탈퇴 때** 그 회원의 `jjal_box_items`·`jjal_member_states`·`jjal_upload_events` 삭제, `jjal_files.uploaded_by` 비움(`WithdrawalEraseStore#deleteOwnRows`). 파일은 `jjal-cleanup` 이 정리.
+  3. **이메일 미인증**은 코드 `EMAIL_NOT_VERIFIED` 그대로, 짤 문구 키 `error.EMAIL_NOT_VERIFIED.jjal`.
+- **서버에서 정한 것**: 고치기는 새 토큰만 검사(이미 있던 짤은 보관함에서 뺐거나 칸을 꺼도 그대로) · 짤 신고 기준 숨김은 대상 종류 설정을 보지 않고 기준 수만 · 하루 50장 = 최근 24시간 · AI 회원 글쓰기에는 짤 검사 없음(없는 ID 는 글자로 남는다).
+
 ## 미확정
 - ~~움짤 줄이기~~ → **정함(2026-11-20)**: 위 「올리기」. WebP 로 저장해 용량 줄이기는 후속.
+- **운영 설정(미실행)**: R2/S3 공개 도메인(`publicBaseUrl`)은 앱을 거치지 않으므로 버킷·Cloudflare 규칙으로 `/private/*` 를 막는다. 내린 짤의 CDN 캐시 지우기는 연결 자리 `JjalStorageSync#onPublicKeyRetired(key)`(지금은 로그만) — 운영 구성(`ops-deploy-contract.md`)에서 정한다.
 - 법무: 개인 짤 업로드(서비스 제공자 책임 제한·임시조치·불법촬영물 기술적 조치 의무 규모 기준) — 로보티콘 「남은 일 = 법무 확인」에 함께 묻는다.

@@ -28,6 +28,7 @@ import com.community.permission.entity.MemberPermission;
 import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
 import com.community.emoticon.service.EmoticonGuard;
+import com.community.jjal.service.JjalGuard;
 import com.community.point.service.PointService;
 import com.community.post.dto.PostSource;
 import com.community.post.dto.request.PostThumbnailInput;
@@ -69,7 +70,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p><b>쓰기 검사 순서</b>(user-web 목업 {@code mockPostCreate} 와 같다): 게시판(404·403 꺼짐) → 쓰기 판정({@link BoardAccessPolicy} — 로그인 필요는 401, 나머지 403 까닭 코드)
  * → 칸(제목, 본문 형식 {@code contentFormat}, 본문 길이[HTML 은 보이는 글자], 말머리, 19금, 링크·이미지 수, 비회원 이름·비밀번호·자동입력 방지 토큰 — {@code 400 VALIDATION})
  * → (HTML) 본문 이미지가 쓸 수 있는 것인지({@code 400 fields.content}) → 이미지 금지 게시판의 새 이미지({@code 422 IMAGE_UPLOAD_NOT_ALLOWED})
- * → 로보티콘 자격({@code 409 EMOTICON_NOT_OWNED} — 토큰 개수 21개부터는 칸 검사의 {@code fields.content}, {@link EmoticonGuard}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
+ * → 로보티콘 자격({@code 409 EMOTICON_NOT_OWNED} — 토큰 개수 21개부터는 칸 검사의 {@code fields.content}, {@link EmoticonGuard})
+ * → 새로 넣은 짤(게시판 본문 짤 꺼짐 {@code 422 JJAL_NOT_ALLOWED} · 내려간 짤 {@code 409 JJAL_BLOCKED} · 내 보관함에 없음 {@code 409 JJAL_NOT_IN_BOX} — 짤 토큰 6개부터는 칸 검사의
+ * {@code fields.content}, {@link JjalGuard}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
  * → 자동입력 방지 확인(비회원, 트랜잭션 밖 외부 요청 — 실패는 {@code fields.guest.captchaToken}) → 작성 간격({@code 429 POST_TOO_FAST}) → 하루 한도({@code 429 POST_DAILY_LIMIT})
  * → 같은 글 반복({@code 409 DUPLICATE_POST}). 본문 {@code debate} 가 있으면 칸 검사에서 회원 + 게시판 {@code debateEnabled} 를 보고({@code fields.debate}) 저장과 같은 트랜잭션에서
  * 글의 찬반 토론을 연다(글쓴이가 연 토론 — docs/features/post-debate-contract.md). 본문 {@code poll} 도 같은 자리에서 보고({@link PollWriter} — 회원 + 게시판
@@ -115,6 +118,8 @@ public class PostWriteService {
     private final GroupPostGate groupGate;
     private final DealWriter deals;
     private final EmoticonGuard emoticons;
+    /** 짤 토큰 검사·쓰임 기록(my-jjal-contract — 로보티콘 검사와 같은 자리) */
+    private final JjalGuard jjals;
     private final AdultContentGate adultGate;
     private final SecretPostUnlocks unlocks;
     /** 쓰기 막힘·게시판 제재·비밀글·작성 간격·하루 한도·같은 글 반복 — shared 한 곳(관리자 서버의 AI 회원 쓰기와 같은 코드) */
@@ -132,7 +137,8 @@ public class PostWriteService {
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
                             DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
                             PostThumbnailChoices thumbnails, PostTagStore tagStore, TrialPostLinker purchases, AdultBoardGate adultBoards,
-                            PlatformTransactionManager txManager) {
+                            PlatformTransactionManager txManager, JjalGuard jjals) {
+        this.jjals = jjals;
         this.adultBoards = adultBoards;
         this.purchases = purchases;
         this.rules = rules;
@@ -196,6 +202,7 @@ public class PostWriteService {
                 fields);
         PostWriteRules.checkRequired(b, purchase.trial() ? Long.valueOf(0L) : c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 fields.prefix · 태그 필수 fields.tags(V226) — 체험단 글은 서버가 말머리를 단다
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
+        jjals.countInto(c.body().content(), JjalGuard.Place.POST, "content", fields); // 짤 토큰 5개까지(my-jjal-contract)
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -207,6 +214,7 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(authorId, c.body().content()); // 가지지 않은 팩의 로보티콘 409 — 입력 오류 다음, 금지어·속도 제한 앞
+        jjals.requireAllowed(authorId, c.body().content(), null, b.postJjalAllowed()); // 새 글의 짤은 모두 새 짤 — 게시판 꺼짐 422 · 내려감·보관함에 없음 409
         Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName, tagsHaystack(tags), PostSources.namesHaystack(sources));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -247,6 +255,7 @@ public class PostWriteService {
                 tagStore.replace(created, savedTags, now);
             }
             emoticons.recordUse(authorId, c.body().content()); // 산 팩의 「처음 쓴 시각」 — 저장과 같은 트랜잭션(emoticon-contract S3, 그사이 환불·빼기면 409 로 되돌린다)
+            jjals.recordUses(id, null, stored); // 짤 쓰임(정리 배치·담기 검사가 본다)
             if (body.debate() != null) {
                 debates.apply(id, true, body.debate().neutralEnabled(), body.debate().stanceChangeAllowed(), PostDebateEntity.BY_MEMBER, authorId, now);
             }
@@ -301,6 +310,7 @@ public class PostWriteService {
         List<String> tags = checkTags(body.tags(), b, fields); // 일반 글과 같은 규칙(게시판 tagsEnabled 일 때만)
         PostWriteRules.checkRequired(b, c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 · 태그 필수(V226 — 일반 글과 같은 규칙)
         EmoticonGuard.countInto(c.body().content(), "content", fields);
+        jjals.countInto(c.body().content(), JjalGuard.Place.POST, "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -312,6 +322,7 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(authorId, c.body().content()); // 일반 글과 같은 자리(입력 오류 → 자격 → 금지어·속도 제한)
+        jjals.requireAllowed(authorId, c.body().content(), null, b.postJjalAllowed());
         Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), tagsHaystack(tags));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -331,6 +342,7 @@ public class PostWriteService {
             tagStore.replace(created, savedTags, now);
         }
         emoticons.recordUse(authorId, c.body().content()); // 일반 글과 같다(부르는 쪽 트랜잭션 — 소모임 행을 잠근 그 트랜잭션)
+        jjals.recordUses(id, null, stored);
         if (poll != null) {
             polls.create(id, poll, now);
         }
@@ -505,6 +517,7 @@ public class PostWriteService {
             PostWriteRules.checkRequired(b, c.prefixId(), tagCount, fields);
         }
         EmoticonGuard.countInto(c.body().content(), "content", fields);
+        jjals.countInto(c.body().content(), JjalGuard.Place.POST, "content", fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -520,6 +533,7 @@ public class PostWriteService {
             }
         }
         emoticons.requireOwned(post.getAuthorId(), c.body().content()); // 고칠 때도 본문 전체를 다시 본다(예전에 쓴 토큰이어도 — 팩을 뺐으면 409)
+        jjals.requireAllowed(post.getAuthorId(), c.body().content(), post.getContent(), b.postJjalAllowed()); // 짤은 새로 넣은 것만 본다(이미 있던 짤은 그대로 — 게시판을 나중에 꺼도)
         Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), tagsHaystack(tags), PostSources.namesHaystack(sources));
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
@@ -562,6 +576,7 @@ public class PostWriteService {
             }
             posts.flush();
             emoticons.recordUse(locked.getAuthorId(), c.body().content()); // 고친 본문의 산 팩도 「사용함」(이미 찍혔으면 그대로)
+            jjals.recordUses(locked.getId(), null, stored); // 고친 본문으로 짤 쓰임을 다시 쓴다
             return queries.viewAfterEdit(locked, gate, s, userId, now, warnings);
         });
     }

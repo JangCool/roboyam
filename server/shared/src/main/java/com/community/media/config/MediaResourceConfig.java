@@ -34,6 +34,11 @@ public class MediaResourceConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/media/default/**")
                 .addResourceLocations("classpath:/media-default/")
                 .setCacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic());
+        // 서빙하지 않는 키(ImageStorage.PRIVATE_PREFIX — 신고로 내린 짤 등)는 어느 저장소든 404. 더 구체적인 경로라 아래 /media/** 보다 먼저 맞는다
+        registry.addResourceHandler("/media/" + ImageStorage.PRIVATE_PREFIX + "**")
+                .setCacheControl(CacheControl.noStore())
+                .resourceChain(false)
+                .addResolver(new NoResourceResolver());
         CacheControl immutable = CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable();
         if (storage instanceof LocalDiskImageStorage local) {
             String location = local.root().toUri().toString();
@@ -46,6 +51,23 @@ public class MediaResourceConfig implements WebMvcConfigurer {
                     .setCacheControl(immutable)
                     .resourceChain(false)
                     .addResolver(new BucketMediaResolver(bucket));
+        }
+    }
+
+    /** 아무것도 찾지 않는다(404) — 서빙하지 않는 키 머리용 */
+    static final class NoResourceResolver implements org.springframework.web.servlet.resource.ResourceResolver {
+
+        @Override
+        public org.springframework.core.io.Resource resolveResource(jakarta.servlet.http.HttpServletRequest request, String requestPath,
+                                                                   java.util.List<? extends org.springframework.core.io.Resource> locations,
+                                                                   org.springframework.web.servlet.resource.ResourceResolverChain chain) {
+            return null;
+        }
+
+        @Override
+        public String resolveUrlPath(String resourcePath, java.util.List<? extends org.springframework.core.io.Resource> locations,
+                                     org.springframework.web.servlet.resource.ResourceResolverChain chain) {
+            return null;
         }
     }
 }

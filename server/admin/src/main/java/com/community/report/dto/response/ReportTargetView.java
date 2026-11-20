@@ -13,7 +13,12 @@ import java.time.Instant;
  * @param hiddenReason 숨김 중이면 까닭(REPORTED · ILLEGAL · RIGHTS · STAFF)
  * @param hiddenUntil  권리침해 임시조치처럼 기한이 있는 숨김이면 그 시각
  * @param groupId      소모임 사건이면 그 소모임 ID(V95), 그 밖 null
+ * @param jjal         짤 사건이면 그 짤(V261 — 그림·크기·내려감), 그 밖 null. 짤 사건의 {@code title} = 짤 공개 ID, {@code excerpt} null, {@code state} PUBLIC(보임)·HIDDEN(내려감)
  */
 public record ReportTargetView(String postId, String commentId, String title, String excerpt, String state, String hiddenReason, Instant hiddenUntil,
-                               String groupId) {
+                               String groupId, ReportJjalView jjal) {
+
+    public ReportTargetView(String postId, String commentId, String title, String excerpt, String state, String hiddenReason, Instant hiddenUntil, String groupId) {
+        this(postId, commentId, title, excerpt, state, hiddenReason, hiddenUntil, groupId, null);
+    }
 }

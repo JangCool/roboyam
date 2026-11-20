@@ -162,6 +162,60 @@ public class ImageCodec {
         }
     }
 
+    /**
+     * GIF 의 장 수와 재생 시간(내 짤 올리기 — my-jjal-contract 「올리기」). 시간은 각 장의 지연(그래픽 제어 확장 {@code delayTime}, 1/100초)의 합이고, 브라우저처럼 10ms 이하 지연은
+     * 100ms 로 센다. 장 수가 {@code maxFrames} 를 넘으면 시간은 재지 않는다(0). 그림 데이터는 풀지 않고 머리·메타데이터만 읽는다. 읽을 수 없으면 {@link ImageUnreadableException}.
+     * {@link #limited} 안에서 부른다
+     */
+    public GifFrames gifFrames(byte[] data, int maxFrames) {
+        try (ImageInputStream in = stream(data)) {
+            ImageReader reader = readerFor(in, ImageFormat.GIF);
+            try {
+                reader.setInput(in, false, false);
+                int count = reader.getNumImages(true);
+                if (count <= 0) {
+                    throw new ImageUnreadableException("장이 없다");
+                }
+                if (count > maxFrames) {
+                    return new GifFrames(count, 0);
+                }
+                long totalMillis = 0;
+                for (int i = 0; i < count; i++) {
+                    totalMillis += gifDelayMillis(reader.getImageMetadata(i));
+                }
+                return new GifFrames(count, totalMillis);
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException | RuntimeException e) {
+            if (e instanceof ImageUnreadableException unreadable) {
+                throw unreadable;
+            }
+            throw new ImageUnreadableException("GIF 장을 읽지 못했다", e);
+        }
+    }
+
+    /** GIF 장 수 · 재생 시간(ms) */
+    public record GifFrames(int count, long durationMillis) {
+    }
+
+    /** 한 장의 지연(ms) — 그래픽 제어 확장이 없거나 10ms 이하이면 100ms(브라우저와 같게) */
+    private static long gifDelayMillis(javax.imageio.metadata.IIOMetadata metadata) {
+        int hundredths = 0;
+        if (metadata != null) {
+            org.w3c.dom.Node root = metadata.getAsTree("javax_imageio_gif_image_1.0");
+            for (org.w3c.dom.Node n = root.getFirstChild(); n != null; n = n.getNextSibling()) {
+                if ("GraphicControlExtension".equals(n.getNodeName()) && n.getAttributes() != null) {
+                    org.w3c.dom.Node delay = n.getAttributes().getNamedItem("delayTime");
+                    if (delay != null) {
+                        hundredths = Integer.parseInt(delay.getNodeValue());
+                    }
+                }
+            }
+        }
+        return (hundredths <= 1 ? 10L : hundredths) * 10L;
+    }
+
     /** WebP 의 메타데이터·뒤에 붙은 데이터를 뗀 새 파일(그림은 그대로) */
     public byte[] cleanWebp(byte[] data) {
         return WebpContainer.clean(data);

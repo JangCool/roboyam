@@ -20,6 +20,10 @@ import com.community.group.entity.QGroupPublishRequestEntity;
 import com.community.groupbuy.entity.QGroupBuyParticipationEntity;
 import com.community.groupbuy.entity.QGroupBuySupplyChoiceEntity;
 import com.community.groupbuy.entity.QGroupBuyWatchEntity;
+import com.community.jjal.entity.QJjalBoxItemEntity;
+import com.community.jjal.entity.QJjalFileEntity;
+import com.community.jjal.entity.QJjalMemberStateEntity;
+import com.community.jjal.entity.QJjalUploadEventEntity;
 import com.community.membernotification.entity.QMemberNotificationEntity;
 import com.community.membernotification.entity.QMemberNotificationPreferenceEntity;
 import com.community.nicknameimage.entity.QNicknameImageRequestEntity;
@@ -48,7 +52,7 @@ import org.springframework.stereotype.Repository;
 /**
  * 탈퇴 완료(익명화) 트랜잭션이 표마다 하는 정리(docs/plans/member-withdrawal/00-analysis.md 4절 「완료 때」) — 회원 행은 지우지 않으므로 {@code ON DELETE CASCADE} 가 작동하지 않아
  * 여기서 직접 지운다. 부르는 곳은 {@code WithdrawalCompletionService}·{@code WithdrawalRequestWriter} 뿐이다. 남기는 것(글·댓글 본문, 반응, 포인트 원장, 거래 기록, 신고·제재,
- * 상대 쪽지함의 대화)은 건드리지 않는다. <b>문장 차례가 정리 차례다</b> — 바꾸지 않는다.
+ * 상대 쪽지함의 대화·남이 담아 쓰는 짤 파일)은 건드리지 않는다. <b>문장 차례가 정리 차례다</b> — 바꾸지 않는다.
  *
  * <p>엔티티가 있는 표는 QueryDSL 대량 UPDATE·DELETE 다(부르는 트랜잭션 안 — 아직 내보내지 않은 엔티티 변경은 문장 전에 내보내진다). Native SQL 로 남긴 것과 이유:
  * 엔티티가 없는 표({@code avatar_upload_requests}·{@code member_addresses}·{@code mail_outbox}·{@code spring_session}),
@@ -125,6 +129,11 @@ public class WithdrawalEraseStore extends IrobitRepositoryQDSL {
         deleteByUser(QGroupEventResponseEntity.groupEventResponseEntity, QGroupEventResponseEntity.groupEventResponseEntity.userId, userId);
         deleteByUser(QDmBoxEntity.dmBoxEntity, QDmBoxEntity.dmBoxEntity.userId, userId);
         deleteByUserNative("member_addresses", userId);
+        // 내 짤(V261 — 사용자 결정 2026-11-20): 보관함 줄 · 처음 안내 기록 · 올리기 기록을 지우고, 처음 올린 회원 칸을 비운다. 파일은 다른 보관함·글·댓글이 안 쓰면 정리 배치(jjal-cleanup)가 지운다
+        deleteByUser(QJjalBoxItemEntity.jjalBoxItemEntity, QJjalBoxItemEntity.jjalBoxItemEntity.userId, userId);
+        deleteByUser(QJjalMemberStateEntity.jjalMemberStateEntity, QJjalMemberStateEntity.jjalMemberStateEntity.userId, userId);
+        deleteByUser(QJjalUploadEventEntity.jjalUploadEventEntity, QJjalUploadEventEntity.jjalUploadEventEntity.userId, userId);
+        query.update(QJjalFileEntity.jjalFileEntity).setNull(QJjalFileEntity.jjalFileEntity.uploadedBy).where(QJjalFileEntity.jjalFileEntity.uploadedBy.eq(userId)).execute();
         // 차단·메모는 양방향(남이 나에 대해 적은 메모도 나에 관한 정보다)
         query.delete(BLOCK).where(BLOCK.userId.eq(userId).or(BLOCK.targetId.eq(userId))).execute();
         query.delete(MEMO).where(MEMO.userId.eq(userId).or(MEMO.targetId.eq(userId))).execute();

@@ -24,6 +24,9 @@ final class BucketMediaResolver implements ResourceResolver {
 
     @Override
     public Resource resolveResource(HttpServletRequest request, String requestPath, List<? extends Resource> locations, ResourceResolverChain chain) {
+        if (requestPath.startsWith(com.community.media.service.ImageStorage.PRIVATE_PREFIX)) {
+            return null; // 서빙하지 않는 키(MediaResourceConfig 의 404 처리기와 같은 규칙 — 겹쳐 막는다)
+        }
         return storage.read(requestPath).map(object -> (Resource) new BucketResource(requestPath, object)).orElse(null);
     }
 

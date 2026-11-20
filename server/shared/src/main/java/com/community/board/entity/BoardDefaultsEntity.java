@@ -67,6 +67,9 @@ public class BoardDefaultsEntity {
     /** 「구입 경로 받기」 사이트 기본(V241, 기본 OFF) · 「체험단 사용기 받기」 사이트 기본(기본 끔) */
     private String purchaseSourceMode = "OFF";
     private boolean trialReviewsEnabled;
+    /** 본문 짤 허용 · 댓글 짤 허용 사이트 기본(V261, 기본 켬) — my-jjal-contract */
+    private boolean postJjalAllowed = true;
+    private boolean commentJjalAllowed = true;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -100,7 +103,8 @@ public class BoardDefaultsEntity {
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit, listChipPosition,
                 listLikeHighlight, listViewHighlight, listHighlightColor, listPrefixStyle, commentDelayNotice, pinRequestMinLikes, authorThumbnailEnabled, tagsEnabled,
-                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired, sourcesEnabled, purchaseSourceMode, trialReviewsEnabled);
+                detailFeedTabsPc, detailFeedTabsMobile, prefixRequired, tagRequired, sourcesEnabled, purchaseSourceMode, trialReviewsEnabled,
+                postJjalAllowed, commentJjalAllowed);
     }
 
     /** 칸 전부를 바꾼다 — 검사를 마친 값(빈 칸 없음)만 받는다 */
@@ -158,6 +162,8 @@ public class BoardDefaultsEntity {
         this.sourcesEnabled = v.sourcesEnabled();
         this.purchaseSourceMode = v.purchaseSourceMode();
         this.trialReviewsEnabled = v.trialReviewsEnabled();
+        this.postJjalAllowed = v.postJjalAllowed();
+        this.commentJjalAllowed = v.commentJjalAllowed();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }
