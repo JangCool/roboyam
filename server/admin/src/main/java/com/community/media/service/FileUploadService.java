@@ -28,7 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 파일 올리기({@code POST /api/admin/files}, multipart {@code file} + {@code purpose}) — 사이트 로고 그림({@code SITE_LOGO}, 권한 site.manage)과
  * 하이라이트 대표 이미지({@code HIGHLIGHT_IMAGE}, 권한 highlight.manage — 하이라이트 만들기·고치기의 {@code imageFileId} 로 지정한다. 같은 검사·다시 만들기, 키 {@code highlight/{버전}/image.{확장자}}),
- * 팝업 그림({@code SITE_POPUP_IMAGE}, 권한 site.manage — 팝업 만들기·고치기의 {@code imageFileId} 로 지정한다. 하이라이트와 같은 검사·다시 만들기, 키 {@code site-popup/{버전}/image.{확장자}}, V162).
+ * 팝업 그림({@code SITE_POPUP_IMAGE}, 권한 popup.manage — 팝업 만들기·고치기의 {@code imageFileId} 로 지정한다. 하이라이트와 같은 검사·다시 만들기, 키 {@code site-popup/{버전}/image.{확장자}}, V162).
  * 올린 파일은 {@code PENDING} 장부 행과 저장소 파일이 되고, 로고로 지정하기({@code PUT /api/admin/site/logo})까지는 아무 데도 쓰이지 않는다(공개 주소도 알려 주지 않는다).
  * 지정하지 않고 둔 파일은 「올리다 만 파일 정리」 배치({@code file-orphan-cleanup})가 지운다.
  * 글의 대표 썸네일 그림({@code POST_THUMBNAIL}, 권한 post.manage — list-thumbnail-contract 「2단계」)은 이 용도만 <b>공개 사이트 글 이미지와 같은 검사·한도</b>(10MB, JPEG·PNG·WebP·GIF,
@@ -134,7 +134,8 @@ public class FileUploadService {
     /** 용도마다 올리는 데 필요한 권한 */
     private static Permission requiredPermission(FilePurpose purpose) {
         return switch (purpose) {
-            case SITE_LOGO, SITE_POPUP_IMAGE -> Permission.SITE_MANAGE;
+            case SITE_LOGO -> Permission.SITE_MANAGE;
+            case SITE_POPUP_IMAGE -> Permission.POPUP_MANAGE;
             case HIGHLIGHT_IMAGE -> Permission.HIGHLIGHT_MANAGE;
             case POST_THUMBNAIL -> Permission.POST_MANAGE;
             case POST_IMAGE, BIZ_AD_IMAGE, GROUP_IMAGE -> throw new IllegalStateException("글 이미지·사업자 광고 이미지·소모임 대표 이미지는 관리자 앱에서 올리지 않는다");

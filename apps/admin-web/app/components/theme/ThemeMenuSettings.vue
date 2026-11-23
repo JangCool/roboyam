@@ -9,7 +9,7 @@
         「테마 기본(…)」의 괄호는 `theme`(편집하는 테마)의 기본값이다. 지금 배치에서 쓰이지 않는 칸은 안내 한 줄.
         한 구획을 저장할 때 다른 구획 칸은 저장된 값 그대로 실어 보내고, 다른 구획에 입력 중이던 값은 그대로 둔다. `theme` 이 바뀌면 그 테마의 값을 다시 읽는다(저장하지 않은 변경 확인은 화면이 `dirty` 이벤트를 받아 먼저 한다).
         저장은 테마마다 `PUT /api/admin/site/themes/{id}/menu`(`useSiteSettingsApi().saveThemeMenu`) — 공개 사이트는 지금 테마의 값을 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 받는다.
-        권한: 변경 `site.manage` — 없으면 저장 줄이 사라지고 고르기는 막힌다. 감추는 것은 편의이고 막는 것은 서버다.
+        권한: 변경 `layout.settings` — 없으면 저장 줄이 사라지고 고르기는 막힌다. 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <div class="flex flex-col gap-4">
     <div v-if="loading && !saved" class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
@@ -226,7 +226,7 @@ const toApiError = useApiErrorOf();
 const { can } = useAdminPermission();
 
 /** 이 화면에서 하는 일에 필요한 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
-const canManage = computed(() => can('site.manage'));
+const canManage = computed(() => can('layout.settings'));
 
 /** 서버가 준 값(저장된 값). `null` = 아직 못 받았다 */
 const saved = ref<SiteThemeResponse | null>(null);

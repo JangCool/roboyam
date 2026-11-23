@@ -3,9 +3,9 @@ import type { GadgetIconUpload, HomeLayoutBody, HomeLayoutSaveRequest, HomeLayou
 /**
  * 관리자 홈 배치 API — 서버 주소 문자열(`/api/admin/home-layouts`)이 있는 **유일한 곳**이다. 상태는 없다. 모양·가정은 `useHomeLayoutApi.types.ts`.
  * 계약: `docs/features/site-theme-layout-contract.md` 「API」(서버 `HomeLayoutController`).
- *   - `GET /api/admin/home-layouts/{theme}` → 200 `HomeLayoutView`  (`site.read`) — 저장한 배치, 없으면 테마 기본 배치(`updatedAt: null`) · 404 모르는 테마
- *   - `GET /api/admin/home-layouts/{theme}/defaults` → 200 `HomeLayoutBody`  (`site.read`) — 테마 기본 배치(초기화용, 저장하지 않는다)
- *   - `PUT /api/admin/home-layouts/{theme}` `HomeLayoutSaveRequest` → 200 `HomeLayoutView`  (`site.manage`) · 409 `LAYOUT_VERSION_CONFLICT`(`base.updatedAt` 이 지금 저장과 다름 — 2026-11-17) · 400 VALIDATION(`fields.layout.columns` · `fields.gadgets`(30개 한도) ·
+ *   - `GET /api/admin/home-layouts/{theme}` → 200 `HomeLayoutView`  (`layout.read`) — 저장한 배치, 없으면 테마 기본 배치(`updatedAt: null`) · 404 모르는 테마
+ *   - `GET /api/admin/home-layouts/{theme}/defaults` → 200 `HomeLayoutBody`  (`layout.read`) — 테마 기본 배치(초기화용, 저장하지 않는다)
+ *   - `PUT /api/admin/home-layouts/{theme}` `HomeLayoutSaveRequest` → 200 `HomeLayoutView`  (`layout.settings`) · 409 `LAYOUT_VERSION_CONFLICT`(`base.updatedAt` 이 지금 저장과 다름 — 2026-11-17) · 400 VALIDATION(`fields.layout.columns` · `fields.gadgets`(30개 한도) ·
  *       `fields.gadgets[i].id|type|title` · `fields.gadgets[i].config.count|sort`(공구 가젯 개수 1~10 · 정렬 3종) · `fields.layout.items[i]`(없는 가젯·두 번째 자리·격자 밖·종류별 최소 크기 미만) ·
  *       `fields.layout.items`(자리 없는 가젯·겹침))
  *       빠진 기존 가젯은 지우고, 기본 배치 ID(`seed-<n>`)는 그 시드 설정으로, 모르는 ID(`new-<n>`)는 종류별 처음 값으로 새로 만든다. 서버가 위로 당겨 저장한다.
@@ -33,7 +33,7 @@ export function useHomeLayoutApi() {
         save: (theme: string, body: HomeLayoutSaveRequest): Promise<HomeLayoutView> => client.put<HomeLayoutView>(PATH.layout(theme), body),
 
         /**
-         * 가젯 제목 아이콘 올리기(`site.manage`) — multipart `file`(SVG·PNG·WEBP, 200KB) → 201 `{ fileId, url, svg }`. 가젯 꾸미기 `iconUpload` 에 넣고 배치를 저장해야 쓰인다.
+         * 가젯 제목 아이콘 올리기(`layout.settings`) — multipart `file`(SVG·PNG·WEBP, 200KB) → 201 `{ fileId, url, svg }`. 가젯 꾸미기 `iconUpload` 에 넣고 배치를 저장해야 쓰인다.
          * 400 `fields.file`(형식 `gadgetIcon.type` · 용량 `gadgetIcon.size` · SVG 위험 요소 `site.svg.*`)
          */
         uploadIcon: (file: File): Promise<GadgetIconUpload> => {

@@ -5,7 +5,7 @@
         ② 서버별(인스턴스) 기록 표: 마지막 기록(점 색 — 2분 안 초록 · 10분 안 노랑 · 넘으면 빨강) · 1분 기록 성공/실패 · 버린 신호(버퍼 넘침) · 무시한 신호(봇 · 형식 오류 · 뺀 계정 — 3단계) · 「알 수 없는 주소」로 묶은 신호(3단계) | 원본 보관 현황(보관 개월 수 — 이번 달 포함)
         ③ 크론 표(파티션·정리·게시판 활동 …): 주기 · 마지막 실행 · 결과(배치 로그와 같은 딱지) · 처리 건수 · 사유 · 「로그」(배치 로그 `?jobName=` — `batch.read` 일 때만)
         ④ 최근 기록 실패 5건(시각 · 서버 · 사유).
-        스위치 없음(늘 동작). 권한: `site.read`(메뉴 `visitHealth`). 서버 호출은 `useVisitAnalyticsApi().health`(`GET /api/admin/analytics/visits/health` — 크론 7개, 실패 `detail` = 「예외 이름 (SQLSTATE x) — 묶음 이름」).
+        스위치 없음(늘 동작). 권한: `analytics.read`(메뉴 `visitHealth`). 서버 호출은 `useVisitAnalyticsApi().health`(`GET /api/admin/analytics/visits/health` — 크론 7개, 실패 `detail` = 「예외 이름 (SQLSTATE x) — 묶음 이름」).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('menu.visitHealth')" :subtitle="t('visitAnalytics.health.subtitle')" :as-of="h?.asOf ?? null" :as-of-note="t('visitAnalytics.health.window')" :busy="health.loading.value" :range="false" @refresh="load" />
@@ -205,7 +205,7 @@ const api = useVisitAnalyticsApi();
 const displayTime = useDisplayTime();
 const time = computed(() => displayTime.value);
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 /** 배치 로그 링크는 배치 권한이 있을 때만 */
 const canBatch = computed(() => can('batch.read'));
 

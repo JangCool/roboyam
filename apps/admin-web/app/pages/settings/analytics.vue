@@ -8,7 +8,7 @@
         - 항목 줄의 `id` = `UtilAnalytics.anchor`(`analytics-raw-events` …) — 대시보드 가젯의 「수집 꺼짐」 링크가 `#앵커` 로 들어오면 불러온 뒤 그 줄로 옮기고 잠깐 강조한다.
         - 저장은 한 번에(PUT) — 떠 있는 저장 줄(`StickySaveBar`). 입력 오류는 `fields.rawRetentionMonths` 를 그 칸 아래, 나머지는 저장 줄에 서버 문구 그대로.
         - 변경 이력은 제목 옆 단추 → 오른쪽 서랍(`SettingHistoryDrawer`, 처음 열 때 받는다).
-        - 권한: 조회 `site.read`(없으면 권한 없음) · 바꾸기 `site.manage` — 없으면 스위치가 잠기고 저장 줄이 없다. 감추는 것은 편의이고 막는 것은 서버다.
+        - 권한: 조회 `analytics.read`(없으면 권한 없음) · 바꾸기 `analytics.settings` — 없으면 스위치가 잠기고 저장 줄이 없다. 감추는 것은 편의이고 막는 것은 서버다.
         - 메뉴: 설정 › 일반의 「통계 수집」(약관 다음 — `UtilAdminMenu` 의 `analyticsSettings` 와 서버 `AdminScreenRegistry` 의 같은 한 줄).
         서버 API: `useAnalyticsSettingsApi`(`GET/PUT /api/admin/analytics/settings` · `GET …/history`).
     -->
@@ -197,8 +197,8 @@ const { can } = useAdminPermission();
 const { prefs } = useLayoutPrefs();
 
 /** 조회·바꾸기 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
-const canRead = computed(() => can('site.read'));
-const canManage = computed(() => can('site.manage'));
+const canRead = computed(() => can('analytics.read'));
+const canManage = computed(() => can('analytics.settings'));
 
 const baseId = useId();
 const saved = ref<AnalyticsSettingsView | null>(null);

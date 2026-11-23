@@ -2,7 +2,7 @@
     <!--
         대시보드 가젯 한 장의 겉 — `AppGadget fill`(격자 칸 높이를 채우고 내용만 스크롤)에 머리 오른쪽 「HH:mm 기준」·바로 가기·새로 고침 단추를 단다.
         상태: 값이 오기 전 Skeleton(`#skeleton` 으로 바꿀 수 있다) · 값 없이 실패하면 ErrorState(다시 시도) · 권한 없음(403·묶음의 null) ·
-        수집 꺼짐(권한은 있으나 「통계 수집」 설정에서 그 수집이 꺼진 종류 — 묶음 응답의 `disabled`. `site.manage` 가 있으면 설정의 그 항목으로 가는 링크) ·
+        수집 꺼짐(권한은 있으나 「통계 수집」 설정에서 그 수집이 꺼진 종류 — 묶음 응답의 `disabled`. `analytics.settings` 가 있으면 설정의 그 항목으로 가는 링크) ·
         준비 중(권한은 있으나 서버가 아직 데이터를 주지 않는 종류 — 묶음 응답의 `unavailable`) · 비었으면 EmptyState · 아니면 내용.
         값이 있는데 새로 고침만 실패하면 내용은 두고 머리에 경고 아이콘(문구는 title·aria-label).
         편집 모드의 손잡이(옮기기·크기·⚙·✕)는 격자(`DashboardGrid`)가 위에 덮는다 — 여기는 모른다.
@@ -101,8 +101,8 @@ const { t } = useI18n();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
 
-/** 수집 설정을 바꿀 수 있나(`site.manage`) — 없으면 링크 없이 요청하라는 설명. 막는 것은 서버다 */
-const canManage = computed(() => can('site.manage'));
+/** 수집 설정을 바꿀 수 있나(`analytics.settings`) — 없으면 링크 없이 요청하라는 설명. 막는 것은 서버다 */
+const canManage = computed(() => can('analytics.settings'));
 const disabledBody = computed(() => {
     const item = props.collect ? t(`analytics.label.${props.collect}`) : '';
     if (!canManage.value) return t('dashboard.disabledBodyAsk', { item });

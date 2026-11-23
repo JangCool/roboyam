@@ -17,12 +17,12 @@
         ③ 메뉴 설정 drawer — 미리보기의 메뉴 자리를 누르거나 [메뉴 설정]을 누르면 오른쪽에 열린다(바탕을 막지 않아 미리보기가 같이 보인다). 내용은 `ThemeMenuSettings`(메뉴 배치 · 메뉴 모양, 테마마다 따로 저장).
           값을 바꾸면 미리보기가 바로 따르고, 저장하지 않고 닫으면 미리보기는 저장 값으로 돌아간다(입력은 버린다). 주소 `/settings/theme/menu` 로 오면 drawer 를 연 채 시작한다.
           홈 구성을 저장하지 않은 채 화면을 나가면 편집기의 `onBeforeRouteLeave` 가 묻는다.
-        권한: 메뉴·조회 `site.read`, 바꾸기·저장 `site.manage`(없으면 테마 적용 단추가 없고, 카드는 어느 테마를 볼지만 고른다). 막는 것은 서버다.
+        권한: 메뉴·조회 `layout.read`, 바꾸기·저장 `layout.settings`(없으면 테마 적용 단추가 없고, 카드는 어느 테마를 볼지만 고른다). 막는 것은 서버다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('site.themePageTitle')" :subtitle="t('site.themePageSubtitle')" />
 
-        <Message v-if="!canManage" severity="info" size="small" :closable="false">{{ t('site.readOnly') }}</Message>
+        <Message v-if="!canManage" severity="info" size="small" :closable="false">{{ t('layout.readOnly') }}</Message>
 
         <!-- 두 칸 — 왼쪽 위 테마 고르기(넓은 화면에서 창 위에 붙는다) · 가운데 고른 테마의 레이아웃·메뉴 설정. 좁은 화면은 위아래로 -->
         <div class="grid items-start gap-4 lg:grid-cols-[22.5rem_minmax(0,1fr)]">
@@ -191,7 +191,7 @@ const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
 
 /** 이 화면에서 하는 일에 필요한 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
-const canManage = computed(() => can('site.manage'));
+const canManage = computed(() => can('layout.settings'));
 
 /** 레이아웃 종류 — 홈 · 게시판 레이아웃(2026-10-30) · 가젯 페이지 */
 type LayoutKind = 'HOME' | 'BOARD' | 'PAGE';

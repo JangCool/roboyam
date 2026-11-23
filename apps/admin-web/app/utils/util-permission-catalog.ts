@@ -170,6 +170,9 @@ export default class UtilPermissionCatalog {
         { code: 'popular.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.popularRead', descKey: 'permission.item.popularReadDesc', featureReady: true },
         { code: 'popular.manage', unit: 'MANAGE', type: 'notice', nameKey: 'permission.item.popularManage', descKey: 'permission.item.popularManageDesc', featureReady: true },
         { code: 'popular.settings', unit: 'CONFIG', type: 'notice', nameKey: 'permission.item.popularSettings', descKey: 'permission.item.popularSettingsDesc', featureReady: true },
+        // 권한 분리(2026-11-23) — 팝업은 site.* 에서 떼어 이 유형에 둔다(서버 Permission 과 같은 차례)
+        { code: 'popup.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.popupRead', descKey: 'permission.item.popupReadDesc', featureReady: true },
+        { code: 'popup.manage', unit: 'MANAGE', type: 'notice', nameKey: 'permission.item.popupManage', descKey: 'permission.item.popupManageDesc', featureReady: true },
         // 게시글 — 게시글 관리 화면(`/posts`, post-admin-contract)과 글의 찬반 토론(하이라이트 화면·게시글 관리 서랍의 토론 설정·의견 서랍, post-debate-contract). ⚠ 서버 `Permission` 의 목록·순서·featureReady 와 맞출 것
         { code: 'post.read', unit: 'READ', type: 'post', nameKey: 'permission.item.postRead', descKey: 'permission.item.postReadDesc', featureReady: true },
         { code: 'post.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postManage', descKey: 'permission.item.postManageDesc', featureReady: true },
@@ -283,6 +286,7 @@ export default class UtilPermissionCatalog {
         { code: 'ad.restore', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adRestore', descKey: 'permission.item.adRestoreDesc', featureReady: true },
         { code: 'ad.contact.reveal', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adContactReveal', descKey: 'permission.item.adContactRevealDesc', featureReady: true },
         // 체험단(trial-group-contract 「권한」·shared V241) — 모집·뽑기·입고·발송 / 설정 / 확인할 일(구매 인증·반납 확인·파손 신고·협찬 숨김)
+        { code: 'trial.read', unit: 'READ', type: 'adPromo', nameKey: 'permission.item.trialRead', descKey: 'permission.item.trialReadDesc', featureReady: true },
         { code: 'trial.manage', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.trialManage', descKey: 'permission.item.trialManageDesc', featureReady: true },
         { code: 'trial.settings', unit: 'CONFIG', type: 'adPromo', nameKey: 'permission.item.trialSettings', descKey: 'permission.item.trialSettingsDesc', featureReady: true },
         { code: 'trial.review', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.trialReview', descKey: 'permission.item.trialReviewDesc', featureReady: true },
@@ -307,6 +311,9 @@ export default class UtilPermissionCatalog {
         { code: 'site.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.siteRead', descKey: 'permission.siteReadDesc', featureReady: true },
         { code: 'site.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.siteManage', descKey: 'permission.siteManageDesc', featureReady: true },
         { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: true },
+        // 방문자 통계 — 권한 분리(2026-11-23)로 site.* 에서 뗐다
+        { code: 'analytics.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.item.analyticsRead', descKey: 'permission.item.analyticsReadDesc', featureReady: true },
+        { code: 'analytics.settings', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.item.analyticsSettings', descKey: 'permission.item.analyticsSettingsDesc', featureReady: true },
         { code: 'notification.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.notificationRead', descKey: 'permission.notificationReadDesc', featureReady: true },
         { code: 'notification.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.notificationManage', descKey: 'permission.notificationManageDesc', featureReady: true },
         // 알림 템플릿·문구(`/settings/notification-templates/**` — 메일·Slack·Mattermost·카카오톡 템플릿, `/settings/notification-messages/**` — 문구 · 필수 안내 메일, 이벤트 상세의 채널별 문구).

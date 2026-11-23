@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 테마별 홈 구성(설정 › 테마 › 레이아웃) — 조회는 site.read, 저장은 site.manage. 모양은 admin-web {@code useHomeLayoutApi.types.ts}. 모르는 테마는 404, 칸 검사는 서비스가 한다.
+ * 테마별 홈 구성(설정 › 테마 › 레이아웃) — 조회는 layout.read, 저장은 layout.settings. 모양은 admin-web {@code useHomeLayoutApi.types.ts}. 모르는 테마는 404, 칸 검사는 서비스가 한다.
  */
 @RestController
 @RequestMapping("/api/admin/home-layouts")
@@ -29,20 +29,20 @@ public class HomeLayoutController {
     }
 
     /** 저장한 배치, 없으면 테마 기본 배치({@code updatedAt: null}) */
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping("/{theme}")
     public ApiResponse<HomeLayoutView> get(@PathVariable String theme) {
         return ApiResponse.success(service.get(theme));
     }
 
     /** 테마 기본 배치(초기화용 — 저장하지 않는다) */
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping("/{theme}/defaults")
     public ApiResponse<HomeLayoutBodyView> defaults(@PathVariable String theme) {
         return ApiResponse.success(service.defaults(theme));
     }
 
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.LAYOUT_SETTINGS)
     @PutMapping("/{theme}")
     public ApiResponse<HomeLayoutView> save(@PathVariable String theme, @RequestBody(required = false) HomeLayoutSaveRequest body, AdminActor actor) {
         return ApiResponse.success(service.save(actor, theme, body));

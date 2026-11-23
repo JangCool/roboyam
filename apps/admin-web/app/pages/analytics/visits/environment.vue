@@ -3,7 +3,7 @@
         방문자 통계 › 환경(`/analytics/visits/environment`, 2단계 2026-11-04) — 기기 비율 막대 | 일별 기기 비중(100% 쌓은 막대 `StackedBarChart`, 같은 색)
         → 브라우저 · OS · 화면 너비 구간 비율 막대 3장. **방문 기준**(세션 첫 페이지 하나 = 1) — 같은 사람이 여러 페이지를 봐도 한 번.
         한 줄 요약: 가장 많은 기기(비율) · 가장 많은 브라우저. 브라우저·OS·화면 너비는 사용자 브라우저가 분류값으로만 보내고(원본 UA 저장 안 함), 기기는 서버가 UA 의 표시로 가른다.
-        환경 수집(`collect.environment`)이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `site.read`(메뉴 `visitEnvironment`).
+        환경 수집(`collect.environment`)이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `analytics.read`(메뉴 `visitEnvironment`).
         서버 호출은 `useVisitAnalyticsApi().environment`(`GET /api/admin/analytics/visits/environment`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -72,7 +72,7 @@ const api = useVisitAnalyticsApi();
 const vr = useVisitRange();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const env = useVisitLoad(api.environment);
 const d = computed(() => env.data.value);

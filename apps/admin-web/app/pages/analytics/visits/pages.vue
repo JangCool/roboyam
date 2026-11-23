@@ -4,7 +4,7 @@
         한 줄 요약: 가장 많이 본 페이지(거른 범위 조회 합 대비 — 전체 종류·찾기 없음·첫 쪽일 때만). 종류별 비율 문장은 서버의 종류별 합이 생기면 더한다(쪽 줄로 어림하지 않는다).
         원천은 `analytics_page_daily` — 3단계부터 「방문자·페이지뷰」(`visits`) 수집에 딸린다(원본 기록을 꺼도 쌓임). 꺼져 있으면 「수집이 꺼져 있어요」.
         묶음 주소(`/posts/{id}` …)는 서버가 제목을 주지 않아 화면 이름(`UtilVisitPathMessages`)으로 보인다. 서랍에는 `{id}` 가 든 주소를 그대로 넘긴다(쿼리 인코딩만). 서랍의 들어온/나간 곳은 이동 수집이 켜져 있어야 한다.
-        권한: `site.read`(메뉴 `visitPages`).
+        권한: `analytics.read`(메뉴 `visitPages`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('menu.visitPages')" :subtitle="t('visitAnalytics.pagesSubtitle')" :as-of="s?.asOf ?? null" :busy="busy" :range="allowed" :insights="insights" @refresh="loadAll" />
@@ -63,7 +63,7 @@ const api = useVisitAnalyticsApi();
 const vr = useVisitRange();
 const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const summary = useVisitLoad(api.summary);
 const pages = useVisitLoad(api.pages);

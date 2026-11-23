@@ -6,7 +6,7 @@
         → 주·월 순방문자 카드(3단계 — `VisitUniquesCard`, 방문자/회원 전환, 고른 기간과 무관) → 방문 추이(머리 오른쪽 「월별 보기 →」 = `/analytics/visits/monthly`, 메뉴 `visitMonthly` 로도 간다)
         → 미리보기 3장(많이 본 페이지 5 · 유입 분류 · 요일·시간대 작은 히트맵) — 각 카드 「자세히 →」 = 그 쪽(같은 기간).
         읽는 차례: 요약(수집 스위치) → 켜진 미리보기만 같이(유입은 `detail=false` — 분류·사이트만). 페이지 미리보기·순방문자는 3단계부터 `visits` 에 딸린다. 요약이 실패하면 화면 오류 하나.
-        권한: `site.read`(메뉴 `visitOverview`). 막는 것은 서버다.
+        권한: `analytics.read`(메뉴 `visitOverview`). 막는 것은 서버다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('menu.visitOverview')" :subtitle="t('visitAnalytics.overviewSubtitle')" :as-of="summary.data.value?.asOf ?? null" :busy="busy" :range="allowed" :insights="insights" @refresh="loadAll" />
@@ -96,7 +96,7 @@ const vr = useVisitRange();
 const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
 const time = useDisplayTime();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const summary = useVisitLoad(api.summary);
 const pages = useVisitLoad(api.pages);

@@ -7,7 +7,7 @@
         순방문자(MAU)의 방문자 / 회원 전환(개요 순방문자 카드와 같은 모양·문구 — 추이 카드 머리, 이 화면에서만 기억)이 선·숫자 카드·달마다 표·한 줄 요약에 함께 걸린다.
         ④ 달마다 표(최근 달이 위) ⑤ 기간 많이 본 페이지 10(묶음 주소는 화면 이름 — `UtilVisitPathMessages`) | 유입 분류 비율.
         수집 스위치(결정 ④ 화면 확정 ⓐ — 다른 쪽과 다르다): 꺼져 있어도 쌓인 지난 기록은 그대로 그리고 위에 「지금은 수집이 꺼져 있어 이번 달은 늘지 않아요」(`VisitCollectOff` note)를 얹는다.
-        추이·카드·표·페이지 = `visits`, 유입 = `referrers`. 쌓인 게 하나도 없으면 예전처럼 「수집이 꺼져 있어요」. 권한: `site.read`. 서버 호출은 `useVisitAnalyticsApi().monthly`.
+        추이·카드·표·페이지 = `visits`, 유입 = `referrers`. 쌓인 게 하나도 없으면 예전처럼 「수집이 꺼져 있어요」. 권한: `analytics.read`. 서버 호출은 `useVisitAnalyticsApi().monthly`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('menu.visitMonthly')" :subtitle="t('visitAnalytics.monthly.subtitle')" :as-of="m?.asOf ?? null" :busy="monthly.loading.value" :range="false" :insights="insights" @refresh="load" />
@@ -154,7 +154,7 @@ const route = useRoute();
 const router = useRouter();
 const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 const SELF = route.path;
 const fromId = useId();
 const toId = useId();

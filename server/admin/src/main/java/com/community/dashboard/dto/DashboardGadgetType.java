@@ -25,10 +25,10 @@ public enum DashboardGadgetType {
     RECENT_POSTS(List.of(Permission.POST_READ), false, true, Set.of(Option.LIMIT), 3, true),
     BOARD_RANKING(List.of(Permission.POST_READ), false, true, Set.of(), 3, true),
     POPULAR_NOW(List.of(Permission.POPULAR_READ), false, true, Set.of(Option.LIMIT), 3, true),
-    VISITORS(List.of(Permission.SITE_READ), false, true, Set.of(), 3, true),
+    VISITORS(List.of(Permission.ANALYTICS_READ), false, true, Set.of(), 3, true),
     // 방문 분석(site-analytics-contract 2026-11-04) — 인기 페이지(limit 5|10) · 유입 경로. 화면 DASHBOARD_GADGET_TYPES 와 같은 차례(방문 현황 바로 뒤)
-    POPULAR_PAGES(List.of(Permission.SITE_READ), false, true, Set.of(Option.LIMIT), 3, true),
-    REFERRERS(List.of(Permission.SITE_READ), false, true, Set.of(), 3, true),
+    POPULAR_PAGES(List.of(Permission.ANALYTICS_READ), false, true, Set.of(Option.LIMIT), 3, true),
+    REFERRERS(List.of(Permission.ANALYTICS_READ), false, true, Set.of(), 3, true),
     GROUP_REQUESTS(List.of(Permission.GROUP_READ), false, true, Set.of(Option.LIMIT), 3, true),
     MEMBER_STATS(List.of(Permission.MEMBER_READ), false, true, Set.of(), 3, true),
     SIGNUP_TREND(List.of(Permission.MEMBER_READ), false, true, Set.of(Option.DAYS), 3, true),

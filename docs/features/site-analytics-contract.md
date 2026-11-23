@@ -30,7 +30,9 @@
 - 사용자 화면 공용 레이어 `apps-packages/analytics`(`@irobit/analytics`) — 방문자 ID·세션·신호.
 - AWS RDS PostgreSQL 은 TimescaleDB 확장을 지원하지 않는다 — **사용자 결정(2026-11-04): AWS 에서도 RDS 를 쓰지 않고 PostgreSQL 을 직접 올린다**(pg_cron 크론 때문). 그래서 옮길 때도 같은 자체 DB 에 확장만 붙이면 된다.
 
-## 설정 (`analytics_settings`, 조회 site.read · 변경 site.manage · 감사 기록)
+## 설정 (`analytics_settings`, 조회 analytics.read · 변경 analytics.settings · 감사 기록)
+
+> 권한 분리(2026-11-23): 이 문서의 site.read 는 **analytics.read**, site.manage 는 **analytics.settings** 로 읽는다(방문자 통계·통계 수집·대시보드 방문 가젯 — docs/domain/operator-permissions.md 「site.* 나누기」).
 `enabled`(방문 수집 전체) · `visits` · `rawEvents` + `rawRetentionDays` · `referrers` · `flows` · `notificationSends` · `boardActivity` — 전부 기본 꺼짐. 꺼진 항목의 대시보드 가젯은 「수집이 꺼져 있어요」(묶음 응답 `disabled: type[]`).
 
 ## 화면 (확정 2026-11-04, 기준 코드 `apps/admin-web`)

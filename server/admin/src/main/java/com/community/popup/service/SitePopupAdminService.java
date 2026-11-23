@@ -45,7 +45,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * 팝업 관리(docs/features/site-popup-contract.md) — 목록은 {@code site.read}, 만들기·고치기·차례·노출·지우기는 {@code site.manage}(컨트롤러가 선언). 규칙은 {@link SitePopups}.
+ * 팝업 관리(docs/features/site-popup-contract.md) — 목록은 {@code popup.read}, 만들기·고치기·차례·노출·지우기는 {@code popup.manage}(컨트롤러가 선언). 규칙은 {@link SitePopups}.
  *
  * <ul>
  *   <li><b>칸 검사</b>(모아서 {@code 400 VALIDATION}): {@code fields.name|kind|imageFileId|imageAlt|link|heading|body|buttonLabel|target|devices|hideOption|windowNo|showUntil}.

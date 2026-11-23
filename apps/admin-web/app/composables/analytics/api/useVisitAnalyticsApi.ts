@@ -21,7 +21,7 @@ import type {
 
 /**
  * 방문 분석 API(관리자, 「방문자 통계」 묶음 6쪽) — 서버 주소(`/api/admin/analytics/visits/**`)가 있는 **유일한 곳**이다. 상태는 없다. 모두 GET.
- * 권한: 모두 `site.read`. 계약 `docs/features/site-analytics-contract.md`. 기간은 한국 날짜 `from`·`to`(양끝 포함, 최대 90일 — 넘으면 400 VALIDATION `fields.from`).
+ * 권한: 모두 `analytics.read`. 계약 `docs/features/site-analytics-contract.md`. 기간은 한국 날짜 `from`·`to`(양끝 포함, 최대 90일 — 넘으면 400 VALIDATION `fields.from`).
  *   - `GET …/visits/summary?from&to`  → `VisitSummary`(합계 · 직전 기간 · 추이 · 수집 스위치 · 지금 접속)  — `analytics_visit_hourly` + `analytics_visit_active`
  *   - `GET …/visits/pages?from&to&kind&q&page&size` → `VisitPagePage`  — `analytics_page_daily`
  *   - `GET …/visits/pages/detail?from&to&path` → `VisitPageDetail`(페이지 서랍)  — `analytics_page_daily`(한 경로) + `analytics_flow_daily`(그 경로의 들어온·나간 5)

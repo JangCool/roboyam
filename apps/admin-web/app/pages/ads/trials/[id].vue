@@ -524,8 +524,8 @@ const picked = computed(() => UtilTrial.countPicked(applications.value, new Set(
 
 async function loadApps(): Promise<void> {
     appsError.value = '';
-    // 신청자 목록은 trial.manage·ad.manage 만 읽는다 — 확인 담당(trial.review)만 가진 운영자는 부르지 않고 빈 표로 둔다
-    if (!canManage.value) {
+    // 신청자 목록은 trial.read·trial.manage·ad.manage 가 읽는다 — 확인 담당(trial.review)만 가진 운영자는 부르지 않고 빈 표로 둔다
+    if (!canManage.value && !can('trial.read')) {
         applications.value = [];
         appsLoading.value = false;
         return;

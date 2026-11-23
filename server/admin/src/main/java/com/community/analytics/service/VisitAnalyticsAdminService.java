@@ -38,7 +38,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 「방문자 통계」(site-analytics-contract 「「방문자 통계」 화면 (화면 확정 2026-11-04)」·「2단계」) — 관리자 API 7개 + 2단계 환경·검색어·봇 3개의 계산(수집 진단·정보주체 요청은
- * {@link VisitDiagnosticsAdminService}). 모두 site.read(컨트롤러), 응답 모양은 {@link VisitAnalyticsAdmin}.
+ * {@link VisitDiagnosticsAdminService}). 모두 analytics.read(컨트롤러), 응답 모양은 {@link VisitAnalyticsAdmin}.
  *
  * <ul>
  *   <li><b>기간</b>: 한국 날짜 {@code from}·{@code to}(양끝 포함). 비었거나 형식이 틀리거나 {@code from > to} 이거나 {@value #MAX_DAYS}일을 넘으면 400 {@code fields.from},

@@ -109,7 +109,7 @@
   - `TRIAL_REVIEW_DUE` 알림은 미리 알림이 아니라 기한을 넘겼을 때. 표시 문구 자리표시 `{광고주}`·`{제공/대여}`.
   - 광고주의 발송·반납 받음·파손 신고는 보내는 쪽이 ADVERTISER 인 모집만(아니면 409 `TRIAL_WRONG_SHIPPER`).
 - 추가 API: `GET /api/me/trials/writable?board=`(사용기로 쓸 뽑힌 체험단) · 매니저 `GET /api/boards/{slug}/staff/purchase-proofs/{id}/photo` · 관리자 `POST /api/admin/trials/images`·`POST /api/admin/trials/{id}/photos?kind=` · `POST /api/admin/review-queue/sponsor-hidden/{postId}/confirm|dismiss`.
-- 권한: 모집·입고·발송 `trial.manage` 또는 `ad.manage` · 파손 판정·구매 인증·협찬 숨김 `trial.review` · 설정 `trial.settings` 또는 `ad.settings` · 확인할 일 목록 `title.review`·`title.read`·`trial.review` 중 하나. V241 이 `trial.manage`·`trial.review` 를 ad.manage 가진 역할에, `trial.settings` 를 ad.settings 가진 역할에 준다. 리뷰어 칭호 조건에 `PURCHASE_PROOFS ≥1` 을 더했다.
+- 권한: 보기(목록·상세·신청자·사진·설정) `trial.read`(권한 분리 2026-11-23 — V262 가 trial.manage·trial.review 역할에 준다, 메뉴 「체험단 목록」·「체험단 설정」도 이 권한) · 모집·입고·발송 `trial.manage` 또는 `ad.manage` · 파손 판정·구매 인증·협찬 숨김 `trial.review` · 설정 `trial.settings` 또는 `ad.settings` · 확인할 일 목록 `title.review`·`title.read`·`trial.review` 중 하나. V241 이 `trial.manage`·`trial.review` 를 ad.manage 가진 역할에, `trial.settings` 를 ad.settings 가진 역할에 준다. 리뷰어 칭호 조건에 `PURCHASE_PROOFS ≥1` 을 더했다.
 - 가정: 받음 자동 = 송장 + 7일, 파손 이의 기한 7일·과실 금지 90일 고정, 대여형 주소 사본 파기 = 반납 7일 뒤(열린 파손 없을 때), 이름·연락처 넘긴 줄은 30일 뒤. 리뷰어 몫이 차면 남는 리뷰어 신청자는 일반 몫. 체험단 말머리 행은 첫 사용기 때 서버가 만든다.
 - 못 한 것: 유료 체험단 결제 흐름(금액 > 0 이면 견적만) · 협찬 숨김 확인 뒤 자동 제재 없음 · 입고 부족 광고주 알림 없음 · 운영자 주소 열람 감사 없음 · 입고·반납·파손 사진은 공개 저장소(구매 인증 사진만 암호문) · 섞인 목록(최신·인기) 줄엔 구입 경로 칸 없음 · 데모 팩 미갱신.
 - 시험: api `TrialApiTest` 16건 · admin `TrialAdminHttpTest` 5건 통과.

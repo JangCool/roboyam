@@ -36,7 +36,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
- * 「방문자 통계 › 수집 진단」·「정보주체 요청」(site-analytics-contract 「2단계」) — 관리자 API 2개의 계산. 모두 site.read(컨트롤러), 응답 모양은 {@link VisitAnalyticsAdmin}.
+ * 「방문자 통계 › 수집 진단」·「정보주체 요청」(site-analytics-contract 「2단계」) — 관리자 API 2개의 계산. 모두 analytics.read(컨트롤러), 응답 모양은 {@link VisitAnalyticsAdmin}.
  *
  * <p><b>수집 진단 판정</b>(기간 없음 — 최근 {@link #WINDOW}, 캐시 {@link #HEALTH_TTL}):
  * <ul>

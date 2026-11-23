@@ -72,7 +72,7 @@ class VisitStage3AdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 월별_기간이_틀리면_400_fields_from_이번_달_뒤면_fields_to() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         YearMonth t = thisMonth();
         String[][] fromCases = {{null, t.toString()}, {t.toString(), null}, {"2026/01", t.toString()}, {"abc", t.toString()}, {t.toString(), t.minusMonths(1).toString()},
                 {t.minusMonths(36).toString(), t.toString()}};
@@ -87,7 +87,7 @@ class VisitStage3AdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 수집이_꺼져_있으면_순방문자는_200_no_store_와_모든_수_null_월별은_쌓인_값_모양() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         mvc.perform(get(BASE + "/uniques").cookie(session)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.collect.visits").value(false))
                 .andExpect(jsonPath("$.data.audiences.VISITOR.week.current.count").value(nullValue()))

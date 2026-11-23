@@ -57,7 +57,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 저장하면_바뀐_칸만_이력과_감사에_남고_같은_값을_다시_저장하면_아무것도_남지_않는다() throws Exception {
-        long me = operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE);
+        long me = operatorWith(Permission.ANALYTICS_READ, Permission.ANALYTICS_SETTINGS);
         Cookie session = login(me);
         mvc.perform(get(URL).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.enabled").value(false))
                 .andExpect(jsonPath("$.data.rawRetentionMonths").value(2)); // 새 설치 기본 2개월(이번 달 + 지난달)
@@ -94,7 +94,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 보관_개월_수가_목록_밖이거나_칸이_비면_400() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ, Permission.ANALYTICS_SETTINGS));
         long historyBefore = history();
         for (Object months : new Object[] {45, 0, 1, 4, 30, 90, 366, -90, "null"}) {
             mvc.perform(withCsrf(put(URL), session).content(body(true, true, true, months, true, true, true, true))).andExpect(status().isBadRequest())
@@ -110,7 +110,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 조회는_site_read_저장은_site_manage_와_CSRF() throws Exception {
-        Cookie reader = login(operatorWith(Permission.SITE_READ));
+        Cookie reader = login(operatorWith(Permission.ANALYTICS_READ));
         mvc.perform(get(URL).cookie(reader)).andExpect(status().isOk());
         mvc.perform(get(URL + "/history").cookie(reader)).andExpect(status().isOk());
         mvc.perform(withCsrf(put(URL), reader).content(body(true, true, false, 3, false, false, false, false))).andExpect(status().isForbidden());
@@ -118,7 +118,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
         Cookie nobody = login(operatorWith(Permission.POST_READ));
         mvc.perform(get(URL).cookie(nobody)).andExpect(status().isForbidden());
 
-        Cookie manager = login(operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE));
+        Cookie manager = login(operatorWith(Permission.ANALYTICS_READ, Permission.ANALYTICS_SETTINGS));
         mvc.perform(put(URL).cookie(manager).contentType("application/json").content(body(true, true, false, 3, false, false, false, false)))
                 .andExpect(status().isForbidden()); // CSRF 없음
         assertThat(jdbc.queryForObject("SELECT enabled FROM stats_collection_settings WHERE id = 1", Boolean.class)).isFalse();
@@ -129,7 +129,7 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
     @Test
     void 권한이_있고_수집이_꺼진_종류만_disabled_이고_권한이_없는_종류는_disabled_가_아니다() throws Exception {
         String all = "VISITORS,POPULAR_PAGES,REFERRERS,NOTIFICATION_HEALTH,POST_ACTIVITY,BOARD_RANKING,SIGNUP_TREND";
-        Cookie full = login(operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE, Permission.NOTIFICATION_READ, Permission.POST_READ, Permission.MEMBER_READ));
+        Cookie full = login(operatorWith(Permission.ANALYTICS_READ, Permission.ANALYTICS_SETTINGS, Permission.NOTIFICATION_READ, Permission.POST_READ, Permission.MEMBER_READ));
         mvc.perform(get("/api/admin/dashboard/gadgets").param("types", all).cookie(full)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.disabled.length()").value(7))
                 .andExpect(jsonPath("$.data.gadgets.VISITORS").doesNotExist())
@@ -151,9 +151,9 @@ class AnalyticsSettingsAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.disabled.length()").value(3))
                 .andExpect(jsonPath("$.data.gadgets.POST_ACTIVITY").exists());
 
-        // site.read 만 — 알림·글은 권한 없음(null, disabled 아님), 방문은 꺼짐(disabled)
+        // analytics.read 만 — 알림·글은 권한 없음(null, disabled 아님), 방문은 꺼짐(disabled)
         mvc.perform(withCsrf(put(URL), full).content(body(false, false, false, 3, false, false, false, false))).andExpect(status().isOk());
-        Cookie site = login(operatorWith(Permission.SITE_READ));
+        Cookie site = login(operatorWith(Permission.ANALYTICS_READ));
         mvc.perform(get("/api/admin/dashboard/gadgets").param("types", "VISITORS,NOTIFICATION_HEALTH,POST_ACTIVITY").cookie(site)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.disabled.length()").value(1))
                 .andExpect(jsonPath("$.data.disabled[0]").value("VISITORS"));

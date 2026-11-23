@@ -20,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * 방문 현황(site.read · 수집 항목 {@code visits}) — 시간 칸 집계({@code analytics_visit_hourly}) 어제 0시 ~ 지금의 줄(최대 48줄) 한 번 + 지금 접속 COUNT 한 번. 원본을 세지 않는다.
+ * 방문 현황(analytics.read · 수집 항목 {@code visits}) — 시간 칸 집계({@code analytics_visit_hourly}) 어제 0시 ~ 지금의 줄(최대 48줄) 한 번 + 지금 접속 COUNT 한 번. 원본을 세지 않는다.
  * 하루 방문자 = 그 날 시간 칸 방문자의 합(시간 칸 방문자는 그 날 처음 본 방문자라 중복이 없다). 「어제 같은 시각까지」는 어제 0시부터 지금 시각이 든 시간 칸까지(칸 단위).
  * 3단계: 이번 주·이번 달 순방문자(방문자) — 순방문자 숫자 표({@code analytics_unique_counts}) 작은 질의 셋({@link VisitUniqueCounts#current}).
  */

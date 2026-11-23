@@ -3,7 +3,7 @@
         방문자 통계 › 이동 흐름(`/analytics/visits/flows?from&to&path`) — 기준 페이지 하나를 가운데 둔 흐름 그림 + 상위 이동 10 + 기준 페이지 찾기(`VisitFlowPanel`).
         기준 페이지는 주소 `path` 가 정본(페이지 서랍의 「이동 흐름에서 보기」가 싣는다). 없으면 서버가 고른다(기간에 들어온 이동이 가장 많은 페이지) — 고르면 주소에 적는다.
         한 줄 요약: 기간 전체 가장 많은 이동 · 기준 페이지로 들어온 이동 중 「바로 들어옴」 비율. 이동 수집이 꺼져 있으면 「수집이 꺼져 있어요」.
-        권한: `site.read`(메뉴 `visitFlows`).
+        권한: `analytics.read`(메뉴 `visitFlows`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('menu.visitFlows')" :subtitle="t('visitAnalytics.flowsSubtitle')" :as-of="s?.asOf ?? null" :busy="busy" :range="allowed" :insights="insights" @refresh="loadAll" />
@@ -42,7 +42,7 @@ const route = useRoute();
 const router = useRouter();
 const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 const SELF = route.path;
 
 const summary = useVisitLoad(api.summary);

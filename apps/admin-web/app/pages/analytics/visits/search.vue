@@ -4,7 +4,7 @@
         숫자 카드 4(검색 · 결과 없음 비율 · 서로 다른 검색어 · 걸러진 검색) → 검색어 순위 표(검색 수 · 결과 없음 비율) | 결과 없는 검색어(콘텐츠를 보강하라는 신호)
         → 수집 규칙 안내(전화번호·이메일 모양·2글자 미만·50자 초과는 저장 안 함 · 외부 검색 엔진 검색어는 넘어오지 않아 없음).
         한 줄 요약: 가장 많이 찾은 검색어 · 결과 없이 끝난 검색 비율(+ 가장 많은 결과 없는 검색어).
-        검색어 수집(`collect.searchTerms`)이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `site.read`(메뉴 `visitSearch`).
+        검색어 수집(`collect.searchTerms`)이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `analytics.read`(메뉴 `visitSearch`).
         서버 호출은 `useVisitAnalyticsApi().search`(`GET /api/admin/analytics/visits/search` — 사이트 검색 첫 쪽만 센다).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -99,7 +99,7 @@ const api = useVisitAnalyticsApi();
 const vr = useVisitRange();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const search = useVisitLoad(api.search);
 const d = computed(() => search.data.value);

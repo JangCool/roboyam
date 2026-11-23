@@ -38,24 +38,24 @@ public final class AdminScreenRegistry {
     private static final List<Def> ITEMS = List.of(
             leaf(NORMAL, s("dashboard", "/", "menu.dashboard", "pi pi-home", null)),
             section(NORMAL, "menu.visitStats", "pi pi-chart-line",
-                    leaf(s("visitOverview", "/analytics/visits", "menu.visitOverview", "pi pi-chart-line", Permission.SITE_READ)),
+                    leaf(s("visitOverview", "/analytics/visits", "menu.visitOverview", "pi pi-chart-line", Permission.ANALYTICS_READ)),
                     // 3단계 월별 보기(site-analytics-contract 「결정 ④ 화면 확정」 ⓒ — 개요 바로 아래). 저장한 메뉴 구성에는 admin V10 가 넣는다
-                    leaf(s("visitMonthly", "/analytics/visits/monthly", "menu.visitMonthly", "pi pi-calendar", Permission.SITE_READ)),
-                    leaf(s("visitPages", "/analytics/visits/pages", "menu.visitPages", "pi pi-file", Permission.SITE_READ)),
-                    leaf(s("visitReferrers", "/analytics/visits/referrers", "menu.visitReferrers", "pi pi-directions", Permission.SITE_READ)),
-                    leaf(s("visitFlows", "/analytics/visits/flows", "menu.visitFlows", "pi pi-sitemap", Permission.SITE_READ)),
-                    leaf(s("visitTime", "/analytics/visits/time", "menu.visitTime", "pi pi-calendar-clock", Permission.SITE_READ)),
-                    leaf(s("visitRealtime", "/analytics/visits/realtime", "menu.visitRealtime", "pi pi-bolt", Permission.SITE_READ)),
+                    leaf(s("visitMonthly", "/analytics/visits/monthly", "menu.visitMonthly", "pi pi-calendar", Permission.ANALYTICS_READ)),
+                    leaf(s("visitPages", "/analytics/visits/pages", "menu.visitPages", "pi pi-file", Permission.ANALYTICS_READ)),
+                    leaf(s("visitReferrers", "/analytics/visits/referrers", "menu.visitReferrers", "pi pi-directions", Permission.ANALYTICS_READ)),
+                    leaf(s("visitFlows", "/analytics/visits/flows", "menu.visitFlows", "pi pi-sitemap", Permission.ANALYTICS_READ)),
+                    leaf(s("visitTime", "/analytics/visits/time", "menu.visitTime", "pi pi-calendar-clock", Permission.ANALYTICS_READ)),
+                    leaf(s("visitRealtime", "/analytics/visits/realtime", "menu.visitRealtime", "pi pi-bolt", Permission.ANALYTICS_READ)),
                     // 2단계(site-analytics-contract 「2단계」, 화면 확정 2026-11-04) — 화면 util-admin-menu.ts 와 같은 키·주소·아이콘·차례
-                    leaf(s("visitEnvironment", "/analytics/visits/environment", "menu.visitEnvironment", "pi pi-mobile", Permission.SITE_READ)),
-                    leaf(s("visitSearch", "/analytics/visits/search", "menu.visitSearch", "pi pi-search", Permission.SITE_READ)),
-                    leaf(s("visitBots", "/analytics/visits/bots", "menu.visitBots", "pi pi-microchip-ai", Permission.SITE_READ)),
+                    leaf(s("visitEnvironment", "/analytics/visits/environment", "menu.visitEnvironment", "pi pi-mobile", Permission.ANALYTICS_READ)),
+                    leaf(s("visitSearch", "/analytics/visits/search", "menu.visitSearch", "pi pi-search", Permission.ANALYTICS_READ)),
+                    leaf(s("visitBots", "/analytics/visits/bots", "menu.visitBots", "pi pi-microchip-ai", Permission.ANALYTICS_READ)),
                     folder("menu.visitManage", "pi pi-cog",
-                            s("visitHealth", "/analytics/visits/health", "menu.visitHealth", "pi pi-wave-pulse", Permission.SITE_READ),
-                            s("visitRequests", "/analytics/visits/requests", "menu.visitRequests", "pi pi-eraser", Permission.SITE_READ),
+                            s("visitHealth", "/analytics/visits/health", "menu.visitHealth", "pi pi-wave-pulse", Permission.ANALYTICS_READ),
+                            s("visitRequests", "/analytics/visits/requests", "menu.visitRequests", "pi pi-eraser", Permission.ANALYTICS_READ),
                             // 통계 수집(site-analytics-contract) — 방문·알림·게시판 집계를 항목별로 켜고 끈다(모두 기본 꺼짐). 조회 site.read, 저장은 화면 안에서 site.manage.
                             // admin-web UtilAdminMenu 의 analyticsSettings 와 같은 키·주소·문구 키·아이콘·권한·차례(조직 구성 다음 — 약관은 「운영·약관」 묶음으로 옮겼다)
-                            s("analyticsSettings", "/settings/analytics", "menu.analyticsSettings", "pi pi-chart-bar", Permission.SITE_READ))),
+                            s("analyticsSettings", "/settings/analytics", "menu.analyticsSettings", "pi pi-chart-bar", Permission.ANALYTICS_READ))),
             section(NORMAL, "menu.member", "pi pi-users",
                     leaf(s("members", "/members", "menu.members", "pi pi-user", Permission.MEMBER_READ)),
                     // 탈퇴 관리(member-withdrawal-contract 「관리자」) — 주소가 /members 아래지만 다른 화면. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
@@ -94,7 +94,7 @@ public final class AdminScreenRegistry {
                             s("popularPosts", "/content/popular", "menu.popularPosts", "pi pi-thumbs-up", Permission.POPULAR_READ),
                             s("popularSettings", "/content/popular/settings", "menu.popularSettings", "pi pi-sliders-h", Permission.POPULAR_READ)),
                     // 팝업 관리(docs/features/site-popup-contract.md) — 보기 site.read(바꾸기는 화면 안에서 site.manage)
-                    leaf(s("sitePopups", "/content/popups", "menu.popups", "pi pi-window-maximize", Permission.SITE_READ))),
+                    leaf(s("sitePopups", "/content/popups", "menu.popups", "pi pi-window-maximize", Permission.POPUP_READ))),
             section(NORMAL, "menu.group", "pi pi-comments",
                     leaf(s("groups", "/groups", "menu.groups", "pi pi-users", Permission.GROUP_READ)),
                     leaf(s("groupRequests", "/group-requests", "menu.groupRequests", "pi pi-inbox", Permission.GROUP_READ)),
@@ -133,8 +133,8 @@ public final class AdminScreenRegistry {
                     folder("menu.trial", "pi pi-box",
                             // 체험단(trial-group-contract 「구현 결정」 10) — 모집 목록·만들기·뽑기·입고·발송·확인할 일(trial.manage), 체험단 설정(trial.settings).
                             // 저장한 메뉴 구성에는 admin V12 가 넣는다. admin-web util-admin-menu 와 같은 키·주소·권한·아이콘·차례
-                            s("adTrials", "/ads/trials", "menu.adTrials", "pi pi-box", Permission.TRIAL_MANAGE),
-                            s("adTrialSettings", "/ads/trials/settings", "menu.adTrialSettings", "pi pi-cog", Permission.TRIAL_SETTINGS)),
+                            s("adTrials", "/ads/trials", "menu.adTrials", "pi pi-box", Permission.TRIAL_READ),
+                            s("adTrialSettings", "/ads/trials/settings", "menu.adTrialSettings", "pi pi-cog", Permission.TRIAL_READ)),
                     // 노출 자리 설정(글 보기 중간 · 날개 · 목록 한 줄) — 조회 ad.read, 저장은 화면 안에서 ad.settings
                     leaf(s("adPlacements", "/ads/placements", "menu.adPlacements", "pi pi-sliders-h", Permission.AD_READ))),
             section(NORMAL, "menu.bizHotdeal", "pi pi-briefcase",
@@ -175,7 +175,7 @@ public final class AdminScreenRegistry {
                     // admin-web UtilAdminMenu 의 settingsSite 묶음과 같은 키·주소·권한·아이콘·차례(약관 다음)
                     leaf(s("ossLicenses", "/settings/oss-licenses", "menu.ossLicenses", "pi pi-code", Permission.SITE_READ))),
             section(SETTINGS, "menu.screenLayout", "pi pi-palette",
-                    leaf(s("themeLayout", "/settings/theme", "menu.themeLayout", "pi pi-objects-column", Permission.SITE_READ)),
+                    leaf(s("themeLayout", "/settings/theme", "menu.themeLayout", "pi pi-objects-column", Permission.LAYOUT_READ)),
                     leaf(s("menusPublic", "/menus/public", "menu.menusPublic", "pi pi-globe", Permission.LAYOUT_READ))),
             section(SETTINGS, "menu.operatorsAndPermissions", "pi pi-shield",
                     leaf(s("operators", "/settings/operators", "menu.operators", "pi pi-user-edit", Permission.OPERATOR_READ)),

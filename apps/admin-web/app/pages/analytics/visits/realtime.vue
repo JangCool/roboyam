@@ -4,7 +4,7 @@
         → 최근 5분 많이 본 페이지 10 | 최근 5분 유입 분류.
         화면이 보일 때만 30초마다 저절로 새로 고친다(탭이 가려지면 멈추고, 다시 보이면 바로 한 번 읽고 다시 센다). 「실시간은 최대 1분 늦어요」(서버가 1분마다 몰아 쓴다).
         지금 접속은 `analytics_visit_active`(방문 수집), 분 단위 숫자·최근 페이지·유입은 원본 최근 30분 — 원본 기록이 꺼져 있으면 지금 접속만 + 안내.
-        권한: `site.read`(메뉴 `visitRealtime`).
+        권한: `analytics.read`(메뉴 `visitRealtime`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader
@@ -94,7 +94,7 @@ useSeoMeta({ title: () => `${t('visitAnalytics.realtimeTitle')} · ${t('menu.vis
 const api = useVisitAnalyticsApi();
 const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const realtime = useVisitLoad(api.realtime);
 const rt = computed(() => realtime.data.value);

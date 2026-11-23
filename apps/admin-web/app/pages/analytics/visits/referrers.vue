@@ -3,7 +3,7 @@
         방문자 통계 › 유입 경로(`/analytics/visits/referrers`) — 분류 비율 막대(색 = 분류) | 분류별 일별 방문(쌓은 막대 `StackedBarChart`, 같은 색) → 많이 들어온 사이트 10 | 캠페인 표.
         한 줄 요약: 가장 많은 유입 분류(비율) · 가장 많이 들어온 사이트. 방문 = 세션 첫 페이지.
         분류·사이트·일별은 `analytics_referrer_daily`, 캠페인은 일별 캠페인 집계 표 — 모두 유입 수집(`collect.referrers`)으로 쌓이고 원본 기록과 무관하다.
-        유입 수집이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `site.read`(메뉴 `visitReferrers`).
+        유입 수집이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `analytics.read`(메뉴 `visitReferrers`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('menu.visitReferrers')" :subtitle="t('visitAnalytics.referrersSubtitle')" :as-of="s?.asOf ?? null" :busy="busy" :range="allowed" :insights="insights" @refresh="loadAll" />
@@ -92,7 +92,7 @@ const api = useVisitAnalyticsApi();
 const vr = useVisitRange();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const summary = useVisitLoad(api.summary);
 const referrers = useVisitLoad(api.referrers);

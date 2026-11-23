@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 가젯 제목 아이콘 직접 올리기(gadget-page-contract 「가젯 제목 아이콘」) — multipart {@code file}(SVG · PNG · WEBP, 200KB). 홈·가젯 페이지·게시판 레이아웃이 같이 쓴다. site.manage.
+ * 가젯 제목 아이콘 직접 올리기(gadget-page-contract 「가젯 제목 아이콘」) — multipart {@code file}(SVG · PNG · WEBP, 200KB). 홈·가젯 페이지·게시판 레이아웃이 같이 쓴다. layout.settings.
  * 올린 파일은 가젯 저장의 {@code style.iconUpload.fileId} 로 쓰여야 남는다.
  */
 @RestController
@@ -28,7 +28,7 @@ public class GadgetIconController {
         this.service = service;
     }
 
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.LAYOUT_SETTINGS)
     @PostMapping
     public ResponseEntity<ApiResponse<GadgetIconUploadView>> upload(@RequestParam(value = "file", required = false) MultipartFile file, AdminActor actor) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(service.upload(actor, file)));

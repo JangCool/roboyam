@@ -13,7 +13,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * 유입 경로(site.read · 수집 항목 {@code referrers}) — 오늘의 유입처 일별 집계({@code analytics_referrer_daily}) 그 날 줄만: 분류별 합 한 번 + 도메인 상위 5 한 번.
+ * 유입 경로(analytics.read · 수집 항목 {@code referrers}) — 오늘의 유입처 일별 집계({@code analytics_referrer_daily}) 그 날 줄만: 분류별 합 한 번 + 도메인 상위 5 한 번.
  * 분류는 다섯 모두 낸다(없으면 0, 많은 차례 — 같으면 정해진 차례).
  */
 @Component

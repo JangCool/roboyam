@@ -32,7 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 「설정 › 통계 수집」(admin-web {@code /settings/analytics}, docs/features/site-analytics-contract.md 「설정」·「API」) — 조회 {@code site.read} · 저장 {@code site.manage}(권한은 컨트롤러).
+ * 「설정 › 통계 수집」(admin-web {@code /settings/analytics}, docs/features/site-analytics-contract.md 「설정」·「API」) — 조회 {@code analytics.read} · 저장 {@code analytics.settings}(권한은 컨트롤러).
  *
  * <ul>
  *   <li>저장: 한 행(shared V133 {@code stats_collection_settings} + V135, 마이그레이션이 기본값으로 만들어 둔다)을 잠가 덮는다. 1단계 여덟 칸 모두 필요 — 비면 400 {@code fields.<칸>},

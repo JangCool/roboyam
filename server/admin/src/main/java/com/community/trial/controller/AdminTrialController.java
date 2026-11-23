@@ -57,7 +57,7 @@ public class AdminTrialController {
         this.proofs = proofs;
     }
 
-    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE})
+    @RequirePermission(anyOf = {Permission.TRIAL_READ, Permission.TRIAL_MANAGE, Permission.AD_MANAGE})
     @GetMapping("/api/admin/trials")
     public ResponseEntity<ApiResponse<List<TrialViews.TrialRow>>> list(@RequestParam(required = false) String status) {
         return noStore(trials.list(status));
@@ -69,7 +69,7 @@ public class AdminTrialController {
         return created(trials.create(actor.operatorId(), actor.ip(), body));
     }
 
-    @RequirePermission(anyOf = {Permission.TRIAL_SETTINGS, Permission.AD_SETTINGS, Permission.TRIAL_MANAGE})
+    @RequirePermission(anyOf = {Permission.TRIAL_READ, Permission.TRIAL_SETTINGS, Permission.AD_SETTINGS, Permission.TRIAL_MANAGE})
     @GetMapping("/api/admin/trials/settings")
     public ResponseEntity<ApiResponse<TrialSettingEntity.Values>> settings() {
         return noStore(settings.current());
@@ -87,7 +87,7 @@ public class AdminTrialController {
         return created(trials.uploadCover(bytes(file)));
     }
 
-    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
+    @RequirePermission(anyOf = {Permission.TRIAL_READ, Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
     @GetMapping("/api/admin/trials/{id}")
     public ResponseEntity<ApiResponse<TrialViews.TrialDetail>> detail(@PathVariable String id, AdminActor actor) {
         return noStore(trials.detail(id, TrialService.Actor.operator(actor.operatorId(), actor.ip())));
@@ -99,7 +99,7 @@ public class AdminTrialController {
         return noStore(trials.update(actor.operatorId(), actor.ip(), id, body));
     }
 
-    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE})
+    @RequirePermission(anyOf = {Permission.TRIAL_READ, Permission.TRIAL_MANAGE, Permission.AD_MANAGE})
     @GetMapping("/api/admin/trials/{id}/applications")
     public ResponseEntity<ApiResponse<TrialViews.ApplicantPage>> applications(@PathVariable String id, AdminActor actor) {
         return noStore(trials.applicants(id, TrialService.Actor.operator(actor.operatorId(), actor.ip())));
@@ -169,7 +169,7 @@ public class AdminTrialController {
     }
 
     /** 사진 보기(V243 — 비공개) → 바이트 · {@code no-store} · 404 {@code TRIAL_PHOTO_NOT_FOUND} · 410 {@code TRIAL_PHOTO_PURGED} */
-    @RequirePermission(anyOf = {Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
+    @RequirePermission(anyOf = {Permission.TRIAL_READ, Permission.TRIAL_MANAGE, Permission.AD_MANAGE, Permission.TRIAL_REVIEW})
     @GetMapping("/api/admin/trials/photos/{id}")
     public ResponseEntity<byte[]> photoBytes(@PathVariable String id, AdminActor actor) {
         TrialViews.PhotoBytes photo = trials.photo(TrialService.Actor.operator(actor.operatorId(), actor.ip()), id);

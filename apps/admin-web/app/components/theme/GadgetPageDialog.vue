@@ -6,7 +6,7 @@
         만들 때: 기준 폴더를 고르면 이름이 비어 있을 때 폴더 이름을, 주소가 비어 있을 때 폴더 영문 이름으로 만든 주소를 채운다.
           아래에 처음 배치(폴더의 게시판으로 채울 가젯 목록 — `UtilGadgetPage.initialLayout`)를 미리 보인다. 배치는 모든 테마 같은 것으로 시작하고, 테마마다 따로 고친다.
         고칠 때: 기준 폴더를 바꿔도 이미 만든 배치는 그대로다(「폴더 게시판 전체」 가젯만 새 폴더를 따른다). [페이지 지우기]는 이 페이지를 가리키던 메뉴 연결도 비운다(묻는다).
-        저장 거절(400 `fields.*`)은 칸 아래에 보인다. 권한 `site.manage`(창을 여는 단추가 없다).
+        저장 거절(400 `fields.*`)은 칸 아래에 보인다. 권한 `layout.settings`(창을 여는 단추가 없다).
     -->
     <Dialog :visible="visible" modal :draggable="false" :header="page ? t('gadgetPage.editTitle') : t('gadgetPage.createTitle')" :style="{ width: 'min(34rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
         <form :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">

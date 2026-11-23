@@ -6,7 +6,7 @@
           · 보일 곳 · 기기 · 닫기 줄 선택지 · 노출 기간 · 바꾼 사람 · 노출 켜기/끄기 · [미리보기] · [고치기] · [지우기](확인).
         [미리보기](제목 옆): 지금 노출 중인 팝업을 공개 사이트처럼 넘겨 본다(PC·모바일 — 그 기기에 뜨는 것만, 보일 곳은 「홈 화면」 기준). 줄의 [미리보기]는 그 팝업 한 장.
         만들기·고치기는 대화상자(`SitePopupFormDialog` — 입력하는 대로 미리보기).
-        권한(공지 띠와 같다): 보기 `site.read`(메뉴), 바꾸기 `site.manage` — 없으면 처리 단추가 없고 안내 한 줄.
+        권한: 보기 `popup.read`(메뉴), 바꾸기 `popup.manage` — 없으면 처리 단추가 없고 안내 한 줄.
         사라진 팝업(`404 SITE_POPUP_NOT_FOUND`)·순서 집합 불일치(`fields.ids`)는 서버 문구를 토스트로 보이고 목록을 다시 받는다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -157,8 +157,8 @@ const time = useDisplayTime();
 const { confirm } = useConfirmDialog();
 const { can } = useAdminPermission();
 
-/** 바꾸기 권한(공지 띠와 같은 `site.manage`) — 숨기는 것은 편의이고 막는 것은 서버다 */
-const canManage = computed(() => can('site.manage'));
+/** 바꾸기 권한(`popup.manage`) — 숨기는 것은 편의이고 막는 것은 서버다 */
+const canManage = computed(() => can('popup.manage'));
 
 /** 이미 바뀐 팝업(다른 운영자가 지웠다) — 목록을 다시 받는다 */
 const STALE_CODES: ReadonlySet<string> = new Set(['SITE_POPUP_NOT_FOUND']);

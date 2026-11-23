@@ -68,7 +68,7 @@ class VisitAnalyticsAdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 기간이_틀리면_여섯_API_모두_400_fields_from_오늘_뒤면_fields_to() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         LocalDate t = today();
         String[][] fromCases = {{null, t.toString()}, {t.toString(), null}, {"2026/11/01", t.toString()}, {"abc", t.toString()},
                 {t.toString(), t.minusDays(1).toString()}, {t.minusDays(90).toString(), t.toString()}};
@@ -85,7 +85,7 @@ class VisitAnalyticsAdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 칸별_입력이_틀리면_400_그_칸() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         String d = today().toString();
         mvc.perform(get(BASE + "/pages").cookie(session).param("from", d).param("to", d).param("q", "a".repeat(101))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.q").isString());
@@ -115,7 +115,7 @@ class VisitAnalyticsAdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 수집이_꺼져_있으면_200_no_store_와_0_빈_배열_모양() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         String d = today().toString();
         mvc.perform(call("/summary", d, d, session)).andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.granularity").value("HOUR")).andExpect(jsonPath("$.data.totals.visitors").value(0))

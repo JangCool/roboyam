@@ -20,7 +20,7 @@
 - 보일 곳: `HOME`(주소 `/`) · `ALL`(기본 레이아웃의 모든 화면). 기기: `PC`(폭 768px 이상) · `MOBILE` — 화면이 가린다.
 - 닫기 줄 선택지는 팝업마다 하나: `TODAY`(그날 자정, 이 기기 시각) · `WEEK`(7일) · `NEVER`(다시 보지 않기) · `NONE`(「닫기」만).
 - 「보지 않기」 기록은 **이 브라우저**(localStorage `irobit:site-popups` = `{ [id]: { version, until|null } }`)에만. 손님도 쓴다. 서버 `version` 이 바뀌면(운영자가 내용 고침) 기록이 있어도 다시 보인다. 목록에 없는 팝업·끝난 기록은 쓸 때 지운다.
-- 권한: 보기 `site.read`, 바꾸기 `site.manage`(공지 띠와 같다, 새 권한 없음).
+- 권한: 보기 `popup.read`, 바꾸기 `popup.manage`(권한 분리 2026-11-23 — 처음에는 공지 띠와 같은 site.*, docs/domain/operator-permissions.md 「site.* 나누기」).
 - 그림: 하이라이트 대표 이미지와 같은 검사·저장(PNG·JPG·GIF·WEBP 2MB, 한 변 4000px, GIF 는 첫 장면) — 파일 API 새 쓰임 `SITE_POPUP_IMAGE`.
 
 ## 필드·검증 (서버가 최종 판정, 화면 `util-site-popup.ts` 가 미리 알림)
@@ -32,7 +32,7 @@
 - 글자 칸은 앞뒤 공백을 떼고 비면 null. 지금 종류가 아닌 칸도 그대로 저장(종류를 되돌리면 다시 쓰인다) — 검사는 지금 종류 칸만.
 
 ## API
-- 관리자(`site.read` 조회 · `site.manage` 처리) `/api/admin/site-popups`
+- 관리자(`popup.read` 조회 · `popup.manage` 처리) `/api/admin/site-popups`
   - `GET` → `{ items: SitePopupItem[], total, showingCount, layout }`(차례대로, `layout` = `HORIZONTAL|VERTICAL`). 줄: `id, order, name, kind, imageFileId, imageUrl, imageAlt, link, heading, body, buttonLabel, target, devices, hideOption, windowNo, visible, showFrom, showUntil, status(SHOWING|SCHEDULED|EXPIRED|OFF), updatedAt, updatedBy{id,name}|null`
   - `POST` → 201 줄 · `PUT /{id}` → 200 줄(모든 칸) · 400 `fields.name|imageFileId|imageAlt|link|heading|body|buttonLabel|devices|windowNo|showUntil` · 404 `SITE_POPUP_NOT_FOUND`
   - `PUT /layout { layout }` → 목록(여러 창 배치 — 사이트 전체 하나, 400 `fields.layout`, 감사 `SITE_POPUP_LAYOUT`)

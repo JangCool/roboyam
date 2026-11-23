@@ -33,6 +33,11 @@ public enum Permission {
     POPULAR_MANAGE("popular.manage", NOTICE, MANAGE, true),
     /** 인기글 설정(점수식·조건·주 시작 요일) 저장 */
     POPULAR_SETTINGS("popular.settings", NOTICE, CONFIG, true),
+    // 권한 분리(2026-11-23 사용자 확정 — docs/domain/operator-permissions.md 「site.* 나누기」): 팝업은 site.* 에서 떼어 공지·주요글 유형에 둔다(V262 가 site.* 역할에 함께 준다)
+    /** 팝업 목록 조회(관리자 /content/popups — docs/features/site-popup-contract.md) */
+    POPUP_READ("popup.read", NOTICE, READ, true),
+    /** 팝업 만들기·고치기·차례·노출·지우기·팝업 그림 올리기 */
+    POPUP_MANAGE("popup.manage", NOTICE, MANAGE, true),
     /** 게시글 관리 조회 — 글 목록·글 상세(본문·조치 기록)·게시판 고르기, 글의 찬반 토론 단건·토론 의견 목록·대기 고정 요청(docs/features/post-admin-contract.md·post-debate-contract.md) */
     POST_READ("post.read", POST, READ, true),
     /** 게시글 관리 처리 — 숨기기·숨김 해제·삭제·이동·공지 지정·고정·고정 해제·일괄 숨김/해제, 글의 토론 열기·설정·닫기, 토론 의견 고정·숨김, 의견 고정 요청 승인·거절 */
@@ -198,6 +203,8 @@ public enum Permission {
     AD_CONTACT_REVEAL("ad.contact.reveal", AD_PROMO, SENSITIVE, true),
     // 체험단(docs/features/trial-group-contract.md 「권한」·「구현 결정」 10) — 광고 상품 TRIAL. 역할 부여는 V241 이 광고 권한 가진 운영자 역할에 함께 준다
     /** 체험단 모집 목록·만들기·고치기·뽑기·입고·발송·반납·파손 신고(광고주 대신)·광고주 반송 */
+    /** 체험단 보기 — 모집 목록·상세·신청자·사진·설정 조회(권한 분리 2026-11-23, V262 가 trial.manage·trial.review 역할에 함께 준다). 처리는 trial.manage */
+    TRIAL_READ("trial.read", AD_PROMO, READ, true),
     TRIAL_MANAGE("trial.manage", AD_PROMO, MANAGE, true),
     /** 체험단 설정(제공형 상한·표시 문구·반납 독촉·사용기 기한 불이익·구매 인증 보너스·사진 보관) */
     TRIAL_SETTINGS("trial.settings", AD_PROMO, CONFIG, true),
@@ -224,6 +231,11 @@ public enum Permission {
     SITE_READ("site.read", SITE_INTEGRATION, READ, true),
     SITE_MANAGE("site.manage", SITE_INTEGRATION, CONFIG, true),
     SITE_SECRET("site.secret", SITE_INTEGRATION, SENSITIVE, true),
+    // 방문자 통계(docs/features/site-analytics-contract.md) — 권한 분리(2026-11-23)로 site.* 에서 뗐다(V262 가 site.read → analytics.read, site.manage → analytics.settings 로 함께 준다)
+    /** 방문자 통계 화면 전부(수집 진단·정보주체 요청 포함) · 대시보드 방문 가젯 · 통계 수집 설정 조회 */
+    ANALYTICS_READ("analytics.read", SITE_INTEGRATION, READ, true),
+    /** 통계 수집 설정 저장 */
+    ANALYTICS_SETTINGS("analytics.settings", SITE_INTEGRATION, CONFIG, true),
     NOTIFICATION_READ("notification.read", SITE_INTEGRATION, READ, true),
     NOTIFICATION_MANAGE("notification.manage", SITE_INTEGRATION, CONFIG, true),
     /** 알림 템플릿(메일·Slack·Mattermost·카카오톡 겉모양)·문구(대상 × 채널 × 언어별 내용)·대상별 선택/규칙 조회 */

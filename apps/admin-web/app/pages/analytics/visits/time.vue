@@ -3,7 +3,7 @@
         방문자 통계 › 요일·시간대(`/analytics/visits/time`) — 요일(월~일) × 시(0~23) 히트맵(`WeekHourHeatmap`, 방문자/페이지뷰 전환) + 가장 붐비는·한산한 때 카드
         → 시간대별 평균(세로 막대 24) | 요일별 하루 평균(막대 7).
         평균 = 기간 안 같은 요일·시 칸의 합 ÷ 칸 수(`days`). 오늘의 지금 시간(집계 중)과 그 뒤는 서버가 칸에 넣지 않는다 — 덜 찬 칸이 평균을 끌어내리지 않게(`UtilVisitTime`).
-        원천 `analytics_visit_hourly`(방문 수집) — 꺼져 있으면 「수집이 꺼져 있어요」. 권한: `site.read`(메뉴 `visitTime`).
+        원천 `analytics_visit_hourly`(방문 수집) — 꺼져 있으면 「수집이 꺼져 있어요」. 권한: `analytics.read`(메뉴 `visitTime`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <VisitStatsHeader :title="t('visitAnalytics.timeTitle')" :subtitle="t('visitAnalytics.timeSubtitle')" :as-of="timeLoad.data.value?.asOf ?? s?.asOf ?? null" :busy="busy" :range="allowed" :insights="insights" @refresh="loadAll" />
@@ -80,7 +80,7 @@ const api = useVisitAnalyticsApi();
 const vr = useVisitRange();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const summary = useVisitLoad(api.summary);
 const timeLoad = useVisitLoad(api.time);

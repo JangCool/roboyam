@@ -56,7 +56,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 기간이_틀리면_세_API_모두_400_fields_from_오늘_뒤면_fields_to() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         LocalDate t = today();
         String[][] fromCases = {{null, t.toString()}, {t.toString(), null}, {"abc", t.toString()}, {t.toString(), t.minusDays(1).toString()},
                 {t.minusDays(90).toString(), t.toString()}};
@@ -95,7 +95,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 수집이_꺼져_있으면_200_no_store_모든_키_0_series_빈_배열() throws Exception {
-        Cookie session = login(operatorWith(Permission.SITE_READ));
+        Cookie session = login(operatorWith(Permission.ANALYTICS_READ));
         String d = today().toString();
         mvc.perform(get(BASE + "/environment").cookie(session).param("from", d).param("to", d)).andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store")).andExpect(jsonPath("$.data.total").value(0))
@@ -134,7 +134,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 새_칸은_기본_false_이고_PUT_에서_빠지면_저장값_유지_넣으면_바뀐다() throws Exception {
-        long me = operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE);
+        long me = operatorWith(Permission.ANALYTICS_READ, Permission.ANALYTICS_SETTINGS);
         Cookie session = login(me);
         mvc.perform(get(SETTINGS).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.environment").value(false))
                 .andExpect(jsonPath("$.data.searchTerms").value(false)).andExpect(jsonPath("$.data.bots").value(false));
@@ -179,7 +179,7 @@ class VisitStage2AdminHttpTest extends Commerce04AdminTestBase {
 
     @Test
     void 설정을_저장하면_이_서버의_화면_API_가_새_칸을_바로_따른다() throws Exception {
-        long me = operatorWith(Permission.SITE_READ, Permission.SITE_MANAGE);
+        long me = operatorWith(Permission.ANALYTICS_READ, Permission.ANALYTICS_SETTINGS);
         Cookie session = login(me);
         String d = today().toString();
         mvc.perform(withCsrf(put(SETTINGS), session).content(body(true, ",\"environment\":true,\"bots\":true"))).andExpect(status().isOk());

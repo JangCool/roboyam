@@ -3,7 +3,7 @@
         방문자 통계 › 정보주체 요청(`/analytics/visits/requests`, 2단계 2026-11-04) — 이용자가 공개 사이트 「개인정보 처리방침」 아래 「이 브라우저의 방문 기록 지우기」로 보낸 삭제 요청.
         숫자 카드 3(대기 중 · 지난 30일 · 전체) → 요청 표(요청 번호(서버 Snowflake 숫자 글자 — 19자리 안팎이라 줄바꿈 없이) · 접수 시각 · 상태 대기/완료 · 지운 줄 수 · 처리 시각, 최신 차례, 20줄씩) → 처리 방식 안내.
         요청은 방문자 ID 해시로만 처리하고 회원 계정과 잇지 않는다(표에 사람을 가리키는 칸이 없다). 처리는 DB 작업(5분마다)이 몇 분 안에 — **운영자가 할 일은 없고 확인용**이다.
-        스위치 없음(늘 동작). 기간 없음. 권한: `site.read`(메뉴 `visitRequests`).
+        스위치 없음(늘 동작). 기간 없음. 권한: `analytics.read`(메뉴 `visitRequests`).
         서버 호출은 `useVisitAnalyticsApi().requests`(`GET /api/admin/analytics/visits/requests` — 목록 캐시 60초).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -89,7 +89,7 @@ const api = useVisitAnalyticsApi();
 const displayTime = useDisplayTime();
 const time = computed(() => displayTime.value);
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const list = useVisitLoad(api.requests);
 const p = computed(() => list.data.value);

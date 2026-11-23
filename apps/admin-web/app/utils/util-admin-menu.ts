@@ -117,28 +117,28 @@ export default class UtilAdminMenu {
             icon: 'pi pi-chart-line',
             labelKey: 'menu.visitStats',
             items: [
-                { key: 'visitOverview', to: '/analytics/visits', icon: 'pi pi-chart-line', labelKey: 'menu.visitOverview', permission: 'site.read' },
+                { key: 'visitOverview', to: '/analytics/visits', icon: 'pi pi-chart-line', labelKey: 'menu.visitOverview', permission: 'analytics.read' },
                 // 3단계 월별 보기(사용자 결정 2026-11-11 — 개요 바로 아래)
-                { key: 'visitMonthly', to: '/analytics/visits/monthly', icon: 'pi pi-calendar', labelKey: 'menu.visitMonthly', permission: 'site.read' },
-                { key: 'visitPages', to: '/analytics/visits/pages', icon: 'pi pi-file', labelKey: 'menu.visitPages', permission: 'site.read' },
-                { key: 'visitReferrers', to: '/analytics/visits/referrers', icon: 'pi pi-directions', labelKey: 'menu.visitReferrers', permission: 'site.read' },
-                { key: 'visitFlows', to: '/analytics/visits/flows', icon: 'pi pi-sitemap', labelKey: 'menu.visitFlows', permission: 'site.read' },
-                { key: 'visitTime', to: '/analytics/visits/time', icon: 'pi pi-calendar-clock', labelKey: 'menu.visitTime', permission: 'site.read' },
-                { key: 'visitRealtime', to: '/analytics/visits/realtime', icon: 'pi pi-bolt', labelKey: 'menu.visitRealtime', permission: 'site.read' },
+                { key: 'visitMonthly', to: '/analytics/visits/monthly', icon: 'pi pi-calendar', labelKey: 'menu.visitMonthly', permission: 'analytics.read' },
+                { key: 'visitPages', to: '/analytics/visits/pages', icon: 'pi pi-file', labelKey: 'menu.visitPages', permission: 'analytics.read' },
+                { key: 'visitReferrers', to: '/analytics/visits/referrers', icon: 'pi pi-directions', labelKey: 'menu.visitReferrers', permission: 'analytics.read' },
+                { key: 'visitFlows', to: '/analytics/visits/flows', icon: 'pi pi-sitemap', labelKey: 'menu.visitFlows', permission: 'analytics.read' },
+                { key: 'visitTime', to: '/analytics/visits/time', icon: 'pi pi-calendar-clock', labelKey: 'menu.visitTime', permission: 'analytics.read' },
+                { key: 'visitRealtime', to: '/analytics/visits/realtime', icon: 'pi pi-bolt', labelKey: 'menu.visitRealtime', permission: 'analytics.read' },
                 // 2단계(사용자 결정 2026-11-04)
-                { key: 'visitEnvironment', to: '/analytics/visits/environment', icon: 'pi pi-mobile', labelKey: 'menu.visitEnvironment', permission: 'site.read' },
-                { key: 'visitSearch', to: '/analytics/visits/search', icon: 'pi pi-search', labelKey: 'menu.visitSearch', permission: 'site.read' },
-                { key: 'visitBots', to: '/analytics/visits/bots', icon: 'pi pi-microchip-ai', labelKey: 'menu.visitBots', permission: 'site.read' },
+                { key: 'visitEnvironment', to: '/analytics/visits/environment', icon: 'pi pi-mobile', labelKey: 'menu.visitEnvironment', permission: 'analytics.read' },
+                { key: 'visitSearch', to: '/analytics/visits/search', icon: 'pi pi-search', labelKey: 'menu.visitSearch', permission: 'analytics.read' },
+                { key: 'visitBots', to: '/analytics/visits/bots', icon: 'pi pi-microchip-ai', labelKey: 'menu.visitBots', permission: 'analytics.read' },
                 {
                     key: 'visitManage',
                     to: '/#menu-visitManage',
                     icon: 'pi pi-cog',
                     labelKey: 'menu.visitManage',
                     children: [
-                        { key: 'visitHealth', to: '/analytics/visits/health', icon: 'pi pi-wave-pulse', labelKey: 'menu.visitHealth', permission: 'site.read' },
-                        { key: 'visitRequests', to: '/analytics/visits/requests', icon: 'pi pi-eraser', labelKey: 'menu.visitRequests', permission: 'site.read' },
+                        { key: 'visitHealth', to: '/analytics/visits/health', icon: 'pi pi-wave-pulse', labelKey: 'menu.visitHealth', permission: 'analytics.read' },
+                        { key: 'visitRequests', to: '/analytics/visits/requests', icon: 'pi pi-eraser', labelKey: 'menu.visitRequests', permission: 'analytics.read' },
                         // 통계 수집(site-analytics-contract — 방문·알림·게시판 집계를 항목별로 켜고 끈다, 모두 기본 꺼짐) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(조직 구성 다음)
-                        { key: 'analyticsSettings', to: '/settings/analytics', icon: 'pi pi-chart-bar', labelKey: 'menu.analyticsSettings', permission: 'site.read' },
+                        { key: 'analyticsSettings', to: '/settings/analytics', icon: 'pi pi-chart-bar', labelKey: 'menu.analyticsSettings', permission: 'analytics.read' },
                     ],
                 },
             ],
@@ -227,7 +227,7 @@ export default class UtilAdminMenu {
                     ],
                 },
                 // 팝업 관리 — 공개 사이트에 들어오면 가운데 뜨는 이벤트·프로모션 창(docs/features/site-popup-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘
-                { key: 'sitePopups', to: '/content/popups', icon: 'pi pi-window-maximize', labelKey: 'menu.popups', permission: 'site.read' },
+                { key: 'sitePopups', to: '/content/popups', icon: 'pi pi-window-maximize', labelKey: 'menu.popups', permission: 'popup.read' },
             ],
         },
         // 소모임 묶음 — 소모임 목록(열림·비활성, 상세 서랍에서 비활성화·다시 열기) · 개설 승인 · 분류(소모임 게시판 할당) · 설정(개설 규칙·매니저·공개 범위·운영 한도). community 관리자 앱의 「소모임」 묶음에 대응한다.
@@ -330,8 +330,8 @@ export default class UtilAdminMenu {
                     labelKey: 'menu.trial',
                     children: [
                         // 체험단(trial-group-contract 「구현 결정」 10) — 서버 `AdminScreenRegistry` 「광고」 adTrials·adTrialSettings 와 같은 키·주소·권한·아이콘·차례(admin V12)
-                        { key: 'adTrials', to: '/ads/trials', icon: 'pi pi-box', labelKey: 'menu.adTrials', permission: 'trial.manage' },
-                        { key: 'adTrialSettings', to: '/ads/trials/settings', icon: 'pi pi-cog', labelKey: 'menu.adTrialSettings', permission: 'trial.settings' },
+                        { key: 'adTrials', to: '/ads/trials', icon: 'pi pi-box', labelKey: 'menu.adTrials', permission: 'trial.read' },
+                        { key: 'adTrialSettings', to: '/ads/trials/settings', icon: 'pi pi-cog', labelKey: 'menu.adTrialSettings', permission: 'trial.read' },
                     ],
                 },
                 { key: 'adPlacements', to: '/ads/placements', icon: 'pi pi-sliders-h', labelKey: 'menu.adPlacements', permission: 'ad.read' },
@@ -462,7 +462,7 @@ export default class UtilAdminMenu {
             icon: 'pi pi-palette',
             labelKey: 'menu.screenLayout',
             items: [
-                { key: 'themeLayout', to: '/settings/theme', icon: 'pi pi-objects-column', labelKey: 'menu.themeLayout', permission: 'site.read' },
+                { key: 'themeLayout', to: '/settings/theme', icon: 'pi pi-objects-column', labelKey: 'menu.themeLayout', permission: 'layout.read' },
                 { key: 'menusPublic', to: '/menus/public', icon: 'pi pi-globe', labelKey: 'menu.menusPublic', permission: 'layout.read' },
             ],
         },

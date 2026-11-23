@@ -11,15 +11,15 @@ import type {
 /**
  * 관리자 가젯 페이지 API — 서버 주소 문자열(`/api/admin/gadget-pages`)이 있는 **유일한 곳**이다. 상태는 없다. 모양은 `useGadgetPageApi.types.ts`.
  * 계약: `docs/features/gadget-page-contract.md` 「API」(서버 `GadgetPageController`, 2026-10-29).
- *   - `GET /api/admin/gadget-pages` → 200 `GadgetPageListResponse`  (`site.read`)
- *   - `GET /api/admin/gadget-pages/folders` → 200 `GadgetPageFolderListResponse`  (`site.read`) — 기준 폴더로 고를 폴더와 그 게시판
- *   - `POST /api/admin/gadget-pages` `GadgetPageCreateRequest` → 200 `GadgetPage`  (`site.manage`) — 기준 폴더의 게시판으로 처음 배치를 만든다 ·
+ *   - `GET /api/admin/gadget-pages` → 200 `GadgetPageListResponse`  (`layout.read`)
+ *   - `GET /api/admin/gadget-pages/folders` → 200 `GadgetPageFolderListResponse`  (`layout.read`) — 기준 폴더로 고를 폴더와 그 게시판
+ *   - `POST /api/admin/gadget-pages` `GadgetPageCreateRequest` → 200 `GadgetPage`  (`layout.settings`) — 기준 폴더의 게시판으로 처음 배치를 만든다 ·
  *       400 `fields.key|name|nameEn|description|folderId|pages`
- *   - `PUT /api/admin/gadget-pages/{id}` `GadgetPageUpdateRequest` → 200 `GadgetPage`  (`site.manage`) · 404 `GADGET_PAGE_NOT_FOUND` · 400 같은 칸
- *   - `DELETE /api/admin/gadget-pages/{id}` → 200  (`site.manage`) — 이 페이지를 가리키던 메뉴 항목은 지우고 폴더는 연결만 비운다
- *   - `GET /api/admin/gadget-pages/{id}/layouts/{theme}` → 200 `GadgetPageLayoutView`  (`site.read`) — 저장한 배치, 없으면 처음 배치(`updatedAt: null`)
- *   - `GET /api/admin/gadget-pages/{id}/initial` → 200 `HomeLayoutBody`  (`site.read`) — 처음 배치(「처음 배치로」, 저장하지 않는다)
- *   - `PUT /api/admin/gadget-pages/{id}/layouts/{theme}` `HomeLayoutSaveRequest` → 200 `GadgetPageLayoutView`  (`site.manage`) — 홈 배치 저장과 같은 검사·같은 409 `LAYOUT_VERSION_CONFLICT`·같은 `config` 규칙
+ *   - `PUT /api/admin/gadget-pages/{id}` `GadgetPageUpdateRequest` → 200 `GadgetPage`  (`layout.settings`) · 404 `GADGET_PAGE_NOT_FOUND` · 400 같은 칸
+ *   - `DELETE /api/admin/gadget-pages/{id}` → 200  (`layout.settings`) — 이 페이지를 가리키던 메뉴 항목은 지우고 폴더는 연결만 비운다
+ *   - `GET /api/admin/gadget-pages/{id}/layouts/{theme}` → 200 `GadgetPageLayoutView`  (`layout.read`) — 저장한 배치, 없으면 처음 배치(`updatedAt: null`)
+ *   - `GET /api/admin/gadget-pages/{id}/initial` → 200 `HomeLayoutBody`  (`layout.read`) — 처음 배치(「처음 배치로」, 저장하지 않는다)
+ *   - `PUT /api/admin/gadget-pages/{id}/layouts/{theme}` `HomeLayoutSaveRequest` → 200 `GadgetPageLayoutView`  (`layout.settings`) — 홈 배치 저장과 같은 검사·같은 409 `LAYOUT_VERSION_CONFLICT`·같은 `config` 규칙
  *       (대상 게시판 `FOLDER` 를 받는다)
  */
 const PATH = {

@@ -4,7 +4,7 @@
         목록(`useGadgetPageApi().list`)에서 하나를 고르면 아래 실제 화면이 그 페이지(`/p/{key}`)가 되고 편집기가 그 페이지의 고른 테마 배치를 편집한다.
         [새 페이지] · [페이지 정보](이름·설명·영문 주소·기준 폴더·글쓰기 단추 고치기 · 지우기)는 `GadgetPageDialog`. [공개 화면 열기]는 새 탭.
         페이지가 없으면 빈 안내 + [새 페이지]. 고른 페이지는 주소 `?page=<id>` 로 남긴다(부모가). 다른 페이지로 가기 전에 부모의 `beforeSwitch` 로 묻는다(저장하지 않은 배치).
-        권한: 조회 `site.read` · 만들기·고치기·지우기 `site.manage`(없으면 단추가 없다). 막는 것은 서버다.
+        권한: 조회 `layout.read` · 만들기·고치기·지우기 `layout.settings`(없으면 단추가 없다). 막는 것은 서버다.
     -->
     <div class="flex flex-col gap-2" data-testid="gadget-page-picker">
         <div v-if="status === 'loading' && !pages.length" class="flex gap-2" role="status" :aria-label="t('common.loading')">

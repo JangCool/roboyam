@@ -20,7 +20,7 @@
           (저장 요청 `gadgets[i]` = `{ id, type, title, desktop, mobile, style, config }` — `style`·`config` 는 마지막 저장 값과 다를 때만 싣고 아니면 null(그대로 두기). 서버가 검사·저장).
           저장 실패 400 의 `fields.gadgets[i].*` 는 그 가젯의 ⚙ 창(탭 점·칸 아래)과 저장 줄(어느 가젯인지)에, 나머지 칸 오류(`layout.items` · `screens.*` 등)는 저장 줄에 보인다(`UtilGadgetLayoutEditor.saveErrors`).
           실제 화면은 저장 전에는 이미 받은 줄 안에서만 차례·개수·게시판을 바꿔 보이고, 제목·꾸미기·노출·바로가기·안내 글은 그대로 그린다.
-          창은 관리자 응답의 꾸미기·설정(칸 전부)으로 채운다. 권한: 바꾸기·저장 `site.manage`(없으면 도구·저장 줄이 없고 iframe 의 손잡이 일도 받지 않는다). 막는 것은 서버다.
+          창은 관리자 응답의 꾸미기·설정(칸 전부)으로 채운다. 권한: 바꾸기·저장 `layout.settings`(없으면 도구·저장 줄이 없고 iframe 의 손잡이 일도 받지 않는다). 막는 것은 서버다.
     -->
     <div class="flex flex-col gap-4">
         <div v-show="!hidden" class="flex flex-col gap-2" data-testid="home-layout-tools">
@@ -202,7 +202,7 @@ const { can } = useAdminPermission();
 const route = useRoute();
 
 const baseId = useId();
-const canManage = computed(() => can('site.manage'));
+const canManage = computed(() => can('layout.settings'));
 
 /** 편집하는 테마 */
 const theme = computed(() => props.theme);

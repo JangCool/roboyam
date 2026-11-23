@@ -67,7 +67,7 @@ class DashboardAnalyticsGadgetsTest {
     }
 
     private static DashboardGadgetQuery query(Instant now) {
-        return new DashboardGadgetQuery(new AdminActor(1L, "시험", "t@test.local", false, Set.of("site.read"), "127.0.0.1"), 5, 7, now);
+        return new DashboardGadgetQuery(new AdminActor(1L, "시험", "t@test.local", false, Set.of("analytics.read"), "127.0.0.1"), 5, 7, now);
     }
 
     @Test

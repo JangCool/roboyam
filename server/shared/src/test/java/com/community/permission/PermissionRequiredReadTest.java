@@ -16,6 +16,14 @@ class PermissionRequiredReadTest {
         assertThat(Permission.BOARD_STAFF_MANAGE.requiredRead()).contains(Permission.BOARD_READ);
         assertThat(Permission.POINT_ADJUST_LARGE.requiredRead()).contains(Permission.POINT_READ);
         assertThat(Permission.HOTDEAL_DOMAIN_MANAGE.requiredRead()).contains(Permission.HOTDEAL_READ);
+        // 권한 분리(2026-11-23) — site.* 에서 뗀 권한은 자기 조회와 짝이다(site.read 가 아니다)
+        assertThat(Permission.ANALYTICS_SETTINGS.requiredRead()).contains(Permission.ANALYTICS_READ);
+        assertThat(Permission.POPUP_MANAGE.requiredRead()).contains(Permission.POPUP_READ);
+        assertThat(Permission.TRIAL_MANAGE.requiredRead()).contains(Permission.TRIAL_READ);
+        assertThat(Permission.TRIAL_SETTINGS.requiredRead()).contains(Permission.TRIAL_READ);
+        assertThat(Permission.TRIAL_REVIEW.requiredRead()).contains(Permission.TRIAL_READ);
+        assertThat(Permission.TRIAL_ADDRESS_REVEAL.requiredRead()).contains(Permission.TRIAL_READ);
+        assertThat(Permission.AD_TAKEDOWN.requiredRead()).contains(Permission.AD_READ);
     }
 
     @Test

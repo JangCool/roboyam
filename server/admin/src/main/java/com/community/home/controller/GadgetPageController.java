@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 가젯 페이지(설정 › 테마 › 레이아웃 › 페이지) — 조회는 site.read, 바꾸기는 site.manage. 모양은 admin-web {@code useGadgetPageApi.types.ts}(gadget-page-contract 「API」).
+ * 가젯 페이지(설정 › 테마 › 레이아웃 › 페이지) — 조회는 layout.read, 바꾸기는 layout.settings. 모양은 admin-web {@code useGadgetPageApi.types.ts}(gadget-page-contract 「API」).
  * 없는 페이지는 404 {@code GADGET_PAGE_NOT_FOUND}, 모르는 테마는 404, 칸 검사는 서비스가 한다.
  */
 @RestController
@@ -36,33 +36,33 @@ public class GadgetPageController {
         this.service = service;
     }
 
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping
     public ApiResponse<GadgetPageListResponse> list() {
         return ApiResponse.success(service.list());
     }
 
     /** 기준 폴더로 고를 폴더들 — 폴더마다 게시판(목록 모양·보기 전환·켜짐) */
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping("/folders")
     public ApiResponse<GadgetPageFolderListResponse> folders() {
         return ApiResponse.success(service.folders());
     }
 
     /** 만들기 — 기준 폴더의 게시판으로 처음 배치를 만든다 */
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.LAYOUT_SETTINGS)
     @PostMapping
     public ApiResponse<GadgetPageView> create(@RequestBody(required = false) GadgetPageSaveRequest body, AdminActor actor) {
         return ApiResponse.success(service.create(actor, body));
     }
 
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.LAYOUT_SETTINGS)
     @PutMapping("/{id}")
     public ApiResponse<GadgetPageView> update(@PathVariable long id, @RequestBody(required = false) GadgetPageSaveRequest body, AdminActor actor) {
         return ApiResponse.success(service.update(actor, id, body));
     }
 
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.LAYOUT_SETTINGS)
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable long id, AdminActor actor) {
         service.delete(actor, id);
@@ -70,20 +70,20 @@ public class GadgetPageController {
     }
 
     /** 테마 하나의 배치 — 저장한 적 없으면 처음 배치({@code updatedAt: null}) */
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping("/{id}/layouts/{theme}")
     public ApiResponse<GadgetPageLayoutView> layout(@PathVariable long id, @PathVariable String theme) {
         return ApiResponse.success(service.layout(id, theme));
     }
 
     /** 처음 배치(「처음 배치로」 — 저장하지 않는다) */
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.LAYOUT_READ)
     @GetMapping("/{id}/initial")
     public ApiResponse<HomeLayoutBodyView> initial(@PathVariable long id) {
         return ApiResponse.success(service.initial(id));
     }
 
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.LAYOUT_SETTINGS)
     @PutMapping("/{id}/layouts/{theme}")
     public ApiResponse<GadgetPageLayoutView> saveLayout(@PathVariable long id, @PathVariable String theme, @RequestBody(required = false) HomeLayoutSaveRequest body,
                                                         AdminActor actor) {

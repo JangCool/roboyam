@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 「설정 › 통계 수집」(admin-web {@code useAnalyticsSettingsApi}, docs/features/site-analytics-contract.md 「API」) — 조회·이력 {@code site.read} · 저장 {@code site.manage}(CSRF).
+ * 「설정 › 통계 수집」(admin-web {@code useAnalyticsSettingsApi}, docs/features/site-analytics-contract.md 「API」) — 조회·이력 {@code analytics.read} · 저장 {@code analytics.settings}(CSRF).
  * 응답은 {@code Cache-Control: no-store}.
  */
 @RestController
@@ -29,21 +29,21 @@ public class AnalyticsSettingsAdminController {
         this.service = service;
     }
 
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.ANALYTICS_READ)
     @GetMapping
     public ResponseEntity<ApiResponse<AnalyticsSettingsAdmin.View>> get() {
         return ok(service.get());
     }
 
     /** 저장 — 1단계 여덟 칸 모두(2단계 세 칸 environment·searchTerms·bots 는 비면 그대로), 틀리면 400 {@code fields.<칸>}(보관 일수 {@code fields.rawRetentionDays}), 감사 {@code STATS_COLLECTION_UPDATE}. 같은 값이면 이력·감사 없음 */
-    @RequirePermission(Permission.SITE_MANAGE)
+    @RequirePermission(Permission.ANALYTICS_SETTINGS)
     @PutMapping
     public ResponseEntity<ApiResponse<AnalyticsSettingsAdmin.View>> save(@RequestBody(required = false) AnalyticsSettingsAdmin.Save body, AdminActor actor) {
         return ok(service.save(actor, body));
     }
 
     /** 변경 이력 — 최신 먼저(기본 20 · 최대 100, 틀리면 400 {@code fields.page}·{@code fields.size}) */
-    @RequirePermission(Permission.SITE_READ)
+    @RequirePermission(Permission.ANALYTICS_READ)
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<AnalyticsSettingsAdmin.HistoryPage>> history(@RequestParam(required = false) String page,
                                                                                  @RequestParam(required = false) String size) {

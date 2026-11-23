@@ -3,7 +3,7 @@
         방문자 통계 › 봇·크롤러(`/analytics/visits/bots`, 2단계 2026-11-04) — 숫자 카드 4(오늘 봇 요청 · 오늘 봇 비율 · 기간 봇 요청 · 기간 봇 비율)
         → 봇 종류별 막대(구글·네이버(Yeti)·빙·다음·기타 크롤러·도구) | 일별 추이(쌓은 막대, 같은 색) → 안내(봇은 방문 통계에서 빠져 있다 · 어떻게 가르는지).
         봇 비율 = 봇 요청 ÷ (봇 요청 + 사람 페이지뷰). 사람 페이지뷰는 방문자·페이지뷰 수집(`collect.visits`)이 꺼져 있으면 없어서 비율 칸은 「—」.
-        한 줄 요약: 기간 요청의 봇 비율 · 가장 많은 봇. 봇 수집(`collect.bots`)이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `site.read`(메뉴 `visitBots`).
+        한 줄 요약: 기간 요청의 봇 비율 · 가장 많은 봇. 봇 수집(`collect.bots`)이 꺼져 있으면 쪽 전체가 「수집이 꺼져 있어요」. 권한: `analytics.read`(메뉴 `visitBots`).
         서버 호출은 `useVisitAnalyticsApi().bots`(`GET /api/admin/analytics/visits/bots`). 봇은 공개 화면 HTML 요청에서 센다(`/api` 만 두드리는 도구·로컬 Nuxt 개발 서버로 온 봇은 안 잡힌다).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -71,7 +71,7 @@ const api = useVisitAnalyticsApi();
 const vr = useVisitRange();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
-const allowed = computed(() => can('site.read'));
+const allowed = computed(() => can('analytics.read'));
 
 const bots = useVisitLoad(api.bots);
 const d = computed(() => bots.data.value);
