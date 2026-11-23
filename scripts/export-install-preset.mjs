@@ -5,14 +5,18 @@
  *   node scripts/export-install-preset.mjs            # 로컬 DB(irobit) → install-presets/irobit.structure.json + irobit.json 의 boards
  *   node scripts/export-install-preset.mjs --check    # 쓰지 않고 무엇이 담기는지만 출력
  *
- * 구조가 바뀌면(게시판·메뉴·가젯·홈 배치·게시판 설정을 관리자 화면에서 고친 뒤) 다시 돌린다. 데이터(회원·글·댓글·소모임·공구·광고·하이라이트 항목·포인트)는 담지 않는다.
+ * 구조가 바뀌면(게시판·메뉴·가젯·홈 배치·게시판 설정·운영자 역할을 관리자 화면에서 고친 뒤) 다시 돌린다. 데이터(회원·글·댓글·소모임·공구·광고·하이라이트 항목·포인트)는 담지 않는다.
  *
- * 담는 것(표 = 넣는 차례, FK 차례): 아래 TABLES. 표마다 쓰는 방식이 있다 — 설치 서버(PresetStructureApplier)가 같은 뜻으로 넣는다.
+ * 담는 것(표 = 넣는 차례, FK 차례): 아래 TABLES — 게시판·말머리·소모임 분류·메뉴·가젯·홈 배치·게시판 기본값·사이트 표시 설정·각종 설정 표, 그리고 운영자 역할(roles·role_permissions —
+ * 담당·총괄·부관리자·전체 열람 등, 원고 seed/demo/patches/0005-operator-roles.sql). 역할은 운영자 축의 손으로 만든 역할만 담는다(where — 회원 역할·기본 제공 역할·
+ * 데모 로더 역할 ROLE_DEMO_SEED·QA 시험 역할 ROLE_QA_* 제외). 역할을 운영자에 붙인 줄(operator_roles)은 담지 않는다.
+ * 표마다 쓰는 방식이 있다 — 설치 서버(PresetStructureApplier)가 같은 뜻으로 넣는다.
  *   REPLACE  설치 DB 의 그 표를 비우고 이 행들로 채운다(마이그레이션 시드 행 포함 — 메뉴 노드 등)
  *   UPSERT   열쇠(key)가 같으면 이 값으로 고치고 없으면 넣는다(한 줄 설정 표·등급·메뉴 그룹)
  *   UPDATE   이미 있는 행의 몇 칸만 고친다(사이트 설정 — 이름·주소·슬로건은 설치 입력이 정한다)
  * 운영자를 가리키는 칸(FK → operators, 또는 이름이 *_by 인 bigint)은 "$ROOT" 로 적는다 — 설치 때 루트 운영자 ID 가 된다.
- * 데이터를 가리키는 칸(FK → files·posts·users 등 TABLES 밖의 표)은 내보내지 않는다(설치 DB 의 기본값) — 아래 DATA_REF 에 걸리면 출력에 적는다.
+ * 데이터를 가리키는 칸(FK → files·posts·users 등 TABLES 밖의 표)은 내보내지 않는다(설치 DB 의 기본값) — 걸리면 출력에 적는다.
+ * 다만 권한 카탈로그(permissions — 코드가 정한 값이라 설치 서버가 넣기 전에 채운다)를 가리키는 칸은 그대로 내보낸다(CATALOG_TARGETS — role_permissions.permission_code).
  * 사이트 팝업(site_popups)은 담지 않는다 — 로컬의 팝업은 시험 항목이고 그림 팝업은 올린 파일에 매인다(팝업 배치 popup_layout 만 담는다).
  *
  * 환경 변수(선택): EXPORT_DB_CONTAINER(기본 irobit-local-postgres) · EXPORT_DB_NAME(기본 irobit) · EXPORT_DB_USER(기본 irobit)
@@ -33,10 +37,12 @@ const PRESET_DIR = join(ROOT, 'server', 'api', 'src', 'main', 'resources', 'inst
 const PRESET_FILE = join(PRESET_DIR, 'irobit.json');
 const STRUCTURE_NAME = 'irobit.structure.json';
 const ROOT_MARK = '$ROOT';
+/** 담는 운영자 역할 — 운영자 축·기본 제공 아님·데모 로더 역할 아님·QA 시험 역할 아님(서버 BoardPresetCatalog.validateStructure 가 앞의 셋을 다시 본다) */
+const OPERATOR_ROLES = `axis = 'OPERATOR' AND NOT builtin AND role_id <> 'ROLE_DEMO_SEED' AND role_id NOT LIKE 'ROLE\\_QA\\_%'`;
 
 /**
  * 구조 표. 차례가 넣는 차례다(앞 표를 뒤 표가 FK 로 가리킨다). 서버의 허용 목록(StructureSnapshot.TABLES)과 같아야 한다 — 표를 더하면 둘 다 고친다.
- * columns: UPDATE 의 고칠 칸(열쇠 빼고). exclude: 내보내지 않을 칸. orderBy: 행 차례(diff 가 안정되게).
+ * columns: UPDATE 의 고칠 칸(열쇠 빼고). exclude: 내보내지 않을 칸. orderBy: 행 차례(diff 가 안정되게). where: 담을 행(없으면 전부).
  */
 const TABLES = [
     { table: 'grades', mode: 'UPSERT', orderBy: 'level' },
@@ -76,7 +82,12 @@ const TABLES = [
     { table: 'nickname_image_settings', mode: 'UPSERT', orderBy: 'id' },
     { table: 'emoticon_settings', mode: 'UPSERT', orderBy: 'id' },
     { table: 'group_buy_settings', mode: 'UPSERT', orderBy: 'id' },
+    // 운영자 역할 — 손으로 만든 운영자 역할만(회원 역할·기본 제공 역할은 마이그레이션이 만들고, 데모 로더 역할·QA 시험 역할은 로컬에만 있다)
+    { table: 'roles', mode: 'UPSERT', orderBy: 'role_id', where: OPERATOR_ROLES },
+    { table: 'role_permissions', mode: 'UPSERT', orderBy: 'role_id, permission_code', where: `role_id IN (SELECT role_id FROM roles WHERE ${OPERATOR_ROLES})` },
 ];
+/** FK 가 TABLES 밖이어도 그대로 내보내는 표 — 권한 카탈로그(코드가 정한 값, 설치 서버가 넣기 전에 채운다) */
+const CATALOG_TARGETS = new Set(['permissions']);
 
 /** 설치 화면 목록(boards)에 싣지 않는 게시판 — 운영 게시판(OpsBoardSeeder 가 모든 구성에 만든다) */
 const OPS_BOARDS = new Set(['bugs', 'requests']);
@@ -132,7 +143,7 @@ for (const spec of TABLES) {
         const operatorRef = target === 'operators' || (!target && col.type === 'bigint' && col.name.endsWith('_by'));
         if (operatorRef) {
             selects.push(`CASE WHEN ${ident(col.name)} IS NULL THEN NULL ELSE ${lit(ROOT_MARK)} END AS ${ident(col.name)}`);
-        } else if (target && !structureTables.has(target)) {
+        } else if (target && !structureTables.has(target) && !CATALOG_TARGETS.has(target)) {
             notes.push(`${spec.table}.${col.name} → ${target}: 데이터를 가리키는 칸이라 뺐다`);
             continue;
         } else if (col.type === 'bigint' || col.type.startsWith('numeric')) {
@@ -143,7 +154,7 @@ for (const spec of TABLES) {
         }
         types[col.name] = col.type;
     }
-    const rows = json(`SELECT coalesce(json_agg(t), '[]'::json) FROM (SELECT ${selects.join(', ')} FROM ${ident(spec.table)} ORDER BY ${spec.orderBy}) t`);
+    const rows = json(`SELECT coalesce(json_agg(t), '[]'::json) FROM (SELECT ${selects.join(', ')} FROM ${ident(spec.table)}${spec.where ? ` WHERE ${spec.where}` : ''} ORDER BY ${spec.orderBy}) t`);
     out.push({ table: spec.table, mode: spec.mode, key: info.key, columns: types, rows });
 }
 

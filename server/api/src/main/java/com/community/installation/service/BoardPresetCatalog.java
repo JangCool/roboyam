@@ -46,7 +46,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>구조 스냅숏({@code structure} — {@code <프리셋>.structure.json}, 프리셋 목록으로는 읽지 않는다)도 이때 읽어 검사한다: 형식 1·같은 프리셋 아이디, 표는 허용 목록({@link #STRUCTURE_TABLES})의
  * 표와 방식만, 열쇠 칸이 있고 행마다 값이 있음, 행의 칸은 {@code columns} 안, 게시판 주소 형식·유일, 프리셋 {@code boards} 의 주소가 모두 스냅숏에 있음. 데모({@code demo})는 구조 스냅숏이
- * 있는 구성만. 칸이 이 DB 에 있는지는 설치 때 본다({@link TablePackRestorer} — 없는 칸은 빼고 경고).
+ * 있는 구성만. 운영자 역할(roles)은 axis OPERATOR · builtin false · 데모 로더 역할 아님, 권한 줄(role_permissions)의 역할은 스냅숏 roles 에 있음. 칸이 이 DB 에 있는지는 설치 때 본다({@link TablePackRestorer} — 없는 칸은 빼고 경고).
  */
 @Component
 public class BoardPresetCatalog {
@@ -59,7 +59,7 @@ public class BoardPresetCatalog {
 
     /**
      * 구조 스냅숏에 담을 수 있는 표와 방식 — {@code scripts/export-install-preset.mjs} 의 TABLES 와 같아야 한다(표를 더하면 둘 다 고친다).
-     * 회원·글·운영자·비밀값 표는 여기 없으므로 스냅숏이 건드릴 수 없다.
+     * 회원·글·비밀값 표는 여기 없으므로 스냅숏이 건드릴 수 없다. 운영자 쪽은 운영자 역할(roles·role_permissions)만 — 운영자 계정·역할 배정(operator_roles)은 없다.
      */
     static final Map<String, TablePack.Mode> STRUCTURE_TABLES = Map.ofEntries(
             Map.entry("grades", TablePack.Mode.UPSERT), Map.entry("boards", TablePack.Mode.REPLACE), Map.entry("board_prefixes", TablePack.Mode.REPLACE),
@@ -72,7 +72,11 @@ public class BoardPresetCatalog {
             Map.entry("board_privacy_settings", TablePack.Mode.UPSERT), Map.entry("popular_settings", TablePack.Mode.UPSERT), Map.entry("point_settings", TablePack.Mode.UPSERT),
             Map.entry("point_shop_settings", TablePack.Mode.UPSERT), Map.entry("deal_settings", TablePack.Mode.UPSERT), Map.entry("ad_placement_settings", TablePack.Mode.UPSERT),
             Map.entry("group_settings", TablePack.Mode.UPSERT), Map.entry("grade_settings", TablePack.Mode.UPSERT), Map.entry("member_event_settings", TablePack.Mode.UPSERT),
-            Map.entry("nickname_image_settings", TablePack.Mode.UPSERT), Map.entry("emoticon_settings", TablePack.Mode.UPSERT), Map.entry("group_buy_settings", TablePack.Mode.UPSERT));
+            Map.entry("nickname_image_settings", TablePack.Mode.UPSERT), Map.entry("emoticon_settings", TablePack.Mode.UPSERT), Map.entry("group_buy_settings", TablePack.Mode.UPSERT),
+            Map.entry("roles", TablePack.Mode.UPSERT), Map.entry("role_permissions", TablePack.Mode.UPSERT));
+
+    /** 데모 로더 전용 역할(로더가 도는 동안만 쓰는 데모 운영자 몫) — 구조 스냅숏에 담지 않는다 */
+    static final String DEMO_LOADER_ROLE = "ROLE_DEMO_SEED";
 
     private static final Pattern PRESET_ID = Pattern.compile("[A-Z][A-Z0-9_]{1,19}");
     private static final Pattern SLUG = Pattern.compile("[a-z][a-z0-9-]{1,39}");
@@ -262,7 +266,7 @@ public class BoardPresetCatalog {
         return snapshot;
     }
 
-    /** 구조 스냅숏 — 허용한 표·방식만, 열쇠·칸 모양, 게시판 주소, 프리셋 boards 와 맞음 */
+    /** 구조 스냅숏 — 허용한 표·방식만, 열쇠·칸 모양, 게시판 주소, 프리셋 boards 와 맞음, 운영자 역할만·권한 줄의 역할이 스냅숏에 있음 */
     static void validateStructure(BoardPreset preset, TablePack snapshot, String where) {
         if (snapshot.format() != 1) {
             throw invalid(where, "형식(format)은 1 이어야 한다: " + snapshot.format());
@@ -272,6 +276,8 @@ public class BoardPresetCatalog {
         }
         Set<String> seen = new HashSet<>();
         Set<String> boardSlugs = new HashSet<>();
+        Set<String> roleIds = new HashSet<>();
+        Set<String> permissionRoleIds = new java.util.TreeSet<>();
         for (TablePack.Table table : snapshot.tables()) {
             TablePack.Mode allowed = STRUCTURE_TABLES.get(table.table());
             if (allowed == null || allowed != table.modeOrNull()) {
@@ -303,7 +309,22 @@ public class BoardPresetCatalog {
                         throw invalid(where, "게시판 주소가 비었거나 형식이 틀리거나 겹친다: " + slug);
                     }
                 }
+                if ("roles".equals(table.table())) {
+                    // 운영자 역할만 — 회원 역할·기본 제공 역할은 마이그레이션이 만들고, 데모 로더 역할은 데모 운영자 몫이다
+                    Object roleId = row.get("role_id");
+                    if (!"OPERATOR".equals(row.get("axis")) || !Boolean.FALSE.equals(row.get("builtin")) || DEMO_LOADER_ROLE.equals(roleId)) {
+                        throw invalid(where, "운영자 역할(axis OPERATOR · builtin false · " + DEMO_LOADER_ROLE + " 아님)만 담는다: " + roleId);
+                    }
+                    roleIds.add(String.valueOf(roleId));
+                }
+                if ("role_permissions".equals(table.table())) {
+                    permissionRoleIds.add(String.valueOf(row.get("role_id")));
+                }
             }
+        }
+        permissionRoleIds.removeAll(roleIds);
+        if (!permissionRoleIds.isEmpty()) {
+            throw invalid(where, "role_permissions 가 스냅숏 roles 에 없는 역할을 가리킨다: " + permissionRoleIds);
         }
         if (boardSlugs.isEmpty()) {
             throw invalid(where, "게시판(boards)이 하나도 없다");
