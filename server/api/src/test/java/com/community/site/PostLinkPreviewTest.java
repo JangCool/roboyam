@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.community.board.service.BoardCatalog;
 import com.community.commerce.CommerceApiTestBase;
 import com.community.site.dto.PostLinkPreview;
+import com.community.site.dto.PostLinkResult;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.SiteLogoUrls;
 import com.community.site.dto.response.SiteInfoResponse;
@@ -49,7 +50,7 @@ class PostLinkPreviewTest extends CommerceApiTestBase {
     }
 
     private Optional<PostLinkPreview> of(long post) {
-        return previews.forPath("/posts/" + post, snapshot());
+        return Optional.ofNullable(previews.forPath("/posts/" + post, snapshot()).preview());
     }
 
     @Test
@@ -60,7 +61,7 @@ class PostLinkPreviewTest extends CommerceApiTestBase {
             assertThat(p.description()).isEqualTo("흡입력이 아주 좋아요.");
             assertThat(p.imageUrl()).isNull();
         });
-        assertThat(previews.forPath("/posts/" + id + "/", snapshot())).as("끝 / 도 같은 글").isPresent();
+        assertThat(previews.forPath("/posts/" + id + "/", snapshot()).preview()).as("끝 / 도 같은 글").isNotNull();
     }
 
     @Test
@@ -95,8 +96,8 @@ class PostLinkPreviewTest extends CommerceApiTestBase {
         catalog.invalidate();
         assertThat(of(id)).isEmpty();
         assertThat(of(ids.nextId())).isEmpty();
-        assertThat(previews.forPath("/boards/free", snapshot())).isEmpty();
-        assertThat(previews.forPath("/posts/abc", snapshot())).isEmpty();
-        assertThat(previews.forPath("/posts/1/edit", snapshot())).isEmpty();
+        assertThat(previews.forPath("/boards/free", snapshot())).isEqualTo(PostLinkResult.NONE);
+        assertThat(previews.forPath("/posts/abc", snapshot())).isEqualTo(PostLinkResult.NONE);
+        assertThat(previews.forPath("/posts/1/edit", snapshot())).isEqualTo(PostLinkResult.NONE);
     }
 }

@@ -16,12 +16,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p><b>정적 파일 응답에는 붙이지 않는다</b>({@link #STATIC_PREFIXES} — 빌드 조각 {@code /_nuxt/}, 앱에 딸린 그림, 올린 파일 {@code /media/}).
  * 쿠키가 없는 방문자의 응답마다 {@code Set-Cookie} 가 붙으면 CDN(Cloudflare)이 그 응답을 캐시하지 않아, JS·CSS·그림을 매번 원서버에서 받았다(운영 측정 2026-11-14 — 전부 BYPASS).
+ * 검색엔진용 {@code /sitemap.xml}·{@code /sitemap-…}·{@code /robots.txt} 도 같다(공개 캐시에 담기는 응답 — docs/features/sitemap-contract.md).
  * 화면은 HTML·첫 API 응답에서 쿠키를 받으므로 동작은 같다.
  */
 public final class CsrfCookieFilter extends OncePerRequestFilter {
 
-    /** 쿠키를 붙이지 않는 정적 파일 자리(앞 경로) */
-    static final List<String> STATIC_PREFIXES = Stream.concat(Stream.of("/_nuxt/", "/media/"), StaticAssetUrls.FOLDERS.stream()).toList();
+    /** 쿠키를 붙이지 않는 정적 파일·검색엔진용 파일 자리(앞 경로) */
+    static final List<String> STATIC_PREFIXES = Stream.concat(Stream.of("/_nuxt/", "/media/", "/sitemap.xml", "/sitemap-", "/robots.txt"), StaticAssetUrls.FOLDERS.stream()).toList();
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {

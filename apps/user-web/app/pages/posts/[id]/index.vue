@@ -1563,6 +1563,9 @@ async function submitProof(): Promise<void> {
     }
 }
 
+// 대표 주소 — 서버가 첫 HTML 에 넣은 canonical 을 이어받아, 다른 글로 옮기면 바뀌고 글 보기를 떠나면 사라지게 한다(휴대폰 공유가 이 주소를 쓴다 — docs/features/sitemap-contract.md)
+useHead({ link: () => (id.value ? [{ rel: 'canonical', href: `${siteOrigin}/posts/${id.value}` }] : []) });
+
 useSeoMeta({
     // 접힌 글은 탭 제목에도 제목을 쓰지 않는다(차단 단어가 제목에 있다)
     title: () => (post.value && !folded.value ? post.value.title : t('post.pageTitle')),

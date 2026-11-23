@@ -39,7 +39,8 @@ class IndexHtmlRendererPostTest {
 
     @Test
     void 글_제목_설명_그림으로_바꾸고_운영자_그림_크기_칸은_뺀다() {
-        RenderedIndex out = renderer.withPost(base(), new PostLinkPreview("새 로봇 청소기 후기", "흡입력이 좋아요.", "https://irobit.test/media/t/1.webp"), snapshot());
+        RenderedIndex out = renderer.withPost(base(), new PostLinkPreview("새 로봇 청소기 후기", "흡입력이 좋아요.", "https://irobit.test/media/t/1.webp",
+                "https://irobit.test/posts/1"), snapshot());
         String h = html(out);
         assertThat(h).contains("<title>새 로봇 청소기 후기 — 아이로빗</title>")
                 .contains("<meta property=\"og:type\" content=\"article\">")
@@ -57,7 +58,7 @@ class IndexHtmlRendererPostTest {
 
     @Test
     void 설명이_비고_그림이_없으면_사이트_소개와_그림을_그대로_둔다() {
-        String h = html(renderer.withPost(base(), new PostLinkPreview("그림 없는 글", "", null), snapshot()));
+        String h = html(renderer.withPost(base(), new PostLinkPreview("그림 없는 글", "", null, null), snapshot()));
         assertThat(h).contains("<meta property=\"og:title\" content=\"그림 없는 글 — 아이로빗\">")
                 .contains("<meta property=\"og:description\" content=\"로봇 커뮤니티\">")
                 .contains("<meta property=\"og:image\" content=\"" + SITE_OG + "\">")
@@ -66,7 +67,7 @@ class IndexHtmlRendererPostTest {
 
     @Test
     void 제목의_특수문자는_이스케이프한다() {
-        String h = html(renderer.withPost(base(), new PostLinkPreview("<script>\"따옴표\" & 꺾쇠", "a < b", null), snapshot()));
+        String h = html(renderer.withPost(base(), new PostLinkPreview("<script>\"따옴표\" & 꺾쇠", "a < b", null, null), snapshot()));
         assertThat(h).contains("<title>&lt;script&gt;&quot;따옴표&quot; &amp; 꺾쇠 — 아이로빗</title>")
                 .contains("content=\"&lt;script&gt;&quot;따옴표&quot; &amp; 꺾쇠 — 아이로빗\"")
                 .contains("<meta name=\"description\" content=\"a &lt; b\">")

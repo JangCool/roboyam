@@ -153,6 +153,7 @@ public class IndexHtmlRenderer {
     /**
      * 글 공유 미리보기({@link PostLinkPreview} — {@code /posts/{id}}) — 머리를 채운 사본에서 제목·설명·og·twitter 칸을 글의 것으로 바꾼 사본(지문도 새로).
      * 제목은 「글 제목 — 사이트 이름」, {@code og:type} 은 {@code article}. 설명이 비면 사이트 소개를, 그림이 없으면 사이트 미리보기 그림을 그대로 둔다(글 그림이면 운영자 그림의 크기 칸은 뺀다).
+     * 대표 주소가 있으면 {@code </head>} 바로 앞에 {@code <link rel="canonical">} 을 더한다(docs/features/sitemap-contract.md).
      * 모두 {@link #fill} 이 넣은 꼴({@code <meta property="og:title" content="…">})을 바꾸므로 머리를 채우지 않은 틀(설치 전)이면 그대로다.
      */
     public RenderedIndex withPost(RenderedIndex index, PostLinkPreview post, PublicSiteSnapshot snapshot) {
@@ -175,6 +176,10 @@ public class IndexHtmlRenderer {
             html = replaceMeta(html, "property", "og:image", post.imageUrl());
             html = replaceMeta(html, "name", "twitter:image", post.imageUrl());
             html = OG_IMAGE_SIZE.matcher(html).replaceAll("");
+        }
+        Matcher close = HEAD_CLOSE.matcher(html);
+        if (post.canonicalUrl() != null && close.find()) {
+            html = html.substring(0, close.start()) + link("canonical", null, null, post.canonicalUrl()) + html.substring(close.start());
         }
         byte[] body = html.getBytes(StandardCharsets.UTF_8);
         return new RenderedIndex(body, hash(body));

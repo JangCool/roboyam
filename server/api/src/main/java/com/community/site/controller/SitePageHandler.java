@@ -6,7 +6,7 @@ import com.community.installation.service.InstallationState;
 import com.community.site.boot.BootPreloadRenderer;
 import com.community.site.config.AdminPreviewFrame;
 import com.community.site.dto.RenderedIndex;
-import com.community.site.dto.PostLinkPreview;
+import com.community.site.dto.PostLinkResult;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.service.IndexHtmlRenderer;
 import com.community.site.service.PostLinkPreviewService;
@@ -40,7 +40,8 @@ import org.springframework.web.servlet.function.ServerResponse;
  *   <li>그 밖의 화면 요청은 구글 애드센스가 VERIFY·SHOW 이고 게시자 ID 가 있으면 머리 끝에 사이트 확인 메타·{@code adsbygoogle.js} 를 더한다({@link IndexHtmlRenderer#withAdSense} —
  *       설정은 요청마다 읽어 저장 뒤 다음 요청부터, 미리보기에는 넣지 않는다 — docs/features/adsense-contract.md).</li>
  *   <li>글 상세 주소({@code /posts/{id}})면 비회원이 읽을 수 있는 글일 때 제목·설명·og·twitter 칸을 글의 것으로 바꾼다({@link PostLinkPreviewService} ·
- *       {@link IndexHtmlRenderer#withPost} — 공유 링크 미리보기, 관리자 QA 2026-11-17).</li>
+ *       {@link IndexHtmlRenderer#withPost} — 공유 링크 미리보기, 관리자 QA 2026-11-17). 대표 주소(canonical)도 이때 넣는다.</li>
+ *   <li>글 상세 주소인데 글이 없거나 지워졌으면 <b>화면은 그대로, 상태만 404</b>({@code ETag}·304 없이, HEAD 도 — docs/features/sitemap-contract.md). 관리자 미리보기·설치 전·읽기 실패는 200.</li>
  *   <li>설치를 마친 사이트의 GET 화면 요청이면 첫 화면 데이터({@link BootPreloadRenderer} — 화면이 처음 부르는 API 응답)를 함께 싣고 {@code Cache-Control: private, no-cache} 로 내린다
  *       (로그인한 사람의 정보가 들 수 있다 — 공유 캐시가 담지 않게). 규칙 {@code .claude/guides/frontend/first-load.md}.</li>
  *   <li>화면 파일이 없으면(빌드 전) 404, 머리를 만들다 실패하면 빌드가 만든 {@code index.html} 을 그대로 내린다(화면이 막히지 않는다).</li>
@@ -115,6 +116,7 @@ public class SitePageHandler {
         }
         RenderedIndex index = rendered.get();
         boolean withBoot = false;
+        boolean gone = false;
         if (preview.isPreview(servlet)) {
             index = renderer.withAdminOrigin(index, preview.adminOrigin().orElseThrow()); // 미리보기에는 애드센스·첫 화면 데이터를 넣지 않는다
         } else {
@@ -122,9 +124,10 @@ public class SitePageHandler {
             if (client != null) {
                 index = renderer.withAdSense(index, client);
             }
-            PostLinkPreview post = postPreview(request.path(), snapshot);
-            if (post != null) {
-                index = renderer.withPost(index, post, snapshot); // 애드센스 사본 캐시(한 칸)를 글마다 바꾸지 않게 그 뒤에
+            PostLinkResult post = postLink(request.path(), snapshot);
+            gone = post.gone();
+            if (post.preview() != null) {
+                index = renderer.withPost(index, post.preview(), snapshot); // 애드센스 사본 캐시(한 칸)를 글마다 바꾸지 않게 그 뒤에
             }
             String json = bootJson(request);
             if (json != null) {
@@ -133,6 +136,11 @@ public class SitePageHandler {
             }
         }
         CacheControl cache = withBoot ? CacheControl.noCache().cachePrivate() : CacheControl.noCache();
+        if (gone) {
+            // 없는 글 — 화면이 「없는 글」을 그리도록 본문은 그대로 싣는다. ETag 를 달지 않아 예전 사본이 304 로 되살아나지 않는다
+            ServerResponse.BodyBuilder notFound = ServerResponse.status(HttpStatus.NOT_FOUND).contentType(HTML).cacheControl(cache);
+            return HttpMethod.HEAD.equals(request.method()) ? notFound.contentLength(index.body().length).build() : notFound.body(index.body());
+        }
         String etag = "\"" + index.etag() + "\"";
         if (request.checkNotModified(etag).isPresent()) {
             return ServerResponse.status(HttpStatus.NOT_MODIFIED).cacheControl(cache).eTag(etag).build();
@@ -163,16 +171,16 @@ public class SitePageHandler {
         }
     }
 
-    /** 글 상세 주소의 공유 미리보기 칸({@link PostLinkPreviewService}) — 설치 전·글 주소 아님·비회원이 못 읽는 글·실패면 null(사이트 미리보기 그대로) */
-    private PostLinkPreview postPreview(String path, PublicSiteSnapshot snapshot) {
+    /** 글 상세 주소의 공유 미리보기 칸 또는 「없는 글」({@link PostLinkPreviewService}) — 설치 전·글 주소 아님·비회원이 못 읽는 글·실패면 해당 없음(사이트 미리보기 그대로, 200) */
+    private PostLinkResult postLink(String path, PublicSiteSnapshot snapshot) {
         if (postPreviews == null || !installation.isInstalled()) {
-            return null;
+            return PostLinkResult.NONE;
         }
         try {
-            return postPreviews.forPath(path, snapshot).orElse(null);
+            return postPreviews.forPath(path, snapshot);
         } catch (RuntimeException e) {
             log.warn("글 공유 미리보기를 넣지 못해 사이트 것으로 내린다: {}", e.toString());
-            return null;
+            return PostLinkResult.NONE;
         }
     }
 

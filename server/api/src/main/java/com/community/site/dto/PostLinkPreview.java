@@ -6,6 +6,7 @@ package com.community.site.dto;
  * @param title       글 제목
  * @param description 본문 앞부분의 보이는 글자(줄여서 — 비어 있으면 사이트 소개를 그대로 둔다)
  * @param imageUrl    목록 썸네일 주소(공개 주소가 있으면 절대 주소 — 없으면 null, 사이트 미리보기 그림을 그대로 둔다)
+ * @param canonicalUrl 글의 대표 주소 {@code {공개 주소}/posts/{id}}(물음표 뒤 없이 — docs/features/sitemap-contract.md). 공개 주소가 없으면 null
  */
-public record PostLinkPreview(String title, String description, String imageUrl) {
+public record PostLinkPreview(String title, String description, String imageUrl, String canonicalUrl) {
 }
