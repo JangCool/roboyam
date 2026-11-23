@@ -1,8 +1,8 @@
 <template>
     <!--
         본문 상자 바깥 좌우에 덮는 층(본문 배치를 밀지 않는다) — 바깥 여백이 날개+간격보다 좁으면 숨는다.
-        장부 날개 배너가 없는 쪽은 애드센스 단위(160×600 고정)로 채운다: 「광고 표시」 단계 + 날개 단위 ID · 그 쪽이 켜짐 · 장부 후보를 받았는데 그 쪽 광고가 없음 ·
-        게시판 화면·글 보기는 맥락이 19금(옵션과 상관없이)·광고 숨김·소모임·비밀글이 아님. 광고가 오지 않으면 그 쪽을 접는다(이 화면에서만).
+        장부 날개 배너가 양쪽 모두 없으면 한쪽만(오른쪽 먼저) 애드센스 단위(160×600 고정)로 채운다 — 구글 정책이 따라오는 광고를 하나로 정한다(`adsenseSide`).
+        조건: 「광고 표시」 단계 + 날개 단위 ID · 그 쪽이 켜짐 · 장부 후보를 받음 · 게시판 화면·글 보기는 맥락이 19금(옵션과 상관없이)·광고 숨김·소모임·비밀글이 아님. 광고가 오지 않으면 그 쪽을 접는다(이 화면에서만).
     -->
     <div ref="host" class="pointer-events-none absolute inset-x-0 top-0 z-10 max-lg:hidden" :style="layerStyle" data-testid="ad-wings">
         <template v-if="shown">
@@ -84,7 +84,7 @@ watch(
 );
 
 /*
- * 애드센스 — 장부 광고가 없는 쪽만. 장부 후보를 받기 전(`candidates` null)에는 그리지 않는다(애드센스가 먼저 떴다가 장부로 바뀌지 않게).
+ * 애드센스 — 장부 날개 광고가 하나도 없을 때 한쪽만. 장부 후보를 받기 전(`candidates` null)에는 그리지 않는다(애드센스가 먼저 떴다가 장부로 바뀌지 않게).
  * 게시판 화면·글 보기는 맥락을 받은 뒤에만(19금은 옵션과 상관없이 뺀다 — `useAdSense().contextAllows`).
  */
 const adsense = useAdSense();
@@ -98,8 +98,17 @@ const adsenseSpec = computed(() => {
     if ((screen === 'BOARD' || screen === 'POST') && !adsense.contextAllows(route.path)) return null;
     return spec;
 });
-const adsenseLeft = computed(() => (wing.value.left && !picked.value.left && unfilledAt.value.left !== route.path ? adsenseSpec.value : null));
-const adsenseRight = computed(() => (wing.value.right && !picked.value.right && unfilledAt.value.right !== route.path ? adsenseSpec.value : null));
+/**
+ * 애드센스를 넣을 쪽 — 화면을 따라오는 광고는 한 번에 하나만, 좌우에 함께 두지 않는다(구글 「Sticky ads」 정책 — 우리 날개 광고도 하나로 센다).
+ * 장부 날개가 한쪽이라도 있으면 없고, 양쪽이 다 비었으면 오른쪽(오른쪽을 껐으면 왼쪽) 하나다. 광고가 오지 않아 접혀도 다른 쪽에 다시 요청하지 않는다.
+ */
+const adsenseSide = computed<'left' | 'right' | null>(() => {
+    if (picked.value.left || picked.value.right) return null;
+    if (wing.value.right) return 'right';
+    return wing.value.left ? 'left' : null;
+});
+const adsenseLeft = computed(() => (adsenseSide.value === 'left' && unfilledAt.value.left !== route.path ? adsenseSpec.value : null));
+const adsenseRight = computed(() => (adsenseSide.value === 'right' && unfilledAt.value.right !== route.path ? adsenseSpec.value : null));
 
 const host = ref<HTMLElement | null>(null);
 const box = ref({ ok: false, top: 0, height: 0, left: 0, right: 0, stickyTop: 0 });

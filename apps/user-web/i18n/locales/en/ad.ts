@@ -1,6 +1,7 @@
 /** Public ads (`components/ad/**`, gadgets `AD`·`AD_TEXT_LINE`) */
 export default {
     mark: 'Ad',
+    adsenseMark: 'Advertisements',
     newTab: 'Opens in a new tab',
     loading: 'Loading ad',
     textLinesLabel: 'Ads',

@@ -7,11 +7,11 @@
           자리가 폭 0(숨은 모바일/데스크톱 짝 · `display:none` 조상)이면 `<ins>` 를 아직 만들지 않는다 — push 는 문서의 처리 안 된 첫 `<ins>` 를 채우므로, 숨은 요소가 먼저 잡혀 「availableWidth=0」 오류가 나지 않게. 폭이 생기면 그때 만든다.
         광고가 오지 않으면(`data-ad-status="unfilled"` — 애드센스가 붙인다) 자리를 통째로 접고 `unfilled` 를 알린다(MutationObserver). 오면(`filled`) 자리 최소 높이를 푼다(짧은 광고 아래 빈칸이 남지 않게).
         광고 차단기: push 뒤 `UtilAdSense.BLOCKED_COLLAPSE_MS`(5초) 안에 스크립트가 `<ins>` 를 처리하지 않았거나 차단기가 숨겼으면(높이 0) 같은 식으로 접는다.
-        「광고」 표시: 단위 위 작은 글씨(애드센스 정책상 광고 위에 덮지 않는다) — `mark` 로 끈다(목록 한 줄은 줄 모양이 따로 붙인다).
+        「광고」 표시: 단위 위 작은 글씨(애드센스 정책상 광고 위에 덮지 않는다). 글자는 구글이 허용한 것만 쓴다 — 한국어 「광고」·「스폰서 링크」, 영어 「Advertisements」·「Sponsored Links」(`ad.adsenseMark`, 장부 광고 표시 `ad.mark` 와 따로) —`mark` 로 끈다(목록 한 줄은 줄 모양이 따로 붙인다).
         우리 노출·클릭 집계(`/api/ads/impressions`·`clicks`)는 보내지 않는다(애드센스 콘솔에서 본다).
     -->
     <div v-if="!collapsed" ref="root" class="min-w-0" :class="isWing ? 'w-[160px]' : 'w-full'" :style="rootStyle" :data-adsense-place="spec.place" data-testid="adsense-unit">
-        <span v-if="mark" class="mb-1 block text-[0.625rem] leading-none text-muted-color" data-testid="adsense-mark">{{ t('ad.mark') }}</span>
+        <span v-if="mark" class="mb-1 block text-[0.625rem] leading-none text-muted-color" data-testid="adsense-mark">{{ t('ad.adsenseMark') }}</span>
         <ins v-if="ready" :key="insKey" ref="ins" class="adsbygoogle" :style="insStyle" v-bind="attrs" />
     </div>
 </template>

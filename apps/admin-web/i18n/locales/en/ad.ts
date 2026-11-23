@@ -422,7 +422,7 @@ export default {
         SQUARE_BANNER: 'Display · rectangle',
         SMALL_BANNER: 'Display · horizontal',
         HALF_BANNER: 'Display · horizontal',
-        WING_BANNER: 'Display · fixed 160×600',
+        WING_BANNER: 'Display · fixed 160×600 · only one side (right first), when neither side has a wing ad',
         POST_INLINE: 'Display · responsive (even if the post view type is a text line)',
         BOARD_LIST: 'An in-feed ad unit. Only in list-style boards — not in card, gallery or hot deal lists.',
     },

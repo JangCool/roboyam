@@ -1,6 +1,7 @@
 /** 공개 광고(`components/ad/**`, 가젯 `AD`·`AD_TEXT_LINE`) */
 export default {
     mark: '광고',
+    adsenseMark: '광고',
     newTab: '새 탭에서 열려요',
     loading: '광고를 불러오는 중이에요',
     textLinesLabel: '광고',
