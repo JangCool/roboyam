@@ -99,7 +99,7 @@
                     <Button type="button" :label="t('adSlot.selectedTakedown', { n: selected.length })" icon="pi pi-power-off" severity="danger" size="small" :disabled="busy || !selected.length" @click="emit('takedown', [...selected])" />
                     <Button type="button" :label="t('adSlot.clearSelection')" size="small" severity="secondary" variant="text" :disabled="!selected.length" @click="selected = []" />
                 </template>
-                <Button v-if="canRegister" type="button" :label="t('adSlot.register')" icon="pi pi-plus" size="small" severity="secondary" class="ml-auto" @click="emit('register')" />
+                <Button v-if="canRegister" type="button" :label="t('adSlot.register')" icon="pi pi-plus" size="small" class="ml-auto" @click="emit('register')" />
             </div>
 
             <ErrorState v-if="error" :title="t('adSlot.listFailed')" :description="error.message" :retry="true" :retrying="loading" @retry="emit('retry')" />

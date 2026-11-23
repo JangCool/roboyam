@@ -5,7 +5,7 @@
         공개 사이트는 `cachePreview=1` 이면 테마 값을 받지 않고 저장된 화면 그대로 그린 뒤, `data-cache-area` 요소 위에 상자·이름표를 겹친다(user-web `CacheAreaOverlay`).
           보내는 것 `irobit:cache-preview` { keys(강조할 캐시 키), showAll(모든 영역), labels(키 → 이름표) } — 값이 바뀔 때와 공개 사이트가 「준비됨」을 알릴 때.
           받는 것 `irobit:cache-preview-pick` { key }(상자를 눌렀다) → `pick` · `irobit:cache-preview-areas` { counts, loggedIn }(찾은 영역 수 · 그 창의 로그인 여부) → `areas`. 경로에 쿼리가 있으면(`/write?board=hotdeal`) 그 뒤에 미리보기 표시를 잇는다.
-        창 크기는 데스크톱 1280 × 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다. 메시지는 공개 사이트 origin 으로만 보내고 그 origin·그 창에서 온 것만 받는다. origin 을 모르면 띄우지 않고 안내만.
+        창 크기는 데스크톱 1280 × 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다(0.85 배를 넘기지 않고, 넓은 칸은 가운데). 메시지는 공개 사이트 origin 으로만 보내고 그 origin·그 창에서 온 것만 받는다. origin 을 모르면 띄우지 않고 안내만.
     -->
     <div ref="box" class="relative w-full overflow-hidden rounded-lg border border-(--line) bg-surface-0 dark:bg-surface-900" :style="{ height: `${VIEW_H * scale}px` }" data-testid="cache-live-frame">
         <div v-if="!src" class="absolute inset-0 grid place-items-center px-6 text-center text-sm text-muted-color" role="status">{{ t('cache.previewNoOrigin') }}</div>
@@ -14,8 +14,8 @@
             ref="frame"
             :src="src"
             :title="t('cache.previewFrameTitle')"
-            class="absolute left-0 top-0 block border-0"
-            :style="{ width: `${VIEW_W}px`, height: `${VIEW_H}px`, transform: `scale(${scale})`, transformOrigin: '0 0' }"
+            class="absolute top-0 block border-0"
+            :style="{ left: `${left}px`, width: `${VIEW_W}px`, height: `${VIEW_H}px`, transform: `scale(${scale})`, transformOrigin: '0 0' }"
             @load="send"
         />
         <div v-if="src && !ready" class="absolute inset-0 grid place-items-center text-sm text-muted-color" role="status">
@@ -54,7 +54,13 @@ const src = computed(() => (origin.value ? UtilCache.previewSrc(origin.value, pr
 
 const box = ref<HTMLElement | null>(null);
 const frame = ref<HTMLIFrameElement | null>(null);
-const scale = ref(0.8);
+/** 데스크톱 최대 배율 — 칸이 넓어도 이보다 키우지 않고 가운데에 둔다(넓은 모니터에서 실제보다 크게 보이던 것, 2026-11-23 사용자 — 광고 자리·캐시·레이아웃 미리보기 같은 값) */
+const DESKTOP_MAX_SCALE = 0.85;
+/** 이 칸의 폭(px) — 아직 못 쟀으면 0 */
+const boxW = ref(0);
+const scale = computed(() => (boxW.value > 0 ? Math.min(DESKTOP_MAX_SCALE, boxW.value / VIEW_W) : DESKTOP_MAX_SCALE));
+/** 창 왼쪽 끝(px) — 넓은 칸은 가운데 */
+const left = computed(() => (boxW.value > 0 ? Math.max(0, (boxW.value - VIEW_W * scale.value) / 2) : 0));
 const ready = ref(false);
 
 /** 반응형 감싸기를 벗겨 보낸다 */
@@ -93,7 +99,7 @@ onMounted(() => {
     window.addEventListener('message', onMessage);
     observer = new ResizeObserver(() => {
         const width = box.value?.clientWidth ?? 0;
-        if (width > 0) scale.value = width / VIEW_W;
+        if (width > 0) boxW.value = width;
     });
     if (box.value) observer.observe(box.value);
 });
