@@ -2,7 +2,7 @@
     <!--
         광고 자리 드로어(`/ads/slots`) — 미리보기에서 자리(또는 아래 종류 줄)를 누르면 연다. 오른쪽, 바탕을 막지 않는다(`modal=false` · 바깥을 눌러도 닫지 않는다 — 미리보기에서 다른 자리를 누르면 그 종류로 바뀐다).
         광고는 종류마다 관리된다 — 같은 종류의 자리는 같은 목록이고 「나가는 곳」으로 알린다(계약 ad-slot-manager-contract).
-        목록: 머리 종류 이름 + [광고 등록](`ad.manage` · 운영자 등록이 되는 종류만) → 나가는 곳 · 진행 중 / 한도 · 빈 자리 애드센스 → 상태 거르기 → (고르면) 「고른 N건 내리기」 → 카드.
+        목록: 머리 종류 이름 → 나가는 곳 · 진행 중 / 한도 · 빈 자리 애드센스 → 상태 거르기(가로 꽉) → 단추 줄 「고른 N건 내리기」·「고르기 풀기」(늘 보이고 고른 건이 있을 때만 켜짐) + 오른쪽 끝 [광고 등록](`ad.manage` · 운영자 등록이 되는 종류만) → 카드.
           카드(낮게): 제목 한 줄(truncate) + 상태 태그 → 섬네일 전체 폭(종류별 높이, 한 줄 광고·핫딜 자리는 없음) → 네 칸(기간 · 남은 날 · 노출 · 클릭률 — 최근 7일) → 광고주 + [상세] · [내리기].
         상세는 같은 드로어 안에서 바뀐다(두 겹으로 쌓지 않음 — 머리에 뒤로 화살표): 섬네일 → 기본 정보 세 칸 격자 → 성과(최근 7일) → 링크(예시 주소면 경고) → [기존 서랍에서 열기] · [내리기].
         내리기 단추는 `ad.takedown` 이 있고 진행·예약 건만(기존 긴급 내림과 같은 조건). 서버는 부르지 않는다 — 동작은 emit(부른 화면이 사유 대화상자·저장을 맡는다).
@@ -21,7 +21,6 @@
             <div class="flex min-w-0 flex-1 items-center gap-1.5">
                 <Button v-if="detailCard" type="button" icon="pi pi-arrow-left" size="small" severity="secondary" variant="text" rounded :aria-label="t('adSlot.back')" @click="detailId = null" />
                 <h2 :id="titleId" class="m-0 min-w-0 flex-1 truncate text-base font-semibold" :title="headTitle">{{ headTitle }}</h2>
-                <Button v-if="!detailCard && canRegister" type="button" :label="t('adSlot.register')" icon="pi pi-plus" size="small" @click="emit('register')" />
             </div>
         </template>
 
@@ -90,13 +89,17 @@
                 :allow-empty="false"
                 size="small"
                 :aria-label="t('adSlot.filterLabel')"
-                class="flex-wrap"
+                :pt="{ root: { class: 'flex w-full' }, pcToggleButton: { root: { class: 'grow' } } }"
                 @update:model-value="(v: string) => setStatus(v)"
             />
 
-            <div v-if="canTakedown && selected.length" class="flex items-center justify-between gap-2 rounded-lg bg-red-50 px-3 py-2 dark:bg-red-950/40">
-                <Button type="button" :label="t('adSlot.selectedTakedown', { n: selected.length })" icon="pi pi-power-off" severity="danger" size="small" :disabled="busy" @click="emit('takedown', [...selected])" />
-                <Button type="button" :label="t('adSlot.clearSelection')" size="small" severity="secondary" variant="text" @click="selected = []" />
+            <!-- 단추 줄(늘 보인다): 내리기·고르기 풀기는 고른 건이 있을 때만 켜지고, 광고 등록은 오른쪽 끝(2026-11-23 사용자) -->
+            <div v-if="canTakedown || canRegister" class="flex items-center gap-2">
+                <template v-if="canTakedown">
+                    <Button type="button" :label="t('adSlot.selectedTakedown', { n: selected.length })" icon="pi pi-power-off" severity="danger" size="small" :disabled="busy || !selected.length" @click="emit('takedown', [...selected])" />
+                    <Button type="button" :label="t('adSlot.clearSelection')" size="small" severity="secondary" variant="text" :disabled="!selected.length" @click="selected = []" />
+                </template>
+                <Button v-if="canRegister" type="button" :label="t('adSlot.register')" icon="pi pi-plus" size="small" severity="secondary" class="ml-auto" @click="emit('register')" />
             </div>
 
             <ErrorState v-if="error" :title="t('adSlot.listFailed')" :description="error.message" :retry="true" :retrying="loading" @retry="emit('retry')" />
