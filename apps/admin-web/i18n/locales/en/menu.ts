@@ -154,6 +154,7 @@ export default {
     // Ads section — ad review · schedule
     ad: 'Ads',
     adReviews: 'Ad review',
+    adSlots: 'Ad slots',
     ads: 'Ad schedule & booking',
     adPerformance: 'Ad performance',
     adAdvertisers: 'Advertisers',

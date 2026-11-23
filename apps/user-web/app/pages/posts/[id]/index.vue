@@ -754,6 +754,8 @@ const inlineBoard = computed(() => {
 const adsense = useAdSense();
 /** 광고가 오지 않아 접은 글 — 다른 글로 가면 다시 그린다 */
 const inlineAdsenseUnfilled = ref<string | null>(null);
+/** 관리자 「광고 자리 관리」 미리보기 창인가 — 빈 글 보기 광고 자리도 남긴다 */
+const { adSlotMode } = useAdminPreview();
 const inlineAdsense = computed(() => {
     const p = publicAds.placements.value?.postInline;
     const cur = post.value;
@@ -770,7 +772,8 @@ const inlineAd = computed(() => {
     if (!p?.enabled || !inlineBoard.value) return null;
     const type = UtilAd.inlineType(p.adType);
     const ads = publicAds.candidates(type, inlineBoard.value);
-    if (ads !== undefined && ads.length === 0) return null;
+    // 관리자 「광고 자리 관리」 미리보기(`adSlotMode`)에서만 후보 0건이어도 자리를 남긴다(광고 부품이 빈 틀을 그린다)
+    if (ads !== undefined && ads.length === 0 && !adSlotMode.value) return null;
     return { type, position: UtilAd.inlinePosition(p.position), ads: ads ?? null };
 });
 watch(

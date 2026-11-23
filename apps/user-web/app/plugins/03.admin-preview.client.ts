@@ -14,6 +14,9 @@
  * - **캐시 영역 미리보기**(관리자 캐시 관리 `/settings/caches` 의 「미리보기」, 주소에 `cachePreview=1` 도 있을 때, 2026-11-08): 같은 허용 주소·같은 준비됨 메시지를 쓰되
  *   캐시 영역 메시지(`irobit:cache-preview` — `util-cache-area.ts`)만 받고 테마·메뉴·홈 구성 값은 받지 않는다(저장된 공개 화면 그대로). 메뉴 자리를 눌러도 메뉴 설정 열기를 알리지 않고 링크만 막는다.
  *   상자 그리기·누르기 알림은 `CacheAreaOverlay`(기본 셸 `layouts/default.vue`)가 한다.
+ * - **광고 자리 미리보기**(관리자 「광고 자리 관리」 `/ads/slots`, 주소에 `adSlotPreview=1` 도 있을 때, 2026-11-23): 캐시 영역 미리보기와 같은 규칙 —
+ *   광고 자리 메시지(`irobit:ad-slot-preview` — `util-ad-slot-area.ts`)만 받고 화면 값은 덮지 않으며, 메뉴 자리를 눌러도 메뉴 설정 열기를 알리지 않고 링크만 막는다.
+ *   상자 그리기·누르기 알림은 `AdSlotOverlay`(기본 셸)가 한다.
  */
 import UtilAdminPreview, { ADMIN_PREVIEW_EDIT_MENU, ADMIN_PREVIEW_READY } from '~/utils/util-admin-preview';
 import UtilMenuPosition, {
@@ -25,6 +28,7 @@ import UtilMenuPosition, {
 } from '~/utils/util-menu-position';
 import UtilTheme, { type ThemeId } from '~/utils/util-theme';
 import UtilCacheArea from '~/utils/util-cache-area';
+import UtilAdSlotArea from '~/utils/util-ad-slot-area';
 
 export default defineNuxtPlugin(async () => {
     if (!UtilAdminPreview.isPreviewWindow(window.parent !== window, window.location.search)) return;
@@ -36,13 +40,15 @@ export default defineNuxtPlugin(async () => {
         .filter(Boolean);
     if (!allowed.length) return;
 
-    const { active, editing, home, page, board, cacheMode, cache, apply } = useAdminPreview();
+    const { active, editing, home, page, board, cacheMode, cache, adSlotMode, adSlot, apply } = useAdminPreview();
     // 메시지 읽기·홈 구성 덮기는 미리보기 창에서만 받는다(공개 화면 첫 조각에서 뺀다 — E11). 화면이 그리기 전에 받아 둔다
     const { default: UtilAdminPreviewApply } = await import('~/utils/util-admin-preview-apply');
     apply.value = UtilAdminPreviewApply;
     active.value = true;
     // 캐시 관리의 「미리보기」(`cachePreview=1`) — 화면 값은 덮지 않고 캐시 영역만 겹쳐 그린다(`CacheAreaOverlay`)
     cacheMode.value = UtilCacheArea.isCachePreview(window.location.search);
+    // 광고 자리 관리의 미리보기(`adSlotPreview=1`) — 화면 값은 덮지 않고 광고 자리만 겹쳐 그린다(`AdSlotOverlay`)
+    adSlotMode.value = !cacheMode.value && UtilAdSlotArea.isAdSlotPreview(window.location.search);
     openAdminPreviewChannel(allowed);
 
     // `useTheme` 와 같은 상태 — 운영자 설정 모양 그대로 덮는다(해석은 `useMenuPosition`·`useMenuStyle` 이 테마 기본과 함께 한다)
@@ -63,6 +69,14 @@ export default defineNuxtPlugin(async () => {
             if (!cacheMsg) return;
             pinAdminPreviewOrigin(event.origin);
             cache.value = cacheMsg;
+            return;
+        }
+        // 광고 자리 미리보기 창은 광고 자리 메시지만 받는다
+        if (adSlotMode.value) {
+            const slotMsg = UtilAdSlotArea.read(event.data);
+            if (!slotMsg) return;
+            pinAdminPreviewOrigin(event.origin);
+            adSlot.value = slotMsg;
             return;
         }
         const msg = UtilAdminPreviewApply.read(event.data);
@@ -94,10 +108,12 @@ export default defineNuxtPlugin(async () => {
             if (target.closest('[data-home-edit]')) return;
             // 캐시 영역 상자는 겹친 층(`CacheAreaOverlay`)이 맡는다
             if (target.closest('[data-cache-overlay]')) return;
+            // 광고 자리 상자도 겹친 층(`AdSlotOverlay`)이 맡는다
+            if (target.closest('[data-ad-slot-overlay]')) return;
             // 셸의 윗줄·메뉴만 — 본문(`#main-content`) 안의 머리·탭(게시판 머리·말머리 탭, 가젯 머리)은 메뉴 자리가 아니다(링크만 막는다)
             const shellZone = target.closest('header, nav');
             // 캐시 영역 미리보기에서는 메뉴 설정 열기를 알리지 않는다(링크만 막는다)
-            if (!cacheMode.value && (target.closest('.side-menu') || (shellZone && !shellZone.closest('#main-content')))) {
+            if (!cacheMode.value && !adSlotMode.value && (target.closest('.side-menu') || (shellZone && !shellZone.closest('#main-content')))) {
                 event.preventDefault();
                 event.stopPropagation();
                 postToAdminPreview({ type: ADMIN_PREVIEW_EDIT_MENU });

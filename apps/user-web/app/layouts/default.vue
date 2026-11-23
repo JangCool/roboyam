@@ -45,6 +45,8 @@
 
         <!-- 캐시 영역 겹침 층 — 관리자 캐시 관리 「미리보기」 iframe 안(`cachePreview=1`)에서만 그린다. 공개 화면에는 없다(그때만 코드를 받는다) -->
         <LazyCacheAreaOverlay v-if="cacheMode" />
+        <!-- 광고 자리 겹침 층 — 관리자 「광고 자리 관리」 미리보기 iframe 안(`adSlotPreview=1`)에서만 그린다. 공개 화면에는 없다 -->
+        <LazyAdSlotOverlay v-if="adSlotMode" />
 
         <AppBottomTabs v-if="!inner" class="md:hidden" />
 
@@ -115,8 +117,8 @@ watchEffect(() => {
         if (state.value?.open) opened[key] = true;
     }
 });
-/** 관리자 캐시 관리 미리보기 창인가(`CacheAreaOverlay`) */
-const { cacheMode } = useAdminPreview();
+/** 관리자 캐시 관리 미리보기 창인가(`CacheAreaOverlay`) · 광고 자리 관리 미리보기 창인가(`AdSlotOverlay`) */
+const { cacheMode, adSlotMode } = useAdminPreview();
 
 // 안 읽은 알림 수(상단 바의 알림 종) — 셸이 뜰 때 한 번만 주기 조회를 시작한다(로그인해 있고 탭이 보일 때 60초 간격). 셸이 사라지면 멈춘다
 useNotificationBadge().start();

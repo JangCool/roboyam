@@ -1,5 +1,5 @@
 <template>
-    <tr v-if="variant === 'table'" ref="root" class="border-b border-surface hover:bg-surface-50 dark:hover:bg-surface-900" data-testid="ad-feed-row">
+    <tr v-if="variant === 'table'" ref="root" class="border-b border-surface hover:bg-surface-50 dark:hover:bg-surface-900" data-ad-slot="TEXT_LINE" data-testid="ad-feed-row">
         <td class="py-2.5 pr-3">
             <a :href="ad.linkUrl" target="_blank" :rel="UtilAd.REL" class="flex min-w-0 items-center gap-1.5 hover:underline focus-visible:outline-2 focus-visible:outline-primary" @click="onClick" @auxclick="onClick">
                 <PointShopTag tone="neutral">{{ t('ad.mark') }}</PointShopTag>
@@ -12,7 +12,7 @@
         <td class="py-2.5" />
         <td class="py-2.5 pr-1" />
     </tr>
-    <div v-else ref="root" data-testid="ad-feed-row">
+    <div v-else ref="root" data-ad-slot="TEXT_LINE" data-testid="ad-feed-row">
         <a
             :href="ad.linkUrl"
             target="_blank"

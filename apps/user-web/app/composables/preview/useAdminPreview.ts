@@ -1,5 +1,6 @@
 import type { AdminPreviewBoard, AdminPreviewHome, AdminPreviewPage } from '~/utils/util-admin-preview';
 import type { CachePreviewMessage } from '~/utils/util-cache-area';
+import type { AdSlotPreviewMessage } from '~/utils/util-ad-slot-area';
 import type UtilAdminPreviewApply from '~/utils/util-admin-preview-apply';
 
 /**
@@ -46,6 +47,8 @@ export function postToAdminPreview(message: Record<string, unknown>): void {
  * 컴포저블은 setup 에서 부른다.
  *
  * 관리자 캐시 관리의 「미리보기」(주소 `cachePreview=1`)는 같은 창 규칙으로 켜지되 `cacheMode` 이고, 받은 강조 값은 `cache` 다(`CacheAreaOverlay` 가 그린다 — 화면 값은 덮지 않는다).
+ * 관리자 「광고 자리 관리」의 미리보기(주소 `adSlotPreview=1`)도 같은 창 규칙으로 켜지되 `adSlotMode` 이고, 받은 이름표·강조 값은 `adSlot` 이다(`AdSlotOverlay` 가 그린다 — 화면 값은 덮지 않는다).
+ *   이 창에서만 광고 부품이 빈 자리의 틀을 남긴다(`AdSlot`·`AdTextLines`·`AdWings`·글 보기 사이 자리 — 일반 방문자 화면은 그대로 접힌다).
  *
  * @returns `active` 미리보기 중인가 · `editing` 홈 구성 편집 중인가 · `home` 관리자 홈(·가젯 페이지·게시판 레이아웃) 구성(없으면 공개 화면 그대로) · `page` 가젯 페이지 머리(없으면 서버 값) · `board` 게시판 레이아웃 적용 화면 ·
  *   `cacheMode` 캐시 영역 미리보기인가 · `cache` 캐시 영역 강조 값 · `cacheDataCounts` 데이터로 센 영역 수(숨긴 팝업 등) ·
@@ -66,5 +69,9 @@ export function useAdminPreview() {
      * 겹침 층(`CacheAreaOverlay`)은 이 키의 수를 화면에서 센 수 대신 쓴다.
      */
     const cacheDataCounts = useState<Record<string, number>>('admin-preview-cache-data-counts', () => ({}));
-    return { active, editing, home, page, board, cacheMode, cache, cacheDataCounts, apply };
+    /** 광고 자리 미리보기 창인가(관리자 「광고 자리 관리」의 iframe, 주소 `adSlotPreview=1`) — 겹쳐 그리는 층(`AdSlotOverlay`)을 켜고, 광고 부품이 빈 자리 틀을 남긴다 */
+    const adSlotMode = useState<boolean>('admin-preview-ad-slot-mode', () => false);
+    /** 광고 자리 미리보기 값(관리자가 보낸 종류별 이름표·강조할 종류) — 받기 전에는 null */
+    const adSlot = useState<AdSlotPreviewMessage | null>('admin-preview-ad-slot', () => null);
+    return { active, editing, home, page, board, cacheMode, cache, cacheDataCounts, adSlotMode, adSlot, apply };
 }

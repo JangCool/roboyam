@@ -1,5 +1,13 @@
 <template>
-    <div v-if="ads === null || current || keepEmpty" ref="root" class="w-full min-w-0" :class="[widthClass, align === 'center' ? 'mx-auto' : '']" data-testid="ad-slot">
+    <div
+        v-if="ads === null || current || keepEmpty || adSlotMode"
+        ref="root"
+        class="w-full min-w-0"
+        :class="[widthClass, align === 'center' ? 'mx-auto' : '']"
+        :data-ad-slot="type"
+        :data-ad-slot-empty="ads !== null && !current ? '' : undefined"
+        data-testid="ad-slot"
+    >
         <div v-if="ads === null" class="w-full animate-pulse rounded-(--gadget-card-radius) bg-surface-100 dark:bg-surface-800" :style="{ aspectRatio: frame.ratio }" role="status" :aria-label="t('ad.loading')" />
         <a
             v-else-if="current"
@@ -19,7 +27,9 @@
             </span>
             <span class="sr-only">{{ t('ad.newTab') }}</span>
         </a>
-        <AdInquiry v-else :message="emptyMessage" :text="emptyText" :ratio="frame.ratio" />
+        <AdInquiry v-else-if="keepEmpty" :message="emptyMessage" :text="emptyText" :ratio="frame.ratio" />
+        <!-- 광고 자리 미리보기의 빈 틀(일반 화면에는 오지 않는다 — 위 `v-if` 가 접는다) -->
+        <div v-else class="w-full rounded-(--gadget-card-radius) bg-surface-100 dark:bg-surface-800" :style="{ aspectRatio: frame.ratio }" aria-hidden="true" />
     </div>
 </template>
 
@@ -44,6 +54,8 @@ const props = withDefaults(defineProps<Props>(), { keepEmpty: false, align: 'sta
 
 const { t } = useI18n();
 const tracking = usePublicAds();
+/** 관리자 「광고 자리 관리」 미리보기 창인가 — 빈 자리도 틀을 남긴다 */
+const { adSlotMode } = useAdminPreview();
 
 const frame = computed(() => UtilAd.frameOf(props.type));
 /** 네모·작은 배너는 칸(`@container`)이 360px 이하면 칸을 채운다 — 컨테이너가 없는 글 보기는 300px */

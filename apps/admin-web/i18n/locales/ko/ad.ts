@@ -180,8 +180,8 @@ export default {
         adsenseUnitHalf: '애드센스 반 폭 배너 단위',
         adsenseUnitWing: '애드센스 날개 단위',
         adsenseUnitPost: '애드센스 글 보기 단위',
-        adsenseUnitFeed: '애드센스 목록 한 줄 단위',
-        adsenseLayoutKey: '애드센스 목록 한 줄 레이아웃 키',
+        adsenseUnitFeed: '애드센스 한 줄 광고 자리 단위',
+        adsenseLayoutKey: '애드센스 한 줄 광고 자리 레이아웃 키',
     },
     // 탭 이름(`*Section`)은 설정 카드 머리 제목도 되고, `*Desc` 는 그 아래 한 줄 설명, `*Lead` 는 카드 본문 첫 줄의 조건 안내다
     postInlineSection: '글 보기',
@@ -415,7 +415,7 @@ export default {
         HALF_BANNER: '반 폭 배너 가젯',
         WING_BANNER: '날개 배너',
         POST_INLINE: '글 보기',
-        BOARD_LIST: '게시판 목록 한 줄',
+        BOARD_LIST: '한 줄 광고 자리(목록·가젯)',
     },
     adsenseUnitHint: {
         WIDE_BANNER: '디스플레이 · 가로형',
@@ -425,7 +425,7 @@ export default {
         HALF_BANNER: '디스플레이 · 가로형',
         WING_BANNER: '디스플레이 · 160×600 고정 · 날개 광고가 양쪽 다 없을 때 한쪽에만(오른쪽 먼저)',
         POST_INLINE: '디스플레이 · 반응형(글 보기 유형이 한 줄이어도)',
-        BOARD_LIST: '인피드 광고 단위예요. 목록형 게시판에만 넣고, 카드형·갤러리형·핫딜 목록에는 넣지 않아요.',
+        BOARD_LIST: '인피드 광고 단위예요. 목록형 게시판의 목록 한 줄과, 장부 광고가 없는 한 줄 광고 가젯(가젯마다 하나)에 넣어요. 카드형·갤러리형·핫딜 목록에는 넣지 않아요.',
     },
     adsenseFeedSlot: '광고 단위 ID',
     adsenseFeedLayoutKey: '레이아웃 키',

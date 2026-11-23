@@ -180,8 +180,8 @@ export default {
         adsenseUnitHalf: 'AdSense half banner unit',
         adsenseUnitWing: 'AdSense wing unit',
         adsenseUnitPost: 'AdSense post view unit',
-        adsenseUnitFeed: 'AdSense list row unit',
-        adsenseLayoutKey: 'AdSense list row layout key',
+        adsenseUnitFeed: 'AdSense text line slot unit',
+        adsenseLayoutKey: 'AdSense text line slot layout key',
     },
     // Tab names (`*Section`) are also the settings card title, `*Desc` is the one-line description under it, `*Lead` is the conditions note at the top of the card body
     postInlineSection: 'Post view',
@@ -414,7 +414,7 @@ export default {
         HALF_BANNER: 'Half banner gadget',
         WING_BANNER: 'Wing banner',
         POST_INLINE: 'Post view',
-        BOARD_LIST: 'Board list row',
+        BOARD_LIST: 'Text line slots (lists and gadgets)',
     },
     adsenseUnitHint: {
         WIDE_BANNER: 'Display · horizontal',
@@ -424,7 +424,7 @@ export default {
         HALF_BANNER: 'Display · horizontal',
         WING_BANNER: 'Display · fixed 160×600 · only one side (right first), when neither side has a wing ad',
         POST_INLINE: 'Display · responsive (even if the post view type is a text line)',
-        BOARD_LIST: 'An in-feed ad unit. Only in list-style boards — not in card, gallery or hot deal lists.',
+        BOARD_LIST: 'An in-feed ad unit. Used in list-style board rows and in text line gadgets with no booked ads (one per gadget) — not in card, gallery or hot deal lists.',
     },
     adsenseFeedSlot: 'Ad unit ID',
     adsenseFeedLayoutKey: 'Layout key',

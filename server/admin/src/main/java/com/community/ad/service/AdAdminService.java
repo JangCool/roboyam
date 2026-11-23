@@ -108,28 +108,7 @@ public class AdAdminService {
         LocalDate last = month.atEndOfMonth();
         List<AdAdminView.DaySlot> days = slots.daily(type, first, last).stream()
                 .map(d -> new AdAdminView.DaySlot(d.date().toString(), d.remaining(), d.capacity())).toList();
-        int running = 0;
-        int scheduled = 0;
-        int awaiting = 0;
-        int paused = 0;
-        int takenDown = 0;
-        for (AppRow a : ledger.live(type, now)) {
-            switch (BizApplicationReader.adminStatus(a, now)) {
-                case "RUNNING" -> running++;
-                case "SCHEDULED" -> scheduled++;
-                case "AWAITING_PAYMENT", "AWAITING_DEPOSIT" -> awaiting++;
-                case "TAKEN_DOWN" -> {
-                    if (a.takedownCause() == BizTakedownCause.ADVERTISER_PAUSE) {
-                        paused++;
-                    } else {
-                        takenDown++;
-                    }
-                }
-                default -> {
-                }
-            }
-        }
-        AdAdminView.TypeSummary summary = new AdAdminView.TypeSummary(type.name(), capacity(type), running, scheduled, awaiting, paused, takenDown);
+        AdAdminView.TypeSummary summary = summary(type, ledger.live(type, now), now);
         List<AppRow> month0 = ledger.ledger(type, BizPeriods.startOf(first), BizPeriods.startOf(last.plusDays(1)), null);
         return new AdAdminView.Calendar(summary, days, rows(type, month0, now));
     }
@@ -167,8 +146,7 @@ public class AdAdminService {
         Instant now = reader.now();
         AppRow a = s.app();
         AdAdminView.Row row = row(type, a, advertiserOf(a, a.advertiserId() == null ? null : advertiserStore.find(a.advertiserId()).orElse(null)), now);
-        BizAdminView.Amount amount = a.approved() != null ? amount(a.approved())
-                : a.proposedSupply() != null ? amount(BizPricing.amountOf(a.proposedSupply())) : amount(a.quote());
+        BizAdminView.Amount amount = amountOf(a);
         List<CreativeRow> versions = reader.creativeVersions(id);
         String approver = s.approvedByName();
         List<AdAdminView.Creative> creatives = new ArrayList<>();
@@ -261,15 +239,56 @@ public class AdAdminService {
     // ── 긴급 내림·되돌리기 ──────────────────────────────────────────────────
 
     public AdAdminView.Detail takedown(AdminActor actor, String idText, AdAdminRequest.Takedown body) {
-        long id = ledgerId(idText);
-        operations.takedown(op(actor), id, body == null ? null : body.reason(), body != null && Boolean.TRUE.equals(body.notifyMail()));
+        long id = takedownOne(actor, idText, body == null ? null : body.reason(), body != null && Boolean.TRUE.equals(body.notifyMail()));
         return detail(actor, Long.toString(id));
+    }
+
+    /**
+     * 긴급 내림 한 건(상세 없이) — 장부 건 확인(없으면 404) + shared {@link AdOperatorService#takedown}(자기 트랜잭션 · 감사 · 회원 알림 · 공개 사본 무효화 · 커밋 뒤 메일).
+     * 광고 자리 관리의 여러 건 내림({@link AdSlotAdminService#takedown})이 건마다 부른다 — 바깥 트랜잭션 없이 불러야 건마다 따로 커밋된다. 돌려준 값 = 건 ID
+     */
+    long takedownOne(AdminActor actor, String idText, String reason, boolean notifyMail) {
+        long id = ledgerId(idText);
+        operations.takedown(op(actor), id, reason, notifyMail);
+        return id;
     }
 
     public AdAdminView.Detail restore(AdminActor actor, String idText, AdAdminRequest.Restore body) {
         long id = ledgerId(idText);
         operations.restore(op(actor), id, body == null ? null : body.compensation(), body == null ? null : body.reason());
         return detail(actor, Long.toString(id));
+    }
+
+    /** 유형 요약 — 지금 자리를 차지한 건({@link AdLedgerStore#live})을 보이는 상태로 센다. 광고 자리 관리({@link AdSlotAdminService})도 같은 셈을 쓴다 */
+    AdAdminView.TypeSummary summary(BizProduct type, List<AppRow> live, Instant now) {
+        int running = 0;
+        int scheduled = 0;
+        int awaiting = 0;
+        int paused = 0;
+        int takenDown = 0;
+        for (AppRow a : live) {
+            switch (BizApplicationReader.adminStatus(a, now)) {
+                case "RUNNING" -> running++;
+                case "SCHEDULED" -> scheduled++;
+                case "AWAITING_PAYMENT", "AWAITING_DEPOSIT" -> awaiting++;
+                case "TAKEN_DOWN" -> {
+                    if (a.takedownCause() == BizTakedownCause.ADVERTISER_PAUSE) {
+                        paused++;
+                    } else {
+                        takenDown++;
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+        return new AdAdminView.TypeSummary(type.name(), capacity(type), running, scheduled, awaiting, paused, takenDown);
+    }
+
+    /** 장부 건의 금액 — 승인 금액, 없으면 운영자 제안 금액, 없으면 신청 견적(상세와 광고 자리 카드가 같이 쓴다) */
+    static BizAdminView.Amount amountOf(AppRow a) {
+        return a.approved() != null ? amount(a.approved())
+                : a.proposedSupply() != null ? amount(BizPricing.amountOf(a.proposedSupply())) : amount(a.quote());
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────

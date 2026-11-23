@@ -318,6 +318,8 @@ export default class UtilAdminMenu {
             labelKey: 'menu.ad',
             items: [
                 { key: 'adReviews', to: '/ad-reviews', icon: 'pi pi-inbox', labelKey: 'menu.adReviews', permission: 'ad.read' },
+                // 광고 자리 관리(docs/features/ad-slot-manager-contract.md) — 공개 화면 미리보기에서 자리를 눌러 그 종류의 광고를 보고 내린다
+                { key: 'adSlots', to: '/ads/slots', icon: 'pi pi-th-large', labelKey: 'menu.adSlots', permission: 'ad.read' },
                 { key: 'ads', to: '/ads', icon: 'pi pi-calendar', labelKey: 'menu.ads', permission: 'ad.read' },
                 // 광고 성과(`/ads/performance` — 서버 `AdminScreenRegistry` 「광고」 셋째와 같은 키·주소·권한·차례)
                 { key: 'adPerformance', to: '/ads/performance', icon: 'pi pi-chart-bar', labelKey: 'menu.adPerformance', permission: 'ad.read' },

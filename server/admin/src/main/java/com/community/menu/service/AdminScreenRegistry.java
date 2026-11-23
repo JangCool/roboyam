@@ -125,6 +125,8 @@ public final class AdminScreenRegistry {
                     leaf(s("rewardEvents", "/reward-events", "menu.rewardEvents", "pi pi-gift", Permission.REWARD_EVENT_READ))),
             section(NORMAL, "menu.ad", "pi pi-megaphone",
                     leaf(s("adReviews", "/ad-reviews", "menu.adReviews", "pi pi-inbox", Permission.AD_READ)),
+                    // 광고 자리 관리(ad-slot-manager-contract — 공개 화면 미리보기에서 자리를 눌러 광고를 찾는다. 조회 ad.read, 내리기는 화면 안에서 ad.takedown · 등록 ad.manage)
+                    leaf(s("adSlots", "/ads/slots", "menu.adSlots", "pi pi-th-large", Permission.AD_READ)),
                     leaf(s("ads", "/ads", "menu.ads", "pi pi-calendar", Permission.AD_READ)),
                     // 광고 성과(ad-performance-contract — 읽기 전용, 조회 ad.read · 새 권한 없음)
                     leaf(s("adPerformance", "/ads/performance", "menu.adPerformance", "pi pi-chart-bar", Permission.AD_READ)),

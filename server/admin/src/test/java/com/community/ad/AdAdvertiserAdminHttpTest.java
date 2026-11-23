@@ -476,7 +476,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(screen.labelKey()).isEqualTo("menu.adAdvertisers");
         assertThat(screen.icon()).isEqualTo("pi pi-address-book");
         assertThat(screen.permission()).isEqualTo(Permission.AD_READ);
-        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad"))).containsExactly("adReviews", "ads", "adPerformance",
-                "adAdvertisers", "menu.trial", "adPlacements"); // 체험단 두 화면(trial-group-contract)은 부모 「체험단」 안(메뉴 정리 2026-11-23)
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad"))).containsExactly("adReviews", "adSlots", "ads",
+                "adPerformance", "adAdvertisers", "menu.trial", "adPlacements"); // 체험단 두 화면(trial-group-contract)은 부모 「체험단」 안(메뉴 정리 2026-11-23) · 광고 자리 관리는 광고 심사 다음
     }
 }

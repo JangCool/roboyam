@@ -154,6 +154,7 @@ export default {
     // 광고 묶음 — 광고 심사 · 일정표
     ad: '광고',
     adReviews: '광고 심사',
+    adSlots: '광고 자리 관리',
     ads: '광고 일정·등록',
     adPerformance: '광고 성과',
     adAdvertisers: '광고주 관리',

@@ -84,7 +84,7 @@ class BizApplicationAdminCatalogTest {
         }
         for (Expect e : List.of(new Expect("businessReviews", "/business-reviews", Permission.BUSINESS_READ),
                 new Expect("businesses", "/businesses", Permission.BUSINESS_READ), new Expect("adReviews", "/ad-reviews", Permission.AD_READ),
-                new Expect("ads", "/ads", Permission.AD_READ), new Expect("adPerformance", "/ads/performance", Permission.AD_READ),
+                new Expect("adSlots", "/ads/slots", Permission.AD_READ), new Expect("ads", "/ads", Permission.AD_READ), new Expect("adPerformance", "/ads/performance", Permission.AD_READ),
                 new Expect("adAdvertisers", "/ad-advertisers", Permission.AD_READ), new Expect("adPlacements", "/ads/placements", Permission.AD_READ),
                 new Expect("hotdealReviews", "/hotdeal-reviews", Permission.HOTDEAL_READ))) {
             AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen(e.key()).orElseThrow();
@@ -100,8 +100,8 @@ class BizApplicationAdminCatalogTest {
         assertThat(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad").icon()).isEqualTo("pi pi-megaphone");
         assertThat(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.hotdeal").icon()).isEqualTo("pi pi-ticket");
         assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.bizHotdeal"))).containsExactly("businessReviews", "businesses", "menu.hotdeal");
-        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad"))).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers",
-                "menu.trial", "adPlacements");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad"))).containsExactly("adReviews", "adSlots", "ads", "adPerformance",
+                "adAdvertisers", "menu.trial", "adPlacements");
         assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.trial"))).containsExactly("adTrials", "adTrialSettings");
         assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.hotdeal"))).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
                 "hotdealSuspicions", "hotdealSettings");

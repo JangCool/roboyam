@@ -1,5 +1,5 @@
 <template>
-    <section v-if="picked.length" ref="root" class="mt-3 flex flex-col gap-2" :aria-label="label" data-testid="ad-hotdeal">
+    <section v-if="picked.length" ref="root" class="mt-3 flex flex-col gap-2" :aria-label="label" :data-ad-slot="placement" data-testid="ad-hotdeal">
         <article v-for="ad in picked" :key="ad.id" class="panel-card flex min-w-0 items-center gap-3 p-3">
             <span class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
                 <img v-if="ad.deal?.thumbnailUrl" :src="ad.deal.thumbnailUrl" alt="" class="size-full object-cover" loading="lazy" decoding="async" />

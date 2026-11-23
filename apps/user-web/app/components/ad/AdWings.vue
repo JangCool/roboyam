@@ -2,20 +2,23 @@
     <!--
         본문 상자 바깥 좌우에 덮는 층(본문 배치를 밀지 않는다) — 바깥 여백이 날개+간격보다 좁으면 숨는다.
         장부 날개 배너가 양쪽 모두 없으면 한쪽만(오른쪽 먼저) 애드센스 단위(160×600 고정)로 채운다 — 구글 정책이 따라오는 광고를 하나로 정한다(`adsenseSide`).
+        관리자 「광고 자리 관리」 미리보기(`adSlotMode`)에서는 켠 쪽이 비어도 날개 빈 틀(160×600, `data-ad-slot-empty`)을 남긴다 — 일반 화면은 그대로 접힌다.
         조건: 「광고 표시」 단계 + 날개 단위 ID · 그 쪽이 켜짐 · 장부 후보를 받음 · 게시판 화면·글 보기는 맥락이 19금(옵션과 상관없이)·광고 숨김·소모임·비밀글이 아님. 광고가 오지 않으면 그 쪽을 접는다(이 화면에서만).
     -->
     <div ref="host" class="pointer-events-none absolute inset-x-0 top-0 z-10 max-lg:hidden" :style="layerStyle" data-testid="ad-wings">
         <template v-if="shown">
-            <div v-if="picked.left || adsenseLeft" class="absolute top-0 h-full" :style="{ left: `${box.left - UtilAd.WING.gap - UtilAd.WING.width}px`, width: `${UtilAd.WING.width}px` }">
+            <div v-if="picked.left || adsenseLeft || previewEmpty.left" class="absolute top-0 h-full" :style="{ left: `${box.left - UtilAd.WING.gap - UtilAd.WING.width}px`, width: `${UtilAd.WING.width}px` }">
                 <aside class="pointer-events-auto sticky" :style="{ top: `${box.stickyTop}px` }" :aria-label="t('ad.wingLeftLabel')" data-testid="ad-wing-left">
                     <AdSlot v-if="picked.left" :key="`${route.path}:${picked.left.id}`" type="WING_BANNER" :ads="[picked.left]" placement="WING_LEFT" />
                     <AdSenseUnit v-else-if="adsenseLeft" :key="`${route.path}:adsense-left`" :spec="adsenseLeft" @unfilled="unfilledAt.left = route.path" />
+                    <div v-else class="h-[600px] w-[160px] rounded-(--gadget-card-radius) bg-surface-100 dark:bg-surface-800" data-ad-slot="WING_BANNER" data-ad-slot-empty="" aria-hidden="true" />
                 </aside>
             </div>
-            <div v-if="picked.right || adsenseRight" class="absolute top-0 h-full" :style="{ left: `${box.right + UtilAd.WING.gap}px`, width: `${UtilAd.WING.width}px` }">
+            <div v-if="picked.right || adsenseRight || previewEmpty.right" class="absolute top-0 h-full" :style="{ left: `${box.right + UtilAd.WING.gap}px`, width: `${UtilAd.WING.width}px` }">
                 <aside class="pointer-events-auto sticky" :style="{ top: `${box.stickyTop}px` }" :aria-label="t('ad.wingRightLabel')" data-testid="ad-wing-right">
                     <AdSlot v-if="picked.right" :key="`${route.path}:${picked.right.id}`" type="WING_BANNER" :ads="[picked.right]" placement="WING_RIGHT" />
                     <AdSenseUnit v-else-if="adsenseRight" :key="`${route.path}:adsense-right`" :spec="adsenseRight" @unfilled="unfilledAt.right = route.path" />
+                    <div v-else class="h-[600px] w-[160px] rounded-(--gadget-card-radius) bg-surface-100 dark:bg-surface-800" data-ad-slot="WING_BANNER" data-ad-slot-empty="" aria-hidden="true" />
                 </aside>
             </div>
         </template>
@@ -184,6 +187,12 @@ onBeforeUnmount(() => {
 // 화면·테마(셸)가 바뀌면 본문 요소가 바뀔 수 있다 — 그린 뒤 다시 잰다
 watch([() => route.path, theme], () => nextTick(schedule));
 
-const shown = computed(() => box.value.ok && (picked.value.left !== null || picked.value.right !== null || adsenseLeft.value !== null || adsenseRight.value !== null));
+/** 관리자 「광고 자리 관리」 미리보기 창 — 켠 쪽이 비어도 빈 틀을 남긴다(일반 화면은 접는다) */
+const { adSlotMode } = useAdminPreview();
+const previewEmpty = computed(() => ({ left: adSlotMode.value && wing.value.left, right: adSlotMode.value && wing.value.right }));
+
+const shown = computed(
+    () => box.value.ok && (picked.value.left !== null || picked.value.right !== null || adsenseLeft.value !== null || adsenseRight.value !== null || previewEmpty.value.left || previewEmpty.value.right),
+);
 const layerStyle = computed<CSSProperties>(() => (shown.value ? { top: `${box.value.top}px`, height: `${box.value.height}px` } : { height: '0px' }));
 </script>
