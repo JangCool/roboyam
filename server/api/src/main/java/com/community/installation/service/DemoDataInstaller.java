@@ -8,8 +8,6 @@ import com.community.business.service.BusinessPii;
 import com.community.datakey.batch.DataKeyColumns;
 import com.community.datakey.batch.EncryptedColumn;
 import com.community.media.service.ImageStorage;
-import com.community.permission.entity.MemberPermission;
-import com.community.permission.entity.Permission;
 import com.community.popular.service.PopularRecompute;
 import com.community.zconfiguration.crypto.BlindIndex;
 import com.community.zconfiguration.crypto.DataCipher;
@@ -50,7 +48,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       bigint 칸, bigint 배열, 글자·JSON 칸 안의 숫자(본문의 {@code data-image-id}, 로보티콘 {@code :emo-ID:} 등)에서 그 ID 를 모두 바꾼다. 구조(게시판·말머리) ID 는 팩 밖이라 그대로다.
  *       「지금 − 1분」으로 맞추므로 옮긴 ID 는 설치가 이미 매긴 ID(루트 운영자)보다 앞이고 앞으로 매길 ID 와 겹치지 않는다.</li>
  *   <li><b>운영자</b>: 팩을 만든 DB 의 운영자 ID(루트·데모 운영자 — 목록의 {@code operatorIds})는 이 설치의 루트 운영자 ID 가 된다.
- *       운영자 역할(데모 팩 패치 0004 — 운영자에 붙이지 않은 역할만)은 권한 카탈로그를 가리키므로 넣기 전에 카탈로그의 빠진 줄을 채운다({@link #permissionCatalog}).</li>
+ *       운영자 역할(roles·role_permissions — 원고 패치 0005)은 데모가 아니라 구조 스냅숏이 넣는다({@link PresetStructureApplier} — 「구조만」 설치에도 들어간다, 2026-11-24).</li>
+ *   <li><b>구조 표</b>: 팩에 구조 스냅숏이 맡는 표({@link BoardPresetCatalog#STRUCTURE_TABLES})가 있으면 넣지 않는다({@link #withoutStructureTables} — 예전 팩의 운영자 역할).
+ *       넣기 전에 권한 카탈로그의 빠진 줄은 채운다({@link InstallPermissions#catalog}).</li>
  *   <li><b>칸</b>: 팩의 칸·표가 이 DB 에 없으면(팩을 만든 뒤 마이그레이션이 지우거나 이름을 바꿨으면) 넣지 않고 실패한다({@link TablePackRestorer.PackMismatchException}).
  *       DB 에만 있는 칸은 기본값이 된다. 사용자 트리거는 끈 채 넣는다(팩의 행은 트리거가 이미 만든 결과다).</li>
  *   <li><b>개인정보 칸</b>(DataCipher 암호문 — {@link DataKeyColumns#ALL} 의 칸: 사업자 신원·광고주 연락처·등록증·계약서 파일 …): 팩의 키(목록의 {@code dataKey})로 풀어
@@ -106,7 +106,7 @@ public class DemoDataInstaller {
         DemoPackCatalog.Manifest manifest = catalog.manifest().orElseThrow(() -> new IllegalStateException("데모 팩이 없다"));
         TablePack data;
         try {
-            data = catalog.readData();
+            data = withoutStructureTables(catalog.readData());
         } catch (IOException e) {
             throw new UncheckedIOException("데모 팩 데이터를 읽지 못했다", e);
         }
@@ -117,8 +117,8 @@ public class DemoDataInstaller {
                 periodShift(Instant.parse(manifest.builtAt()), deltaMs));
 
         tables.ensurePostPartitions(); // 글은 ID 범위로 월 조각에 들어간다 — 옮긴 ID 의 달 조각이 있어야 한다
-        // 팩의 운영자 역할 권한 줄(role_permissions)은 권한 카탈로그(permissions)를 가리킨다 — 카탈로그는 관리자 서버가 뜰 때 채우므로 설치 직후(관리자 서버 전)엔 비어 있다
-        tables.ensurePermissions(permissionCatalog());
+        // 권한 카탈로그(permissions)는 관리자 서버가 뜰 때 채우므로 설치 직후(관리자 서버 전)엔 비어 있을 수 있다 — 구조 스냅숏이 이미 채웠으면 그대로(빠진 줄만 넣는다)
+        tables.ensurePermissions(InstallPermissions.catalog());
         TablePackRestorer.Result result = restorer.restore(data, true, true, (table, row, columns) -> shift.row(table, rekey.row(table, row), columns));
         // 경험치·레벨(V196)은 원장에서 다시 센다 — 예전에 만든 팩의 프로필에는 그 칸이 없고, 있어도 레벨은 팩을 만든 때의 곡선 값이다
         // (V245 전 팩 = 지수 1.5). 경험치가 같아도 레벨이 지금 곡선(grade_settings 의 기준값·지수)과 다르면 고친다
@@ -156,16 +156,25 @@ public class DemoDataInstaller {
         }
     }
 
-    /** 코드의 권한 카탈로그 — 관리자 서버 PermissionCatalogSynchronizer 가 표에 넣는 값과 같다(PermissionEntity.of) */
-    static List<TablePackRepository.PermissionRow> permissionCatalog() {
-        List<TablePackRepository.PermissionRow> rows = new ArrayList<>();
-        for (Permission p : Permission.values()) {
-            rows.add(new TablePackRepository.PermissionRow(p.code(), "OPERATOR", p.type().id(), p.unit().name(), p.featureReady()));
+    /**
+     * 구조 스냅숏이 맡는 표({@link BoardPresetCatalog#STRUCTURE_TABLES})를 뺀 팩 — 구조가 설치 때 이미 넣었다. 예전에 만든 팩에는 운영자 역할(roles·role_permissions)이 들어 있는데,
+     * 데모 복원은 role_permissions 의 ID 를 옮기므로 구조가 넣은 줄과 ID 가 달라 {@code ux_role_permissions(role_id, permission_code)} 에 걸린다.
+     */
+    static TablePack withoutStructureTables(TablePack data) {
+        List<String> skipped = new ArrayList<>();
+        List<TablePack.Table> kept = new ArrayList<>();
+        for (TablePack.Table table : data.tables()) {
+            if (BoardPresetCatalog.STRUCTURE_TABLES.containsKey(table.table())) {
+                skipped.add(table.table() + " " + table.rows().size() + "행");
+            } else {
+                kept.add(table);
+            }
         }
-        for (MemberPermission p : MemberPermission.values()) {
-            rows.add(new TablePackRepository.PermissionRow(p.code(), "MEMBER", p.typeId(), p.group().name(), p.featureReady()));
+        if (skipped.isEmpty()) {
+            return data;
         }
-        return rows;
+        log.info("데모 팩의 구조 표는 넣지 않는다(구조 스냅숏이 넣었다) — {}", skipped);
+        return new TablePack(data.format(), data.preset(), data.exportedAt(), data.source(), kept);
     }
 
     /** 팩 ID → 옮긴 ID, 만든 DB 의 운영자 ID → 루트 운영자 ID */
