@@ -3,7 +3,7 @@
         실제 화면 — 공개 사이트(user-web)를 iframe 으로 띄운다(사용자 결정 2026-10-28: 미리보기는 실제 공개 화면과 똑같아야 한다 — 관리자가 따로 그리지 않는다).
         주소 `{공개 사이트 origin}/?adminPreview=1` — origin 은 `useUserWebOrigin`(개발 서버는 `runtimeConfig.public.userWebOrigin`, 빌드한 화면은 테마 응답의 사이트 공개 주소). 공개 사이트가 미리보기 모드로 켜져(`plugins/03.admin-preview.client.ts`) 이 화면이 보내는 값을 그대로 그린다:
           고른 테마 · 메뉴 설정(저장 전 값 포함) · 홈 구성(편집기의 저장 전 값). 값이 바뀔 때마다 다시 보내고, 공개 사이트가 「준비됨」을 알리면 그때도 보낸다.
-        창 크기는 공개 사이트 데스크톱 폭 1280 × 높이 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다(`transform: scale`, 0.95 배를 넘기지 않고 넓은 칸은 가운데) — 안에서 스크롤하므로 메뉴 붙이기 같은 스크롤 동작도 그대로다.
+        창 크기는 공개 사이트 데스크톱 폭 1280 × 높이 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다(`transform: scale`, 실제 크기(1배)를 넘기지 않고 넓은 칸은 가운데) — 안에서 스크롤하므로 메뉴 붙이기 같은 스크롤 동작도 그대로다.
         `mobile` 이면 휴대폰 폭 390 × 844 로 띄워 가운데에 둔다(줄이기만 하고 키우지 않는다 — 편집기의 「모바일 순서」를 한 열로 바로 본다, home-news-contract 「모바일 순서」).
         미리보기 안에서는 다른 화면으로 가지 않고, 윗줄·메뉴·사이드 메뉴를 누르면 `edit-menu`(화면이 메뉴 설정 drawer 를 연다).
         편집 중(`editing`)이면 공개 홈 격자가 가젯 위에 손잡이를 얹고, 끌어 옮기기·크기·빼기·⚙ 설정 열기를 알려 온다 → `layout-op`(화면이 홈 구성 편집 도구 `applyOp` 에 넘겨 계산하고, 바뀐 배치를 다시 보낸다).
@@ -71,7 +71,7 @@ const frame = ref<HTMLIFrameElement | null>(null);
 /** 이 칸의 폭(px) — 아직 못 쟀으면 0 */
 const boxW = ref(0);
 /** 데스크톱 최대 배율 — 칸이 넓어도 이보다 키우지 않고 가운데에 둔다(넓은 모니터에서 실제보다 크게 보이던 것, 2026-11-23 사용자 — 광고 자리·캐시·레이아웃 미리보기 같은 값) */
-const DESKTOP_MAX_SCALE = 0.95;
+const DESKTOP_MAX_SCALE = 1;
 /** 줄인 비율 — 데스크톱은 칸 폭에 맞추되 최대 배율까지, 휴대폰 폭은 줄이기만 한다 */
 const scale = computed(() => (boxW.value > 0 ? Math.min(props.mobile ? 1 : DESKTOP_MAX_SCALE, boxW.value / VIEW_W.value) : DESKTOP_MAX_SCALE));
 /** 창 왼쪽 끝(px) — 남는 폭이 있으면 가운데 */
