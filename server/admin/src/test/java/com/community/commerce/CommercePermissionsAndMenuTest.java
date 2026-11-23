@@ -78,17 +78,17 @@ class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
     }
 
     @Test
-    void 커머스_설정_메뉴는_commerce_settings_권한이고_알림_이벤트_묶음과_운영자와_권한_묶음_사이() {
+    void 커머스_설정_메뉴는_commerce_settings_권한이고_결제_묶음_맨_끝() {
         AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("commerceSettings").orElseThrow();
         assertThat(screen.path()).isEqualTo("/settings/commerce");
         assertThat(screen.permission()).isEqualTo(Permission.COMMERCE_SETTINGS);
         assertThat(screen.labelKey()).isEqualTo("menu.commerceSettings");
         assertThat(screen.superOnly()).isFalse();
-        assertThat(AdminScreenRegistry.isGroupLabelKey("menu.commerce")).isTrue();
+        assertThat(AdminScreenRegistry.isGroupLabelKey("menu.commerce")).as("정리 전에 저장한 구성의 이름 키").isTrue();
 
         List<String> keys = new ArrayList<>();
-        AdminScreenRegistry.defaults().get(AdminScreenRegistry.SETTINGS).forEach(node -> collect(node, keys));
-        assertThat(keys).containsSubsequence("memberEvents", "commerceSettings", "operators");
+        AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL).forEach(node -> collect(node, keys));
+        assertThat(keys).containsSubsequence("paymentOrders", "paymentReconciliation", "commerceSettings");
     }
 
     private static void collect(com.community.menu.dto.AdminMenuNode node, List<String> into) {

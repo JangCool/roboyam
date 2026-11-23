@@ -3,7 +3,7 @@ package com.community.commerce;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.service.AuditLabels;
-import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.permission.entity.Permission;
 import com.community.permission.entity.PermissionType;
@@ -59,7 +59,7 @@ class Commerce04AdminCatalogTest {
     }
 
     @Test
-    void 포트원_화면은_설정_시스템에서_소셜_로그인_바로_다음이고_site_read() {
+    void 포트원_화면은_설정_외부_연동에서_소셜_로그인_바로_다음이고_site_read() {
         AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("portone").orElseThrow();
         assertThat(screen.path()).isEqualTo("/settings/portone");
         assertThat(screen.labelKey()).isEqualTo("menu.portone");
@@ -67,9 +67,7 @@ class Commerce04AdminCatalogTest {
         assertThat(screen.permission()).isEqualTo(Permission.SITE_READ);
         assertThat(screen.superOnly()).isFalse();
 
-        AdminMenuNode system = AdminScreenRegistry.defaults().get(AdminScreenRegistry.SETTINGS).stream()
-                .filter(node -> "menu.system".equals(node.labelKey())).findFirst().orElseThrow();
-        List<String> keys = system.children().stream().map(AdminMenuNode::targetKey).toList();
+        List<String> keys = AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.SETTINGS, "menu.integrations"));
         assertThat(keys.indexOf("portone")).isEqualTo(keys.indexOf("socialLogin") + 1);
     }
 
@@ -80,12 +78,12 @@ class Commerce04AdminCatalogTest {
         String expected = "{ key: 'portone', to: '" + screen.path() + "', icon: '" + screen.icon() + "', labelKey: '" + screen.labelKey() + "', permission: '"
                 + screen.permission().code() + "' }";
         assertThat(source).contains(expected);
-        // 같은 차례: 소셜 로그인 → 포트원 → 로그인 보안
+        // 같은 차례: 소셜 로그인 → 포트원 → 공공데이터포털
         int social = source.indexOf("key: 'socialLogin'");
         int portone = source.indexOf("key: 'portone'");
-        int loginSecurity = source.indexOf("key: 'loginSecurity'");
+        int publicData = source.indexOf("key: 'publicData'");
         assertThat(social).isPositive().isLessThan(portone);
-        assertThat(portone).isLessThan(loginSecurity);
+        assertThat(portone).isLessThan(publicData);
     }
 
     @Test

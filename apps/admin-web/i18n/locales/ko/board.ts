@@ -631,7 +631,7 @@ export default {
         autoHidePending: '자동 숨김은 「검토 대기 숨김」이에요. 운영자가 신고 관리에서 자동 숨김을 확정하거나 삭제하거나 무시해요.',
         autoHideRestore: '운영자가 신고 관리에서 신고를 무시하면 자동으로 숨긴 글·댓글은 다시 보여요(운영자가 직접 숨긴 것은 그대로).',
         rightsTempMeasure: '권리침해 신고는 판단이 어려우면 임시조치 기간 동안 숨기고 작성자에게 알려요. 작성자는 기간 안에 이의(재게시 요청)를 낼 수 있어요.',
-        reportOperatorEvent: '받는 운영자와 채널은 설정 › 알림 › 이벤트의 REPORT_RECEIVED 에서 정해요.',
+        reportOperatorEvent: '받는 운영자와 채널은 설정 › 알림·메일 › 알림 이벤트의 REPORT_RECEIVED 에서 정해요.',
         rateElsewhere: '글·댓글 작성 간격은 「일반 › 작성 속도」에 있어요.',
         reportCooldownMoved: '신고 간격은 「신고 정책 › 신고 제한」으로 옮겼어요.',
         wordsScope: '적용 범위는 제목·본문·댓글이에요. 닉네임 금지어는 회원 쪽에서 다뤄요.',
@@ -836,7 +836,7 @@ export default {
     tabSubtitle: {
         report: '모든 게시판의 신고 받기·자동 숨김·즉시 조치·남용 방지를 정해요.',
         security: '조회수·금지어·새 회원 스팸·외부 링크 규칙을 정해요.',
-        notifications: '회원 알림에 같이 쓰는 묶는 시간·메일 조용한 시간·보관 일수예요. 이벤트별 설정은 설정 › 알림·이벤트 › 이벤트 › 회원에서 정해요.',
+        notifications: '회원 알림에 같이 쓰는 묶는 시간·메일 조용한 시간·보관 일수예요. 이벤트별 설정은 설정 › 알림·메일 › 알림 이벤트 › 회원에서 정해요.',
         privacy: '게시판에 남는 개인정보를 기간이 지나면 파기·익명화해요.',
     },
     tabLoadFailed: '설정을 불러오지 못했어요',
@@ -871,7 +871,7 @@ export default {
     wordsHint: '최대 {max}개 · 단어당 1~{len}자',
     wordsCount: '{n}/{max}개',
     securityNewMemberLead: '첫 등급(새싹) 회원에게 적용해요(비회원은 「비회원 글쓰기」 구획의 값을 따라요). 광고 계정이 가입하자마자 링크를 뿌리는 것을 막아요(업계 관행).',
-    notifyMemberMoved: '이벤트마다 쓸지, 앱 알림·이메일로 보낼지, 회원이 끌 수 있는지는 「알림·이벤트 › 이벤트 › 회원」에서 정해요(이 탭에 있던 이벤트별 표를 그리로 옮겼어요).',
+    notifyMemberMoved: '이벤트마다 쓸지, 앱 알림·이메일로 보낼지, 회원이 끌 수 있는지는 「알림·메일 › 알림 이벤트 › 회원」에서 정해요(이 탭에 있던 이벤트별 표를 그리로 옮겼어요).',
     notifyMemberLink: '회원 이벤트 열기',
     notifyMemberNoAccess: '회원 이벤트 화면은 알림 조회 권한이 있는 운영자가 볼 수 있어요.',
     notifyKind: {
@@ -887,7 +887,7 @@ export default {
     quietStart: '시작 시각',
     quietEnd: '끝 시각',
     quietHelp: '서비스 시간대 기준이에요. 예) 22:00 ~ 08:00',
-    notifyOperatorLead: '신고 접수·반복 제재 검토 같은 운영자 알림은 설정 › 알림 › 이벤트에서 받는 사람·채널을 정해요.',
+    notifyOperatorLead: '신고 접수·반복 제재 검토 같은 운영자 알림은 설정 › 알림·메일 › 알림 이벤트에서 받는 사람·채널을 정해요.',
     operatorEvent: {
         REPORT_RECEIVED: '신고 접수',
         BOARD_SANCTION_REPEAT_REVIEW: '반복 제재 검토',

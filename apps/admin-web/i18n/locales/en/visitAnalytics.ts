@@ -477,7 +477,7 @@ export default {
             CRON_LATE: 'check that the database scheduler (pg_cron) is running',
             RAW_BACKLOG: 'the raw cleanup job is behind',
             NEXT_PARTITION_MISSING: 'run the partition job again',
-            COLLECT_OFF: 'you can turn it on in Settings › Analytics collection',
+            COLLECT_OFF: 'you can turn it on in Visitor stats › Manage › Analytics collection',
         },
         instancesTitle: 'Writes by server',
         instancesHint: 'Each server writes once a minute.',

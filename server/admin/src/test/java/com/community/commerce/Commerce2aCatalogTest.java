@@ -8,6 +8,7 @@ import com.community.audit.dto.AuditRetentionClass;
 import com.community.audit.service.AuditLabels;
 import com.community.batch.core.BatchCatalog;
 import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationSeverity;
@@ -36,7 +37,7 @@ class Commerce2aCatalogTest {
     private static final List<String> PAYMENT_SCREENS = List.of("paymentOrders", "paymentWebhooks", "paymentAnomalies", "paymentReconcileDays", "paymentReconciliation");
 
     @Test
-    void 결제_묶음은_보통_모드에서_포인트_상점_다음이고_다섯_화면_모두_결제_조회_권한() {
+    void 결제_묶음은_보통_모드에서_공동구매_다음이고_다섯_화면_모두_결제_조회_권한() {
         List<String> paths = List.of("/payments/orders", "/payments/webhooks", "/payments/anomalies", "/payments/reconcile-days", "/payments/reconciliation");
         List<String> icons = List.of("pi pi-receipt", "pi pi-inbox", "pi pi-exclamation-triangle", "pi pi-calendar", "pi pi-arrow-right-arrow-left");
         for (int i = 0; i < PAYMENT_SCREENS.size(); i++) {
@@ -48,17 +49,15 @@ class Commerce2aCatalogTest {
             assertThat(screen.superOnly()).isFalse();
         }
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.payment")).isTrue();
-        List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
-        List<String> groups = normal.stream().map(AdminMenuNode::labelKey).toList();
-        // 2b-4 — 공구 묶음이 포인트 상점과 결제 사이. 로보티콘 S1(emoticon-contract) — 로보티콘 묶음이 포인트 상점 바로 다음(admin-web 메뉴 정의와 같은 차례)이라 공구는 그 다음
-        assertThat(groups.indexOf("menu.emoticon")).as("로보티콘 묶음이 포인트 상점 바로 다음").isEqualTo(groups.indexOf("menu.pointShop") + 1);
-        // 보상 이벤트(event-admin-contract 「화면」) — 로보티콘 묶음 바로 다음에 보상 이벤트 묶음이 끼어 공구는 그 다음(admin-web 메뉴 정의와 같은 차례)
-        assertThat(groups.indexOf("menu.rewardEvent")).as("보상 이벤트 묶음이 로보티콘 바로 다음").isEqualTo(groups.indexOf("menu.emoticon") + 1);
-        assertThat(groups.indexOf("menu.groupBuy")).as("공구 묶음이 보상 이벤트와 결제 사이").isEqualTo(groups.indexOf("menu.rewardEvent") + 1);
+        // 메뉴 정리(2026-11-23 — menu-contract 「관리자 메뉴 정리」): 공동구매 다음 결제, 포인트 상점·로보티콘은 「포인트·상점」 안의 부모 항목(공동구매와 다른 묶음)
+        List<String> groups = AdminMenuDefaults.sections(AdminScreenRegistry.NORMAL);
         assertThat(groups.indexOf("menu.payment")).isEqualTo(groups.indexOf("menu.groupBuy") + 1);
-        AdminMenuNode payment = normal.stream().filter(node -> "menu.payment".equals(node.labelKey())).findFirst().orElseThrow();
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.pointAndShop"))).containsExactly("menu.point", "menu.pointShop", "menu.emoticon",
+                "rewardEvents");
+        AdminMenuNode payment = AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.payment");
         assertThat(payment.icon()).isEqualTo("pi pi-credit-card");
-        assertThat(payment.children()).extracting(AdminMenuNode::targetKey).containsExactlyElementsOf(PAYMENT_SCREENS);
+        assertThat(AdminMenuDefaults.children(payment)).containsExactly("paymentOrders", "paymentWebhooks", "paymentAnomalies", "menu.reconcile", "commerceSettings");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.reconcile"))).containsExactly("paymentReconcileDays", "paymentReconciliation");
     }
 
     @Test

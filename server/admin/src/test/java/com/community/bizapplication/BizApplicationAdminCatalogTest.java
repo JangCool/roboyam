@@ -12,7 +12,7 @@ import com.community.bizapplication.entity.BizDomain;
 import com.community.bizapplication.service.BizApplicationNotices;
 import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
-import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.permission.entity.Permission;
@@ -92,22 +92,20 @@ class BizApplicationAdminCatalogTest {
             assertThat(screen.permission()).as(e.key()).isEqualTo(e.permission());
             assertThat(screen.labelKey()).as(e.key()).isEqualTo("menu." + e.key());
         }
-        // 묶음 차례: 소모임 → (AI 회원 — V8, 2026-11-10 소모임과 사업자 사이에 들어왔다) → 사업자(인증 심사 · 사업자 목록) → 광고(광고 심사 · 광고 일정표) → 핫딜(핫딜 심사),
-        // 묶음 아이콘은 04-ia-review 1-2 표
-        List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
-        List<String> labels = normal.stream().map(AdminMenuNode::labelKey).toList();
-        int group = labels.indexOf("menu.group");
-        assertThat(group).isNotNegative();
-        assertThat(labels.subList(group, group + 5)).containsExactly("menu.group", "menu.aiMember", "menu.business", "menu.ad", "menu.hotdeal");
-        group++; // 아래 아이콘 판정은 AI 회원 묶음을 건너뛰고 센다
-        assertThat(normal.get(group + 1).icon()).isEqualTo("pi pi-briefcase");
-        assertThat(normal.get(group + 2).icon()).isEqualTo("pi pi-megaphone");
-        assertThat(normal.get(group + 3).icon()).isEqualTo("pi pi-ticket");
-        assertThat(normal.get(group + 1).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("businessReviews", "businesses");
-        assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers",
-                "adPlacements", "adTrials", "adTrialSettings"); // 체험단 두 화면(V241 — trial-group-contract)
-        assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
+        // 메뉴 정리(2026-11-23 — menu-contract 「관리자 메뉴 정리」): 광고 묶음 다음 「사업자·핫딜」 한 묶음, 핫딜은 그 안의 부모 항목
+        List<String> labels = AdminMenuDefaults.sections(AdminScreenRegistry.NORMAL);
+        assertThat(labels.indexOf("menu.bizHotdeal")).isEqualTo(labels.indexOf("menu.ad") + 1);
+        assertThat(labels).doesNotContain("menu.business", "menu.hotdeal");
+        assertThat(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.bizHotdeal").icon()).isEqualTo("pi pi-briefcase");
+        assertThat(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad").icon()).isEqualTo("pi pi-megaphone");
+        assertThat(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.hotdeal").icon()).isEqualTo("pi pi-ticket");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.bizHotdeal"))).containsExactly("businessReviews", "businesses", "menu.hotdeal");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad"))).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers",
+                "menu.trial", "adPlacements");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.trial"))).containsExactly("adTrials", "adTrialSettings");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.hotdeal"))).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
                 "hotdealSuspicions", "hotdealSettings");
+        assertThat(AdminScreenRegistry.isGroupLabelKey("menu.business")).as("정리 전에 저장한 구성의 이름 키").isTrue();
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.ad")).isTrue();
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.hotdeal")).isTrue();
     }

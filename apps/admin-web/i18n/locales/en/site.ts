@@ -116,7 +116,7 @@ export default {
     layoutKind_PAGE: 'Page',
     layoutSoon: 'Coming soon',
     menuDrawerTitle: 'Menu settings · {theme}',
-    menuDrawerLead: 'Changes show in the live view right away. Closing without saving discards them. Menu items and their order are set in Menus › Public menu.',
+    menuDrawerLead: 'Changes show in the live view right away. Closing without saving discards them. Menu items and their order are set in Settings › Screen layout › Public site menu.',
     viewModeLabel: 'View',
     viewModeLive: 'View',
     viewModeEdit: 'Edit',

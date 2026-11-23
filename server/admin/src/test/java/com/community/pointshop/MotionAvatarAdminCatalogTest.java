@@ -8,7 +8,7 @@ import com.community.audit.dto.AuditRetentionClass;
 import com.community.audit.service.AuditLabels;
 import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
-import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.permission.entity.Permission;
@@ -42,10 +42,9 @@ class MotionAvatarAdminCatalogTest {
 
     @Test
     void 아바타_올리기_심사_메뉴는_회원_묶음의_닉네임_이미지_심사_바로_다음이고_admin_web_사본과_같다() throws IOException {
-        List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
-        AdminMenuNode member = normal.stream().filter(n -> "menu.member".equals(n.labelKey())).findFirst().orElseThrow();
-        List<String> keys = member.children().stream().map(AdminMenuNode::targetKey).toList();
-        assertThat(keys.indexOf("avatarUploads")).isEqualTo(keys.indexOf("nicknameImages") + 1);
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.member"))).contains("menu.imageReviews");
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.imageReviews"))).containsExactly("nicknameImages", "avatarUploads",
+                "nicknameImageSettings");
         AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("avatarUploads").orElseThrow();
         assertThat(screen.path()).isEqualTo("/members/avatar-uploads");
         assertThat(screen.permission()).isEqualTo(Permission.NICKNAME_IMAGE_READ);

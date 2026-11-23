@@ -125,6 +125,30 @@ export default class UtilAdminMenuConfig {
         return key ? UtilAdminMenuConfig.screens().find((s) => s.key === key) : undefined;
     }
 
+    /**
+     * 기본 구성(`UtilAdminMenu.ITEMS`) → 편집 트리 — 「기본 구성 불러오기」. 서버 `AdminScreenRegistry.defaults()` 와 같은 모양이다(노드 ID 없음 · 부모 항목 안의 화면은 아이콘 없음).
+     * 저장하지 않으면 아무것도 바뀌지 않는다. 메뉴 구성을 저장한 사이트는 코드의 기본 구성이 바뀌어도 저장한 것이 그대로라, 새 구성을 쓰려면 이것으로 불러와 저장한다.
+     * @returns {AdminMenuEditModes} 두 모드의 편집 트리.
+     */
+    static defaults(): AdminMenuEditModes {
+        const screen = (item: AdminMenuItem, underFolder: boolean): AdminMenuEditNode => ({
+            ...UtilAdminMenuConfig.newNode('SCREEN', 'ADMIN_SCREEN'),
+            targetKey: item.key,
+            icon: underFolder ? '' : (item.icon ?? ''),
+        });
+        const item = (it: AdminMenuItem): AdminMenuEditNode =>
+            it.children
+                ? { ...UtilAdminMenuConfig.newNode('FOLDER'), labelKey: it.labelKey, icon: it.icon ?? '', children: it.children.map((child) => screen(child, true)) }
+                : screen(it, false);
+        const out: AdminMenuEditModes = { normal: [], settings: [] };
+        for (const node of UtilAdminMenu.ITEMS) {
+            out[UtilAdminMenu.modeOf(node)].push(
+                UtilAdminMenu.isGroup(node) ? { ...UtilAdminMenuConfig.newNode('SECTION'), labelKey: node.labelKey, icon: node.icon, children: node.items.map(item) } : item(node),
+            );
+        }
+        return out;
+    }
+
     // ── 받기 · 보내기 ─
 
     static toEdit(nodes: AdminMenuConfigNodeDto[]): AdminMenuEditNode[] {

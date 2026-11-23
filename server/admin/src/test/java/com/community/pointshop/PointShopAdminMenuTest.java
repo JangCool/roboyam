@@ -3,6 +3,7 @@ package com.community.pointshop;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.permission.entity.Permission;
 import java.io.IOException;
@@ -23,11 +24,10 @@ class PointShopAdminMenuTest {
     private static final List<String> SCREENS = List.of("pointShopItems", "pointShopPurchases", "pointShopSettings");
 
     @Test
-    void 화면_레지스트리의_포인트_상점_묶음은_포인트_묶음_바로_다음_세_줄이고_pointshop_read() {
-        List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
-        List<String> sections = normal.stream().map(AdminMenuNode::labelKey).toList();
-        assertThat(sections.indexOf("menu.pointShop")).isEqualTo(sections.indexOf("menu.point") + 1);
-        AdminMenuNode section = normal.get(sections.indexOf("menu.pointShop"));
+    void 화면_레지스트리의_포인트_상점은_포인트_바로_다음_부모_항목_세_줄이고_pointshop_read() {
+        List<String> folders = AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.pointAndShop"));
+        assertThat(folders.indexOf("menu.pointShop")).isEqualTo(folders.indexOf("menu.point") + 1);
+        AdminMenuNode section = AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.pointShop");
         assertThat(section.icon()).isEqualTo("pi pi-shopping-bag");
         assertThat(section.children().stream().map(AdminMenuNode::targetKey).toList()).containsExactlyElementsOf(SCREENS);
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.pointShop")).isTrue();
@@ -54,7 +54,7 @@ class PointShopAdminMenuTest {
             assertThat(at).as(key + " 차례").isGreaterThan(last);
             last = at;
         }
-        assertThat(source).containsPattern("key: 'pointShop',\\s*icon: 'pi pi-shopping-bag',\\s*labelKey: 'menu.pointShop',");
+        assertThat(source).containsPattern("key: 'pointShop',\\s*to: '/#menu-pointShop',\\s*icon: 'pi pi-shopping-bag',\\s*labelKey: 'menu.pointShop',");
         assertThat(source.indexOf("key: 'pointShop'")).isGreaterThan(source.indexOf("key: 'pointPolicy'"));
     }
 }

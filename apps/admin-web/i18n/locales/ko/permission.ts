@@ -6,7 +6,7 @@ export default {
     // 영역(대분류)
     area: {
         content: '콘텐츠',
-        safety: '커뮤니티 안전',
+        safety: '신고·제재',
         member: '회원',
         club: '소모임',
         hotdeal: '핫딜',
@@ -111,13 +111,13 @@ export default {
 
     // 사이트·연동(알림 화면)
     notificationRead: '알림 이벤트 조회',
-    notificationReadDesc: '설정 메뉴의 「알림·이벤트」에서 알림 도구와, 회원·운영자 이벤트별 사용 여부·전달 도구·추가 수신 팀을 봅니다.',
+    notificationReadDesc: '설정 메뉴의 「알림·메일」에서 알림 도구와, 회원·운영자 이벤트별 사용 여부·전달 도구·추가 수신 팀을 봅니다.',
     notificationManage: '알림 이벤트 설정',
     notificationManageDesc: '알림 도구를 추가·수정·삭제하고, 알림 이벤트의 사용 여부·전달 도구·추가 수신 팀을 바꿉니다. 기본으로 알림을 누가 받는지는 이벤트마다 정해져 있어 바꿀 수 없습니다.',
 
     // 사이트·연동(알림 템플릿·문구 화면 — 화면 목업 후보, 서버 권한은 서버 단계에서 만든다)
     templateRead: '알림 템플릿·문구 조회',
-    templateReadDesc: '설정 메뉴 「알림·이벤트」 묶음의 템플릿(메일·Slack·Mattermost·카카오톡의 겉모양)과 문구(이벤트·채널별 제목과 본문)·필수 안내 메일, 이벤트별 쓰는 문구·특수 상황 규칙, 변경 이력을 봅니다.',
+    templateReadDesc: '설정 메뉴 「알림·메일」 묶음의 템플릿(메일·Slack·Mattermost·카카오톡의 겉모양)과 문구(이벤트·채널별 제목과 본문)·필수 안내 메일, 이벤트별 쓰는 문구·특수 상황 규칙, 변경 이력을 봅니다.',
     templateManage: '알림 템플릿·문구 관리',
     templateManageDesc: '템플릿과 문구를 만들고 고치고 지우며, 이벤트·필수 안내 메일별 쓰는 문구·특수 상황 규칙을 바꾸고 시험 메일·Slack·Mattermost 글을 보냅니다. 보안 메일의 필수 변수는 지울 수 없습니다.',
     // 사이트·연동(약관 화면 `/settings/terms`)

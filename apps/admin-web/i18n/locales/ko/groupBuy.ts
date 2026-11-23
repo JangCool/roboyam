@@ -796,7 +796,7 @@ export default {
     productPickPlaceholder: '상품 고르기',
     productCategory: '카테고리',
     productEdit: '상품 화면에서 고치기',
-    productNone: '상품을 먼저 골라 주세요. 상품이 없으면 공구 › 상품에서 만들어요.',
+    productNone: '상품을 먼저 골라 주세요. 상품이 없으면 공동구매 › 상품에서 만들어요.',
     fromProductHelp: '설명·이미지는 상품에서 온 내용이에요. 고치려면 상품 화면에서 고쳐요(진행 중 공구에도 바로 보여요).',
     noticeFromProduct: '고시 양식은 상품에서 와요 — 본 상품 양식은 이 공구의 상품, 추가 구성상품 양식은 그 상품의 것이에요. 고치려면 상품 화면에서 고쳐요.',
     fromProduct: '상품에서 옴',

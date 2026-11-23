@@ -9,6 +9,7 @@ import com.community.audit.service.AuditLabels;
 import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.permission.entity.Permission;
@@ -83,11 +84,10 @@ class EmoticonAdminCatalogTest {
     }
 
     @Test
-    void 메뉴_로보티콘_묶음은_포인트_상점_바로_다음_세_화면_emoticon_read_admin_web_정의와_같은_줄_차례() throws IOException {
-        List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
-        List<String> sections = normal.stream().map(AdminMenuNode::labelKey).toList();
-        assertThat(sections.indexOf("menu.emoticon")).isEqualTo(sections.indexOf("menu.pointShop") + 1);
-        AdminMenuNode section = normal.get(sections.indexOf("menu.emoticon"));
+    void 메뉴_로보티콘은_포인트_상점_바로_다음_부모_항목이고_admin_web_정의와_같은_줄_차례() throws IOException {
+        List<String> folders = AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.pointAndShop"));
+        assertThat(folders.indexOf("menu.emoticon")).isEqualTo(folders.indexOf("menu.pointShop") + 1);
+        AdminMenuNode section = AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.emoticon");
         assertThat(section.icon()).isEqualTo("pi pi-face-smile");
         assertThat(section.children().stream().map(AdminMenuNode::targetKey).toList()).containsExactlyElementsOf(SCREENS);
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.emoticon")).isTrue();
@@ -106,7 +106,7 @@ class EmoticonAdminCatalogTest {
             last = source.indexOf(expected);
         }
         assertThat(AdminScreenRegistry.screen("emoticonReviews").orElseThrow().path()).isEqualTo("/robotikon/reviews");
-        assertThat(source).containsPattern("key: 'emoticon',\\s*icon: 'pi pi-face-smile',\\s*labelKey: 'menu.emoticon',");
+        assertThat(source).containsPattern("key: 'emoticon',\\s*to: '/#menu-emoticon',\\s*icon: 'pi pi-face-smile',\\s*labelKey: 'menu.emoticon',");
     }
 
     @Test

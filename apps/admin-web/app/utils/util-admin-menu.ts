@@ -104,12 +104,13 @@ export default class UtilAdminMenu {
      * 지금 있는 화면의 메뉴. 새 화면이 생길 때 한 줄씩 더한다(서버 `AdminScreenRegistry` 에도 같은 한 줄 — 파일 머리말).
      * 운영자와 권한 묶음 — hamonica3 의 `사용자와 권한`(회원 관리 · 역할 관리)에 대응한다. 이 제품에서 회원은 공개 사이트 이용자이고 관리자 앱 계정은 운영자다.
      * 배치와 로그 묶음 — hamonica3 의 시스템 설정 메뉴(`배치와 로그`: 배치 관리 · 배치 로그 · 감사 로그)와 같은 이름·차례·아이콘·주소다.
-     * 모드: 대시보드·회원(회원 관리·등급 설정)·메뉴 관리·게시판·포인트·포인트 상점·소모임은 일반 메뉴, 「일반」·알림·운영자와 권한·배치와 로그는 설정 메뉴(`mode: 'settings'`)다. 등급 설정은 회원 운영 업무라 일반 메뉴에 남긴다(주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다).
+     * 모드(사용자 결정 2026-11-23 — docs/features/menu-contract.md 「관리자 메뉴 정리」): **업무 설정은 그 업무 묶음 안(일반 메뉴), 사이트 전체에 걸린 것만 설정 메뉴**(`mode: 'settings'`)다. 주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다(통계 수집 · 닉네임 이미지 설정 · 커머스 설정은 일반, `/menus/*` 는 설정).
+     * 하위가 같은 앞부분을 갖지 않는 부모의 `to` 는 어느 주소와도 겹치지 않는 자리 표시(`/#menu-<key>`)다 — 부모는 하위가 활성일 때만 활성이다. 권한이 서로 다른 하위를 가진 부모는 `permission` 을 두지 않는다(하위로 거른다).
      * 포인트 묶음(포인트 내역·포인트 정책)은 실제 서버(`usePointApi`)를 부른다 — 권한(`point.read`)이 있는 운영자에게 보인다.
      */
     static readonly ITEMS: readonly AdminMenuNode[] = [
         { key: 'dashboard', to: '/', icon: 'pi pi-home', labelKey: 'menu.dashboard' },
-        // 방문자 통계 묶음(site-analytics-contract — 사용자 결정 2026-11-04, 그누보드 「방문자 통계」처럼 여러 쪽) — 모두 `site.read`. 수집 설정(`/settings/analytics`)은 설정 메뉴에 그대로 둔다.
+        // 방문자 통계 묶음(site-analytics-contract — 사용자 결정 2026-11-04, 그누보드 「방문자 통계」처럼 여러 쪽) — 모두 `site.read`. 수집 설정(`/settings/analytics`)은 부모 「관리」 안에 둔다.
         // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례다(바꿀 때 함께).
         {
             key: 'visitStats',
@@ -128,8 +129,18 @@ export default class UtilAdminMenu {
                 { key: 'visitEnvironment', to: '/analytics/visits/environment', icon: 'pi pi-mobile', labelKey: 'menu.visitEnvironment', permission: 'site.read' },
                 { key: 'visitSearch', to: '/analytics/visits/search', icon: 'pi pi-search', labelKey: 'menu.visitSearch', permission: 'site.read' },
                 { key: 'visitBots', to: '/analytics/visits/bots', icon: 'pi pi-microchip-ai', labelKey: 'menu.visitBots', permission: 'site.read' },
-                { key: 'visitHealth', to: '/analytics/visits/health', icon: 'pi pi-wave-pulse', labelKey: 'menu.visitHealth', permission: 'site.read' },
-                { key: 'visitRequests', to: '/analytics/visits/requests', icon: 'pi pi-eraser', labelKey: 'menu.visitRequests', permission: 'site.read' },
+                {
+                    key: 'visitManage',
+                    to: '/#menu-visitManage',
+                    icon: 'pi pi-cog',
+                    labelKey: 'menu.visitManage',
+                    children: [
+                        { key: 'visitHealth', to: '/analytics/visits/health', icon: 'pi pi-wave-pulse', labelKey: 'menu.visitHealth', permission: 'site.read' },
+                        { key: 'visitRequests', to: '/analytics/visits/requests', icon: 'pi pi-eraser', labelKey: 'menu.visitRequests', permission: 'site.read' },
+                        // 통계 수집(site-analytics-contract — 방문·알림·게시판 집계를 항목별로 켜고 끈다, 모두 기본 꺼짐) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(조직 구성 다음)
+                        { key: 'analyticsSettings', to: '/settings/analytics', icon: 'pi pi-chart-bar', labelKey: 'menu.analyticsSettings', permission: 'site.read' },
+                    ],
+                },
             ],
         },
         // 회원 묶음 — 공개 사이트 이용자(회원)를 다룬다. 관리자 앱 계정(운영자)은 아래 `operatorsAndPermissions` 다.
@@ -144,27 +155,44 @@ export default class UtilAdminMenu {
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
                 // 회원 칭호(member-title-contract — 칭호·확인할 일·이달의 작가 뽑기·주고 뺀 기록 네 화면, `/members/titles/*`). 서버 `AdminScreenRegistry.memberTitles` 와 같은 키·주소·권한·아이콘
                 { key: 'memberTitles', to: '/members/titles', icon: 'pi pi-star', labelKey: 'menu.memberTitles', permission: 'title.read' },
-                // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
-                { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },
-                // 아바타 올리기 심사(서버 연결됨 — commerce-motion-avatar-contract) — 권한은 닉네임 이미지 심사와 같다. 서버 `AdminScreenRegistry.avatarUploads` 와 같은 줄
-                { key: 'avatarUploads', to: '/members/avatar-uploads', icon: 'pi pi-upload', labelKey: 'menu.avatarUploads', permission: 'nickname-image.read' },
+                {
+                    key: 'imageReviews',
+                    to: '/#menu-imageReviews',
+                    icon: 'pi pi-image',
+                    labelKey: 'menu.imageReviews',
+                    children: [
+                        // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
+                        { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },
+                        // 아바타 올리기 심사(서버 연결됨 — commerce-motion-avatar-contract) — 권한은 닉네임 이미지 심사와 같다. 서버 `AdminScreenRegistry.avatarUploads` 와 같은 줄
+                        { key: 'avatarUploads', to: '/members/avatar-uploads', icon: 'pi pi-upload', labelKey: 'menu.avatarUploads', permission: 'nickname-image.read' },
+                        { key: 'nicknameImageSettings', to: '/settings/nickname-image', icon: 'pi pi-image', labelKey: 'menu.nicknameImageSettings', permission: 'nickname-image.read' },
+                    ],
+                },
             ],
         },
-        // 메뉴 관리 묶음 — 공개 사이트 메뉴(메뉴 그룹별 트리)와 관리자 사이트 메뉴 구성. community 의 「메뉴 구성」에 대응한다. 부모 주소(`/menus`)로 들어오면 공개 사이트 메뉴로 보낸다
+        // 신고·제재 묶음 — 신고 관리: 글·댓글 신고를 대상별 사건으로 보고 조치·무시(docs/features/report-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
+        // 제재·이의제기(docs/features/member-sanction-contract.md): 둘 다 보기 `sanction.read`(처리는 화면 안에서 `sanction.manage`·`sanction.ban`·`appeal.manage`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
+        // 게시판 제재(docs/features/board-sanction-contract.md): 보기 `sanction.read`(해제·무효·반복 검토 닫기는 화면 안에서 `sanction.manage`). ⚠ 서버 `AdminScreenRegistry` 에 같은 키·주소·권한·아이콘·차례로 한 줄 더해야 한다(아직 없음)
+        // 스텝 처리 감독(docs/features/board-staff-action-contract.md): 보기 `keeper-action.read`(되돌리기는 화면 안에서 `keeper-action.restore`). 서버 `AdminScreenRegistry` 의 `staffActions`(게시판 제재 다음)와 같은 키·주소·권한·아이콘·차례
         {
-            key: 'siteMenu',
-            icon: 'pi pi-bars',
-            labelKey: 'menu.siteMenu',
+            key: 'safety',
+            icon: 'pi pi-shield',
+            labelKey: 'menu.safety',
             items: [
-                { key: 'menusPublic', to: '/menus/public', icon: 'pi pi-globe', labelKey: 'menu.menusPublic', permission: 'layout.read' },
-                { key: 'menusAdmin', to: '/menus/admin', icon: 'pi pi-desktop', labelKey: 'menu.menusAdmin', permission: 'layout.read' },
+                { key: 'reports', to: '/reports', icon: 'pi pi-flag', labelKey: 'menu.reports', permission: 'report.read' },
+                { key: 'sanctions', to: '/sanctions', icon: 'pi pi-ban', labelKey: 'menu.sanctions', permission: 'sanction.read' },
+                { key: 'boardSanctions', to: '/board-sanctions', icon: 'pi pi-hammer', labelKey: 'menu.boardSanctions', permission: 'sanction.read' },
+                { key: 'staffActions', to: '/staff-actions', icon: 'pi pi-eye', labelKey: 'menu.staffActions', permission: 'keeper-action.read' },
+                { key: 'appeals', to: '/appeals', icon: 'pi pi-comments', labelKey: 'menu.appeals', permission: 'sanction.read' },
             ],
         },
         // 게시판 묶음 — 게시판 관리(게시판 목록·게시판별 설정)와 모든 게시판에 일괄 적용되는 기본 설정. community 의 「게시판 구성」·「게시판 기본 설정」, 그누보드7 의 게시판 관리·기본 설정에 대응한다
+        // 콘텐츠 묶음 — 게시글 관리(맨 앞)·하이라이트(토론 의견 관리 포함)·인기글 관리(빼기·다시 넣기)·인기글 설정(점수식). 서버 `AdminScreenRegistry` 의 `menu.boardContent` 와 같은 키·주소·권한·차례(docs/features/popular-highlight-contract.md).
+        // `/content/popular/settings` 는 `/content/popular` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
         {
-            key: 'board',
+            key: 'boardContent',
             icon: 'pi pi-list',
-            labelKey: 'menu.board',
+            labelKey: 'menu.boardContent',
             items: [
                 { key: 'boards', to: '/boards', icon: 'pi pi-th-large', labelKey: 'menu.boards', permission: 'board.read' },
                 // 기본 설정은 하위 메뉴 다섯을 가진 부모다(그누보드7 게시판 기본 설정의 탭 다섯) — 역할 관리와 같은 방식. 부모 주소(`/boards/defaults`)로 들어오면 「일반」으로 보낸다
@@ -182,127 +210,24 @@ export default class UtilAdminMenu {
                         { key: 'boardDefaultsPrivacy', to: '/boards/defaults/privacy', labelKey: 'menu.boardDefaultsPrivacy', permission: 'board.read' },
                     ],
                 },
-            ],
-        },
-        // 커뮤니티 안전 묶음(콘텐츠 묶음 앞) — 신고 관리: 글·댓글 신고를 대상별 사건으로 보고 조치·무시(docs/features/report-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
-        // 제재·이의제기(docs/features/member-sanction-contract.md): 둘 다 보기 `sanction.read`(처리는 화면 안에서 `sanction.manage`·`sanction.ban`·`appeal.manage`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
-        // 게시판 제재(docs/features/board-sanction-contract.md): 보기 `sanction.read`(해제·무효·반복 검토 닫기는 화면 안에서 `sanction.manage`). ⚠ 서버 `AdminScreenRegistry` 에 같은 키·주소·권한·아이콘·차례로 한 줄 더해야 한다(아직 없음)
-        // 스텝 처리 감독(docs/features/board-staff-action-contract.md): 보기 `keeper-action.read`(되돌리기는 화면 안에서 `keeper-action.restore`). 서버 `AdminScreenRegistry` 의 `staffActions`(게시판 제재 다음)와 같은 키·주소·권한·아이콘·차례
-        {
-            key: 'safety',
-            icon: 'pi pi-shield',
-            labelKey: 'menu.safety',
-            items: [
-                { key: 'reports', to: '/reports', icon: 'pi pi-flag', labelKey: 'menu.reports', permission: 'report.read' },
-                { key: 'sanctions', to: '/sanctions', icon: 'pi pi-ban', labelKey: 'menu.sanctions', permission: 'sanction.read' },
-                { key: 'boardSanctions', to: '/board-sanctions', icon: 'pi pi-hammer', labelKey: 'menu.boardSanctions', permission: 'sanction.read' },
-                { key: 'staffActions', to: '/staff-actions', icon: 'pi pi-eye', labelKey: 'menu.staffActions', permission: 'keeper-action.read' },
-                { key: 'appeals', to: '/appeals', icon: 'pi pi-comments', labelKey: 'menu.appeals', permission: 'sanction.read' },
-            ],
-        },
-        // 콘텐츠 묶음 — 게시글 관리(맨 앞)·하이라이트(토론 의견 관리 포함)·인기글 관리(빼기·다시 넣기)·인기글 설정(점수식). 서버 `AdminScreenRegistry` 의 `menu.content` 와 같은 키·주소·권한·차례(docs/features/popular-highlight-contract.md).
-        // `/content/popular/settings` 는 `/content/popular` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
-        {
-            key: 'content',
-            icon: 'pi pi-folder-open',
-            labelKey: 'menu.content',
-            items: [
                 // 게시글 관리 — 모든 게시판의 글을 찾아 숨기기·삭제·복구·이동·공지·고정(docs/features/post-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
                 { key: 'posts', to: '/posts', icon: 'pi pi-file-edit', labelKey: 'menu.posts', permission: 'post.read' },
                 // 공지 관리 — 공지 게시판(slug `notice`) 글 쓰기·고치기·지우기·고정(docs/features/notice-admin-contract.md). 쓰기는 화면 안에서 `post.manage`.
                 // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한. 관리자 메뉴를 이미 저장한 사이트는 메뉴 관리 › 「메뉴에 없는 화면」에서 넣는다.
                 { key: 'notices', to: '/notices', icon: 'pi pi-megaphone', labelKey: 'menu.notices', permission: 'post.read' },
                 { key: 'highlights', to: '/content/highlights', icon: 'pi pi-sparkles', labelKey: 'menu.highlights', permission: 'highlight.read' },
-                { key: 'popularPosts', to: '/content/popular', icon: 'pi pi-thumbs-up', labelKey: 'menu.popularPosts', permission: 'popular.read' },
-                { key: 'popularSettings', to: '/content/popular/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.popularSettings', permission: 'popular.read' },
+                {
+                    key: 'popular',
+                    to: '/#menu-popular',
+                    icon: 'pi pi-thumbs-up',
+                    labelKey: 'menu.popular',
+                    children: [
+                        { key: 'popularPosts', to: '/content/popular', icon: 'pi pi-thumbs-up', labelKey: 'menu.popularPosts', permission: 'popular.read' },
+                        { key: 'popularSettings', to: '/content/popular/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.popularSettings', permission: 'popular.read' },
+                    ],
+                },
                 // 팝업 관리 — 공개 사이트에 들어오면 가운데 뜨는 이벤트·프로모션 창(docs/features/site-popup-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘
                 { key: 'sitePopups', to: '/content/popups', icon: 'pi pi-window-maximize', labelKey: 'menu.popups', permission: 'site.read' },
-            ],
-        },
-        // 포인트 묶음 — 전체 포인트 내역(수동 지급·차감 포함)과 지급 규칙(포인트 정책). community 의 「포인트 설정」, 그누보드7 의 포인트 관리에 대응한다
-        {
-            key: 'point',
-            icon: 'pi pi-wallet',
-            labelKey: 'menu.point',
-            items: [
-                { key: 'points', to: '/points', icon: 'pi pi-receipt', labelKey: 'menu.points', permission: 'point.read' },
-                { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
-            ],
-        },
-        // 포인트 상점 묶음(포인트 묶음 바로 다음) — 포인트로 사는 디지털 아이템의 품목 관리 · 구매 내역(예외 환불) · 포인트 상점 설정(환불 기한). commerce.md 7절, 계약 commerce-stage1 「1-2 화면 목업」.
-        // 「상점」이라고만 부르지 않고(포인트 상점), 공동구매(현금으로 사는 실물)와 같은 묶음에 넣지 않는다(사용자 2026-10-26).
-        // 서버 `AdminScreenRegistry` 에도 같은 세 줄이 있다. 세 화면 모두 조회 `pointshop.read`, 화면 안에서 저장 `pointshop.manage` · 예외 환불 `pointshop.refund`(0-5 의 `shop.*` 를 1-2 에서 바꿨다).
-        {
-            key: 'pointShop',
-            icon: 'pi pi-shopping-bag',
-            labelKey: 'menu.pointShop',
-            items: [
-                { key: 'pointShopItems', to: '/point-shop/items', icon: 'pi pi-box', labelKey: 'menu.pointShopItems', permission: 'pointshop.read' },
-                { key: 'pointShopPurchases', to: '/point-shop/purchases', icon: 'pi pi-receipt', labelKey: 'menu.pointShopPurchases', permission: 'pointshop.read' },
-                { key: 'pointShopSettings', to: '/point-shop/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.pointShopSettings', permission: 'pointshop.read' },
-            ],
-        },
-        // 로보티콘 묶음(포인트 상점 묶음 다음) — 로보티콘 상점(회원 `/robotikon`, 무료 받기 + 실결제 유료 팩)은 포인트 상점과 메뉴를 따로 둔다(계약 emoticon-contract 「이름」). 코드 식별자는 `emoticon` 그대로.
-        // 심사(작가 신청 팩) · 팩 관리(판매 중단·운영 팩) · 판매 내역(실결제·예외 환불) · 작가 정산(월 정산·지급 기록) · 설정(작가 보상·팩 규격·유료 판매·정산 규칙). 모두 실제 API(`useEmoticonAdminApi`, S1~S4).
-        // 서버 `AdminScreenRegistry` 의 같은 다섯 줄 · 권한 `emoticon.*`(서버 `Permission`)와 맞춘다(정본은 서버).
-        // 판매 내역은 `emoticon.sales`(조회·예외 환불), 작가 정산은 `emoticon.settlement`(조회·처리)로 거른다 — 돈과 구매 회원·작가 정보를 다루므로 일반 조회(`emoticon.read`)와 나눴다.
-        {
-            key: 'emoticon',
-            icon: 'pi pi-face-smile',
-            labelKey: 'menu.emoticon',
-            items: [
-                { key: 'emoticonReviews', to: '/robotikon/reviews', icon: 'pi pi-check-square', labelKey: 'menu.emoticonReviews', permission: 'emoticon.read' },
-                { key: 'emoticonPacks', to: '/robotikon/packs', icon: 'pi pi-images', labelKey: 'menu.emoticonPacks', permission: 'emoticon.read' },
-                { key: 'emoticonSales', to: '/robotikon/sales', icon: 'pi pi-receipt', labelKey: 'menu.emoticonSales', permission: 'emoticon.sales' },
-                { key: 'emoticonSettlements', to: '/robotikon/settlements', icon: 'pi pi-money-bill', labelKey: 'menu.emoticonSettlements', permission: 'emoticon.settlement' },
-                { key: 'emoticonSettings', to: '/robotikon/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.emoticonSettings', permission: 'emoticon.read' },
-            ],
-        },
-        // 보상 이벤트 묶음(로보티콘 묶음 다음) — 가입 선착순 지급·추첨 당첨·전체 일괄 지급처럼 회원에게 보상을 주는 이벤트와 지급 내역. 「사이트 팝업」(알림 창)과 다른 업무라 늘 「보상 이벤트」라고 부른다.
-        // ⚠ 목업(`useRewardEventAdminApi`, 2026-11-07 화면 확정 전) — 서버 AdminScreenRegistry·Permission 에 같은 줄 필요(키 `rewardEvents` · 주소 `/reward-events` · 권한 `reward-event.read`).
-        //   화면 안 처리는 `reward-event.manage`(만들기·고치기·후보·당첨자·추첨·시작·마감·취소)·`reward-event.grant`(지급·재시도·회수·전달 완료)·`point.adjust.large`(1인 고액 포인트)를 따로 본다.
-        {
-            key: 'rewardEvent',
-            icon: 'pi pi-gift',
-            labelKey: 'menu.rewardEvent',
-            items: [{ key: 'rewardEvents', to: '/reward-events', icon: 'pi pi-gift', labelKey: 'menu.rewardEvents', permission: 'reward-event.read' }],
-        },
-        // 공구 묶음(결제 묶음 앞) — 운영자가 파는 실물 공동구매(현금 결제): 공구(목록·등록·운영 동작) · 수량(총량·선점·변동·추가 입고/줄이기) · 주문(발주·발송·운영 환불·명단) · 취소·반품 요청 대기열.
-        // 계약 commerce-groupbuy 「화면 목록 (2b-1)」·결정 3·35. ⚠ 화면은 아직 목업(`useGroupBuy*Api`)이다. 서버 `AdminScreenRegistry` 에도 같은 네 줄이 필요하고, 쓰는 권한의 `featureReady` 를 켜야 한다(2b-2~2b-4).
-        // 조회는 공구·수량 `commerce.product.read`, 주문·요청 `commerce.order.read`. 화면 안 처리는 `commerce.product.manage`·`commerce.stock.adjust`·`commerce.groupbuy.cancel`·`commerce.order.manage`·`commerce.refund.approve`·`commerce.refund.large`·`commerce.address.reveal`·`commerce.export` 를 따로 본다.
-        // 주소는 서로 앞부분이 겹치지 않게 둔다(`/group-buys` 와 `/group-buy-…`). Q&A 대기열은 2b-6 에서 더한다.
-        {
-            key: 'groupBuy',
-            icon: 'pi pi-shop',
-            labelKey: 'menu.groupBuy',
-            items: [
-                // 결정 89 — 상품(이름·설명·이미지·카테고리·고시·옵션 축/단품·기본 공급가)과 카테고리(2단). 서버 AdminScreenRegistry 에도 두 줄
-                { key: 'groupBuyProducts', to: '/group-buy-products', icon: 'pi pi-tag', labelKey: 'menu.groupBuyProducts', permission: 'commerce.product.read' },
-                // 옵션 종류(사용자 결정 2026-10-28 — 상품 옵션 이름은 코드로 고른다). 서버 AdminScreenRegistry 에도 한 줄
-                { key: 'groupBuyOptionTypes', to: '/group-buy-option-types', icon: 'pi pi-list-check', labelKey: 'menu.groupBuyOptionTypes', permission: 'commerce.product.read' },
-                { key: 'groupBuyCategories', to: '/group-buy-categories', icon: 'pi pi-sitemap', labelKey: 'menu.groupBuyCategories', permission: 'commerce.product.read' },
-                { key: 'groupBuys', to: '/group-buys', icon: 'pi pi-shopping-bag', labelKey: 'menu.groupBuys', permission: 'commerce.product.read' },
-                { key: 'groupBuyStock', to: '/group-buy-stock', icon: 'pi pi-warehouse', labelKey: 'menu.groupBuyStock', permission: 'commerce.product.read' },
-                { key: 'groupBuyOrders', to: '/group-buy-orders', icon: 'pi pi-truck', labelKey: 'menu.groupBuyOrders', permission: 'commerce.order.read' },
-                { key: 'groupBuyRequests', to: '/group-buy-requests', icon: 'pi pi-replay', labelKey: 'menu.groupBuyRequests', permission: 'commerce.order.read' },
-                // 공구 Q&A·리뷰(2b-6) — 서버 AdminScreenRegistry 에만 있어 메뉴에서 빠지고 화면 권한 검사도 없었다(관리자 QA 2026-11-17 F-4)
-                { key: 'groupBuyQna', to: '/group-buy-qna', icon: 'pi pi-comments', labelKey: 'menu.groupBuyQna', permission: 'commerce.order.read' },
-                { key: 'groupBuyReviews', to: '/group-buy-reviews', icon: 'pi pi-star', labelKey: 'menu.groupBuyReviews', permission: 'commerce.order.read' },
-            ],
-        },
-        // 결제 묶음(포인트 상점 묶음 다음) — 현금 결제 모듈(포트원 V2)의 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. commerce.md 13-5, 계약 commerce-payment 결정 13.
-        // 서버 API 에 연결됨(2a-3 — `usePaymentAdminApi`). 서버 `AdminScreenRegistry` 의 같은 다섯 줄·권한 `commerce.payment.read`·`commerce.reconcile.manage`(`featureReady` 켬)와 맞춘다 — 바꿀 때 두 곳을 같게 한다.
-        // 다섯 화면 모두 조회 `commerce.payment.read`, 화면 안의 처리(다시 시도 · 수동 처리 완료 · 포트원에서 다시 확인 · 대사 처리)는 `commerce.reconcile.manage`. PG 설정은 설정 › 포트원(`/settings/portone`) 그대로.
-        {
-            key: 'payment',
-            icon: 'pi pi-credit-card',
-            labelKey: 'menu.payment',
-            items: [
-                { key: 'paymentOrders', to: '/payments/orders', icon: 'pi pi-receipt', labelKey: 'menu.paymentOrders', permission: 'commerce.payment.read' },
-                { key: 'paymentWebhooks', to: '/payments/webhooks', icon: 'pi pi-inbox', labelKey: 'menu.paymentWebhooks', permission: 'commerce.payment.read' },
-                { key: 'paymentAnomalies', to: '/payments/anomalies', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.paymentAnomalies', permission: 'commerce.payment.read' },
-                { key: 'paymentReconcileDays', to: '/payments/reconcile-days', icon: 'pi pi-calendar', labelKey: 'menu.paymentReconcileDays', permission: 'commerce.payment.read' },
-                { key: 'paymentReconciliation', to: '/payments/reconciliation', icon: 'pi pi-arrow-right-arrow-left', labelKey: 'menu.paymentReconciliation', permission: 'commerce.payment.read' },
             ],
         },
         // 소모임 묶음 — 소모임 목록(열림·비활성, 상세 서랍에서 비활성화·다시 열기) · 개설 승인 · 분류(소모임 게시판 할당) · 설정(개설 규칙·매니저·공개 범위·운영 한도). community 관리자 앱의 「소모임」 묶음에 대응한다.
@@ -330,20 +255,59 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'aiMembers', to: '/ai-members', icon: 'pi pi-users', labelKey: 'menu.aiMembers', permission: 'ai-member.read' },
                 { key: 'aiMemberDrafts', to: '/ai-members/drafts', icon: 'pi pi-inbox', labelKey: 'menu.aiMemberDrafts', permission: 'ai-member.read' },
-                { key: 'aiMemberSettings', to: '/ai-members/settings', icon: 'pi pi-cog', labelKey: 'menu.aiMemberSettings', permission: 'ai-member.read' },
-                { key: 'aiMemberPrompts', to: '/ai-members/prompts', icon: 'pi pi-pen-to-square', labelKey: 'menu.aiMemberPrompts', permission: 'ai-member.read' },
                 { key: 'aiMemberLogs', to: '/ai-members/logs', icon: 'pi pi-history', labelKey: 'menu.aiMemberLogs', permission: 'ai-member.read' },
+                { key: 'aiMemberPrompts', to: '/ai-members/prompts', icon: 'pi pi-pen-to-square', labelKey: 'menu.aiMemberPrompts', permission: 'ai-member.read' },
+                { key: 'aiMemberSettings', to: '/ai-members/settings', icon: 'pi pi-cog', labelKey: 'menu.aiMemberSettings', permission: 'ai-member.read' },
             ],
         },
-        // 사업자 묶음 — 신원 인증 심사(`/business-reviews`, 심사 중·재심사) · 승인된 사업자 운영(`/businesses`, 정지·정지 해제·평문 열람). 계약 business-contract · 04-ia-review 5절.
-        // 두 화면 모두 조회 `business.read`(화면 안에서 처리 `business.manage` · 평문 `business.reveal` · 정지 해제 `business.unsuspend`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         {
-            key: 'business',
-            icon: 'pi pi-briefcase',
-            labelKey: 'menu.business',
+            key: 'pointAndShop',
+            icon: 'pi pi-wallet',
+            labelKey: 'menu.pointAndShop',
             items: [
-                { key: 'businessReviews', to: '/business-reviews', icon: 'pi pi-inbox', labelKey: 'menu.businessReviews', permission: 'business.read' },
-                { key: 'businesses', to: '/businesses', icon: 'pi pi-building', labelKey: 'menu.businesses', permission: 'business.read' },
+                // 포인트 — 전체 포인트 내역(수동 지급·차감 포함)과 지급 규칙(포인트 정책). community 의 「포인트 설정」, 그누보드7 의 포인트 관리에 대응한다
+                {
+                    key: 'point',
+                    to: '/#menu-point',
+                    icon: 'pi pi-wallet',
+                    labelKey: 'menu.point',
+                    children: [
+                        { key: 'points', to: '/points', icon: 'pi pi-receipt', labelKey: 'menu.points', permission: 'point.read' },
+                        { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
+                    ],
+                },
+                // 포인트 상점 — 포인트로 사는 디지털 아이템의 품목 관리 · 구매 내역(예외 환불) · 포인트 상점 설정(환불 기한). commerce.md 7절, 계약 commerce-stage1 「1-2 화면 목업」.
+                // 「상점」이라고만 부르지 않고(포인트 상점), 공동구매(현금으로 사는 실물)와 같은 묶음에 넣지 않는다(사용자 2026-10-26).
+                // 서버 `AdminScreenRegistry` 에도 같은 세 줄이 있다. 세 화면 모두 조회 `pointshop.read`, 화면 안에서 저장 `pointshop.manage` · 예외 환불 `pointshop.refund`(0-5 의 `shop.*` 를 1-2 에서 바꿨다).
+                {
+                    key: 'pointShop',
+                    to: '/#menu-pointShop',
+                    icon: 'pi pi-shopping-bag',
+                    labelKey: 'menu.pointShop',
+                    children: [
+                        { key: 'pointShopItems', to: '/point-shop/items', icon: 'pi pi-box', labelKey: 'menu.pointShopItems', permission: 'pointshop.read' },
+                        { key: 'pointShopPurchases', to: '/point-shop/purchases', icon: 'pi pi-receipt', labelKey: 'menu.pointShopPurchases', permission: 'pointshop.read' },
+                        { key: 'pointShopSettings', to: '/point-shop/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.pointShopSettings', permission: 'pointshop.read' },
+                    ],
+                },
+                // 로보티콘 — 로보티콘 상점(회원 `/robotikon`, 무료 받기 + 실결제 유료 팩)은 포인트 상점과 메뉴를 따로 둔다(계약 emoticon-contract 「이름」). 코드 식별자는 `emoticon` 그대로.
+                // 심사(작가 신청 팩) · 팩 관리(판매 중단·운영 팩) · 판매 내역(실결제·예외 환불) · 작가 정산(월 정산·지급 기록) · 설정(작가 보상·팩 규격·유료 판매·정산 규칙). 모두 실제 API(`useEmoticonAdminApi`, S1~S4).
+                // 서버 `AdminScreenRegistry` 의 같은 다섯 줄 · 권한 `emoticon.*`(서버 `Permission`)와 맞춘다(정본은 서버).
+                // 판매 내역은 `emoticon.sales`(조회·예외 환불), 작가 정산은 `emoticon.settlement`(조회·처리)로 거른다 — 돈과 구매 회원·작가 정보를 다루므로 일반 조회(`emoticon.read`)와 나눴다.
+                {
+                    key: 'emoticon',
+                    to: '/#menu-emoticon',
+                    icon: 'pi pi-face-smile',
+                    labelKey: 'menu.emoticon',
+                    children: [
+                        { key: 'emoticonReviews', to: '/robotikon/reviews', icon: 'pi pi-check-square', labelKey: 'menu.emoticonReviews', permission: 'emoticon.read' },
+                        { key: 'emoticonPacks', to: '/robotikon/packs', icon: 'pi pi-images', labelKey: 'menu.emoticonPacks', permission: 'emoticon.read' },
+                        { key: 'emoticonSales', to: '/robotikon/sales', icon: 'pi pi-receipt', labelKey: 'menu.emoticonSales', permission: 'emoticon.sales' },
+                        { key: 'emoticonSettlements', to: '/robotikon/settlements', icon: 'pi pi-money-bill', labelKey: 'menu.emoticonSettlements', permission: 'emoticon.settlement' },
+                        { key: 'emoticonSettings', to: '/robotikon/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.emoticonSettings', permission: 'emoticon.read' },
+                    ],
+                },
+                { key: 'rewardEvents', to: '/reward-events', icon: 'pi pi-gift', labelKey: 'menu.rewardEvents', permission: 'reward-event.read' },
             ],
         },
         // 광고 묶음 — 광고 심사(`/ad-reviews`, 신청 건 AD_* — 조회 `ad.read`, 처리 `ad.manage`, 환불 `deal-order.refund`) · 광고 일정표(`/ads`) · 광고 자리 설정(`/ads/placements`, 저장 `ad.settings`). 04-ia-review 1-2.
@@ -359,109 +323,187 @@ export default class UtilAdminMenu {
                 { key: 'adPerformance', to: '/ads/performance', icon: 'pi pi-chart-bar', labelKey: 'menu.adPerformance', permission: 'ad.read' },
                 // 광고주 관리(`/ad-advertisers` — 서버 `AdminScreenRegistry` 「광고」 넷째와 같은 키·주소·권한·차례)
                 { key: 'adAdvertisers', to: '/ad-advertisers', icon: 'pi pi-address-book', labelKey: 'menu.adAdvertisers', permission: 'ad.read' },
+                {
+                    key: 'trial',
+                    to: '/#menu-trial',
+                    icon: 'pi pi-box',
+                    labelKey: 'menu.trial',
+                    children: [
+                        // 체험단(trial-group-contract 「구현 결정」 10) — 서버 `AdminScreenRegistry` 「광고」 adTrials·adTrialSettings 와 같은 키·주소·권한·아이콘·차례(admin V12)
+                        { key: 'adTrials', to: '/ads/trials', icon: 'pi pi-box', labelKey: 'menu.adTrials', permission: 'trial.manage' },
+                        { key: 'adTrialSettings', to: '/ads/trials/settings', icon: 'pi pi-cog', labelKey: 'menu.adTrialSettings', permission: 'trial.settings' },
+                    ],
+                },
                 { key: 'adPlacements', to: '/ads/placements', icon: 'pi pi-sliders-h', labelKey: 'menu.adPlacements', permission: 'ad.read' },
-                // 체험단(trial-group-contract 「구현 결정」 10) — 서버 `AdminScreenRegistry` 「광고」 adTrials·adTrialSettings 와 같은 키·주소·권한·아이콘·차례(admin V12)
-                { key: 'adTrials', to: '/ads/trials', icon: 'pi pi-box', labelKey: 'menu.adTrials', permission: 'trial.manage' },
-                { key: 'adTrialSettings', to: '/ads/trials/settings', icon: 'pi pi-cog', labelKey: 'menu.adTrialSettings', permission: 'trial.settings' },
             ],
         },
-        // 핫딜 묶음 — 핫딜 심사(`/hotdeal-reviews`, 신청 건 HOTDEAL_* — 조회 `hotdeal.read`, 처리 `hotdeal.manage`, 환불 `deal-order.refund`).
-        // 회원 핫딜 1차(hotdeal-contract — 서버 `useHotdeal*Api`): 핫딜 글(`/hotdeals`, 종료·재개 `hotdeal.manage`) · 링크 규칙(`/hotdeals/domains`, 처리 `hotdeal.domain.manage`) ·
-        // 의심 후보(`/hotdeals/suspicions`, 무시 `hotdeal.manage`) · 핫딜 설정(`/hotdeals/settings`, 조회·저장 `hotdeal.manage`). `/hotdeals/*` 는 `/hotdeals` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다).
-        // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례 — 새 네 줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`)은 서버 레지스트리에도 더해야 한다(서버 단계)
+        // 사업자 묶음 — 신원 인증 심사(`/business-reviews`, 심사 중·재심사) · 승인된 사업자 운영(`/businesses`, 정지·정지 해제·평문 열람). 계약 business-contract · 04-ia-review 5절.
+        // 두 화면 모두 조회 `business.read`(화면 안에서 처리 `business.manage` · 평문 `business.reveal` · 정지 해제 `business.unsuspend`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         {
-            key: 'hotdeal',
-            icon: 'pi pi-ticket',
-            labelKey: 'menu.hotdeal',
+            key: 'bizHotdeal',
+            icon: 'pi pi-briefcase',
+            labelKey: 'menu.bizHotdeal',
             items: [
-                { key: 'hotdealReviews', to: '/hotdeal-reviews', icon: 'pi pi-inbox', labelKey: 'menu.hotdealReviews', permission: 'hotdeal.read' },
-                { key: 'hotdeals', to: '/hotdeals', icon: 'pi pi-ticket', labelKey: 'menu.hotdeals', permission: 'hotdeal.read' },
-                { key: 'hotdealDomains', to: '/hotdeals/domains', icon: 'pi pi-link', labelKey: 'menu.hotdealDomains', permission: 'hotdeal.read' },
-                { key: 'hotdealSuspicions', to: '/hotdeals/suspicions', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.hotdealSuspicions', permission: 'hotdeal.read' },
-                { key: 'hotdealSettings', to: '/hotdeals/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.hotdealSettings', permission: 'hotdeal.read' },
+                { key: 'businessReviews', to: '/business-reviews', icon: 'pi pi-inbox', labelKey: 'menu.businessReviews', permission: 'business.read' },
+                { key: 'businesses', to: '/businesses', icon: 'pi pi-building', labelKey: 'menu.businesses', permission: 'business.read' },
+                // 핫딜 — 핫딜 심사(`/hotdeal-reviews`, 신청 건 HOTDEAL_* — 조회 `hotdeal.read`, 처리 `hotdeal.manage`, 환불 `deal-order.refund`).
+                // 회원 핫딜 1차(hotdeal-contract — 서버 `useHotdeal*Api`): 핫딜 글(`/hotdeals`, 종료·재개 `hotdeal.manage`) · 링크 규칙(`/hotdeals/domains`, 처리 `hotdeal.domain.manage`) ·
+                // 의심 후보(`/hotdeals/suspicions`, 무시 `hotdeal.manage`) · 핫딜 설정(`/hotdeals/settings`, 조회·저장 `hotdeal.manage`). `/hotdeals/*` 는 `/hotdeals` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다).
+                // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례 — 새 네 줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`)은 서버 레지스트리에도 더해야 한다(서버 단계)
+                {
+                    key: 'hotdeal',
+                    to: '/#menu-hotdeal',
+                    icon: 'pi pi-ticket',
+                    labelKey: 'menu.hotdeal',
+                    children: [
+                        { key: 'hotdealReviews', to: '/hotdeal-reviews', icon: 'pi pi-inbox', labelKey: 'menu.hotdealReviews', permission: 'hotdeal.read' },
+                        { key: 'hotdeals', to: '/hotdeals', icon: 'pi pi-ticket', labelKey: 'menu.hotdeals', permission: 'hotdeal.read' },
+                        { key: 'hotdealDomains', to: '/hotdeals/domains', icon: 'pi pi-link', labelKey: 'menu.hotdealDomains', permission: 'hotdeal.read' },
+                        { key: 'hotdealSuspicions', to: '/hotdeals/suspicions', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.hotdealSuspicions', permission: 'hotdeal.read' },
+                        { key: 'hotdealSettings', to: '/hotdeals/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.hotdealSettings', permission: 'hotdeal.read' },
+                    ],
+                },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 공동구매 묶음 — 운영자가 파는 실물 공동구매(현금 결제): 공구(목록·등록·운영 동작) · 수량(총량·선점·변동·추가 입고/줄이기) · 주문(발주·발송·운영 환불·명단) · 취소·반품 요청 대기열.
+        // 계약 commerce-groupbuy 「화면 목록 (2b-1)」·결정 3·35. ⚠ 화면은 아직 목업(`useGroupBuy*Api`)이다. 서버 `AdminScreenRegistry` 에도 같은 네 줄이 필요하고, 쓰는 권한의 `featureReady` 를 켜야 한다(2b-2~2b-4).
+        // 조회는 공구·수량 `commerce.product.read`, 주문·요청 `commerce.order.read`. 화면 안 처리는 `commerce.product.manage`·`commerce.stock.adjust`·`commerce.groupbuy.cancel`·`commerce.order.manage`·`commerce.refund.approve`·`commerce.refund.large`·`commerce.address.reveal`·`commerce.export` 를 따로 본다.
+        // 주소는 서로 앞부분이 겹치지 않게 둔다(`/group-buys` 와 `/group-buy-…`). Q&A 대기열은 2b-6 에서 더한다.
         {
-            key: 'settingsSystem',
-            mode: 'settings',
-            icon: 'pi pi-cog',
-            labelKey: 'menu.system',
+            key: 'groupBuy',
+            icon: 'pi pi-shop',
+            labelKey: 'menu.groupBuy',
             items: [
-                { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
-                // 소셜 로그인 설정(카카오·네이버·구글 키) — 조회는 `site.read`, 저장·삭제는 화면 안에서 `site.secret`
-                { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-sign-in', labelKey: 'menu.socialLogin', permission: 'site.read' },
-                // 포트원 설정(본인인증 — 상점 ID·API 비밀키·채널 키, 2a 에 결제 칸) — 조회는 `site.read`, 저장·지우기는 화면 안에서 `site.secret`(커머스 0-4). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
-                { key: 'portone', to: '/settings/portone', icon: 'pi pi-credit-card', labelKey: 'menu.portone', permission: 'site.read' },
-                // 공공데이터포털 설정(국세청 사업자 조회 서비스 키 — business-contract) — 조회는 `site.read`, 저장·지우기는 화면 안에서 `site.secret`. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
-                { key: 'publicData', to: '/settings/public-data', icon: 'pi pi-building-columns', labelKey: 'menu.publicData', permission: 'site.read' },
-                // 로그인 보안(관리자 2차 인증 켜기·끄기와 값) — 최고 관리자만(commerce.md 13-3, 권한 코드로 위임하지 않는다). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
-                { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-lock', labelKey: 'menu.loginSecurity', superOnly: true },
-                // 휴일 관리(사이트 휴일 표 하나 — 공공데이터 공휴일·기본값은 읽기만, 회사 휴무일 더하기·지우기 · 「지금 받기」) — 조회 `site.read`, 바꾸기는 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(로그인 보안 다음)
-                { key: 'holidays', to: '/settings/holidays', icon: 'pi pi-calendar', labelKey: 'menu.holidays', permission: 'site.read' },
-                // 주소 검색(회원 화면 「우편번호 찾기」의 제공처 · 자체 주소 DB 올리기 — address-search-contract) — 조회는 `site.read`, 저장·올리기는 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(로그인 보안 다음)
-                { key: 'addressSearch', to: '/settings/address', icon: 'pi pi-map-marker', labelKey: 'menu.addressSearch', permission: 'site.read' },
-                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
-                { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
-                // 통계 수집(site-analytics-contract — 방문·알림·게시판 집계를 항목별로 켜고 끈다, 모두 기본 꺼짐) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(조직 구성 다음)
-                { key: 'analyticsSettings', to: '/settings/analytics', icon: 'pi pi-chart-bar', labelKey: 'menu.analyticsSettings', permission: 'site.read' },
+                { key: 'groupBuys', to: '/group-buys', icon: 'pi pi-shopping-bag', labelKey: 'menu.groupBuys', permission: 'commerce.product.read' },
+                {
+                    key: 'groupBuyProductMenu',
+                    to: '/#menu-groupBuyProductMenu',
+                    icon: 'pi pi-tag',
+                    labelKey: 'menu.groupBuyProductMenu',
+                    children: [
+                        // 결정 89 — 상품(이름·설명·이미지·카테고리·고시·옵션 축/단품·기본 공급가)과 카테고리(2단). 서버 AdminScreenRegistry 에도 두 줄
+                        { key: 'groupBuyProducts', to: '/group-buy-products', icon: 'pi pi-tag', labelKey: 'menu.groupBuyProducts', permission: 'commerce.product.read' },
+                        // 옵션 종류(사용자 결정 2026-10-28 — 상품 옵션 이름은 코드로 고른다). 서버 AdminScreenRegistry 에도 한 줄
+                        { key: 'groupBuyOptionTypes', to: '/group-buy-option-types', icon: 'pi pi-list-check', labelKey: 'menu.groupBuyOptionTypes', permission: 'commerce.product.read' },
+                        { key: 'groupBuyCategories', to: '/group-buy-categories', icon: 'pi pi-sitemap', labelKey: 'menu.groupBuyCategories', permission: 'commerce.product.read' },
+                        { key: 'groupBuyStock', to: '/group-buy-stock', icon: 'pi pi-warehouse', labelKey: 'menu.groupBuyStock', permission: 'commerce.product.read' },
+                    ],
+                },
+                {
+                    key: 'groupBuyOrderMenu',
+                    to: '/#menu-groupBuyOrderMenu',
+                    icon: 'pi pi-truck',
+                    labelKey: 'menu.groupBuyOrderMenu',
+                    children: [
+                        { key: 'groupBuyOrders', to: '/group-buy-orders', icon: 'pi pi-truck', labelKey: 'menu.groupBuyOrders', permission: 'commerce.order.read' },
+                        { key: 'groupBuyRequests', to: '/group-buy-requests', icon: 'pi pi-replay', labelKey: 'menu.groupBuyRequests', permission: 'commerce.order.read' },
+                    ],
+                },
+                {
+                    key: 'groupBuyVoiceMenu',
+                    to: '/#menu-groupBuyVoiceMenu',
+                    icon: 'pi pi-comments',
+                    labelKey: 'menu.groupBuyVoiceMenu',
+                    children: [
+                        // 공구 Q&A·리뷰(2b-6) — 서버 AdminScreenRegistry 에만 있어 메뉴에서 빠지고 화면 권한 검사도 없었다(관리자 QA 2026-11-17 F-4)
+                        { key: 'groupBuyQna', to: '/group-buy-qna', icon: 'pi pi-comments', labelKey: 'menu.groupBuyQna', permission: 'commerce.order.read' },
+                        { key: 'groupBuyReviews', to: '/group-buy-reviews', icon: 'pi pi-star', labelKey: 'menu.groupBuyReviews', permission: 'commerce.order.read' },
+                    ],
+                },
             ],
         },
-        // 운영·약관 묶음(terms-operator-contract, 사용자 지시 2026-11-07) — 시스템 묶음 다음. 운영 주체(`/settings/operator` — 개인·개인사업자·법인 단계와 사업자 정보,
+        // 결제 묶음(커머스 설정 포함) — 현금 결제 모듈(포트원 V2)의 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. commerce.md 13-5, 계약 commerce-payment 결정 13.
+        // 서버 API 에 연결됨(2a-3 — `usePaymentAdminApi`). 서버 `AdminScreenRegistry` 의 같은 다섯 줄·권한 `commerce.payment.read`·`commerce.reconcile.manage`(`featureReady` 켬)와 맞춘다 — 바꿀 때 두 곳을 같게 한다.
+        // 다섯 화면 모두 조회 `commerce.payment.read`, 화면 안의 처리(다시 시도 · 수동 처리 완료 · 포트원에서 다시 확인 · 대사 처리)는 `commerce.reconcile.manage`. PG 설정은 설정 › 포트원(`/settings/portone`) 그대로.
+        {
+            key: 'payment',
+            icon: 'pi pi-credit-card',
+            labelKey: 'menu.payment',
+            items: [
+                { key: 'paymentOrders', to: '/payments/orders', icon: 'pi pi-receipt', labelKey: 'menu.paymentOrders', permission: 'commerce.payment.read' },
+                { key: 'paymentWebhooks', to: '/payments/webhooks', icon: 'pi pi-inbox', labelKey: 'menu.paymentWebhooks', permission: 'commerce.payment.read' },
+                { key: 'paymentAnomalies', to: '/payments/anomalies', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.paymentAnomalies', permission: 'commerce.payment.read' },
+                {
+                    key: 'reconcile',
+                    to: '/#menu-reconcile',
+                    icon: 'pi pi-arrow-right-arrow-left',
+                    labelKey: 'menu.reconcile',
+                    children: [
+                        { key: 'paymentReconcileDays', to: '/payments/reconcile-days', icon: 'pi pi-calendar', labelKey: 'menu.paymentReconcileDays', permission: 'commerce.payment.read' },
+                        { key: 'paymentReconciliation', to: '/payments/reconciliation', icon: 'pi pi-arrow-right-arrow-left', labelKey: 'menu.paymentReconciliation', permission: 'commerce.payment.read' },
+                    ],
+                },
+                { key: 'commerceSettings', to: '/settings/commerce', icon: 'pi pi-sliders-h', labelKey: 'menu.commerceSettings', permission: 'commerce.settings' },
+            ],
+        },
+        // 사이트 묶음(일반 + 옛 「운영·약관」 — terms-operator-contract) — 운영 주체(`/settings/operator` — 개인·개인사업자·법인 단계와 사업자 정보,
         // 조회 `site.read` · 저장은 화면 안에서 `site.manage`) → 약관(`/settings/terms` — 약관 자리표시가 운영 주체 값을 쓴다). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         {
-            key: 'settingsLegal',
+            key: 'settingsSite',
             mode: 'settings',
-            icon: 'pi pi-book',
-            labelKey: 'menu.legal',
+            icon: 'pi pi-cog',
+            labelKey: 'menu.site',
             items: [
+                { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
                 { key: 'siteOperator', to: '/settings/operator', icon: 'pi pi-id-card', labelKey: 'menu.siteOperator', permission: 'site.read' },
                 { key: 'terms', to: '/settings/terms', icon: 'pi pi-file-check', labelKey: 'menu.terms', permission: 'terms.read' },
                 // 오픈소스 라이선스 고지(oss-licenses-contract) — 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례(약관 다음)
                 { key: 'ossLicenses', to: '/settings/oss-licenses', icon: 'pi pi-code', labelKey: 'menu.ossLicenses', permission: 'site.read' },
             ],
         },
-        // 테마 묶음(사용자 결정 2026-10-28) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·아이로빗)를 고르고,
+        // 화면 구성 묶음(옛 「테마」 + 공개 사이트 메뉴) — 공개 사이트의 겉모양. 화면 하나(`pages/settings/theme/[[tab]].vue`): 맨 위에서 테마(기본·다음식·네이버식·아이로빗)를 고르고,
         // 그 테마의 레이아웃(홈 구성 — 게시판·페이지 레이아웃은 자리만) · 메뉴 설정(메뉴 배치·메뉴 모양)을 탭으로 편집한다. 레이아웃·메뉴 설정은 테마마다 따로 저장된다.
         // 메뉴 설정은 이 메뉴에 따로 두지 않는다(사용자 결정 2026-10-28 — 화면 안 탭으로만). 항목 주소가 `/settings/theme` 라 두 탭(`…/layout`·`…/menu`) 모두 이 항목이 활성이다.
-        // 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 메뉴 항목 자체(무엇을 어떤 차례로)는 일반 메뉴의 「공개 메뉴」(`/menus/public`)에서 정한다. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+        // 조회 `site.read`, 저장은 화면 안에서 `site.manage`. 메뉴 항목 자체(무엇을 어떤 차례로)는 같은 묶음의 「공개 사이트 메뉴」(`/menus/public`)에서 정한다. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+        // 메뉴 관리 — 공개 사이트 메뉴(메뉴 그룹별 트리)와 관리자 사이트 메뉴 구성. community 의 「메뉴 구성」에 대응한다. 부모 주소(`/menus`)로 들어오면 공개 사이트 메뉴로 보낸다
         {
-            key: 'settingsTheme',
+            key: 'settingsScreen',
             mode: 'settings',
             icon: 'pi pi-palette',
-            labelKey: 'menu.theme',
+            labelKey: 'menu.screenLayout',
             items: [
                 { key: 'themeLayout', to: '/settings/theme', icon: 'pi pi-objects-column', labelKey: 'menu.themeLayout', permission: 'site.read' },
+                { key: 'menusPublic', to: '/menus/public', icon: 'pi pi-globe', labelKey: 'menu.menusPublic', permission: 'layout.read' },
             ],
         },
-        // 회원 설정 묶음 — 회원 기능의 사이트 규칙. 닉네임 이미지 신청 조건(조회 `nickname-image.read`, 저장은 화면 안에서 `nickname-image.manage`)
         {
-            key: 'settingsMember',
+            key: 'operatorsAndPermissions',
             mode: 'settings',
-            icon: 'pi pi-users',
-            labelKey: 'menu.memberSettings',
-            items: [{ key: 'nicknameImageSettings', to: '/settings/nickname-image', icon: 'pi pi-image', labelKey: 'menu.nicknameImageSettings', permission: 'nickname-image.read' }],
-        },
-        // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음으로 옮겼다 — 개정 4 의 「템플릿 › 메일」·「문구」)
-        {
-            key: 'settingsMail',
-            mode: 'settings',
-            icon: 'pi pi-envelope',
-            labelKey: 'menu.mail',
+            icon: 'pi pi-shield',
+            labelKey: 'menu.operatorsAndPermissions',
             items: [
-                // 메일 서버 설정 — 조회는 `site.read`, 저장·시험 발송은 화면 안에서 `site.secret`
-                { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-server', labelKey: 'menu.mailSettings', permission: 'site.read' },
+                { key: 'operators', to: '/settings/operators', icon: 'pi pi-user-edit', labelKey: 'menu.operators', permission: 'operator.read' },
+                // 역할 관리는 하위 메뉴 셋을 가진 부모다 — 하위 주소의 마지막 조각이 화면 종류다(`pages/settings/roles/[[kind]].vue`). 부모 주소(`/settings/roles`)로 직접 들어오면 운영자 역할로 보낸다
+                {
+                    key: 'roles',
+                    to: '/settings/roles',
+                    icon: 'pi pi-key',
+                    labelKey: 'menu.roles',
+                    permission: 'role.read',
+                    children: [
+                        { key: 'rolesMember', to: '/settings/roles/member', labelKey: 'menu.rolesMember', permission: 'role.read' },
+                        { key: 'rolesOperator', to: '/settings/roles/operator', labelKey: 'menu.rolesOperator', permission: 'role.read' },
+                        { key: 'rolesGrade', to: '/settings/roles/grade', labelKey: 'menu.rolesGrade', permission: 'role.read' },
+                    ],
+                },
+                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
+                { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
+                { key: 'menusAdmin', to: '/menus/admin', icon: 'pi pi-desktop', labelKey: 'menu.menusAdmin', permission: 'layout.read' },
+                // 로그인 보안(관리자 2차 인증 켜기·끄기와 값) — 최고 관리자만(commerce.md 13-3, 권한 코드로 위임하지 않는다). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+                { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-lock', labelKey: 'menu.loginSecurity', superOnly: true },
             ],
         },
-        // 알림·이벤트 묶음(개정 4 — message-template-contract) — 알림 도구 · 템플릿(부모: 메일 · Slack · Mattermost · 카카오톡 — 도구별 겉모양) · 문구(부모: 운영자 · 회원 · 필수 안내 메일 — 이벤트·채널별 제목과 본문) · 이벤트(부모: 운영자 · 회원).
+        // 알림·메일 묶음(메일 서버 + 개정 4 — message-template-contract) — 알림 도구 · 템플릿(부모: 메일 · Slack · Mattermost · 카카오톡 — 도구별 겉모양) · 문구(부모: 운영자 · 회원 · 필수 안내 메일 — 이벤트·채널별 제목과 본문) · 이벤트(부모: 운영자 · 회원).
         // 옛 주소(개정 3 의 `/settings/notification-templates/templates|layouts|required-mails/**` · 그 전 `/settings/mail-*`)는 각 화면이 새 주소로 보낸다.
         // 모두 실제 서버에 연결돼 있다. 키·주소·권한(`template.read` · `notification.read`)은 서버 `AdminScreenRegistry` 와 같다.
         {
             key: 'settingsNotification',
             mode: 'settings',
             icon: 'pi pi-bell',
-            labelKey: 'menu.notifications',
+            labelKey: 'menu.notificationMail',
             items: [
+                // 메일 서버 설정 — 조회는 `site.read`, 저장·시험 발송은 화면 안에서 `site.secret`
+                { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-server', labelKey: 'menu.mailSettings', permission: 'site.read' },
                 { key: 'notificationChannels', to: '/settings/notification-channels', icon: 'pi pi-send', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
                 // 템플릿은 하위 메뉴 넷을 가진 부모다(역할 관리와 같은 방식). 부모 주소(`/settings/notification-templates`)로 들어오면 메일 템플릿으로 보낸다.
                 // 편집 화면(`/{유형}/{id}`)은 그 유형의 하위 주소라 그 하위가 활성이다. 카카오톡은 준비 중(보기만) — 계약이 메뉴에 두기로 정했다
@@ -506,35 +548,22 @@ export default class UtilAdminMenu {
                 },
             ],
         },
-        // 커머스 묶음 — 판매·결제 공통 설정(commerce.md 12-4 · 13-5). 지금은 「커머스 설정」(요청 제한) 하나이고 판매 스위치·사업자 정보 등은 그 화면의 구획으로 더한다.
-        // ⚠ 화면은 아직 목업(`useCommerceSettingsApi`)이다. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
         {
-            key: 'settingsCommerce',
+            key: 'settingsIntegration',
             mode: 'settings',
-            icon: 'pi pi-shopping-cart',
-            labelKey: 'menu.commerce',
-            items: [{ key: 'commerceSettings', to: '/settings/commerce', icon: 'pi pi-sliders-h', labelKey: 'menu.commerceSettings', permission: 'commerce.settings' }],
-        },
-        {
-            key: 'operatorsAndPermissions',
-            mode: 'settings',
-            icon: 'pi pi-shield',
-            labelKey: 'menu.operatorsAndPermissions',
+            icon: 'pi pi-link',
+            labelKey: 'menu.integrations',
             items: [
-                { key: 'operators', to: '/settings/operators', icon: 'pi pi-user-edit', labelKey: 'menu.operators', permission: 'operator.read' },
-                // 역할 관리는 하위 메뉴 셋을 가진 부모다 — 하위 주소의 마지막 조각이 화면 종류다(`pages/settings/roles/[[kind]].vue`). 부모 주소(`/settings/roles`)로 직접 들어오면 운영자 역할로 보낸다
-                {
-                    key: 'roles',
-                    to: '/settings/roles',
-                    icon: 'pi pi-key',
-                    labelKey: 'menu.roles',
-                    permission: 'role.read',
-                    children: [
-                        { key: 'rolesMember', to: '/settings/roles/member', labelKey: 'menu.rolesMember', permission: 'role.read' },
-                        { key: 'rolesOperator', to: '/settings/roles/operator', labelKey: 'menu.rolesOperator', permission: 'role.read' },
-                        { key: 'rolesGrade', to: '/settings/roles/grade', labelKey: 'menu.rolesGrade', permission: 'role.read' },
-                    ],
-                },
+                // 소셜 로그인 설정(카카오·네이버·구글 키) — 조회는 `site.read`, 저장·삭제는 화면 안에서 `site.secret`
+                { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-sign-in', labelKey: 'menu.socialLogin', permission: 'site.read' },
+                // 포트원 설정(본인인증 — 상점 ID·API 비밀키·채널 키, 2a 에 결제 칸) — 조회는 `site.read`, 저장·지우기는 화면 안에서 `site.secret`(커머스 0-4). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+                { key: 'portone', to: '/settings/portone', icon: 'pi pi-credit-card', labelKey: 'menu.portone', permission: 'site.read' },
+                // 공공데이터포털 설정(국세청 사업자 조회 서비스 키 — business-contract) — 조회는 `site.read`, 저장·지우기는 화면 안에서 `site.secret`. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+                { key: 'publicData', to: '/settings/public-data', icon: 'pi pi-building-columns', labelKey: 'menu.publicData', permission: 'site.read' },
+                // 주소 검색(회원 화면 「우편번호 찾기」의 제공처 · 자체 주소 DB 올리기 — address-search-contract) — 조회는 `site.read`, 저장·올리기는 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(로그인 보안 다음)
+                { key: 'addressSearch', to: '/settings/address', icon: 'pi pi-map-marker', labelKey: 'menu.addressSearch', permission: 'site.read' },
+                // 휴일 관리(사이트 휴일 표 하나 — 공공데이터 공휴일·기본값은 읽기만, 회사 휴무일 더하기·지우기 · 「지금 받기」) — 조회 `site.read`, 바꾸기는 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(로그인 보안 다음)
+                { key: 'holidays', to: '/settings/holidays', icon: 'pi pi-calendar', labelKey: 'menu.holidays', permission: 'site.read' },
             ],
         },
         {

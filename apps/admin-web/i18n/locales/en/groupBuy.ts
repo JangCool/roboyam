@@ -796,7 +796,7 @@ export default {
     productPickPlaceholder: 'Pick a product',
     productCategory: 'Category',
     productEdit: 'Edit on the product page',
-    productNone: 'Pick a product first. If there is none, create one in Group buys › Products.',
+    productNone: 'Pick a product first. If there is none, create one in Group buying › Products.',
     fromProductHelp: 'Description and images come from the product. Edit them on the product page (running group buys show the change right away).',
     noticeFromProduct: 'Notice forms come from the products — the main form from this group buy’s product, add-on forms from their own products. Edit them on the product page.',
     fromProduct: 'From product',

@@ -116,7 +116,7 @@ export default {
     layoutKind_PAGE: '페이지',
     layoutSoon: '준비 중',
     menuDrawerTitle: '메뉴 설정 · {theme}',
-    menuDrawerLead: '값을 바꾸면 실제 화면에 바로 보여요. 저장하지 않고 닫으면 바꾼 값은 버려져요. 메뉴 항목과 차례는 메뉴 관리 › 공개 메뉴에서 정해요.',
+    menuDrawerLead: '값을 바꾸면 실제 화면에 바로 보여요. 저장하지 않고 닫으면 바꾼 값은 버려져요. 메뉴 항목과 차례는 설정 › 화면 구성 › 공개 사이트 메뉴에서 정해요.',
     viewModeLabel: '보기',
     viewModeLive: '보기',
     viewModeEdit: '편집',

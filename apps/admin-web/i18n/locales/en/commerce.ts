@@ -85,7 +85,7 @@ export default {
     // ── Business details ─
     businessSection: 'Business details',
     businessLead: 'Shown at the bottom of group buy pages and, while sales are on, in the site footer. The eight required fields are a condition for turning sales on.',
-    businessOperatorNote: 'Change business details in Settings › Operator & terms › Operator.',
+    businessOperatorNote: 'Change business details in Settings › Site › Operator.',
     businessOperatorLink: 'Open operator settings',
     businessOwnTitle: 'Set here for commerce',
     businessEmpty: 'Empty',

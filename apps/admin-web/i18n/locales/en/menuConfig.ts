@@ -20,6 +20,9 @@ export default {
     externalLink: 'External link',
     soon: 'Coming soon',
     reloadAfterConflict: 'Reload',
+    loadDefaults: 'Load default layout',
+    loadDefaultsTitle: 'Load the default layout?',
+    loadDefaultsMessage: 'Both the main menu and the settings menu switch to the default layout here. Your own names, order, hidden items and external links are left out. Nothing applies until you save, and you can revert.',
 
     // ── Menu groups ──
     setsTitle: 'Menu groups',

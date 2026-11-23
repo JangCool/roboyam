@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.community.business.service.BusinessPii;
 import com.community.commerce.Commerce04AdminTestBase;
-import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.permission.entity.Permission;
 import com.community.zconfiguration.crypto.DataCipher;
@@ -476,8 +476,7 @@ class AdAdvertiserAdminHttpTest extends Commerce04AdminTestBase {
         assertThat(screen.labelKey()).isEqualTo("menu.adAdvertisers");
         assertThat(screen.icon()).isEqualTo("pi pi-address-book");
         assertThat(screen.permission()).isEqualTo(Permission.AD_READ);
-        AdminMenuNode ad = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL).stream().filter(n -> "menu.ad".equals(n.labelKey())).findFirst().orElseThrow();
-        assertThat(ad.children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers", "adPlacements", "adTrials",
-                "adTrialSettings"); // 체험단 두 화면(V241·admin V12 — trial-group-contract)은 노출 자리 설정 다음
+        assertThat(AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.NORMAL, "menu.ad"))).containsExactly("adReviews", "ads", "adPerformance",
+                "adAdvertisers", "menu.trial", "adPlacements"); // 체험단 두 화면(trial-group-contract)은 부모 「체험단」 안(메뉴 정리 2026-11-23)
     }
 }

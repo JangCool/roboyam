@@ -20,6 +20,9 @@ export default {
     externalLink: '외부 링크',
     soon: '준비 중',
     reloadAfterConflict: '다시 불러오기',
+    loadDefaults: '기본 구성 불러오기',
+    loadDefaultsTitle: '기본 구성을 불러올까요?',
+    loadDefaultsMessage: '일반 메뉴와 설정 메뉴를 모두 기본 구성으로 바꿔 보여요. 직접 바꾼 이름·순서·숨김과 외부 링크는 빠져요. 저장하기 전에는 적용되지 않고, 되돌리기로 취소할 수 있어요.',
 
     // ── 메뉴 그룹 ──
     setsTitle: '메뉴 그룹',

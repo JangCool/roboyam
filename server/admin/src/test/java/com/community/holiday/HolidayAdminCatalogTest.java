@@ -7,7 +7,7 @@ import com.community.audit.dto.AuditRetention;
 import com.community.audit.dto.AuditRetentionClass;
 import com.community.audit.service.AuditLabels;
 import com.community.batch.core.BatchCatalog;
-import com.community.menu.dto.AdminMenuNode;
+import com.community.menu.service.AdminMenuDefaults;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.permission.entity.Permission;
 import java.io.IOException;
@@ -27,7 +27,7 @@ class HolidayAdminCatalogTest {
     private static final Path ADMIN_WEB = Paths.get("").toAbsolutePath().getParent().getParent().resolve("apps/admin-web/app/utils");
 
     @Test
-    void 휴일_관리_화면은_설정_시스템에서_로그인_보안_바로_다음이고_site_read() {
+    void 휴일_관리_화면은_설정_외부_연동에서_주소_검색_바로_다음이고_site_read() {
         AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("holidays").orElseThrow();
         assertThat(screen.path()).isEqualTo("/settings/holidays");
         assertThat(screen.labelKey()).isEqualTo("menu.holidays");
@@ -35,10 +35,8 @@ class HolidayAdminCatalogTest {
         assertThat(screen.permission()).isEqualTo(Permission.SITE_READ);
         assertThat(screen.superOnly()).isFalse();
 
-        AdminMenuNode system = AdminScreenRegistry.defaults().get(AdminScreenRegistry.SETTINGS).stream()
-                .filter(node -> "menu.system".equals(node.labelKey())).findFirst().orElseThrow();
-        List<String> keys = system.children().stream().map(AdminMenuNode::targetKey).toList();
-        assertThat(keys.indexOf("holidays")).isEqualTo(keys.indexOf("loginSecurity") + 1);
+        List<String> keys = AdminMenuDefaults.children(AdminMenuDefaults.group(AdminScreenRegistry.SETTINGS, "menu.integrations"));
+        assertThat(keys.indexOf("holidays")).isEqualTo(keys.indexOf("addressSearch") + 1);
     }
 
     @Test
@@ -48,11 +46,9 @@ class HolidayAdminCatalogTest {
         String expected = "{ key: 'holidays', to: '" + screen.path() + "', icon: '" + screen.icon() + "', labelKey: '" + screen.labelKey() + "', permission: '"
                 + screen.permission().code() + "' }";
         assertThat(source).contains(expected);
-        int loginSecurity = source.indexOf("key: 'loginSecurity'");
         int holidays = source.indexOf("key: 'holidays'");
         int addressSearch = source.indexOf("key: 'addressSearch'");
-        assertThat(loginSecurity).isPositive().isLessThan(holidays);
-        assertThat(holidays).isLessThan(addressSearch);
+        assertThat(addressSearch).isPositive().isLessThan(holidays);
     }
 
     @Test

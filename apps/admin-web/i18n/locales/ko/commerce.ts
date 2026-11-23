@@ -85,7 +85,7 @@ export default {
     // ── 사업자 정보 ─
     businessSection: '사업자 정보',
     businessLead: '공구 화면 하단과(판매가 켜져 있으면) 사이트 푸터에 그대로 나가요. 필수 여덟 칸이 판매 켜기 조건이에요.',
-    businessOperatorNote: '사업자 정보는 설정 › 운영·약관 › 운영 주체에서 바꿔요',
+    businessOperatorNote: '사업자 정보는 설정 › 사이트 › 운영 주체에서 바꿔요',
     businessOperatorLink: '운영 주체 설정 열기',
     businessOwnTitle: '커머스에서 정하는 칸',
     businessEmpty: '비어 있음',

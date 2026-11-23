@@ -477,7 +477,7 @@ export default {
             CRON_LATE: 'DB 크론(pg_cron)이 돌고 있는지 확인해 주세요',
             RAW_BACKLOG: '원본 정리 작업이 밀렸어요',
             NEXT_PARTITION_MISSING: '조각 만들기 작업을 다시 실행해 주세요',
-            COLLECT_OFF: '설정 › 통계 수집에서 켤 수 있어요',
+            COLLECT_OFF: '방문자 통계 › 관리 › 통계 수집에서 켤 수 있어요',
         },
         instancesTitle: '서버별 기록',
         instancesHint: '서버마다 1분에 한 번 모아 써요.',

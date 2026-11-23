@@ -32,6 +32,7 @@
             <div class="flex flex-wrap items-center gap-3">
                 <SelectButton v-model="mode" :options="modeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('menuConfig.modeLabel')" />
                 <span class="text-xs tabular-nums text-muted-color">{{ t('menuConfig.counterNodesPlain', { n: nodeCount }) }}</span>
+                <Button v-if="!readonly" type="button" class="ml-auto" :label="t('menuConfig.loadDefaults')" icon="pi pi-history" size="small" severity="secondary" variant="outlined" :disabled="saving" data-testid="admin-menu-defaults" @click="loadDefaults" />
             </div>
 
             <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
@@ -140,6 +141,14 @@ async function load() {
 async function reload() {
     if (dirty.value && !(await confirmLeave())) return;
     await load();
+}
+
+/** 기본 구성을 저장 전 값으로 불러온다 — 저장해야 적용된다(되돌리기로 취소할 수 있다). 직접 바꾼 이름·순서·외부 링크가 빠지므로 먼저 묻는다 */
+async function loadDefaults() {
+    const ok = await confirm({ title: t('menuConfig.loadDefaultsTitle'), message: t('menuConfig.loadDefaultsMessage'), confirmLabel: t('menuConfig.loadDefaults') });
+    if (!ok) return;
+    draft.value = UtilAdminMenuConfig.defaults();
+    serverRows.value = {};
 }
 
 // ── 줄 · 검증 ─
