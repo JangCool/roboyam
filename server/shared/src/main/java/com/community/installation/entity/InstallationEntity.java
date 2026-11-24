@@ -50,6 +50,9 @@ public class InstallationEntity {
 
     private Instant demoDoneAt;
 
+    /** 설치 구성의 AI 기본 계정을 넣은(또는 넣을 것이 없어 건너뛴) 시각 — V266. null 이면 아직 */
+    private Instant aiMembersSeededAt;
+
     protected InstallationEntity() {
     }
 
@@ -63,6 +66,10 @@ public class InstallationEntity {
 
     public boolean isCompleted() {
         return status == InstallationStatus.COMPLETED;
+    }
+
+    public Instant getInstalledAt() {
+        return installedAt;
     }
 
     public Long getRootOperatorId() {
@@ -87,5 +94,9 @@ public class InstallationEntity {
 
     public Instant getDemoDoneAt() {
         return demoDoneAt;
+    }
+
+    public Instant getAiMembersSeededAt() {
+        return aiMembersSeededAt;
     }
 }

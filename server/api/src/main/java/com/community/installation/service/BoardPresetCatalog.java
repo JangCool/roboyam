@@ -2,6 +2,7 @@ package com.community.installation.service;
 
 import com.community.board.service.BoardFields;
 import com.community.group.service.GroupCategoryNames;
+import com.community.installation.dto.AiMemberPreset;
 import com.community.installation.dto.BoardPreset;
 import com.community.installation.dto.TablePack;
 import com.community.installation.dto.response.BoardPresetBoardItem;
@@ -56,6 +57,8 @@ public class BoardPresetCatalog {
     /** 구조 스냅숏 파일의 끝 — 프리셋 목록으로 읽지 않는다 */
     static final String STRUCTURE_SUFFIX = ".structure.json";
     static final String ABOUT_SUFFIX = ".about.html";
+    /** AI 기본 계정 파일의 끝 — 프리셋 목록으로 읽지 않는다(프리셋이 {@code aiMembers} 로 가리킨다) */
+    static final String AI_MEMBERS_SUFFIX = ".ai-members.json";
 
     /**
      * 구조 스냅숏에 담을 수 있는 표와 방식 — {@code scripts/export-install-preset.mjs} 의 TABLES 와 같아야 한다(표를 더하면 둘 다 고친다).
@@ -93,6 +96,8 @@ public class BoardPresetCatalog {
     private final Map<String, TablePack> structures = new LinkedHashMap<>();
     /** 프리셋 아이디 → 사이트 소개 기본 본문(소독한 HTML, 있는 것만) */
     private final Map<String, String> abouts = new LinkedHashMap<>();
+    /** 프리셋 아이디 → AI 기본 계정(있는 것만) */
+    private final Map<String, AiMemberPreset> aiMembers = new LinkedHashMap<>();
 
     /** 클래스패스의 {@code install-presets/*.json} 을 읽는다 */
     public BoardPresetCatalog() {
@@ -110,6 +115,9 @@ public class BoardPresetCatalog {
             }
             if (preset.siteAbout() != null) {
                 abouts.put(preset.id(), loadAbout(preset));
+            }
+            if (preset.aiMembers() != null) {
+                aiMembers.put(preset.id(), loadAiMembers(preset));
             }
             if (presets.put(preset.id(), preset) != null) {
                 throw invalid(preset.id(), "아이디가 겹친다");
@@ -135,6 +143,11 @@ public class BoardPresetCatalog {
     /** 그 구성의 사이트 소개 기본 본문(소독한 HTML) — 없으면 비어 있다 */
     public Optional<String> aboutOf(String presetId) {
         return presetId == null ? Optional.empty() : Optional.ofNullable(abouts.get(presetId));
+    }
+
+    /** 그 구성의 AI 기본 계정 — 없으면 비어 있다 */
+    public Optional<AiMemberPreset> aiMembersOf(String presetId) {
+        return presetId == null ? Optional.empty() : Optional.ofNullable(aiMembers.get(presetId));
     }
 
     /** 그 구성의 구조 스냅숏 — 없으면 비어 있다 */
@@ -173,8 +186,8 @@ public class BoardPresetCatalog {
         List<BoardPreset> loaded = new ArrayList<>();
         try {
             for (Resource resource : new PathMatchingResourcePatternResolver(BoardPresetCatalog.class.getClassLoader()).getResources(LOCATION)) {
-                if (resource.getFilename() != null && resource.getFilename().endsWith(STRUCTURE_SUFFIX)) {
-                    continue; // 구조 스냅숏 — 프리셋이 structure 로 가리킨다
+                if (resource.getFilename() != null && (resource.getFilename().endsWith(STRUCTURE_SUFFIX) || resource.getFilename().endsWith(AI_MEMBERS_SUFFIX))) {
+                    continue; // 구조 스냅숏 · AI 기본 계정 — 프리셋이 structure · aiMembers 로 가리킨다
                 }
                 try (InputStream in = resource.getInputStream()) {
                     loaded.add(MAPPER.readValue(in, BoardPreset.class));
@@ -249,6 +262,25 @@ public class BoardPresetCatalog {
             throw invalid(where, "사이트 소개에 보이는 글자가 없다");
         }
         return safe;
+    }
+
+    // ── AI 기본 계정 ──
+
+    /** {@code install-presets/<aiMembers>} 를 읽어 모양을 검사한다({@link AiMemberPresetValidator}) — 어기면 서버가 뜨지 않는다 */
+    private static AiMemberPreset loadAiMembers(BoardPreset preset) {
+        String where = preset.id() + "/" + preset.aiMembers();
+        if (!(preset.aiMembers().endsWith(AI_MEMBERS_SUFFIX) && preset.aiMembers().matches("[a-z0-9][a-z0-9.-]*"))) {
+            throw invalid(preset.id(), "aiMembers 는 install-presets 안의 *" + AI_MEMBERS_SUFFIX + " 파일 이름이다: " + preset.aiMembers());
+        }
+        Resource resource = new PathMatchingResourcePatternResolver(BoardPresetCatalog.class.getClassLoader()).getResource("classpath:install-presets/" + preset.aiMembers());
+        AiMemberPreset file;
+        try (InputStream in = resource.getInputStream()) {
+            file = MAPPER.readValue(in, AiMemberPreset.class);
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalStateException("설치 프리셋의 AI 기본 계정을 읽지 못했다: " + where, e);
+        }
+        AiMemberPresetValidator.validate(preset.id(), where, file);
+        return file;
     }
 
     // ── 구조 스냅숏 ──

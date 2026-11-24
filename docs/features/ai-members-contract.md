@@ -146,3 +146,8 @@
 - **켜면**(실행기 `AiDraftGenerator` · `AiMemberQueries`): ① 그 회원의 글은 AI 기자 뉴스 소재(`newsCandidates` — `AiNewsSources.pick` 의 회원 글 소재)에서 빠진다 ② 「회원 글에도 댓글」(`comment_on_member_posts`)을 켜도 그 회원 글에는 AI 첫 댓글 후보가 되지 않는다(`recentPosts`) ③ 그 회원의 댓글은 AI 답글 대상이 아니고(AI 회원 글에 단 댓글 포함), 다른 댓글에 답할 때 함께 읽는 같은 줄기 최근 댓글에서도 빠진다(`withoutOptedOut` → `thread`). 그 회원 댓글을 가리키는 답글은 받는 사람을 알 수 없어 AI 에게 한 말로 세지 않는다.
 - **이미 만든 생성물**(결정): 켜기 전에 만들어 대기·승인 중인 첫 댓글·답글(상대 = `counterpart_user_id`)과 그 회원 글을 소재로 한 뉴스 글은 등록기(`AiDraftPublisher`)가 올리지 않고 `FAILED` + 까닭 `MEMBER_OPTED_OUT`(번들 `aiMember.fail.MEMBER_OPTED_OUT`)으로 남긴다. 이미 게시된 글·댓글은 그대로(지우지 않음). 대기함에서 따로 숨기지는 않는다 — 운영자가 「게시」해도 등록 때 막힌다.
 - **화면 후속**(user-web 설정): 스위치 한 줄 + 처리방침 4절 거부 방법 문구 갱신(「뉴스 글이 소재가 되지 않게 하는 설정은 따로 없으며」 → 이 설정 안내).
+
+## 설치 때 AI 기본 계정 (2026-11-24 — 사용자 확정)
+- 「구조만」 설치도 IROBIT 구성은 데모와 같은 **11계정을 꺼진 채** 만든다(글·댓글·소모임·모델 이력 연출 없음, 전역 설정·키 그대로). 이미 설치된 곳(운영)은 공개 서버가 뜰 때 한 번. 같은 닉네임 회원이 있으면 건너뛴다(데모 포함 설치·데모가 있는 로컬은 모두 건너뜀). 정본 = install-contract 「데모 데이터 선택」 4.
+- 계정을 만드는 부품을 shared `AiMemberAccountFactory`(회원 + 프로필 + 확장 줄 + 모델 이력 첫 줄 + 아바타)로 옮겨 관리자 만들기(`AiMemberAdminService.create`)와 설치(`AiMemberPresetInstaller`)가 같이 쓴다 — 검사·관계·소모임·감사는 각자.
+- 계정 정의의 원천은 `seed/demo/ai-members.json` — 고치면 `node scripts/build-ai-member-preset.mjs` 로 `install-presets/irobit.ai-members.json` 을 다시 만든다(모델은 이름으로).
