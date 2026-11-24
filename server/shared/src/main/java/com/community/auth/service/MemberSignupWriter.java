@@ -1,9 +1,7 @@
 package com.community.auth.service;
 
-import com.community.auth.dto.AuthUser;
 import com.community.user.entity.MemberGender;
 import com.community.user.entity.ProfileEntity;
-import com.community.user.entity.Role;
 import com.community.user.entity.UserEntity;
 import com.community.user.exception.UserEmailTakenException;
 import com.community.user.exception.UserNicknameTakenException;
@@ -22,8 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 이메일 가입의 DB 일 — 메서드마다 짧은 트랜잭션이다(비밀번호 해시는 이 밖에서 끝낸 뒤 부른다). 회원·프로필을 만드는 방식은 소셜 가입({@code SocialAccountWriter#createMember})과 같다
+ * 이메일·비밀번호 회원 만들기의 DB 일 — 메서드마다 짧은 트랜잭션이다(비밀번호 해시는 이 밖에서 끝낸 뒤 부른다). 회원·프로필을 만드는 방식은 소셜 가입({@code SocialAccountWriter#createMember})과 같다
  * — {@code users}(비밀번호 있음, 이메일 인증 전) + {@code profiles}(기본 등급).
+ * 공개 이메일 가입(api {@code SignupService})과 관리자의 운영자 회원 계정 새로 만들기(admin {@code OperatorMemberCreateService} — 부르는 쪽 트랜잭션에 참여한다)가 같이 쓴다.
  * 이메일·닉네임 중복은 409 이고, 동시에 같은 값으로 가입하면 유일 제약({@code ux_users_email}·{@code ux_profiles_nickname})이 마지막 방어선이다 — 같은 409 로 바꾼다.
  * 로그에는 회원 ID 만 남긴다(유일 제약 위반의 DB 문구에는 입력값이 실리므로 쓰지 않는다).
  */
@@ -65,16 +64,17 @@ public class MemberSignupWriter {
      *
      * @param email        정규화한 이메일
      * @param passwordHash bcrypt 해시
-     * @param termsVersion 동의한 약관 버전({@link TermsVersionProvider#currentTermsVersion()})
+     * @param termsVersion 동의한 약관 버전(api {@code TermsVersionProvider#currentTermsVersion()} = {@code TermsService#currentAgreementVersion()})
+     * @return 만든 회원 ID
      */
     @Transactional
-    public AuthUser create(String email, String passwordHash, String nickname, String termsVersion) {
+    public long create(String email, String passwordHash, String nickname, String termsVersion) {
         return create(email, passwordHash, nickname, MemberGender.NONE, termsVersion);
     }
 
-    /** 회원을 만든다 — 가입 때 고른 성별과 함께(선택 항목, 기본 「밝히지 않음」) */
+    /** 회원을 만든다 — 가입 때 고른 성별과 함께(선택 항목, 기본 「밝히지 않음」). 만든 회원 ID 를 돌려준다 */
     @Transactional
-    public AuthUser create(String email, String passwordHash, String nickname, MemberGender gender, String termsVersion) {
+    public long create(String email, String passwordHash, String nickname, MemberGender gender, String termsVersion) {
         assertAvailable(email, nickname);
         Instant now = Instant.now();
         long userId = ids.nextId();
@@ -85,8 +85,8 @@ public class MemberSignupWriter {
         } catch (DataIntegrityViolationException e) {
             throw conflictOf(e); // 동시에 같은 이메일·닉네임으로 가입했다
         }
-        log.info("이메일 가입 userId={}", userId);
-        return new AuthUser(userId, Role.USER);
+        log.info("이메일·비밀번호 회원을 만들었다 userId={}", userId);
+        return userId;
     }
 
     /** 유일 제약 이름으로 어느 칸이 겹쳤는지 가른다(DB 문구 자체는 입력값이 실려 로그·응답에 쓰지 않는다) */

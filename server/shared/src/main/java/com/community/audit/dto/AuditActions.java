@@ -366,6 +366,8 @@ public final class AuditActions {
     public static final String OPERATOR_MEMBER_LINK = "OPERATOR_MEMBER_LINK";
     /** 해제(대상 OPERATOR + 운영자 ID) — {@code userId} */
     public static final String OPERATOR_MEMBER_UNLINK = "OPERATOR_MEMBER_UNLINK";
+    /** 새 회원 계정을 만들어 바로 이음(대상 OPERATOR + 운영자 ID) — 만든 회원 {@code userId}·비밀번호 정하는 방법 {@code passwordMode}(DIRECT · MAIL). 연결 기록을 겸한다(LINK 는 따로 남기지 않는다) */
+    public static final String OPERATOR_MEMBER_CREATE = "OPERATOR_MEMBER_CREATE";
     /** 사이트에서 글 숨기기(대상 POST + 글 ID) — {@code viaUserId}·{@code boardId}·{@code postId}·{@code reasonCode}·{@code boardStaffActionId} */
     public static final String SITE_POST_HIDE = "SITE_POST_HIDE";
     /** 사이트에서 글 삭제(대상 POST) — 위와 같은 칸 + {@code revokedPoints} */

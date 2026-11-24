@@ -102,3 +102,42 @@ export interface OperatorMemberAccountRef {
 }
 
 // 회원 상세 쪽 표시(`MemberDetail.operatorAccount`)의 모양은 회원 업무가 주인이다 — `useMemberApi.types.ts` 의 `MemberOperatorAccountRef`(업무끼리 순환 import 를 피한다)
+
+/* ── 새 계정 만들기(운영자 회원 계정을 관리자가 바로 만들고 그 운영자에 잇는다) — 서버 `OperatorMemberCreateRequest`·`OperatorMemberCreateResult`(2026-11-24) ── */
+
+/**
+ * 새 계정의 비밀번호를 정하는 방법.
+ *  `DIRECT` 만들 때 관리자가 직접 입력(공개 가입과 같은 규칙 — 8~64자·UTF-8 72바이트 이하·영문과 숫자) ·
+ *  `MAIL` 그 이메일로 「비밀번호 정하기」 링크를 보낸다(비밀번호 칸 없음 — 링크에서 정할 때까지 로그인 불가)
+ */
+export type OperatorMemberPasswordMode = 'DIRECT' | 'MAIL';
+
+/** 만들면서 보낸 메일 — `EMAIL_VERIFICATION` 이메일 인증 · `PASSWORD_SETUP` 비밀번호 정하기 링크 */
+export type OperatorMemberCreateMail = 'EMAIL_VERIFICATION' | 'PASSWORD_SETUP';
+
+/**
+ * `POST /api/admin/operators/{operatorId}/member-account` 본문 — 새 회원 계정을 만들고 이 운영자에 바로 잇는다.
+ * 닉네임은 형식(2~12자·허용 글자)과 중복만 보고 **예약어(`UserPolicy.RESERVED_NICKNAME_WORDS`)는 보지 않는다** — 운영자 계정이라 「아이로빗」·「운영자」 같은 이름을 쓸 수 있어야 한다.
+ * 이메일은 운영자 이메일과 달라도 된다(이 길은 같은 이메일 규칙(계약 정책 2)의 예외 — 관리자가 직접 만드는 계정이라 본인 확인은 그 주소로 가는 메일(인증 또는 비밀번호 정하기)이 대신한다). 이메일 인증 전 계정을 잇는다(정책 3 의 인증 조건 없음).
+ */
+export interface OperatorMemberCreateRequest {
+    email: string;
+    nickname: string;
+    passwordMode: OperatorMemberPasswordMode;
+    /** `DIRECT` 일 때만 값 — `MAIL` 이면 null. 화면 메모리에만 두고 보낸 뒤 비운다 */
+    password: string | null;
+}
+
+/** 새 계정 만들기 응답(201) — 만든 회원과 이은 뒤의 사이트 계정 상태 */
+export interface OperatorMemberCreateResult {
+    /** 만든 회원 ID(= 회원 관리의 회원번호 `memberNo`) */
+    userId: string;
+    /** 정규화한(소문자) 이메일 — 이 주소로 메일을 보낸다 */
+    email: string;
+    nickname: string;
+    passwordMode: OperatorMemberPasswordMode;
+    /** 대기열에 넣은 메일(DIRECT → `EMAIL_VERIFICATION`, MAIL → `PASSWORD_SETUP`) — 커밋 뒤 대기열 워커가 이 주소로 보낸다(잠시 뒤 나간다) */
+    mailsSent: OperatorMemberCreateMail[];
+    /** 이은 뒤 이 운영자의 사이트 계정 상태(`GET …/member-account` 와 같은 모양 — `linked` 가 채워져 온다) */
+    account: OperatorMemberAccountView;
+}

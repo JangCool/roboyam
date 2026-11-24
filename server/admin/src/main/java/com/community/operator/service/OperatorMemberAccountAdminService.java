@@ -4,8 +4,17 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.auth.exception.AuthRejoinBlockedException;
+import com.community.auth.service.MemberSignupWriter;
+import com.community.mail.outbox.dto.OutboxMail;
+import com.community.mail.outbox.service.MailOutbox;
+import com.community.notificationtemplate.catalog.RequiredMail;
 import com.community.operator.dto.request.OperatorMemberLinkRequest;
 import com.community.operator.dto.response.OperatorMemberAccountView;
+import com.community.operator.dto.response.OperatorMemberCreateResult;
+import com.community.terms.service.TermsService;
+import com.community.withdrawal.entity.WithdrawalKind;
+import com.community.withdrawal.service.IdentityWithdrawalRecorder;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.exception.OperatorMemberAccountException;
 import com.community.operator.exception.OperatorNotFoundException;
@@ -21,6 +30,7 @@ import com.community.user.service.UserPolicy;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -37,6 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>연결</b>: 운영자 행 잠금 → 루트 보호 → 이미 이어짐 409 → 후보 409 → <b>회원 행 잠금</b>(탈퇴 신청 · 게시판 담당 지정과 같은 잠금) → 자격 다시 판정 409 →
  *       그 회원의 게시판 매니저·스텝 지정을 모두 끝냄(정책 4 — 행 삭제, 감사 {@code releasedBoards}) → <b>프로필을 비공개로</b>(운영팀 계정은 기본 비공개 — 사용자 2026-11-08,
  *       회원 본인이 나중에 공개로 돌릴 수 있다, 감사 {@code profileMadePrivate}) → 연결 + 감사 {@code OPERATOR_MEMBER_LINK}, 한 트랜잭션.</li>
+ *   <li><b>새 계정 만들기</b>({@link #createLinked} — 「새 계정 만들기(2026-11-24)」): 관리자가 회원 계정을 새로 만들어 바로 잇는다. 이메일은 운영자 이메일과 달라도 되고
+ *       (정책 2 의 예외 — 본인 확인은 인증 메일·비밀번호 정하기 메일이 대신한다) 이메일 인증 전 계정을 잇는다(힘 판정에 인증 조건을 더하지 않는다). 감사는 {@code OPERATOR_MEMBER_CREATE} 하나.</li>
  *   <li><b>해제</b>: 언제든(정책 5) — 감사 {@code OPERATOR_MEMBER_UNLINK}. 끝난 게시판 담당은 되살리지 않는다.</li>
  *   <li><b>루트 보호</b>(정책 5): 대상이 최고 관리자면 최고 관리자 본인만 잇고 끊는다(409 {@code OPERATOR_ROOT_PROTECTED}).</li>
  * </ul>
@@ -60,19 +72,32 @@ public class OperatorMemberAccountAdminService {
 
     private static final String AUDIT_TARGET = "OPERATOR";
 
+    /** 새 계정 만들기가 보낸 메일(응답 {@code mailsSent}) */
+    public static final String MAIL_EMAIL_VERIFICATION = "EMAIL_VERIFICATION";
+    public static final String MAIL_PASSWORD_SETUP = "PASSWORD_SETUP";
+
     private final OperatorRepository operators;
     private final OperatorMemberAccountStore store;
     private final OperatorMemberAccountService accounts;
     private final AuditLogService audit;
     private final ProfileRepository profiles;
+    private final MemberSignupWriter signupWriter;
+    private final IdentityWithdrawalRecorder withdrawals;
+    private final TermsService terms;
+    private final MailOutbox outbox;
 
     public OperatorMemberAccountAdminService(OperatorRepository operators, OperatorMemberAccountStore store, OperatorMemberAccountService accounts, AuditLogService audit,
-                                             ProfileRepository profiles) {
+                                             ProfileRepository profiles, MemberSignupWriter signupWriter, IdentityWithdrawalRecorder withdrawals, TermsService terms,
+                                             MailOutbox outbox) {
         this.operators = operators;
         this.store = store;
         this.accounts = accounts;
         this.audit = audit;
         this.profiles = profiles;
+        this.signupWriter = signupWriter;
+        this.withdrawals = withdrawals;
+        this.terms = terms;
+        this.outbox = outbox;
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +137,45 @@ public class OperatorMemberAccountAdminService {
                 .with("releasedBoards", released.stream().map(String::valueOf).toList()).with("profileMadePrivate", madePrivate));
         log.info("운영자 회원 계정을 이었다 operatorId={} userId={} releasedBoards={} by operatorId={}", operator.getId(), userId, released.size(), actor.operatorId());
         return view(operator);
+    }
+
+    /**
+     * 새 회원 계정을 만들고 이 운영자에 바로 잇는다(「새 계정 만들기」 — 정책 2 「같은 이메일」의 예외). 입력 형식 검사와 비밀번호 해시는 부르는 쪽({@link OperatorMemberCreateService})이 끝낸다.
+     * 판정 순서: 운영자 없음 404 → 루트 보호 409 → 이미 이어짐 409 → 이메일 중복 409 → 닉네임 중복 409(대소문자 무시) → 탈퇴 뒤 재가입 제한 409(공개 가입과 같은 차례).
+     * 한 트랜잭션: 회원(이메일 인증 전, 약관 버전 = 지금 약관 — 공개 가입과 같다) + 프로필(<b>비공개</b>로 시작) + 연결 + 메일 대기열 한 통 + 감사 {@code OPERATOR_MEMBER_CREATE}.
+     *
+     * @param email        정규화한 이메일
+     * @param passwordMode {@code DIRECT} · {@code MAIL}
+     * @param passwordHash bcrypt 해시 — MAIL 이면 아무도 모르는 무작위 비밀번호의 해시(링크에서 정할 때까지 로그인할 수 없다)
+     */
+    @Transactional
+    public OperatorMemberCreateResult createLinked(AdminActor actor, String operatorId, String email, String nickname, String passwordMode, String passwordHash) {
+        OperatorEntity operator = operators.findWithLockById(parseId(operatorId)).orElseThrow(OperatorNotFoundException::new);
+        requireRootSelf(actor, operator);
+        if (accounts.linkOfOperator(operator.getId()).isPresent()) {
+            throw OperatorMemberAccountException.alreadyLinked();
+        }
+        signupWriter.assertAvailable(email, nickname);
+        Instant now = accounts.now();
+        // 탈퇴 뒤 재가입 제한(commerce.md 17-2) — 공개 가입과 같다
+        withdrawals.blockedUntil(WithdrawalKind.EMAIL, email, now).ifPresent(until -> {
+            throw new AuthRejoinBlockedException(until, now);
+        });
+        long userId = signupWriter.create(email, passwordHash, nickname, terms.currentAgreementVersion());
+        // 운영팀 계정은 기본 비공개 프로필(사용자 2026-11-08 — 이을 때와 같다)
+        profiles.findById(userId).ifPresent(p -> p.changeVisibility(ProfileVisibility.PRIVATE, now));
+        store.insert(operator.getId(), userId, now, actor.operatorId());
+
+        boolean byMail = OperatorMemberCreateService.MODE_MAIL.equals(passwordMode);
+        RequiredMail kind = byMail ? RequiredMail.MEMBER_PASSWORD_SETUP : RequiredMail.MEMBER_EMAIL_VERIFY;
+        // 커밋 뒤 대기열 워커가 보낸다(실패해도 계정은 남고 재시도) — 링크는 보낼 때 만든다(대기열에 토큰 원문을 두지 않는다)
+        outbox.enqueue(new OutboxMail("OPERATOR_MEMBER_CREATE:" + userId, userId, kind, Map.of()));
+        String mailSent = byMail ? MAIL_PASSWORD_SETUP : MAIL_EMAIL_VERIFICATION;
+
+        audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.OPERATOR_MEMBER_CREATE, AuditResult.SUCCESS)
+                .target(AUDIT_TARGET, Long.toString(operator.getId())).with("userId", Long.toString(userId)).with("passwordMode", passwordMode));
+        log.info("운영자 회원 계정을 새로 만들어 이었다 operatorId={} userId={} passwordMode={} by operatorId={}", operator.getId(), userId, passwordMode, actor.operatorId());
+        return new OperatorMemberCreateResult(Long.toString(userId), email, nickname, passwordMode, List.of(mailSent), view(operator));
     }
 
     @Transactional

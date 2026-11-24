@@ -10,7 +10,12 @@
           [제재하기](`SanctionIssueDialog` — 회원이 정해져 찾기 없음)·진행 중 정지 [해제](사유 1~500자)는 이 화면이 대화상자를 가진다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
-        <PageTitle :title="t('member.title')" :subtitle="t('member.subtitle')" />
+        <PageTitle :title="t('member.title')" :subtitle="t('member.subtitle')">
+            <!-- 운영자 회원 계정 새로 만들기(`operator.manage` — 연결 권한과 같다) -->
+            <template v-if="canCreateOperatorAccount" #actions>
+                <Button type="button" :label="t('operatorMember.createOpen')" icon="pi pi-user-plus" size="small" severity="secondary" variant="outlined" @click="operatorCreate.start()" />
+            </template>
+        </PageTitle>
 
         <MemberSearchPanel :model-value="filter" v-model:detail-rows="detailRows" :role-options="roleOptions" :busy="busy" :summary="summary" :errors="searchErrors" @search="search" @reset="resetAll" />
 
@@ -190,6 +195,18 @@
             @submit="submitNickname"
         />
 
+        <!-- 운영자 사이트 계정 만들기 — 운영자를 고른다. 만든 뒤 결과 화면에서 회원 상세·운영자 서랍으로 간다 -->
+        <OperatorMemberCreateDialog
+            v-model:visible="operatorCreate.open.value"
+            :view="operatorCreate.view.value"
+            :can-open-member="true"
+            :show-operator-link="canReadOperators"
+            @submit="submitOperatorCreate"
+            @retry-operators="operatorCreate.loadOperators"
+            @open-member="openCreatedMember"
+            @open-operator="openOperatorDrawer"
+        />
+
         <!-- 제재하기·제재 해제 — 서랍 위에 뜬다 -->
         <SanctionIssueDialog v-model:visible="sanctionIssue.open.value" :view="sanctionIssue.view.value" :perm="sanctionLiftPerm" @retry-preview="sanctionIssue.loadPreview" @submit="submitSanctionIssue" />
         <MemberReasonDialog
@@ -321,6 +338,7 @@ import UtilSanctionMessages from '~/utils/util-sanction-messages';
 import type { AdminTitle, TitleGrantRequest, TitleGrantRow } from '~/composables/title/api/useTitleApi.types';
 import type { MemberTitlesView } from '~/components/member/MemberDetailContent.types';
 import UtilTitle from '~/utils/util-title';
+import type { OperatorMemberCreateSubmit } from '~/composables/operator/useOperatorMemberCreate.types';
 
 // 등급 목록 — 앱 전체가 한 번 읽어 공유한다(`useGradeAppearance`). 표의 뱃지·필터 옵션·조건 칩이 이것을 본다
 const gradeState = useGradeAppearance();
@@ -848,6 +866,33 @@ const summary = computed(() =>
 );
 
 const route = useRoute();
+
+// ── 운영자 사이트 계정 만들기(`useOperatorMemberAccountApi.create`) — 운영자를 골라 새 회원 계정을 만들고 바로 잇는다
+const operatorCreate = useOperatorMemberCreate();
+/** 머리 단추 — 연결 권한과 같다(`operator.manage`). 감추는 것은 편의이고 막는 것은 서버다 */
+const canCreateOperatorAccount = computed(() => can('operator.manage'));
+/** 결과 화면의 [운영자 서랍 열기] — 운영자 화면을 볼 수 있을 때 */
+const canReadOperators = computed(() => can('operator.read'));
+
+async function submitOperatorCreate(payload: OperatorMemberCreateSubmit): Promise<void> {
+    const created = await operatorCreate.submit(payload);
+    if (created) toast.success(t('operatorMember.create.created'));
+}
+
+/** [회원 관리에서 보기] — 이 화면이라 창을 닫고 그 회원 번호로 바로 검색한다(다른 화면이 `?memberNo=` 로 여는 것과 같은 길) */
+function openCreatedMember(userId: string): void {
+    operatorCreate.open.value = false;
+    Object.assign(filter, UtilMember.emptyFilter());
+    filter.searchField = 'MEMBER_NO';
+    filter.keyword = userId;
+    search();
+}
+
+/** [운영자 서랍 열기]·「운영자 서랍에서 연결」 — 운영자 화면이 `?operatorId=` 로 그 운영자의 「사이트 계정」 탭을 연다 */
+function openOperatorDrawer(operatorId: string): void {
+    operatorCreate.open.value = false;
+    void navigateTo({ path: '/settings/operators', query: { operatorId, tab: 'account' } });
+}
 
 onMounted(async () => {
     // 등급 목록(필터 옵션·뱃지) — 못 받아도 목록은 봐야 한다. 못 받으면 중립 뱃지 + 등급 키로 보인다.

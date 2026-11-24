@@ -10,6 +10,8 @@ import com.community.auth.exception.AuthTokenExpiredException;
 import com.community.auth.exception.AuthTokenInvalidException;
 import com.community.auth.repository.master.AuthTokenRepository;
 import com.community.auth.repository.master.AuthTokenRepositoryQDSL;
+import com.community.point.service.PointService;
+import com.community.rewardevent.service.RewardFirstComeService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserIdentityEntity;
@@ -34,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>링크 토큰은 무작위 256비트, <b>해시만 저장</b>, 유효 {@code irobit.account.reset-token-minutes}(60분). 새 링크를 만들면 이전 링크는 무효다.</li>
  *   <li>같은 회원은 60초에 한 번만 새 링크를 만든다(가장 최근 발급 시각 — 서버가 여러 대여도 같다). 넘치면 조용히 보내지 않는다.</li>
  *   <li>회원 행을 먼저 잠그고 토큰을 읽는다(인증·이메일 변경 링크와 같은 잠금 순서).</li>
+ *   <li><b>비밀번호 정하기 링크</b>({@link AuthTokenPurpose#SETUP_PASSWORD} — 관리자가 만든 운영자 회원 계정, 링크는 메일 대기열이 보낼 때 shared {@code AccountLinkMails} 가 만든다)도
+ *       같은 확인·재설정 API 로 쓴다. 그 링크로 정하면 이메일 인증도 끝난다. 재설정 링크와 정하기 링크는 서로를 무효로 하지 않지만, 어느 쪽이든 비밀번호를 바꾸면 둘 다 무효다.</li>
  * </ul>
  */
 @Service
@@ -51,10 +55,14 @@ public class PasswordResetTokenService {
     private final AccountProperties props;
     private final LoginAttemptService attempts;
     private final MemberSessionTerminator sessions;
+    private final RewardFirstComeService firstCome;
+    private final PointService points;
 
     public PasswordResetTokenService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, AuthTokenRepository tokens,
                                      AuthTokenRepositoryQDSL tokenQueries, SnowflakeIdGenerator ids, AuthProperties authProps, AccountProperties props,
-                                     LoginAttemptService attempts, MemberSessionTerminator sessions) {
+                                     LoginAttemptService attempts, MemberSessionTerminator sessions, RewardFirstComeService firstCome, PointService points) {
+        this.firstCome = firstCome;
+        this.points = points;
         this.users = users;
         this.profiles = profiles;
         this.identities = identities;
@@ -144,12 +152,32 @@ public class PasswordResetTokenService {
         user.changePassword(newPasswordHash, now);
         token.consume(now);
         tokenQueries.consumeAll(userId, AuthTokenPurpose.RESET_PASSWORD, now);
+        tokenQueries.consumeAll(userId, AuthTokenPurpose.SETUP_PASSWORD, now);
+        if (token.getPurpose() == AuthTokenPurpose.SETUP_PASSWORD) {
+            verifyBySetupLink(user, now);
+        }
         if (user.getEmail() != null) {
             attempts.resetFailures(user.getEmail());
         }
         int ended = sessions.endAll(userId);
-        log.info("비밀번호를 재설정했다 userId={} 끝낸 세션={}개", userId, ended);
+        log.info("비밀번호를 재설정했다 userId={} 끝낸 세션={}개 정하기링크={}", userId, ended, token.getPurpose() == AuthTokenPurpose.SETUP_PASSWORD);
         return ended;
+    }
+
+    /**
+     * 비밀번호 정하기 링크(관리자가 만든 운영자 회원 계정 — operator-member-account-contract 「새 계정 만들기」)로 정했으면 그 주소로 링크를 받았으므로 이메일 인증도 끝낸다.
+     * 첫 인증이면 이메일 인증 링크({@code EmailLinkService#verify})와 같은 뒤처리(선착순 보상 이벤트 · 가입 포인트 — 둘 다 세이브포인트라 실패해도 비밀번호 설정은 성공)를 한다.
+     */
+    private void verifyBySetupLink(UserEntity user, Instant now) {
+        if (user.isEmailVerified() || user.getEmail() == null) {
+            return;
+        }
+        user.markEmailVerified(now);
+        tokenQueries.consumeAll(user.getId(), AuthTokenPurpose.VERIFY_EMAIL, now);
+        users.flush();
+        firstCome.onEmailVerified(user.getId());
+        points.signup(user.getId());
+        log.info("비밀번호 정하기 링크로 이메일 인증 완료 userId={}", user.getId());
     }
 
     private static String hashOf(String rawToken) {
@@ -159,8 +187,10 @@ public class PasswordResetTokenService {
         return Digests.sha256Hex(rawToken);
     }
 
+    /** 재설정 링크와 비밀번호 정하기 링크(같은 화면으로 온다)만 쓸 수 있다 */
     private static void assertUsable(AuthTokenEntity token, Instant now) {
-        if (token.getPurpose() != AuthTokenPurpose.RESET_PASSWORD || token.isConsumed()) {
+        boolean resetLike = token.getPurpose() == AuthTokenPurpose.RESET_PASSWORD || token.getPurpose() == AuthTokenPurpose.SETUP_PASSWORD;
+        if (!resetLike || token.isConsumed()) {
             throw new AuthTokenInvalidException();
         }
         if (token.isExpired(now)) {
