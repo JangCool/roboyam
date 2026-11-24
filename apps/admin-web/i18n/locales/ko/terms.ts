@@ -61,7 +61,7 @@ export default {
     unfavorableTag: '불리한 변경',
     effectiveDate: '시행일',
     effectiveDateHelp: '사이트 시간대 기준이에요. {rule} 마지막 게시본의 시행일보다 앞설 수 없어요(같은 날 가능).',
-    effectiveDateRuleFirst: '첫 게시본은 내일부터 고를 수 있어요.',
+    effectiveDateRuleFirst: '첫 게시본은 오늘부터 고를 수 있어요.',
     effectiveDateRuleRevision: '개정은 {days}일 뒤부터 고를 수 있어요.',
     effectiveDateRuleUnfavorable: '회원에게 불리한 변경은 {days}일 뒤부터 고를 수 있어요.',
     effectiveDateRequired: '시행일을 골라 주세요.',

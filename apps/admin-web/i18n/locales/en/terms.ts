@@ -60,7 +60,7 @@ export default {
     unfavorableTag: 'Unfavorable',
     effectiveDate: 'Effective date',
     effectiveDateHelp: "In the site time zone. {rule} It can't be before the last published effective date (the same day is fine).",
-    effectiveDateRuleFirst: 'The first version can take effect from tomorrow.',
+    effectiveDateRuleFirst: 'The first version can take effect from today.',
     effectiveDateRuleRevision: 'A revision can take effect {days} days from now or later.',
     effectiveDateRuleUnfavorable: 'A change unfavorable to members can take effect {days} days from now or later.',
     effectiveDateRequired: 'Pick an effective date.',

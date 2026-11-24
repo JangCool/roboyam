@@ -19,7 +19,7 @@ import type {
  *   - `PUT /terms/{kind}/draft` `{body}` → 초안 · `400 VALIDATION fields.body`  (`terms.manage`)
  *   - `DELETE /terms/{kind}/draft` → null(없어도 성공)  (`terms.manage`)
  *   - `POST /terms/{kind}/publish` `{effectiveDate, changeNote?, unfavorable}` → 새 게시본  (`terms.manage`)
- *       · `fields.effectiveDate` — 최소 시행일(첫 판 내일 · 개정 7일 뒤 `terms.effectiveDate.revision` · 불리한 변경 30일 뒤 `terms.effectiveDate.unfavorable`)
+ *       · `fields.effectiveDate` — 최소 시행일(첫 판 오늘 · 개정 7일 뒤 `terms.effectiveDate.revision` · 불리한 변경 30일 뒤 `terms.effectiveDate.unfavorable`)
  *       · `fields.changeNote` · `fields.draft`(초안 없음 · 모르는 자리표시 `terms.draft.unknownPlaceholder`)
  *   - `PUT /terms/settings` `{showLinks}` → `{showLinks}`  (`terms.manage`)
  * 경로의 `{kind}` 는 소문자(`terms`·`privacy`·`robotikon_contract`·`operation_policy`), 본문의 `kind` 는 대문자다.
