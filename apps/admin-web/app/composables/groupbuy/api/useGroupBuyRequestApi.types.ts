@@ -128,7 +128,7 @@ export interface GroupBuyRequestActions {
 export interface GroupBuyRequestDetail extends GroupBuyRequestRow {
     items: GroupBuyRequestItem[];
     photos: { id: string; url: string }[];
-    pickup: { carrierCode: string; trackingNo: string } | null;
+    pickup: { carrierCode: string; trackingNo: string | null } | null;
     /** 계산 나눔(요청 때 값) */
     breakdown: GroupBuyRefundBreakdown;
     /** 지금 다시 계산한 값 — `preview_amount` 와 다르면 두 값과 사유를 보이고 운영자가 확인(결정 72) */
@@ -142,7 +142,7 @@ export interface GroupBuyRequestDetail extends GroupBuyRequestRow {
     /** 운영자 거절 메모 — 주문 개인정보를 지우면(마지막 거래 + 5년, R__batch_47) null */
     rejectReason: string | null;
     rejectPhotos: { id: string; url: string }[];
-    /** 교환 재발송 — 주문 개인정보를 지웠으면 `trackingNo` null(회수 송장도 지워 `pickup` 은 null) */
+    /** 교환 재발송 — 주문 개인정보를 지웠으면 `trackingNo` null(회수 송장 번호도 지워 `pickup.trackingNo` 는 null, 택배사는 남는다) */
     exchangeShipment: { carrierCode: string; trackingNo: string | null; shippedAt: string } | null;
     /** 운영자가 금액을 정한 환불의 누계·문턱(보상액 — 결정 70) */
     adminRefundTotal: number;

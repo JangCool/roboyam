@@ -66,10 +66,11 @@ public final class BusinessAdminView {
     /**
      * 상세 — 목록 한 줄의 칸 + 가린 신원·개업일(가리지 않는다 — 옛 신청이면 null)·사본·서비스 카드·영향 건수·사유·처리 기록 + 등록증을 내는 길(V140 {@code UPLOAD}·{@code MAIL_FAX} —
      * 우편·팩스인데 등록증 파일도 종이 접수도 없으면 승인 409 {@code BUSINESS_CERT_NOT_RECEIVED}) + 받았는가({@code certificateReceived} — 승인 잠금과 같은 판정 {@code BusinessCertificateReceipt})
+     * + 익명화한 시각({@code anonymizedAt} — 반려·탈퇴 5년 뒤 R__batch_45 가 상호를 「삭제된 사업자」로, 등록번호·개업일을 비운 신원이면 그 시각, 아니면 null)
      */
     public record Detail(String id, String name, String maskedRegNo, String status, boolean reReview, List<ServiceRow> services, Applicant applicant, Instant appliedAt,
                          Nts nts, Masked masked, LocalDate openedOn, Certificate certificate, List<ServiceCard> serviceCards, Impact impact, Rejection rejection, Suspension suspension,
-                         List<History> history, String certificateDelivery, boolean certificateReceived) {
+                         List<History> history, String certificateDelivery, boolean certificateReceived, Instant anonymizedAt) {
     }
 
     /** 평문 — 화면은 {@code hideAt} 에 다시 가린다(복사 단추 없음) */

@@ -36,6 +36,7 @@ export default {
     email: '이메일',
     reveal: '평문 보기',
     revealNoPermission: '평문 열람 권한이 없어요.',
+    anonymized: '보관 기간(반려·탈퇴 5년)이 지나 {at}에 익명화한 사업자예요. 상호·등록번호·개업일·신원은 지웠고 광고 신청 기록만 남아요.',
     revealLeft: '{time} 뒤 가려요',
     hideNow: '지금 가리기',
     revealLogged: '열람 기록(운영자·IP·사유)이 남았어요. 복사하지 말고 확인만 해 주세요.',

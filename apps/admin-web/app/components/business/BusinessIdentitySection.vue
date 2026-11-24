@@ -11,9 +11,10 @@
                 <Tag :value="t('business.revealLeft', { time: UtilBusiness.clock(countdown.remaining.value) })" severity="warn" icon="pi pi-clock" />
                 <Button type="button" :label="t('business.hideNow')" icon="pi pi-eye-slash" size="small" severity="secondary" variant="text" @click="emit('hide')" />
             </div>
-            <Button v-else-if="canReveal" type="button" :label="t('business.reveal')" icon="pi pi-eye" size="small" severity="secondary" variant="outlined" :loading="busy" @click="emit('reveal')" />
-            <span v-else class="text-xs text-muted-color">{{ t('business.revealNoPermission') }}</span>
+            <Button v-else-if="canReveal && !detail.anonymizedAt" type="button" :label="t('business.reveal')" icon="pi pi-eye" size="small" severity="secondary" variant="outlined" :loading="busy" @click="emit('reveal')" />
+            <span v-else-if="!detail.anonymizedAt" class="text-xs text-muted-color">{{ t('business.revealNoPermission') }}</span>
         </div>
+        <Message v-if="detail.anonymizedAt" severity="secondary" size="small" variant="simple" class="text-xs">{{ t('business.anonymized', { at: time.date(detail.anonymizedAt) }) }}</Message>
         <dl class="m-0 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 rounded-lg border border-(--line) px-3 py-2.5 text-[13px] select-text" :class="shown ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''">
             <template v-for="row in rows" :key="row.key">
                 <dt class="text-muted-color">{{ row.label }}</dt>
@@ -64,7 +65,7 @@ const rows = computed(() => {
         { key: 'regNo', label: t('business.regNo'), value: r?.regNo ?? props.detail.maskedRegNo ?? '—' },
         { key: 'rep', label: t('business.representative'), value: r?.representative ?? (m.representative || '—') },
         // 등록번호가 null 인 신원은 익명화한 것뿐이다(V265 ck_bp_last4_present) — 그때 개업일 null 은 「옛 신청」이 아니라 지운 값
-        { key: 'opened', label: t('business.openedOn'), value: props.detail.openedOn ? time.value.serviceDate(props.detail.openedOn) : props.detail.maskedRegNo === null ? '—' : t('business.openedOnNone') },
+        { key: 'opened', label: t('business.openedOn'), value: props.detail.openedOn ? time.value.serviceDate(props.detail.openedOn) : props.detail.anonymizedAt ? '—' : t('business.openedOnNone') },
         { key: 'addr', label: t('business.address'), value: r?.address ?? (m.address || '—') },
         { key: 'phone', label: t('business.phone'), value: r?.phone ?? (m.phone || '—') },
         { key: 'email', label: t('business.email'), value: r?.email ?? (m.email || '—') },

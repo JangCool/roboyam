@@ -706,6 +706,7 @@ export default {
     extraRefunded: '돌려준 몫 {amount}원',
     secLogistics: '회수·교환·거절',
     pickupLine: '회수 송장 {carrier} {no}',
+    pickupLineErased: '회수 송장 {carrier} · 송장 번호는 보관 기간이 지나 지웠어요',
     receivedLine: '반환받은 날 {at}',
     exchangeLine: '교환 재발송 {carrier} {no} · {at}',
     rejectedLine: '거절 — {code} · {reason}',

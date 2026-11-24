@@ -706,6 +706,7 @@ export default {
     extraRefunded: 'Returned ₩{amount}',
     secLogistics: 'Collection, exchange, rejection',
     pickupLine: 'Pickup {carrier} {no}',
+    pickupLineErased: 'Pickup {carrier} · tracking no. deleted after the retention period',
     receivedLine: 'Received {at}',
     exchangeLine: 'Exchange reshipped {carrier} {no} · {at}',
     rejectedLine: 'Rejected — {code} · {reason}',

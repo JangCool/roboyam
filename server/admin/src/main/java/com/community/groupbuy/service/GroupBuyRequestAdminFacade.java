@@ -152,8 +152,7 @@ public class GroupBuyRequestAdminFacade {
         String productRestriction = queries.withdrawalRestriction(g.id());
         return new GroupBuyOrderAdminView.RequestDetail(row.id(), row.type(), row.status(), row.resolution(), row.order(), row.groupBuy(), row.member(), row.lineCount(),
                 row.totalQty(), row.mainReason(), row.collectionMethod(), row.previewAmount(), row.createdAt(), row.receivedAt(), row.elapsedBusinessDays(),
-                row.deadlineLevel(), row.extraPayment(), items, memberPhotos, extra.pickupTrackingNo() == null ? null
-                : new GroupBuyOrderAdminView.Pickup(extra.pickupCarrierCode(), extra.pickupTrackingNo()), current, recalculated,
+                row.deadlineLevel(), row.extraPayment(), items, memberPhotos, pickupOf(extra.pickupCarrierCode(), extra.pickupTrackingNo()), current, recalculated,
                 r.compensationAmount(), groups.settings().compensationCap(), productRestriction != null && !productRestriction.isBlank(), r.rejectReasonCode(),
                 extra.rejectNote(), operatorPhotos, exchange, refunds.operatorAmountTotal(o.id()), groups.settings().largeRefundThreshold(),
                 extra.operatorName(), extra.completedAt() != null ? extra.completedAt() : extra.decidedAt(), history, actions);
@@ -333,5 +332,13 @@ public class GroupBuyRequestAdminFacade {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    /**
+     * 회수 송장 — 입력한 적이 없으면(택배사·송장 둘 다 없음) null. 5년 지난 주문은 개인정보 파기(R__batch_47)로 송장 번호만 비므로
+     * 택배사는 남기고 {@code trackingNo} 를 null 로 준다(회수가 있었다는 사실은 남긴다, 2026-11-24).
+     */
+    static GroupBuyOrderAdminView.Pickup pickupOf(String carrierCode, String trackingNo) {
+        return carrierCode == null && trackingNo == null ? null : new GroupBuyOrderAdminView.Pickup(carrierCode, trackingNo);
     }
 }

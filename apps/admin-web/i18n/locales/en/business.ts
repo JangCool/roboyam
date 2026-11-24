@@ -35,6 +35,7 @@ export default {
     email: 'Email',
     reveal: 'Show plain text',
     revealNoPermission: 'You cannot view plain text.',
+    anonymized: 'Anonymized on {at} after the retention period (5 years after rejection or withdrawal). The name, registration number, opening date, and identity were deleted; only ad application records remain.',
     revealLeft: 'Hides in {time}',
     hideNow: 'Hide now',
     revealLogged: 'This view was logged (operator, IP, reason). Check only — do not copy.',
