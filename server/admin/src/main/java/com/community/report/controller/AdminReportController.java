@@ -108,11 +108,11 @@ public class AdminReportController {
         return noStore(actions.bulkDismiss(actor, body));
     }
 
-    /** 짤 사건의 그림(내려 비공개 위치로 옮긴 짤도 — 운영자 전용, {@code no-store}). 짤 사건이 아니거나 파일이 없으면 404 REPORT_CASE_NOT_FOUND */
+    /** 짤 사건의 그림(내려 비공개 위치로 옮긴 짤도 — 운영자 전용, {@code no-store}). 내려간 짤이면 감사 기록 JJAL_ORIGINAL_VIEW. 짤 사건이 아니거나 파일이 없으면 404 REPORT_CASE_NOT_FOUND */
     @RequirePermission(Permission.REPORT_READ)
     @GetMapping("/{id}/jjal-image")
-    public ResponseEntity<byte[]> jjalImage(@PathVariable String id) {
-        AdminReportQueryService.JjalImage image = queries.jjalImage(id);
+    public ResponseEntity<byte[]> jjalImage(@PathVariable String id, AdminActor actor) {
+        AdminReportQueryService.JjalImage image = queries.jjalImage(actor, id);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(org.springframework.http.MediaType.parseMediaType(image.contentType()))
                 .header("X-Content-Type-Options", "nosniff").body(image.data());
     }

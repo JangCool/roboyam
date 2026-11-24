@@ -110,6 +110,12 @@ class AdminBodyTokenImagesHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.jjals[0].adminUrl").value("/api/admin/jjals/" + live + "/image"));
     }
 
+    /** 그 운영자가 그 짤 원본을 연 감사 기록 수 */
+    private int originalViews(long operatorId, String publicId) {
+        return jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'JJAL_ORIGINAL_VIEW' AND actor_id = ? AND target_type = 'JJAL' AND target_id = ?",
+                Integer.class, operatorId, publicId);
+    }
+
     /** 불법촬영물로 확정해 지운 짤 — 파일을 지우고 해시 행만 남는다(저장소 키 없음) */
     private String purgedJjal(long uploader) {
         long id = ids.nextId();
@@ -138,7 +144,8 @@ class AdminBodyTokenImagesHttpTest extends Commerce04AdminTestBase {
             long board = board();
             long postId = ids.nextId();
             boardFixture.post(postId, board, author, "짤 글", ":jjal-" + down + ": :jjal-" + purged + ":");
-            Cookie posts = login(operatorWith(Permission.POST_READ));
+            long postOperator = operatorWith(Permission.POST_READ);
+            Cookie posts = login(postOperator);
             mvc.perform(get("/api/admin/posts/" + postId).cookie(posts)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.jjals.length()").value(2))
                     .andExpect(jsonPath("$.data.jjals[0].adminUrl").value("/api/admin/jjals/" + down + "/image"))
@@ -153,17 +160,36 @@ class AdminBodyTokenImagesHttpTest extends Commerce04AdminTestBase {
                     .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.allOf(org.hamcrest.Matchers.containsString("no-store"),
                             org.hamcrest.Matchers.containsString("private"))))
                     .andExpect(header().string("X-Content-Type-Options", "nosniff"));
-            // 살아 있는 짤도 같은 경로로
+            // 내려간 짤을 보면 감사 기록(대상 JJAL + 공개 ID, 상태·사유)
+            assertThat(originalViews(postOperator, down)).isEqualTo(1);
+            Map<String, Object> row = jdbc.queryForMap("SELECT detail::jsonb ->> 'status' AS status, detail::jsonb ->> 'blockedReason' AS reason, (detail::jsonb -> 'caseId') IS NOT NULL AS has_case "
+                    + "FROM audit_logs WHERE action = 'JJAL_ORIGINAL_VIEW' AND actor_id = ? AND target_type = 'JJAL' AND target_id = ?", postOperator, down);
+            assertThat(row).containsEntry("status", "BLOCKED").containsEntry("reason", "STAFF").containsEntry("has_case", false);
+            // 살아 있는 짤도 같은 경로로 — 공개 중인 그림이라 감사 기록은 없다
             mvc.perform(get("/api/admin/jjals/" + live + "/image").cookie(posts)).andExpect(status().isOk()).andExpect(content().bytes(liveBytes));
+            assertThat(originalViews(postOperator, live)).isZero();
 
             // report.read 만 — 200
-            Cookie reports = login(operatorWith(Permission.REPORT_READ));
+            long reportOperator = operatorWith(Permission.REPORT_READ);
+            Cookie reports = login(reportOperator);
             mvc.perform(get("/api/admin/jjals/" + down + "/image").cookie(reports)).andExpect(status().isOk()).andExpect(content().bytes(downBytes));
+            assertThat(originalViews(reportOperator, down)).isEqualTo(1);
+
+            // 짤 신고 사건의 그림도 같은 기록(caseId 덧붙임)
+            long jjalCase = ids.nextId();
+            jdbc.update("INSERT INTO report_cases (id, target_type, target_id, post_id, board_id, target_author_id, status, report_count, first_reported_at, last_reported_at) "
+                    + "VALUES (?, 'JJAL', (SELECT id FROM jjal_files WHERE public_id = ?), NULL, NULL, ?, 'PENDING', 1, now(), now())", jjalCase, down, author);
+            mvc.perform(get("/api/admin/reports/" + jjalCase + "/jjal-image").cookie(reports)).andExpect(status().isOk()).andExpect(content().bytes(downBytes));
+            assertThat(originalViews(reportOperator, down)).isEqualTo(2);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE action = 'JJAL_ORIGINAL_VIEW' AND actor_id = ? AND target_id = ? AND detail::jsonb ->> 'caseId' = ?",
+                    Integer.class, reportOperator, down, Long.toString(jjalCase))).isEqualTo(1);
 
             // 파일 없는 짤(지움 · 저장소에 없음) · 없는 ID — 404 JJAL_NOT_FOUND
             for (String id : new String[] {purged, missing, "zzNoSuch1"}) {
                 mvc.perform(get("/api/admin/jjals/" + id + "/image").cookie(reports)).andExpect(status().isNotFound())
                         .andExpect(jsonPath("$.error.code").value("JJAL_NOT_FOUND"));
+                // 그림을 못 내보냈으면 기록도 없다
+                assertThat(originalViews(reportOperator, id)).isZero();
             }
 
             // 둘 다 없음 — 403

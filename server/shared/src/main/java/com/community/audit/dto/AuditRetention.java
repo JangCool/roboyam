@@ -81,6 +81,8 @@ public final class AuditRetention {
             AuditActions.WITHDRAWN_CONTACT_REVEAL,
             // 익명 글·댓글 작성자 열람(anonymous-board-contract 정책 10) — 봉인된 신원을 연 일
             AuditActions.ANONYMOUS_AUTHOR_REVEAL,
+            // 내려간 짤 원본 열람 — 불법촬영물 의심 등으로 내린 그림을 운영자가 본 일(post-admin-contract 「본문 로보티콘·짤 그림」)
+            AuditActions.JJAL_ORIGINAL_VIEW,
             // 결제 주문 상세(회원 번호·닉네임 — commerce-payment-contract 결정 17)
             AuditActions.PAYMENT_ORDER_VIEW,
             // 공구 배송지 열람·배송 명단 내보내기(commerce.md 10-9)
@@ -182,7 +184,7 @@ public final class AuditRetention {
             AuditActions.PURCHASE_PROOF_APPROVE, AuditActions.PURCHASE_PROOF_REJECT, AuditActions.SPONSOR_HIDDEN_CONFIRM, AuditActions.SPONSOR_HIDDEN_DISMISS,
             // 공지 관리(notice-admin-contract) — 게시글 관리와 같은 콘텐츠 관리(포인트가 오가지 않는다)
             AuditActions.NOTICE_CREATE, AuditActions.NOTICE_UPDATE, AuditActions.NOTICE_DELETE, AuditActions.NOTICE_PIN, AuditActions.NOTICE_UNPIN,
-            AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,
+            AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN, AuditActions.REPORT_JJAL_RESTORE,
             // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
             AuditActions.POINT_SHOP_SETTINGS_UPDATE,
