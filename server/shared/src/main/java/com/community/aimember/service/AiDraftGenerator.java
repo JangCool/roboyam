@@ -383,7 +383,7 @@ public class AiDraftGenerator {
             if (a.getVoice().animal()) {
                 return null;
             }
-            return news.pick(a, config, now, ThreadLocalRandom.current(), newsTaken).map(m -> newsTask(m, b, place, titles, siteName)).orElse(null);
+            return news.pick(a, config, now, ThreadLocalRandom.current(), newsTaken).map(m -> newsTask(a, snap, m, b, place, titles, siteName)).orElse(null);
         }
         // 다른 게시판 차례 — 뉴스 글을 비율로 시도(계정별 비율 V223 — 기자 계정은 높게, 없으면 공통 설정). 동물 소리 계정·소모임 글은 뉴스 글로 쓰지 않는다
         int newsRatio = a.newsRatioOr(config.newsRatio());
@@ -393,14 +393,25 @@ public class AiDraftGenerator {
                 // 쓰는 곳 = 뉴스 게시판(사용자 2026-11-15 — 있고 켜져 있고 AI 글 허용 · 이 계정이 쓸 수 있을 때, 공개 쓰기 경로와 같은 판정). 되돌림: 이 글 차례 게시판(b)
                 EffectiveBoard target = news.newsTarget(a, snap).orElse(b);
                 AiPrompts.Place newsPlace = target.id() == b.id() ? place : new AiPrompts.Place(target.name(), target.description(), false);
-                return newsTask(material.get(), target, newsPlace, titles, siteName);
+                return newsTask(a, snap, material.get(), target, newsPlace, titles, siteName);
             }
         }
         return new Task(AiDraftEntity.Target.post(b.id(), null), place, AiPrompts.Ask.post(titles));
     }
 
-    /** 뉴스 글 할 일 — 인용 = 소재 제목·요약·출처(수집 항목) 또는 회원 글 제목·본문. 말머리 목록 = 쓰는 게시판의 주제 말머리 */
-    private Task newsTask(AiNewsSources.Material m, EffectiveBoard target, AiPrompts.Place place, List<String> titles, String siteName) {
+    /**
+     * 뉴스 글 할 일 — 인용 = 소재 제목·요약·출처(수집 항목) 또는 회원 글 제목·본문. 말머리 목록 = 쓰는 게시판의 주제 말머리.
+     * 유튜브 영상 소재({@link AiNewsSources.Material#video})면 영상·짤 게시판에 쓴다(「유튜브 영상 글」 2026-11-24 — {@link AiNewsSources#videoTarget}, 쓸 수 없으면 받은 게시판 그대로).
+     */
+    private Task newsTask(AiMemberProfileEntity a, BoardCatalogSnapshot snap, AiNewsSources.Material m, EffectiveBoard target, AiPrompts.Place place, List<String> titles,
+                          String siteName) {
+        if (m.video()) {
+            EffectiveBoard video = news.videoTarget(a, snap).orElse(null);
+            if (video != null && video.id() != target.id()) {
+                target = video;
+                place = new AiPrompts.Place(video.name(), video.description(), false);
+            }
+        }
         AiDraftEntity.Target t = m.postId() != null ? AiDraftEntity.Target.newsPost(target.id(), m.postId()) : AiDraftEntity.Target.post(target.id(), null);
         List<String> prefixes = AiNewsSources.topicPrefixes(target).stream().map(p -> p.name().strip()).toList();
         AiPrompts.Ask ask = AiPrompts.Ask.news(new AiPrompts.Quote("뉴스 소재", materialText(m)), titles, new AiPrompts.NewsInfo(siteName, prefixes));
@@ -417,6 +428,10 @@ public class AiDraftGenerator {
         StringBuilder s = new StringBuilder("제목: ").append(m.title() == null ? "" : m.title()).append('\n');
         s.append("요약: ").append(m.summary() == null || m.summary().isBlank() ? "(요약 없음 — 제목만 근거로 짧게 쓴다)" : m.summary()).append('\n');
         s.append("출처: ").append(m.collected() ? (m.sourceName() == null ? "" : m.sourceName()) : "이 사이트 회원이 올린 뉴스 글");
+        if (m.video()) {
+            // 유튜브 영상 글(2026-11-24) — 글 위에 영상 플레이어가 붙는다. 영상은 보지 못하고 제목·설명만 안다
+            s.append('\n').append("종류: 유튜브 영상 — 글 위에 이 영상의 플레이어가 붙는다. 영상을 소개하는 글로 쓰고, 제목·설명에 없는 장면이나 내용은 지어내지 않는다");
+        }
         if (m.publishedAt() != null) {
             s.append('\n').append("발행: ").append(m.publishedAt().atZone(ServiceTime.ZONE).toLocalDate());
         }
@@ -576,7 +591,8 @@ public class AiDraftGenerator {
         AiVoice voice = a.getVoice();
         AiPromptConfig.Mood mood = voice.animal() ? null : AiPrompts.pickMood(config, ThreadLocalRandom.current()); // 동물 소리 계정은 분위기를 넣지 않는다
         // 수집 항목 뉴스 글 — 원문 기사를 읽어 본문 발췌를 자료에 더한다(2026-11-18, 트랜잭션 밖 — 못 읽으면 요약만으로). 기사 사진은 가져오지 않는다
-        AiNewsArticleReader.Article article = task.news() != null && task.news().collected() && !voice.animal()
+        // 유튜브 영상 소재는 원문(영상 페이지)을 읽지 않는다 — 제목·설명(수집 요약)만
+        AiNewsArticleReader.Article article = task.news() != null && task.news().collected() && !task.news().video() && !voice.animal()
                 ? articles.read(task.news().link()) : AiNewsArticleReader.Article.EMPTY;
         AiPrompts.Ask ask = task.ask();
         if (article.text() != null && ask.kind() == AiPrompts.Kind.NEWS) {
@@ -660,6 +676,9 @@ public class AiDraftGenerator {
         AiDraftEntity d = AiDraftEntity.generated(id, a.getId(), task.target(), answer.title(), body, a.getProvider(), a.getModel(), result.inputTokens(), result.outputTokens(),
                 instant, now());
         d.news(m.itemId(), prefix == null ? null : prefix.name().strip(), board != null && board.tagsEnabled() ? tags : List.of(), sources);
+        if (m.video() && AiNewsSources.playerAllowed(board)) {
+            d.video(m.youtubeVideoId()); // 등록 때 본문 위에 영상 플레이어(V268). 플레이어를 못 넣는 게시판이면 링크(출처)만
+        }
         tx.executeWithoutResult(status -> {
             drafts.persist(d);
             if (m.itemId() != null) {

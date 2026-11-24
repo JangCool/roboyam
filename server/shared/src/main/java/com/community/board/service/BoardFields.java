@@ -80,6 +80,8 @@ public final class BoardFields {
 
     /** 뉴스 게시판 slug(home-news-contract — 홈 새소식 가젯 대상 · AI 회원 뉴스 소재, shared V211) */
     public static final String NEWS_SLUG = "news";
+    /** 영상·짤 게시판 slug(홈 갤러리 가젯 기본 대상 · AI 기자 유튜브 소재 글 — ai-news-reporter-contract 「유튜브 영상 글」, 2026-11-24) */
+    public static final String VIDEO_SLUG = "video";
     public static final List<String> LAYOUTS = List.of("LIST", "CARD", "GALLERY");
     public static final List<String> COLORS = List.of("BLUE", "TEAL", "AMBER", "PURPLE", "GREEN", "ORANGE", "SLATE", "RED", "PINK", "INDIGO", "SKY", "BROWN", "EMERALD"); // EMERALD — shared V186(사용자 2026-11-11)
     public static final List<String> WRITE_LOCKS = List.of("POST", "POST_COMMENT");

@@ -70,6 +70,8 @@ public class AiDraftEntity {
     /** 뉴스 글 출처(V232 — JSON 배열 {@code [{name,url}]}, 없으면 null). 등록 때 글의 출처 칸으로 싣는다 */
     @JdbcTypeCode(SqlTypes.JSON)
     private String sources;
+    /** 유튜브 영상 글의 영상 ID(V268 — 11자, 없으면 null). 등록 때 본문 위에 YouTube 표식으로 붙여 HTML 글로 올린다 */
+    private String youtubeVideoId;
 
     protected AiDraftEntity() {
     }
@@ -183,6 +185,11 @@ public class AiDraftEntity {
         this.prefixName = prefixName == null || prefixName.isBlank() ? null : prefixName;
         this.tags = tags == null || tags.isEmpty() ? null : String.join(",", tags);
         this.sources = PostSources.toJson(sources);
+    }
+
+    /** 유튜브 영상 글 표시(V268) — 등록 때 본문 위에 붙일 영상 ID(형식이 틀리면 붙이지 않는다) */
+    public void video(String youtubeVideoId) {
+        this.youtubeVideoId = youtubeVideoId != null && youtubeVideoId.matches("[A-Za-z0-9_-]{11}") ? youtubeVideoId : null;
     }
 
     public void fail(String reason) {
@@ -304,6 +311,10 @@ public class AiDraftEntity {
 
     public Long getNewsItemId() {
         return newsItemId;
+    }
+
+    public String getYoutubeVideoId() {
+        return youtubeVideoId;
     }
 
     public String getPrefixName() {
