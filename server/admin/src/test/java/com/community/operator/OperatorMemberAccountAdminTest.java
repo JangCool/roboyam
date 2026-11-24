@@ -148,12 +148,102 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
     // ── 연결 자격(정책 2·3) ─────────────────────────────────────────────────
 
     @Test
-    void 같은_이메일이_아닌_회원은_후보가_아니다() {
+    void 같은_이메일이_아니어도_자격이_맞으면_잇고_감사에_sameEmail_false_를_남긴다() throws Exception {
         long target = operatorWith();
-        memberOf(target, true);
+        memberOf(target, true); // 같은 이메일 추천 후보가 있어도 다른 회원을 고를 수 있다
         long stranger = newMember();
         memberFixture.verifyEmail(stranger);
-        assertThat(code(() -> service.link(manager(), Long.toString(target), link(stranger)))).isEqualTo(OperatorMemberAccountException.NOT_CANDIDATE);
+        Cookie cookie = login(operatorWith(Permission.OPERATOR_READ, Permission.OPERATOR_MANAGE));
+        mvc.perform(withCsrf(put("/api/admin/operators/" + target + "/member-account"), cookie).content("{\"userId\":\"" + stranger + "\"}")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.linked.userId").value(Long.toString(stranger)));
+        assertThat((String) lastAudit("OPERATOR_MEMBER_LINK", target).get("detail")).contains("\"sameEmail\":false");
+    }
+
+    @Test
+    void 같은_이메일_회원을_이으면_감사에_sameEmail_true_를_남긴다() {
+        long target = operatorWith();
+        long user = memberOf(target, true);
+        service.link(manager(), Long.toString(target), link(user));
+        assertThat((String) lastAudit("OPERATOR_MEMBER_LINK", target).get("detail")).contains("\"sameEmail\":true");
+    }
+
+    @Test
+    void 없는_회원은_404_MEMBER_NOT_FOUND_이다() throws Exception {
+        long target = operatorWith();
+        Cookie cookie = login(operatorWith(Permission.OPERATOR_READ, Permission.OPERATOR_MANAGE));
+        mvc.perform(withCsrf(put("/api/admin/operators/" + target + "/member-account"), cookie).content("{\"userId\":\"" + ids.nextId() + "\"}"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"));
+        mvc.perform(withCsrf(put("/api/admin/operators/" + target + "/member-account"), cookie).content("{}"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("MEMBER_NOT_FOUND"));
+    }
+
+    @Test
+    void 다른_이메일_회원도_자격_미달이면_409이고_사유를_준다() throws Exception {
+        long target = operatorWith();
+        long stranger = newMember(); // 이메일 인증 전
+        Cookie cookie = login(operatorWith(Permission.OPERATOR_READ, Permission.OPERATOR_MANAGE));
+        mvc.perform(withCsrf(put("/api/admin/operators/" + target + "/member-account"), cookie).content("{\"userId\":\"" + stranger + "\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value(OperatorMemberAccountException.NOT_ELIGIBLE))
+                .andExpect(jsonPath("$.error.ineligibleReasons[0]").value("EMAIL_NOT_VERIFIED"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM operator_member_accounts WHERE operator_id = ?", Integer.class, target)).isZero();
+    }
+
+    // ── 회원 검색(세션 정리 결정 2026-11-24) ─────────────────────────────────
+
+    @Test
+    void 검색은_닉네임_이메일_회원번호로_찾고_자격과_가린_이메일을_준다() throws Exception {
+        long target = operatorWith();
+        long verified = newMember();
+        memberFixture.verifyEmail(verified);
+        String nickname = memberFixture.nickname(verified);
+        long unverified = newMember();
+        // SQL 로 남김: 회원 상태(정지·차단·탈퇴)·이메일·인증 칸을 그대로 두는 도메인 메서드가 없다
+        jdbc.update("UPDATE users SET email = ? WHERE id = ?", "srch" + unverified + "@test.local", unverified);
+        Cookie reader = login(operatorWith(Permission.OPERATOR_READ));
+        String url = "/api/admin/operators/" + target + "/member-account/candidates";
+
+        // 닉네임 부분 일치(대소문자 무시) — 가운데 글자만으로도(시험 닉네임은 ID 의 36진수 뒤쪽이라 뒤 글자가 겹치지 않는다)
+        String part = nickname.substring(nickname.length() - 5, nickname.length() - 1).toUpperCase(java.util.Locale.ROOT);
+        mvc.perform(withCsrf(get(url).param("q", "  " + part + "  "), reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.userId == '" + verified + "')].eligible").value(true))
+                .andExpect(jsonPath("$.data.items[?(@.userId == '" + verified + "')].memberNo").value(Long.toString(verified)));
+        // 회원번호 일치 — 정확히 맞는 것이 맨 앞
+        mvc.perform(withCsrf(get(url).param("q", Long.toString(verified)), reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].userId").value(Long.toString(verified)));
+        // 이메일 전체 주소 일치(대소문자 무시) — 가려서 주고, 인증 전이면 자격 미달 사유
+        mvc.perform(withCsrf(get(url).param("q", "SRCH" + unverified + "@Test.Local"), reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].userId").value(Long.toString(unverified)))
+                .andExpect(jsonPath("$.data.items[0].maskedEmail").value("sr***@test.local"))
+                .andExpect(jsonPath("$.data.items[0].eligible").value(false))
+                .andExpect(jsonPath("$.data.items[0].ineligibleReasons[0]").value("EMAIL_NOT_VERIFIED"));
+        // 이메일 일부로는 찾지 못한다(가린 값으로 짐작해 찾을 수 없게)
+        mvc.perform(withCsrf(get(url).param("q", "srch" + unverified + "@test"), reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(0));
+        // 2자 미만은 400
+        mvc.perform(withCsrf(get(url).param("q", " a "), reader)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION")).andExpect(jsonPath("$.error.fields.q").exists());
+        // 권한 없음
+        mvc.perform(withCsrf(get(url).param("q", part), login(operatorWith(Permission.MEMBER_READ)))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 검색은_탈퇴한_회원과_이_운영자에_이미_이어진_회원을_빼고_다른_운영자_연결은_사유로_준다() {
+        long target = operatorWith();
+        long other = operatorWith();
+        long mine = newMember();
+        memberFixture.verifyEmail(mine);
+        long theirs = newMember();
+        memberFixture.verifyEmail(theirs);
+        long gone = withdrawnMember(java.time.Instant.now());
+        jdbc.update("INSERT INTO operator_member_accounts (operator_id, user_id, linked_at) VALUES (?, ?, now()), (?, ?, now())", target, mine, other, theirs);
+
+        assertThat(service.searchCandidates(Long.toString(target), Long.toString(mine)).items()).noneMatch(i -> i.userId().equals(Long.toString(mine)));
+        assertThat(service.searchCandidates(Long.toString(target), Long.toString(gone)).items()).noneMatch(i -> i.userId().equals(Long.toString(gone)));
+        var row = service.searchCandidates(Long.toString(target), Long.toString(theirs)).items().get(0);
+        assertThat(row.userId()).isEqualTo(Long.toString(theirs));
+        assertThat(row.ineligibleReasons()).containsExactly("LINKED_TO_OTHER");
+        assertThat(row.linkedOperatorName()).isEqualTo(operatorName(other));
     }
 
     @Test
@@ -231,7 +321,7 @@ class OperatorMemberAccountAdminTest extends Commerce04AdminTestBase {
         long stranger = newMember();
         assertThat(code(() -> service.link(manager(), Long.toString(root), link(stranger)))).isEqualTo(OperatorMemberAccountException.ROOT_PROTECTED);
         assertThat(code(() -> service.unlink(manager(), Long.toString(root)))).isEqualTo(OperatorMemberAccountException.ROOT_PROTECTED);
-        // 본인은 보호에 걸리지 않는다(후보가 아니라서 다음 판정에서 막힌다)
+        // 본인은 보호에 걸리지 않는다(이메일 인증 전 회원이라 다음 판정에서 막힌다)
         assertThat(code(() -> service.link(actor(root), Long.toString(root), link(stranger)))).isNotEqualTo(OperatorMemberAccountException.ROOT_PROTECTED);
     }
 

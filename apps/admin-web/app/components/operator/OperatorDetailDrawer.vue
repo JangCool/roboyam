@@ -101,7 +101,9 @@
                             :can-manage="canManage"
                             :is-self="isSelf"
                             :busy="memberAccountBusy"
-                            @link="(userId: string) => emit('link-member', userId)"
+                            :search="memberSearch"
+                            @link="(candidate: OperatorMemberCandidate) => emit('link-member', candidate)"
+                            @search="(query: string) => emit('search-member', query)"
                             @create="emit('create-member')"
                             @unlink="emit('unlink-member')"
                             @retry="emit('retry-member-account')"
@@ -126,7 +128,8 @@ import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types'
 import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.types';
 import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorStatusRequest, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
-import type { OperatorMemberAccountView } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+import type { OperatorMemberAccountView, OperatorMemberCandidate } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+import type { OperatorMemberSearchView } from '~/composables/operator/useOperatorMemberSearch.types';
 import UtilMfaMessages from '~/utils/util-mfa-messages';
 import UtilOperator from '~/utils/util-operator';
 import UtilOperatorMessages from '~/utils/util-operator-messages';
@@ -162,6 +165,8 @@ interface Props {
     memberAccountError?: string;
     /** 사이트 계정 연결·해제 중 */
     memberAccountBusy?: boolean;
+    /** 사이트 계정 탭의 회원 검색 상태(페이지가 `useOperatorMemberSearch` 로 받는다) */
+    memberSearch?: OperatorMemberSearchView | null;
     /** 보고 있는 운영자가 로그인한 본인인가 — 최고 관리자의 사이트 계정은 본인만 바꾼다 */
     isSelf?: boolean;
     /** 열릴 때 먼저 보일 탭 — 다른 화면이 `?tab=account` 로 열 때(회원 관리의 운영자 계정 만들기 뒤) */
@@ -187,6 +192,7 @@ const props = withDefaults(defineProps<Props>(), {
     memberAccountLoading: false,
     memberAccountError: '',
     memberAccountBusy: false,
+    memberSearch: null,
     isSelf: false,
     initialTab: 'basic',
 });
@@ -198,8 +204,10 @@ const emit = defineEmits<{
     'save-status': [body: OperatorStatusRequest];
     /** [OTP 초기화] — 확인은 페이지가 묻는다 */
     'reset-mfa': [];
-    /** 사이트 계정 [연결] — 확인은 페이지가 묻는다 */
-    'link-member': [userId: string];
+    /** 사이트 계정 [연결] — 추천 카드나 검색 결과의 회원. 확인은 페이지가 묻는다 */
+    'link-member': [candidate: OperatorMemberCandidate];
+    /** 사이트 계정 회원 검색 — 다듬지 않은 말 */
+    'search-member': [query: string];
     /** 사이트 계정 [연결 해제] — 확인은 페이지가 묻는다 */
     'unlink-member': [];
     /** 사이트 계정을 다시 받는다(읽기 실패 뒤) */

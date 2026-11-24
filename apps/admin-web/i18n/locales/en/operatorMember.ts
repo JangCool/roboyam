@@ -11,10 +11,24 @@ export default {
     readOnly: 'You can only view this — you don’t have permission to change the site account link.',
     superOnlySelf: 'Only the super admin can change their own site account.',
 
-    // Not linked — member who signed up with the same email
-    candidateTitle: 'Member signed up with this operator’s email ({email})',
-    candidateNone: 'No member account uses the same email',
-    candidateNoneHint: 'Have the operator sign up on the site with the same email, then link it.',
+    // Not linked — suggestion (same email as the operator) · member search (any email) · create a new account
+    recommendTag: 'Suggested',
+    recommendTitle: 'Member signed up with the operator’s email ({email})',
+    unlinkedNone: 'No member account is linked — search for a member to link, or create a new account.',
+    unlinkedNoneReadOnly: 'No member account is linked.',
+    search: {
+        label: 'Search members',
+        placeholder: 'Nickname, email or member no.',
+        help: "Digits only search by member number (and numeric nicknames), text with {'@'} by email, anything else by part of the nickname. Enter the full email address. The email doesn’t have to match the operator’s.",
+        tooShort: 'Enter at least {min} characters.',
+        empty: 'No member matches “{query}”.',
+        results: 'Members found',
+        limit: 'Showing up to {count} members. Type more to narrow it down.',
+        memberNo: 'No. {no}',
+        joinedAt: 'Joined {date}',
+        noEmail: 'No email (social sign-up)',
+    },
+    createHint: 'Can’t find the member? Create a new account for the operator.',
     fieldNickname: 'Nickname',
     fieldGrade: 'Grade',
     fieldJoinedAt: 'Joined',
@@ -29,6 +43,15 @@ export default {
         MEMBER_RESTRICTED: 'This member is suspended or withdrawing.',
         BUSINESS_ACCOUNT: 'Business accounts can’t be linked.',
         LINKED_TO_OTHER: 'Already linked to another operator, “{name}”.',
+    },
+    /** Link failure (`OPERATOR_MEMBER_NOT_ELIGIBLE`) with `LINKED_TO_OTHER` when the operator name is unknown */
+    linkedToOtherNoName: 'Already linked to another operator.',
+    /** Short reason badges in search results — full text in `ineligible.*` */
+    ineligibleShort: {
+        EMAIL_NOT_VERIFIED: 'Email not verified',
+        MEMBER_RESTRICTED: 'Suspended / withdrawing',
+        BUSINESS_ACCOUNT: 'Business account',
+        LINKED_TO_OTHER: 'Linked to “{name}”',
     },
     link: 'Link',
     linkLabel: 'Link {nickname}',
@@ -84,7 +107,6 @@ export default {
     // Create a new account
     createOpen: 'Create operator account',
     createHere: 'Create new account',
-    createOther: 'Create a new account with another email',
     create: {
         title: 'Create operator site account',
         intro: 'Create a new member account for the operator to use on the site and link it right away.',
@@ -100,9 +122,7 @@ export default {
         useOperatorEmail: 'Use operator email ({email})',
         emailRequired: 'Enter an email.',
         emailFormat: 'Enter a valid email.',
-        emailTakenSame: 'A member already signed up with the operator’s email. Instead of creating one, link that member from the operator drawer’s “Site account” tab.',
-        emailTakenSameHere: 'A member already signed up with the operator’s email. Close this window and link that member in the “Site account” tab.',
-        emailTakenOther: 'A member already uses this email. Existing members can be linked only when their email matches the operator’s — use another email.',
+        emailTaken: 'This member already exists — search for them in the operator drawer’s “Site account” tab and link them.',
         goLink: 'Link from operator drawer',
         nicknameHint: '2–12 chars',
         nicknameHelp: 'As an operator account, names like irobit or 운영자 are allowed. Korean, letters, digits, underscore, single spaces between words.',

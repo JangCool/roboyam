@@ -1,10 +1,12 @@
 <template>
     <!--
         운영자 상세 서랍의 「사이트 계정」 탭 — 이 운영자가 사이트(user-web)에서 쓰는 회원 계정 하나를 잇고 끊는다(`docs/features/operator-member-account-contract.md`).
-        ① 위쪽 짧은 설명 ② 연결됨(회원 카드 + 상태 딱지 + 멈춘 까닭 + [연결 해제]) / 연결 안 됨(같은 이메일로 가입한 회원 후보 카드 + [연결] 또는 이을 수 없는 까닭) / 후보 없음(빈 상태)
+        ① 위쪽 짧은 설명 ② 연결됨(회원 카드 + 상태 딱지 + 멈춘 까닭 + [연결 해제]) /
+           연결 안 됨 — 이메일이 달라도 잇는다(2026-11-24): 「추천」 운영자와 같은 이메일로 가입한 회원 카드(있을 때) → 회원 검색(닉네임·이메일·회원번호, 0.3초 디바운스·Enter 바로 →
+           결과 목록: 닉네임·가린 이메일·회원번호·가입일·매니저/스텝 수, 이을 수 없으면 까닭 뱃지 + [연결] 꺼짐) → [새 계정 만들기]
         ③ 힘 목록 — 연결 여부와 상관없이 보인다(연결 전이면 「연결하면 이렇게 쓸 수 있어요」). 게시판 관리 힘은 이 운영자의 관리자 권한 거울이라 됨/안 됨과 필요한 권한 이름을 함께 보인다.
-        값은 페이지가 받아 내려 주고(`account`), 연결·해제는 `link`·`unlink` 로 올린다 — 확인창도 페이지가 띄운다. 이 탭은 서랍 푸터를 쓰지 않는다.
-        연결 안 됨이면 [새 계정 만들기](후보 없음 — 빈 상태 안) · [다른 이메일로 새 계정 만들기](후보 있음)로 `create` 를 올린다(대화창은 페이지가 띄운다).
+        값은 페이지가 받아 내려 주고(`account`·`search`), 연결·해제는 `link`(후보 통째)·`unlink`, 검색은 `search`(다듬지 않은 말)로 올린다 — 확인창·서버 호출은 페이지가 한다. 이 탭은 서랍 푸터를 쓰지 않는다.
+        [새 계정 만들기]는 `create` 를 올린다(대화창은 페이지가 띄운다). 검색 칸은 운영자가 바뀌거나 연결되면 비운다.
         단추는 `canManage`(operator.manage)일 때만, 대상이 최고 관리자면 본인일 때만 — 아니면 읽기 전용(까닭 한 줄). 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <section class="flex flex-col gap-4 pt-3" :aria-labelledby="titleId">
@@ -52,39 +54,128 @@
                 </div>
             </div>
 
-            <!-- 연결 안 됨 — 같은 이메일로 가입한 회원 -->
-            <div v-else-if="account.candidate" class="flex flex-col gap-3 rounded-lg border border-(--line) px-3 py-3">
-                <p class="m-0 text-xs text-muted-color">{{ t('operatorMember.candidateTitle', { email: operator.email }) }}</p>
-                <div class="flex flex-wrap items-center gap-2">
-                    <i class="pi pi-user text-sm text-muted-color" aria-hidden="true" />
-                    <span class="min-w-0 truncate text-sm font-medium">{{ account.candidate.nickname }}</span>
-                    <GradeBadge v-bind="gradeState.badgeOf(account.candidate.grade)" />
+            <!-- 연결 안 됨 — ① 추천(운영자와 같은 이메일) ② 회원 검색(이메일이 달라도) ③ 새 계정 만들기 -->
+            <template v-else>
+                <div v-if="account.candidate" class="flex flex-col gap-3 rounded-lg border border-(--line) px-3 py-3">
+                    <p class="m-0 flex flex-wrap items-center gap-1.5 text-xs text-muted-color">
+                        <Tag :value="t('operatorMember.recommendTag')" icon="pi pi-star" severity="info" />
+                        <span>{{ t('operatorMember.recommendTitle', { email: operator.email }) }}</span>
+                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <i class="pi pi-user text-sm text-muted-color" aria-hidden="true" />
+                        <span class="min-w-0 truncate text-sm font-medium">{{ account.candidate.nickname }}</span>
+                        <GradeBadge v-bind="gradeState.badgeOf(account.candidate.grade)" />
+                    </div>
+                    <dl class="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+                        <dt class="text-muted-color">{{ t('operatorMember.fieldJoinedAt') }}</dt>
+                        <dd class="m-0 tabular-nums">{{ time.date(account.candidate.joinedAt) }}</dd>
+                        <dt class="text-muted-color">{{ t('operatorMember.fieldBoardRoles') }}</dt>
+                        <dd class="m-0 tabular-nums">{{ t('operatorMember.boardRoles', { manager: account.candidate.boardManagerCount, staff: account.candidate.boardStaffCount }) }}</dd>
+                    </dl>
+                    <Message v-if="!account.candidate.eligible" severity="secondary" size="small" variant="simple" :closable="false">
+                        <span class="font-medium">{{ t('operatorMember.ineligibleTitle') }}</span>
+                        <ul class="m-0 mt-1 list-disc pl-4">
+                            <li v-for="reason in account.candidate.ineligibleReasons" :key="reason">{{ t(`operatorMember.ineligible.${reason}`, { name: account.candidate.linkedOperatorName ?? '' }) }}</li>
+                        </ul>
+                    </Message>
+                    <div v-else-if="canEdit">
+                        <Button
+                            type="button"
+                            :label="t('operatorMember.link')"
+                            :aria-label="t('operatorMember.linkLabel', { nickname: account.candidate.nickname })"
+                            icon="pi pi-link"
+                            size="small"
+                            :loading="busy && linkingId === account.candidate.userId"
+                            :disabled="busy"
+                            @click="link(account.candidate)"
+                        />
+                    </div>
                 </div>
-                <dl class="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[13px]">
-                    <dt class="text-muted-color">{{ t('operatorMember.fieldJoinedAt') }}</dt>
-                    <dd class="m-0 tabular-nums">{{ time.date(account.candidate.joinedAt) }}</dd>
-                    <dt class="text-muted-color">{{ t('operatorMember.fieldBoardRoles') }}</dt>
-                    <dd class="m-0 tabular-nums">{{ t('operatorMember.boardRoles', { manager: account.candidate.boardManagerCount, staff: account.candidate.boardStaffCount }) }}</dd>
-                </dl>
-                <Message v-if="!account.candidate.eligible" severity="secondary" size="small" variant="simple" :closable="false">
-                    <span class="font-medium">{{ t('operatorMember.ineligibleTitle') }}</span>
-                    <ul class="m-0 mt-1 list-disc pl-4">
-                        <li v-for="reason in account.candidate.ineligibleReasons" :key="reason">{{ t(`operatorMember.ineligible.${reason}`, { name: account.candidate.linkedOperatorName ?? '' }) }}</li>
-                    </ul>
-                </Message>
-                <div v-else-if="canEdit">
-                    <Button type="button" :label="t('operatorMember.link')" :aria-label="t('operatorMember.linkLabel', { nickname: account.candidate.nickname })" icon="pi pi-link" size="small" :loading="busy" @click="emit('link', account.candidate.userId)" />
-                </div>
-            </div>
-            <!-- 후보가 있어도 다른 이메일로 새로 만들 수 있다 -->
-            <div v-if="!account.linked && account.candidate && canEdit">
-                <Button type="button" :label="t('operatorMember.createOther')" icon="pi pi-user-plus" size="small" severity="secondary" variant="text" class="-ml-2" :disabled="busy" @click="emit('create')" />
-            </div>
+                <p v-else class="m-0 flex items-start gap-2 rounded-lg border border-dashed border-(--line) px-3 py-2.5 text-[13px] leading-relaxed text-muted-color">
+                    <i class="pi pi-user mt-0.5" aria-hidden="true" />
+                    <span>{{ canEdit ? t('operatorMember.unlinkedNone') : t('operatorMember.unlinkedNoneReadOnly') }}</span>
+                </p>
 
-            <!-- 후보 없음 — 운영자가 가입하기를 기다리거나 관리자가 새 계정을 바로 만든다 -->
-            <EmptyState v-else-if="!account.linked && !account.candidate" icon="pi pi-user" :title="t('operatorMember.candidateNone')" :description="t('operatorMember.candidateNoneHint')">
-                <Button v-if="canEdit" type="button" :label="t('operatorMember.createHere')" icon="pi pi-user-plus" size="small" :disabled="busy" @click="emit('create')" />
-            </EmptyState>
+                <!-- 회원 검색 — 닉네임·이메일·회원번호. 글자를 멈추고 0.3초 뒤에 찾는다(Enter 는 바로) -->
+                <section v-if="canEdit" class="flex flex-col gap-1.5" :aria-labelledby="searchTitleId">
+                    <label :id="searchTitleId" :for="searchInputId" class="text-sm font-medium">{{ t('operatorMember.search.label') }}</label>
+                    <IconField>
+                        <InputIcon class="pi pi-search" aria-hidden="true" />
+                        <InputText
+                            :id="searchInputId"
+                            v-model="query"
+                            type="search"
+                            maxlength="100"
+                            autocomplete="off"
+                            :placeholder="t('operatorMember.search.placeholder')"
+                            :aria-describedby="searchHelpId"
+                            fluid
+                            @keydown.enter.prevent="emitSearch(true)"
+                        />
+                    </IconField>
+                    <p :id="searchHelpId" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('operatorMember.search.help') }}</p>
+
+                    <div aria-live="polite" :aria-busy="search.loading">
+                        <div v-if="search.loading && !search.items" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
+                            <Skeleton v-for="n in 2" :key="n" height="3rem" />
+                        </div>
+                        <p v-else-if="search.error" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ search.error }}</p>
+                        <p v-else-if="tooShort" class="m-0 text-xs text-muted-color">{{ t('operatorMember.search.tooShort', { min: OPERATOR_MEMBER_SEARCH_MIN }) }}</p>
+                        <p v-else-if="search.items && !search.items.length" class="m-0 rounded-lg border border-(--line) px-3 py-3 text-center text-[13px] text-muted-color">
+                            {{ t('operatorMember.search.empty', { query: search.query }) }}
+                        </p>
+                        <template v-else-if="search.items">
+                            <ul class="m-0 flex list-none flex-col rounded-lg border border-(--line) p-0" :aria-label="t('operatorMember.search.results')">
+                                <li v-for="c in search.items" :key="c.userId" class="flex items-start justify-between gap-3 border-b border-(--line) px-3 py-2.5 last:border-b-0">
+                                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                        <div class="flex min-w-0 flex-wrap items-center gap-2">
+                                            <span class="min-w-0 truncate text-sm font-medium">{{ c.nickname }}</span>
+                                            <GradeBadge v-bind="gradeState.badgeOf(c.grade)" />
+                                        </div>
+                                        <div class="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-color">
+                                            <span class="min-w-0 truncate" :title="c.maskedEmail ? undefined : t('operatorMember.search.noEmail')">{{ c.maskedEmail ?? '—' }}</span>
+                                            <span class="tabular-nums">{{ t('operatorMember.search.memberNo', { no: c.memberNo }) }}</span>
+                                            <span class="tabular-nums">{{ t('operatorMember.search.joinedAt', { date: time.date(c.joinedAt) }) }}</span>
+                                            <span class="tabular-nums">{{ t('operatorMember.boardRoles', { manager: c.boardManagerCount, staff: c.boardStaffCount }) }}</span>
+                                        </div>
+                                        <div v-if="!c.eligible" class="flex flex-wrap gap-1">
+                                            <Tag
+                                                v-for="reason in c.ineligibleReasons"
+                                                :key="reason"
+                                                v-tooltip.top="t(`operatorMember.ineligible.${reason}`, { name: c.linkedOperatorName ?? '' })"
+                                                :value="t(`operatorMember.ineligibleShort.${reason}`, { name: c.linkedOperatorName ?? '' })"
+                                                :aria-label="t(`operatorMember.ineligible.${reason}`, { name: c.linkedOperatorName ?? '' })"
+                                                severity="secondary"
+                                                class="text-[11px]"
+                                            />
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        :label="t('operatorMember.link')"
+                                        :aria-label="t('operatorMember.linkLabel', { nickname: c.nickname })"
+                                        icon="pi pi-link"
+                                        size="small"
+                                        :severity="c.eligible ? undefined : 'secondary'"
+                                        :variant="c.eligible ? 'outlined' : 'text'"
+                                        class="shrink-0"
+                                        :loading="busy && linkingId === c.userId"
+                                        :disabled="!c.eligible || busy"
+                                        @click="link(c)"
+                                    />
+                                </li>
+                            </ul>
+                            <p v-if="search.items.length >= SEARCH_LIMIT" class="m-0 mt-1 text-xs text-muted-color">{{ t('operatorMember.search.limit', { count: SEARCH_LIMIT }) }}</p>
+                        </template>
+                    </div>
+                </section>
+
+                <!-- 새 계정 만들기 — 찾는 회원이 없을 때 -->
+                <div v-if="canEdit" class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-dashed border-(--line) pt-3">
+                    <span class="text-xs text-muted-color">{{ t('operatorMember.createHint') }}</span>
+                    <Button type="button" :label="t('operatorMember.createHere')" icon="pi pi-user-plus" size="small" severity="secondary" variant="outlined" :disabled="busy" @click="emit('create')" />
+                </div>
+            </template>
 
             <p v-if="readOnlyNote" class="m-0 flex items-center gap-1 text-xs text-muted-color">
                 <i class="pi pi-lock text-[10px]" aria-hidden="true" />{{ readOnlyNote }}
@@ -115,8 +206,12 @@
 
 <script setup lang="ts">
 import type { OperatorView } from '~/composables/operator/api/useOperatorApi.types';
-import type { OperatorMemberAccountView } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+import type { OperatorMemberAccountView, OperatorMemberCandidate } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+import { OPERATOR_MEMBER_SEARCH_MIN, type OperatorMemberSearchView } from '~/composables/operator/useOperatorMemberSearch.types';
 import UtilPermissionCatalog from '~/utils/util-permission-catalog';
+
+/** 서버가 한 번에 주는 검색 결과 수 — 이만큼 오면 「더 자세히 찾아 보세요」 */
+const SEARCH_LIMIT = 20;
 
 interface Props {
     operator: OperatorView;
@@ -131,6 +226,8 @@ interface Props {
     isSelf?: boolean;
     /** 연결·해제 중 */
     busy?: boolean;
+    /** 회원 검색 상태(페이지가 `useOperatorMemberSearch` 로 받는다). null = 아직 없음 */
+    search?: OperatorMemberSearchView | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -140,10 +237,13 @@ const props = withDefaults(defineProps<Props>(), {
     canManage: false,
     isSelf: false,
     busy: false,
+    search: null,
 });
 const emit = defineEmits<{
-    /** [연결] — 확인은 페이지가 묻는다 */
-    link: [userId: string];
+    /** [연결] — 추천 카드나 검색 결과의 회원 통째(확인창의 닉네임·게시판 수에 쓴다). 확인은 페이지가 묻는다 */
+    link: [candidate: OperatorMemberCandidate];
+    /** 회원 검색 — 다듬지 않은 말. 2자 미만이면 페이지가 결과를 비운다 */
+    search: [query: string];
     /** [연결 해제] — 확인은 페이지가 묻는다 */
     unlink: [];
     /** [새 계정 만들기] — 대화창(`OperatorMemberCreateDialog`)은 페이지가 띄운다 */
@@ -158,15 +258,56 @@ const { can } = useAdminPermission();
 const gradeState = useGradeAppearance();
 const titleId = useId();
 const powersId = useId();
+const searchTitleId = useId();
+const searchInputId = useId();
+const searchHelpId = useId();
+
+/* ── 회원 검색 ── */
+const EMPTY_SEARCH: OperatorMemberSearchView = { query: '', items: null, loading: false, error: '' };
+const search = computed<OperatorMemberSearchView>(() => props.search ?? EMPTY_SEARCH);
+const query = ref('');
+/** 누른 [연결]의 회원 — 그 단추에만 도는 표시 */
+const linkingId = ref('');
+/** 한 글자만 넣었다 — 부르지 않고 안내만 */
+const tooShort = computed(() => {
+    const length = query.value.trim().length;
+    return length > 0 && length < OPERATOR_MEMBER_SEARCH_MIN;
+});
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+function clearSearchTimer(): void {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = null;
+}
+/** 글자를 멈추고 0.3초 뒤에 올린다(Enter 는 바로) — 포인트 조정 창의 회원 찾기와 같은 관례 */
+function emitSearch(now: boolean): void {
+    clearSearchTimer();
+    if (now) emit('search', query.value);
+    else searchTimer = setTimeout(() => emit('search', query.value), 300);
+}
+watch(query, () => emitSearch(false));
+/** 다른 운영자로 바뀌거나 연결되면 검색 칸을 비운다(결과는 페이지가 비운다) */
+watch([() => props.operator.operatorId, () => !!props.account?.linked], () => {
+    clearSearchTimer();
+    query.value = '';
+    linkingId.value = '';
+});
+onBeforeUnmount(clearSearchTimer);
+
+function link(candidate: OperatorMemberCandidate): void {
+    if (!candidate.eligible || props.busy) return;
+    linkingId.value = candidate.userId;
+    emit('link', candidate);
+}
 
 /** 회원 조회로 가는 링크는 회원 조회 권한이 있을 때만 */
 const canReadMember = computed(() => can('member.read'));
 /** 연결·해제 단추를 보일까 — 최고 관리자 대상이면 본인일 때만 */
 const canEdit = computed(() => props.canManage && (!props.operator.isSuper || props.isSelf));
-/** 읽기 전용 까닭 — 단추가 있어야 할 자리(이을 수 있는 후보·연결됨)에서만 */
+/** 읽기 전용 까닭 — 단추·검색이 있어야 할 자리(연결됨이면 해제, 연결 안 됨이면 검색·연결)에서 */
 const readOnlyNote = computed(() => {
     const a = props.account;
-    if (canEdit.value || !a || (!a.linked && !a.candidate?.eligible)) return '';
+    if (canEdit.value || !a) return '';
     return props.canManage ? t('operatorMember.superOnlySelf') : t('operatorMember.readOnly');
 });
 

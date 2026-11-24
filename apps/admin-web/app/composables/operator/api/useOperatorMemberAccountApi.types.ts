@@ -31,7 +31,10 @@ export interface OperatorMemberActor {
     operatorName: string;
 }
 
-/** 이 운영자 이메일과 같은 이메일로 가입한 회원 — 연결 안 됨일 때만 온다 */
+/**
+ * 이을 수 있는(또는 지금은 이을 수 없는) 회원 한 명. `GET …/member-account` 의 `candidate`(운영자와 같은 이메일로 가입한 회원 — 화면의 「추천」)와
+ * 회원 검색 결과(`OperatorMemberSearchCandidate`)가 같은 모양을 쓴다. 이메일이 달라도 이을 수 있다(2026-11-24).
+ */
 export interface OperatorMemberCandidate {
     userId: string;
     nickname: string;
@@ -80,7 +83,8 @@ export interface OperatorMemberPowers {
 
 /**
  * `GET|PUT|DELETE /api/admin/operators/{operatorId}/member-account` 의 응답.
- * `linked` 와 `candidate` 는 함께 오지 않는다 — 이어져 있으면 `linked`, 아니면 `candidate`(같은 이메일로 가입한 회원이 없으면 null).
+ * `linked` 와 `candidate` 는 함께 오지 않는다 — 이어져 있으면 `linked`, 아니면 `candidate`(운영자와 같은 이메일로 가입한 회원 — 화면의 「추천」. 없으면 null).
+ * 같은 이메일이 아닌 회원은 회원 검색(`candidates`)으로 찾아 잇는다.
  */
 export interface OperatorMemberAccountView {
     linked: OperatorMemberLinked | null;
@@ -88,7 +92,24 @@ export interface OperatorMemberAccountView {
     powers: OperatorMemberPowers;
 }
 
-/** `PUT` 본문 — 이을 회원(서버가 후보 조건을 다시 판정한다) */
+/**
+ * 회원 검색 결과 한 줄(`GET …/member-account/candidates?q=`) — 후보 모양 + 가린 이메일·회원번호.
+ * 검색어 `q` 규칙(서버가 판정, 2~100자 — 어기면 400 `fields.q`): 숫자만 = 회원번호 일치 + 숫자 닉네임 부분 일치, `@` 포함 = **이메일 전체 주소 일치만**, 그 밖 = 닉네임 부분 일치.
+ * 이 운영자에 이미 이어진 회원과 탈퇴를 마친 회원은 오지 않는다. 정확히 맞는 것 먼저, 그다음 가입 최신순.
+ */
+export interface OperatorMemberSearchCandidate extends OperatorMemberCandidate {
+    /** 회원 관리의 회원번호 — 늘 온다(`userId` 와 같은 값) */
+    memberNo: string;
+    /** 가린 이메일(예: `ab***@gmail.com` — 관리자 회원 목록과 같은 가림). 이메일이 없는 회원(소셜 가입)은 null */
+    maskedEmail: string | null;
+}
+
+/** `GET …/member-account/candidates?q=` 의 응답 — 최대 20명 */
+export interface OperatorMemberCandidatesResponse {
+    items: OperatorMemberSearchCandidate[];
+}
+
+/** `PUT` 본문 — 이을 회원(서버가 이을 수 있는지 다시 판정한다 — 이메일은 달라도 된다) */
 export interface OperatorMemberLinkRequest {
     userId: string;
 }
