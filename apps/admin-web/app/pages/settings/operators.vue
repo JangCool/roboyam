@@ -221,7 +221,18 @@
             @link-member="linkMemberAccount"
             @unlink-member="unlinkMemberAccount"
             @retry-member-account="drawerOperator && loadMemberAccount(drawerOperator.operatorId)"
+            @create-member="drawerOperator && memberCreate.start(drawerOperator)"
+            :initial-tab="drawerInitialTab"
             @hide="onDrawerHide"
+        />
+
+        <!-- 사이트 계정 새로 만들기 — 서랍의 운영자로 정해져 열린다 -->
+        <OperatorMemberCreateDialog
+            v-model:visible="memberCreate.open.value"
+            :view="memberCreate.view.value"
+            :can-open-member="can('member.read')"
+            @submit="submitMemberCreate"
+            @open-member="(userId: string) => navigateTo({ path: '/members', query: { memberNo: userId } })"
         />
 
         <OperatorCreateDialog
@@ -247,6 +258,7 @@ import type { ApiError } from '~/composables/common/useApiClient';
 import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorInvitationView, OperatorRoleRef, OperatorStatusRequest, OperatorTab, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
 import type { OperatorMemberAccountView } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+import type { OperatorMemberCreateSubmit } from '~/composables/operator/useOperatorMemberCreate.types';
 import type { RoleView } from '~/composables/role/api/useRoleApi.types';
 import type { RoleTypeView } from '~/composables/role/api/useRoleTypeApi.types';
 import UtilOperator from '~/utils/util-operator';
@@ -375,6 +387,7 @@ onMounted(async () => {
         }
     }
     await reload();
+    openFromQuery();
 });
 
 /** 운영자 목록과 대기 중인 초대를 함께 다시 읽는다 — 탭에 보이는 숫자가 어긋나지 않게 */
@@ -433,6 +446,7 @@ async function onRowClick(event: { originalEvent: Event; data: OperatorView }) {
     infoFieldErrors.value = {};
     statusError.value = '';
     triggerRow = row;
+    drawerInitialTab.value = 'basic';
     drawerOperator.value = event.data;
     drawerOpen.value = true;
 }
@@ -514,6 +528,31 @@ async function loadMemberAccount(operatorId: string): Promise<void> {
     } finally {
         memberAccountLoading.value = false;
     }
+}
+
+/* ── 사이트 계정 새로 만들기(`useOperatorMemberAccountApi.create`) — 서랍의 운영자에 새 회원 계정을 만들어 바로 잇는다 ── */
+const memberCreate = useOperatorMemberCreate();
+const route = useRoute();
+/** 서랍이 열릴 때 먼저 보일 탭 — 다른 화면이 `?operatorId=…&tab=account` 로 열 때만 「사이트 계정」, 행을 누르면 기본 정보 */
+const drawerInitialTab = ref<'basic' | 'account'>('basic');
+
+async function submitMemberCreate(payload: OperatorMemberCreateSubmit): Promise<void> {
+    const created = await memberCreate.submit(payload);
+    if (!created) return;
+    if (drawerOperator.value?.operatorId === payload.operatorId) drawerMemberAccount.value = created.account;
+    toast.success(t('operatorMember.create.created'));
+    await refreshMemberAccountBadges();
+}
+
+/** 다른 화면(회원 관리의 운영자 계정 만들기)이 `?operatorId=` 로 열면 목록을 받은 뒤 그 운영자의 서랍을 연다. 활성 탭에 없으면 열지 않는다 */
+function openFromQuery(): void {
+    const operatorId = typeof route.query.operatorId === 'string' ? route.query.operatorId : '';
+    if (!operatorId) return;
+    const found = rows.value.find((o) => o.operatorId === operatorId);
+    if (!found) return;
+    drawerInitialTab.value = route.query.tab === 'account' ? 'account' : 'basic';
+    drawerOperator.value = found;
+    drawerOpen.value = true;
 }
 
 /** 연결·해제 뒤 표 이름 옆 딱지를 맞춘다 */

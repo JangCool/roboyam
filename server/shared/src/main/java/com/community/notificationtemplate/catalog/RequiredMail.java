@@ -28,7 +28,9 @@ public enum RequiredMail {
     MEMBER_WITHDRAWAL_COMPLETED(MessageAudience.MEMBER, false),
     MEMBER_WITHDRAWAL_PROGRESS(MessageAudience.MEMBER, false),
     // 약관 변경(terms-operator-contract): 회원에게 불리한 변경으로 게시한 이용약관·개인정보처리방침·운영정책 — 시행일·변경 요지·링크. 계정·법적 알림이라 회원이 끌 수 없다(메일 대기열)
-    MEMBER_TERMS_CHANGE(MessageAudience.MEMBER, false);
+    MEMBER_TERMS_CHANGE(MessageAudience.MEMBER, false),
+    // 운영자 회원 계정 새로 만들기(operator-member-account-contract 「새 계정 만들기」) — 관리자가 만든 계정에 「비밀번호 정하기」 링크(보안 메일, 메일 대기열 — 링크는 보낼 때 만든다)
+    MEMBER_PASSWORD_SETUP(MessageAudience.MEMBER, true);
 
     private final MessageAudience audience;
     private final boolean security;

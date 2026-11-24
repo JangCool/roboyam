@@ -331,11 +331,32 @@
           "sortOrder": 90
         },
         {
+          "name": "영화·드라마",
+          "nameEn": "Movies & Dramas",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 100
+        },
+        {
+          "name": "예능·방송",
+          "nameEn": "TV & Variety",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 110
+        },
+        {
+          "name": "애니·만화",
+          "nameEn": "Anime & Comics",
+          "common": false,
+          "staffOnly": false,
+          "sortOrder": 120
+        },
+        {
           "name": "기타",
           "nameEn": "기타",
           "common": false,
           "staffOnly": false,
-          "sortOrder": 100
+          "sortOrder": 130
         }
       ]
     },
@@ -402,12 +423,11 @@
       "nameEn": "Front/Back",
       "kind": "GENERAL",
       "sortOrder": 70,
-      "description": "본인인증한 성인만 볼 수 있는 게시판이에요.",
+      "description": "주변을 살펴야 하는 짤·영상·썰을 나누는 게시판이에요. 공공장소에서는 주의해서 열어 주세요.",
       "layout": "LIST",
       "viewToggle": true,
       "investmentNotice": false,
       "staffOnlyWrite": false,
-      "adultOnly": true,
       "color": null,
       "prefixes": [
         {

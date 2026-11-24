@@ -239,6 +239,14 @@ public class BuiltinMessages {
                             + p(text("mail.termsChange.disagree", locale))
                             + button("termsLink", text("mail.termsChange.button", locale))
                             + "<p>{{termsLink}}</p>"};
+            case MEMBER_PASSWORD_SETUP -> new String[] {text("mail.passwordSetup.subject", locale),
+                    strong(text("mail.passwordSetup.title", locale))
+                            + p(text(new MessageRef("mail.passwordSetup.greeting", "{{nickname}}", "{{siteName}}"), locale))
+                            + p(text("mail.passwordSetup.guide", locale))
+                            + button("setupLink", text("mail.passwordSetup.button", locale))
+                            + p(text(new MessageRef("mail.passwordSetup.validity", "{{validHours}}"), locale))
+                            + "<p>{{setupLink}}</p>"
+                            + p(text("mail.passwordSetup.ignore", locale))};
         };
     }
 

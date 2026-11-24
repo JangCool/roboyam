@@ -102,6 +102,7 @@
                             :is-self="isSelf"
                             :busy="memberAccountBusy"
                             @link="(userId: string) => emit('link-member', userId)"
+                            @create="emit('create-member')"
                             @unlink="emit('unlink-member')"
                             @retry="emit('retry-member-account')"
                         />
@@ -163,6 +164,8 @@ interface Props {
     memberAccountBusy?: boolean;
     /** 보고 있는 운영자가 로그인한 본인인가 — 최고 관리자의 사이트 계정은 본인만 바꾼다 */
     isSelf?: boolean;
+    /** 열릴 때 먼저 보일 탭 — 다른 화면이 `?tab=account` 로 열 때(회원 관리의 운영자 계정 만들기 뒤) */
+    initialTab?: 'basic' | 'status' | 'account';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -185,6 +188,7 @@ const props = withDefaults(defineProps<Props>(), {
     memberAccountError: '',
     memberAccountBusy: false,
     isSelf: false,
+    initialTab: 'basic',
 });
 const emit = defineEmits<{
     'update:visible': [visible: boolean];
@@ -200,6 +204,8 @@ const emit = defineEmits<{
     'unlink-member': [];
     /** 사이트 계정을 다시 받는다(읽기 실패 뒤) */
     'retry-member-account': [];
+    /** 사이트 계정 [새 계정 만들기] — 대화창은 페이지가 띄운다 */
+    'create-member': [];
     /** 서랍이 닫혔다(전환이 끝났다) — 부모가 눌렀던 행으로 초점을 돌려준다 */
     hide: [];
 }>();
@@ -243,8 +249,8 @@ function onHide(): void {
 
 /** 열릴 때 첫 입력칸(이름)에 초점 — 닫을 때 눌렀던 행으로 돌려주는 것은 부모 몫이다 */
 function onShow(): void {
-    tab.value = 'basic';
-    void nextTick(() => infoForm.value?.focusFirst());
+    tab.value = props.initialTab;
+    if (props.initialTab === 'basic') void nextTick(() => infoForm.value?.focusFirst());
 }
 
 /**

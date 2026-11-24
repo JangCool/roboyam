@@ -416,6 +416,9 @@ public final class MessageTargetCatalog {
         out.add(required(RequiredMail.MEMBER_TERMS_CHANGE, List.of(MessageVariable.of("termsName", "termsChangeName"),
                 MessageVariable.of("effectiveDate", "termsChangeEffectiveDate"), MessageVariable.of("changeNote", "termsChangeNote"),
                 MessageVariable.requiredLink("termsLink", "termsChangeLink")), List.of()));
+        // 운영자 회원 계정 새로 만들기(operator-member-account-contract 「새 계정 만들기」) — 비밀번호 정하기 링크(정하면 이메일 인증도 끝난다)
+        out.add(required(RequiredMail.MEMBER_PASSWORD_SETUP, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.requiredLink("setupLink", "memberSetupLink"),
+                MessageVariable.of("validHours", "memberSetupValidHours")), List.of()));
         return out;
     }
 

@@ -1,5 +1,6 @@
 package com.community.mail.outbox.service;
 
+import com.community.auth.service.AccountLinkMails;
 import com.community.mail.outbox.dto.OutboxDelivery;
 import com.community.mail.service.MailDispatcher;
 import com.community.membernotification.repository.master.MemberNotificationMailQueries;
@@ -12,6 +13,7 @@ import com.community.notificationtemplate.engine.RenderedEmail;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,6 +25,8 @@ import org.springframework.stereotype.Component;
  *       인증하지 않은 주소는 남의 것일 수 있어 개인 거래 내용을 보내지 않는다). 정지 회원도 받는다(돈 관련 안내라 계정 상태와 무관하다).</li>
  *   <li><b>언어</b>: 회원 표시 설정의 언어, 없으면 사이트 표시 기본 언어. {@code recipientName} = 회원 닉네임.</li>
  *   <li>메일 서버가 설정돼 있지 않아 못 보냈으면 RETRY(서버를 고치면 다음 시도에 나간다 — P27). 모르는 종류 코드는 CANCELED.</li>
+ *   <li><b>계정 링크 메일</b>({@link AccountLinkMails#handles} — 이메일 인증·비밀번호 정하기, 운영자 회원 계정 새로 만들기가 넣는다): 인증 전 주소로도 보낸다(그 주소를 인증하려는 메일이다).
+ *       링크는 보낼 때 {@link AccountLinkMails#prepare} 가 새로 만든다(대기열에 토큰 원문을 두지 않는다).</li>
  *   <li>주소·본문·변수는 로그에 남기지 않는다. 남기는 것은 가린 주소({@code ab***@example.com}, 관리자 {@code MemberMasking.email} 과 같은 규칙)뿐이다.</li>
  * </ul>
  */
@@ -32,11 +36,19 @@ public class RequiredMailOutboxSender implements OutboxMailSender {
     private final MemberNotificationMailQueries recipients;
     private final NotificationMessageRenderer renderer;
     private final MailDispatcher mail;
+    /** 계정 링크 메일의 링크 만들기 — 없으면(시험) 그 종류는 보내지 않는다 */
+    private final AccountLinkMails links;
 
     public RequiredMailOutboxSender(MemberNotificationMailQueries recipients, NotificationMessageRenderer renderer, MailDispatcher mail) {
+        this(recipients, renderer, mail, null);
+    }
+
+    @Autowired
+    public RequiredMailOutboxSender(MemberNotificationMailQueries recipients, NotificationMessageRenderer renderer, MailDispatcher mail, AccountLinkMails links) {
         this.recipients = recipients;
         this.renderer = renderer;
         this.mail = mail;
+        this.links = links;
     }
 
     @Override
@@ -50,12 +62,24 @@ public class RequiredMailOutboxSender implements OutboxMailSender {
             return OutboxDelivery.canceled("NO_RECIPIENT");
         }
         Recipient recipient = found.get();
-        String refusal = refusal(recipient);
+        boolean linkMail = AccountLinkMails.handles(mailKind.get());
+        String refusal = refusal(recipient, linkMail);
         if (refusal != null) {
             return OutboxDelivery.canceled(refusal);
         }
-        RenderedEmail content = renderer.renderEmail(MessageRenderRequest.requiredMail(mailKind.get()).locale(localeOf(recipient.language()))
-                .variables(variables).variable("recipientName", recipient.nickname()).build());
+        MessageRenderRequest.Builder request = MessageRenderRequest.requiredMail(mailKind.get()).locale(localeOf(recipient.language())).variables(variables);
+        if (linkMail) {
+            if (links == null) {
+                return OutboxDelivery.canceled("UNKNOWN_KIND");
+            }
+            AccountLinkMails.Prepared prepared = links.prepare(mailKind.get(), userId);
+            if (prepared.stopReason() != null) {
+                return prepared.retry() ? OutboxDelivery.retry(prepared.stopReason()) : OutboxDelivery.canceled(prepared.stopReason());
+            }
+            request.variables(prepared.variables()).variable("nickname", recipient.nickname());
+            prepared.conditions().forEach(request::condition);
+        }
+        RenderedEmail content = renderer.renderEmail(request.variable("recipientName", recipient.nickname()).build());
         if (!mail.sendTagged(recipient.email(), content.subject(), content.untaggedSubject(), content.html())) {
             return OutboxDelivery.retry("MAIL_NOT_CONFIGURED");
         }
@@ -64,13 +88,18 @@ public class RequiredMailOutboxSender implements OutboxMailSender {
 
     /** 받을 수 없는 까닭(받을 수 있으면 null) */
     static String refusal(Recipient recipient) {
+        return refusal(recipient, false);
+    }
+
+    /** 받을 수 없는 까닭(받을 수 있으면 null) — 계정 링크 메일({@code linkMail})은 인증 전 주소로도 간다 */
+    static String refusal(Recipient recipient, boolean linkMail) {
         if ("WITHDRAWN".equals(recipient.status())) {
             return "WITHDRAWN";
         }
         if (recipient.email() == null || recipient.email().isBlank()) {
             return "NO_EMAIL";
         }
-        if (!recipient.verified()) {
+        if (!linkMail && !recipient.verified()) {
             return "EMAIL_NOT_VERIFIED";
         }
         return null;

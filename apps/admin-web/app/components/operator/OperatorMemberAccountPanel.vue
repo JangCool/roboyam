@@ -4,6 +4,7 @@
         ① 위쪽 짧은 설명 ② 연결됨(회원 카드 + 상태 딱지 + 멈춘 까닭 + [연결 해제]) / 연결 안 됨(같은 이메일로 가입한 회원 후보 카드 + [연결] 또는 이을 수 없는 까닭) / 후보 없음(빈 상태)
         ③ 힘 목록 — 연결 여부와 상관없이 보인다(연결 전이면 「연결하면 이렇게 쓸 수 있어요」). 게시판 관리 힘은 이 운영자의 관리자 권한 거울이라 됨/안 됨과 필요한 권한 이름을 함께 보인다.
         값은 페이지가 받아 내려 주고(`account`), 연결·해제는 `link`·`unlink` 로 올린다 — 확인창도 페이지가 띄운다. 이 탭은 서랍 푸터를 쓰지 않는다.
+        연결 안 됨이면 [새 계정 만들기](후보 없음 — 빈 상태 안) · [다른 이메일로 새 계정 만들기](후보 있음)로 `create` 를 올린다(대화창은 페이지가 띄운다).
         단추는 `canManage`(operator.manage)일 때만, 대상이 최고 관리자면 본인일 때만 — 아니면 읽기 전용(까닭 한 줄). 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <section class="flex flex-col gap-4 pt-3" :aria-labelledby="titleId">
@@ -75,9 +76,15 @@
                     <Button type="button" :label="t('operatorMember.link')" :aria-label="t('operatorMember.linkLabel', { nickname: account.candidate.nickname })" icon="pi pi-link" size="small" :loading="busy" @click="emit('link', account.candidate.userId)" />
                 </div>
             </div>
+            <!-- 후보가 있어도 다른 이메일로 새로 만들 수 있다 -->
+            <div v-if="!account.linked && account.candidate && canEdit">
+                <Button type="button" :label="t('operatorMember.createOther')" icon="pi pi-user-plus" size="small" severity="secondary" variant="text" class="-ml-2" :disabled="busy" @click="emit('create')" />
+            </div>
 
-            <!-- 후보 없음 -->
-            <EmptyState v-else icon="pi pi-user" :title="t('operatorMember.candidateNone')" :description="t('operatorMember.candidateNoneHint')" />
+            <!-- 후보 없음 — 운영자가 가입하기를 기다리거나 관리자가 새 계정을 바로 만든다 -->
+            <EmptyState v-else-if="!account.linked && !account.candidate" icon="pi pi-user" :title="t('operatorMember.candidateNone')" :description="t('operatorMember.candidateNoneHint')">
+                <Button v-if="canEdit" type="button" :label="t('operatorMember.createHere')" icon="pi pi-user-plus" size="small" :disabled="busy" @click="emit('create')" />
+            </EmptyState>
 
             <p v-if="readOnlyNote" class="m-0 flex items-center gap-1 text-xs text-muted-color">
                 <i class="pi pi-lock text-[10px]" aria-hidden="true" />{{ readOnlyNote }}
@@ -139,6 +146,8 @@ const emit = defineEmits<{
     link: [userId: string];
     /** [연결 해제] — 확인은 페이지가 묻는다 */
     unlink: [];
+    /** [새 계정 만들기] — 대화창(`OperatorMemberCreateDialog`)은 페이지가 띄운다 */
+    create: [];
     retry: [];
 }>();
 
