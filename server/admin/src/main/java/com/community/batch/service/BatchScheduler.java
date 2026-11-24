@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.concurrent.RejectedExecutionException;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
@@ -59,6 +60,8 @@ public class BatchScheduler {
     private final ThreadPoolTaskScheduler scheduler;
     private final Map<String, Slot> slots = new HashMap<>();
     private boolean started;
+    /** 서버가 멈추는 중 — 닫힌 스케줄러가 다음 예약을 거절해도 오류로 남기지 않는다 */
+    private volatile boolean stopping;
 
     public BatchScheduler(BatchProperties properties, BatchJobRepository jobs, BatchRunner runner, BatchRequestQueue requests, BatchLockService locks) {
         this.properties = properties;
@@ -120,6 +123,7 @@ public class BatchScheduler {
 
     @PreDestroy
     void shutdown() {
+        stopping = true;
         scheduler.shutdown();
     }
 
@@ -149,7 +153,17 @@ public class BatchScheduler {
             return;
         }
         Slot slot = new Slot(definition, cron, next.toInstant());
-        slot.future = scheduler.schedule(() -> fire(slot), slot.at);
+        try {
+            slot.future = scheduler.schedule(() -> fire(slot), slot.at);
+        } catch (RejectedExecutionException e) {
+            slots.remove(definition.key());
+            if (!stopping) {
+                throw e;
+            }
+            // 서버가 멈추는 중 — 방금 끝난 배치의 다음 예약을 닫힌 스케줄러가 받지 않는다. 다음 기동이 DB 에서 다시 맞춘다(밀린 실행은 되살리지 않는다)
+            log.debug("서버가 멈추는 중이라 다음 배치를 예약하지 않는다 jobKey={}", definition.key());
+            return;
+        }
         slots.put(definition.key(), slot);
         log.debug("배치 예약 jobKey={} next={}", definition.key(), next);
     }
