@@ -144,10 +144,16 @@
                 </div>
                 <p v-if="detail.content.body === null" class="m-0 rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-[13px] text-muted-color">{{ t('report.bodyGone') }}</p>
                 <p v-else-if="bodyEmpty" class="m-0 text-[13px] text-muted-color">{{ t('report.bodyEmpty') }}</p>
-                <!-- 에디터 글(HTML)은 서버가 저장할 때 정화한 HTML 만 온다 — 게시글 관리 서랍과 같은 `rich-text` 모양으로 그린다 -->
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div v-else-if="detail.content.format === 'HTML'" class="rich-text max-h-[24rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm" v-html="detail.content.body" />
-                <div v-else class="max-h-[24rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm leading-relaxed break-words whitespace-pre-line">{{ detail.content.body }}</div>
+                <!-- 에디터 글(HTML, 서버 정화본)·평문 — 게시글 관리 서랍과 같은 부품(`PostBodyView`). 로보티콘·짤 토큰은 상세의 `emoticons`·`jjals` 로 그림 -->
+                <PostBodyView
+                    v-else
+                    :body="detail.content.body"
+                    :format="detail.content.format"
+                    :emoticons="detail.emoticons"
+                    :jjals="detail.jjals"
+                    class="max-h-[24rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm"
+                    :class="detail.content.format === 'HTML' ? '' : 'leading-relaxed'"
+                />
 
                 <!-- 신고 당시 — 지금과 다르거나 지금 원문을 볼 수 없을 때 -->
                 <div v-if="snapshot && (changed || detail.content.body === null)" class="flex flex-col gap-1.5 rounded-lg border border-amber-300 bg-amber-50/50 px-3 py-2 dark:border-amber-800 dark:bg-amber-950/30">
@@ -156,9 +162,16 @@
                         <span v-if="snapshot.authorName" class="font-normal text-muted-color">· {{ snapshot.authorName }}</span>
                     </p>
                     <p v-if="c.targetType !== 'COMMENT' && snapshot.title" class="m-0 text-[13px] font-medium break-words">{{ snapshot.title }}</p>
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div v-if="snapshot.body && detail.content.format === 'HTML'" class="rich-text max-h-[16rem] overflow-y-auto text-sm" v-html="snapshot.body" />
-                    <div v-else-if="snapshot.body" class="max-h-[16rem] overflow-y-auto text-sm leading-relaxed break-words whitespace-pre-line">{{ snapshot.body }}</div>
+                    <!-- 신고 당시 본문 — 같은 부품·같은 그림 목록(서버가 지금 본문과 신고 당시 내용의 토큰을 합쳐 준다) -->
+                    <PostBodyView
+                        v-if="snapshot.body"
+                        :body="snapshot.body"
+                        :format="detail.content.format"
+                        :emoticons="detail.emoticons"
+                        :jjals="detail.jjals"
+                        class="max-h-[16rem] overflow-y-auto text-sm"
+                        :class="detail.content.format === 'HTML' ? '' : 'leading-relaxed'"
+                    />
                 </div>
             </section>
 

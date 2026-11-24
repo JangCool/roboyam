@@ -86,8 +86,20 @@ public class EmoticonReadStore extends EmoticonStoreSupport {
 
     /** 카탈로그 — 팩 ID → 차례 */
     public List<CatalogRow> catalog() {
+        return catalogWhere(EmoticonPackStore.published(P));
+    }
+
+    /** 카탈로그 중 이 로보티콘 ID 들의 줄만(같은 범위 · 같은 차례 — 관리자 글·신고 서랍의 본문 토큰 그림). 카탈로그에 없는 ID 는 빠진다 */
+    public List<CatalogRow> catalogOf(Collection<Long> emoticonIds) {
+        if (emoticonIds.isEmpty()) {
+            return List.of();
+        }
+        return catalogWhere(EmoticonPackStore.published(P).and(I.emoticonId.in(emoticonIds)));
+    }
+
+    private List<CatalogRow> catalogWhere(BooleanExpression where) {
         return query.select(I.emoticonId, P.id, I.label, M.storageKey, M.staticPath, M.format, M.frames).from(P).join(I).on(I.revisionId.eq(P.liveRevisionId))
-                .join(M).on(M.id.eq(I.imageId)).where(EmoticonPackStore.published(P)).orderBy(P.id.asc(), I.position.asc()).fetch().stream()
+                .join(M).on(M.id.eq(I.imageId)).where(where).orderBy(P.id.asc(), I.position.asc()).fetch().stream()
                 .map(t -> new CatalogRow(t.get(I.emoticonId), t.get(P.id), t.get(I.label), t.get(M.storageKey), t.get(M.staticPath), t.get(M.format), t.get(M.frames)))
                 .collect(Collectors.toList());
     }

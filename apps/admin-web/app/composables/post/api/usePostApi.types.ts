@@ -281,6 +281,37 @@ export interface AdminPostDetail {
      * 대표 썸네일(list-thumbnail-contract 「2단계」 — 서버 `AdminPostThumbnailView`). 비공개 소모임 글·원문 파기 글은 null. 옛 응답에는 없을 수 있다.
      */
     thumbnail?: AdminPostThumbnailView | null;
+    /**
+     * 본문 로보티콘 토큰(`:emo-ID:`)의 그림(계약 「본문 로보티콘·짤 그림」 — 서버 `AdminBodyTokenImages`). 본문에 나온 ID 중 카탈로그에 있는 것만(겹치면 한 번, 판매 중단 팩 포함).
+     * 본문이 없거나 토큰이 없으면 `[]`, 옛 응답에는 칸이 없다 — 목록에 없는 ID 는 서랍이 「[로보티콘]」 으로 보인다.
+     */
+    emoticons?: AdminBodyEmoticonView[] | null;
+    /** 본문 내 짤 토큰(`:jjal-ID:`)의 그림 — 내려간 짤은 `url: null`·`blocked: true`(「내려간 짤」 자리), 없는 ID 는 빠진다(서랍은 「[짤]」) */
+    jjals?: AdminBodyJjalView[] | null;
+}
+
+/** 본문 로보티콘 하나의 그림(서버 `AdminBodyEmoticonView` — 공개 카탈로그 줄과 같은 `label`·`url`). 글·신고 상세가 같이 쓴다 */
+export interface AdminBodyEmoticonView {
+    /** 로보티콘 ID(토큰의 숫자) */
+    id: string;
+    /** 이름표 — 그림의 `alt`·`title` */
+    label: string;
+    /** 그림 주소 */
+    url: string;
+}
+
+/** 본문 짤 하나(서버 `AdminBodyJjalView` — 공개 `JjalView` 에서 담기 판정만 뺀 모양). 글·신고 상세가 같이 쓴다 */
+export interface AdminBodyJjalView {
+    /** 짤 공개 ID(토큰의 ID) */
+    id: string;
+    /** 그림 주소 — 내려간 짤이면 null */
+    url: string | null;
+    width: number;
+    height: number;
+    /** 움짤(여러 장 GIF) */
+    animated: boolean;
+    /** 내려간 짤 — `url` 이 null 인 까닭 */
+    blocked: boolean;
 }
 
 /**

@@ -62,3 +62,9 @@
 - **알림·포인트**: 운영자 숨김 + 「작성자에게 알림」 → `POST_HIDDEN`(덧붙임 `by STAFF`·`reason`, 기본 문구 「운영자가 내 글을 숨겼어요」 / 본문 「제목 · 사유: …」, 문구 조건 `hideReason=STAFF`, 변수 `reason` 추가). 운영자 삭제 → `POST_REMOVED`(제목 「운영자가 내 글을 지웠어요: {제목}」, 본문 = 사유, 링크 없음, 덧붙임 `snapshot·reason·revokedPoints`) — 회원 이벤트 `POST_REMOVED`(SAFETY, 처리 알림 잠금). 따로 `POINTS_REVOKED` 알림은 내지 않는다. 복구 되돌림은 탈퇴·삭제 회원 제외(정지 회원은 받는다), 알림 없음.
 - **공개 쪽**: `PostRowData` 에 `hiddenReason` 을 더해 게시판 목록·최신/인기 피드·프로필 글 목록이 `publicHiddenReason`(옵션 켬 + STAFF → `STAFF`, 그 밖 `REPORTED`)을 쓴다. 글 상세의 `403 POST_HIDDEN` 문구는 그대로(신고 숨김 문구).
 - **알려진 한계**: 원장 유일 색인(사유·대상) 때문에 「삭제 → 복구 → 다시 삭제」의 두 번째 삭제는 포인트를 다시 회수하지 않는다(두 번째 복구도 되돌리지 않는다). 고정 한도 확인은 게시판 단위 잠금이 없어 동시에 두 글을 고정하면 한도를 1 넘을 수 있다.
+
+## 본문 로보티콘·짤 그림 (2026-11-24 — 사용자 「서랍에서 본문 이모지가 텍스트로만 나온다」)
+- 상세 `GET /api/admin/posts/{id}` 에 칸 둘(admin-web 은 공개 카탈로그·짤 조회를 부를 수 없다). 만드는 곳 admin `AdminBodyTokenImages`(신고 상세와 같이 쓴다), 토큰 파서는 서버 `EmoticonGuard.ids`·`JjalGuard.ids`(본문 전체 글자 — 링크·코드 안 토큰도 실린다, 화면이 그리지 않을 뿐).
+  - `emoticons: [{ id, label, url }]` — 본문(제목 제외)의 `:emo-ID:` 중 공개 카탈로그(판매 중 · **판매 중단** 팩의 상점 판)에 있는 것, 겹치면 한 번. `label`·`url` 은 `GET /api/emoticons/catalog` 와 같은 코드(shared `EmoticonShopService.catalogItems`). 카탈로그에 없는 ID 는 빠진다(서랍은 「[로보티콘]」).
+  - `jjals: [{ id, url|null, width, height, animated, blocked }]` — 본문의 `:jjal-ID:`, 공개 `GET /api/jjals` 의 `JjalView` 에서 `collectable` 만 뺀 모양·같은 판정. **내려간 짤(신고·운영자 내림·비공개 위치·불법촬영물로 지움)은 `url: null`·`blocked: true`** — 비공개 원본은 짤 신고 사건(`/api/admin/reports/{id}/jjal-image`, `report.read`)에서만 본다. 없는 ID 는 빠진다.
+  - 본문이 없으면(원문 파기 · 비공개 소모임 `contentBlocked`) · 토큰이 없으면 둘 다 `[]`.

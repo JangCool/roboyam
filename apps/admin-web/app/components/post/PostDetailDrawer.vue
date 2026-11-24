@@ -3,7 +3,7 @@
         게시글 관리의 글 서랍 — 목록 줄·제목을 누르면(또는 `?post=` 로 들어오면) 연다. 열리는 쪽은 설정의 "서랍 위치"(`prefs.drawerPosition`), 표를 가리지 않는다(`modal=false`) —
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창(대화창·고르개·메뉴·의견 서랍) 밖을 누르면 닫는다. Esc 는 PrimeVue Drawer 가 맡는다.
         머리: 제목 · 이전/다음 글(지금 쪽의 줄 순서). 본문 맨 위 요약 영역(`DrawerSummary`): 상태 알약(숨김 까닭·시각 …) · 글 번호(복사) · [공개 사이트에서 보기].
-        본문(위에서 아래): 글 요약(게시판·말머리·작성자·작성/수정일·추천/댓글/조회·신고 대기·칩) · 상태 띠(지운 글 / 원문 파기 / 숨긴 글) · 본문(HTML 은 서버 정화본을 `rich-text` 로, 평문은 줄바꿈 그대로) ·
+        본문(위에서 아래): 글 요약(게시판·말머리·작성자·작성/수정일·추천/댓글/조회·신고 대기·칩) · 상태 띠(지운 글 / 원문 파기 / 숨긴 글) · 본문(HTML 은 서버 정화본을 `rich-text` 로, 평문은 줄바꿈 그대로 — 로보티콘 `:emo-ID:`·짤 `:jjal-ID:` 토큰은 상세의 `emoticons`·`jjals` 로 그림(`PostBodyView`), 목록에 없으면 「[로보티콘]」·「[짤]」, 내린 짤은 「내려간 짤」) ·
           **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다. 소모임 글이면 구획이 없다) ·
           **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
           **대표 썸네일 구획**(부른 화면이 `thumbnailShown` 일 때만 — 지금 그림·출처, `post.manage` 면 [바꾸기] → 부른 화면이 `PostThumbnailDialog` 를 연다) ·
@@ -203,12 +203,16 @@
                 <p v-if="blocked && !post.purged" class="m-0 rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-[13px] text-muted-color">{{ t('post.restrictedBody') }}</p>
                 <p v-else-if="post.purged || detail.content.body === null" class="m-0 rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-[13px] text-muted-color">{{ t('post.purged') }}</p>
                 <p v-else-if="bodyEmpty" class="m-0 text-[13px] text-muted-color">{{ t('post.bodyEmpty') }}</p>
-                <!--
-                    에디터 글(HTML)은 서버가 저장할 때 정화한 HTML 만 온다 — 공개 글 화면과 같은 `rich-text` 모양으로 그린다. 다른 경로의 글자(제목·이름 등)는 절대 넣지 않는다.
-                -->
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div v-else-if="detail.content.format === 'HTML'" class="rich-text max-h-[28rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm" :class="post.state === 'DELETED' ? 'opacity-80' : ''" v-html="detail.content.body" />
-                <div v-else class="max-h-[28rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm leading-relaxed break-words whitespace-pre-line" :class="post.state === 'DELETED' ? 'opacity-80' : ''">{{ detail.content.body }}</div>
+                <!-- HTML(서버 정화본)·평문 본문 — 로보티콘·짤 토큰은 상세의 `emoticons`·`jjals` 로 그림(`PostBodyView` — 신고 서랍과 같은 부품) -->
+                <PostBodyView
+                    v-else
+                    :body="detail.content.body"
+                    :format="detail.content.format"
+                    :emoticons="detail.emoticons"
+                    :jjals="detail.jjals"
+                    class="max-h-[28rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm"
+                    :class="[detail.content.format === 'HTML' ? '' : 'leading-relaxed', post.state === 'DELETED' ? 'opacity-80' : '']"
+                />
             </section>
 
             <!--

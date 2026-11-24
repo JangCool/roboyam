@@ -1,6 +1,7 @@
 <template>
     <!--
         일괄 처리 대화창 — 고른 글에 숨기기·숨김 해제·삭제를 사유 하나로(숨기기는 「작성자에게 알림」). 상태가 맞지 않아 빼는 글 수를 알린다.
+        사유는 자주 쓰는 사유 선택 상자 + 「직접 입력」(글 하나의 조치와 같은 목록 — `UtilPost.reasonPresetKeys`, 고른 문장은 한국어로 저장).
         보내고 나면(`result`) 같은 대화창이 결과 모습으로 바뀐다 — 글마다 처리됨/못 함 + 까닭(아는 코드는 문구, 모르는 코드는 코드 그대로). 서버는 글마다 따로 처리한다.
         열 때마다 사유를 비운다. 서버 호출은 부른 화면이 `submit` 을 받아 한다.
     -->
@@ -24,7 +25,7 @@
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(`post.bulkText.${action}`) }}</p>
             <Message v-if="skipped > 0" severity="warn" size="small" :closable="false">{{ t('post.bulkSkipped', { n: skipped }) }}</Message>
 
-            <PostReasonField v-model="reason" :error="reasonError" :disabled="busy" />
+            <PostReasonField v-model="reason" :error="reasonError" :disabled="busy" :presets="reasonPresets" />
 
             <div v-if="action === 'HIDE'" class="flex items-start gap-2">
                 <Checkbox v-model="notify" binary :input-id="`${formId}-notify`" :disabled="busy" />
@@ -81,6 +82,8 @@ const notify = ref(true);
 const tried = ref(false);
 
 const reasonError = computed(() => props.fieldError || (tried.value ? UtilPostMessages.reasonProblem(t, UtilPost.reasonProblem(reason.value)) : ''));
+/** 자주 쓰는 사유의 문구 키 — 글 하나의 숨기기·숨김 해제·삭제와 같은 목록. 고른 문장은 한국어로 저장된다 */
+const reasonPresets = computed(() => UtilPost.reasonPresetKeys(props.action));
 
 watch(open, (isOpen) => {
     if (!isOpen) return;

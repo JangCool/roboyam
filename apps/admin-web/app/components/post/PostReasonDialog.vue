@@ -1,6 +1,7 @@
 <template>
     <!--
         글 하나의 조치 대화창 — 숨기기·숨김 해제·삭제·복구·공지로 지정·고정·고정 해제 · 투표 지우기(서랍의 투표 구획, post-poll-contract). 사유(1~200자) 필수, 숨기기는 「작성자에게 알림 보내기」 체크.
+        숨기기·숨김 해제·삭제·복구는 자주 쓰는 사유 선택 상자 + 「직접 입력」(`UtilPost.reasonPresetKeys` — 고른 문장은 한국어로 저장), 그 밖은 입력 칸만.
         열 때마다 사유를 비운다(앞 글에 적던 사유가 다음 글에 딸려 가면 안 된다). 서버 호출은 부른 화면이 `submit` 을 받아 한다.
         칸 오류(`fields.reason`)는 사유 칸 아래, 그 밖 거절(`PIN_LIMIT` 등 — 서버 문구 그대로)은 대화창 안 한 줄. 실패해도 쓰던 사유는 그대로 둔다.
     -->
@@ -12,7 +13,7 @@
             </div>
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(`post.dialog.${kind}.text`) }}</p>
 
-            <PostReasonField v-model="reason" :error="reasonError" :disabled="busy" />
+            <PostReasonField v-model="reason" :error="reasonError" :disabled="busy" :presets="reasonPresets" />
 
             <div v-if="kind === 'HIDE'" class="flex items-start gap-2">
                 <Checkbox v-model="notify" binary :input-id="`${formId}-notify`" :disabled="busy" />
@@ -61,6 +62,8 @@ const notify = ref(true);
 const tried = ref(false);
 
 const reasonError = computed(() => props.fieldError || (tried.value ? UtilPostMessages.reasonProblem(t, UtilPost.reasonProblem(reason.value)) : ''));
+/** 자주 쓰는 사유의 문구 키 — 숨기기·숨김 해제·삭제·복구만(그 밖은 입력 칸만). 고른 문장은 한국어로 저장된다 */
+const reasonPresets = computed(() => UtilPost.reasonPresetKeys(props.kind));
 
 watch(open, (isOpen) => {
     if (!isOpen) return;
