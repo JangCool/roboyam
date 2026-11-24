@@ -328,6 +328,7 @@ export default {
     emoticonFallback: '[Robotikon]',
     jjalBlocked: 'GIF removed',
     jjalFallback: '[GIF]',
+    jjalAdminOnly: 'GIF removed · visible to operators only',
     debateTitle: 'Pro & con debate',
     debateSettings: 'Debate settings',
     debateOpinions: 'Manage opinions',

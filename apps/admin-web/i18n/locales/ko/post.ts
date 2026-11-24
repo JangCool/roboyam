@@ -335,6 +335,8 @@ export default {
     /** 본문의 내 짤 — 내려간 짤(신고·운영자 내림) 자리 · 짤 정보가 없을 때 토큰 글자 대신 */
     jjalBlocked: '내려간 짤',
     jjalFallback: '[짤]',
+    /** 내려간 짤을 운영자 전용 원본으로 그렸을 때 그림 위 딱지·alt·title(공개 사이트에서는 「내려간 짤」로 보인다) */
+    jjalAdminOnly: '내려간 짤 · 운영자만 보임',
     debateTitle: '찬반 토론',
     debateSettings: '토론 설정',
     debateOpinions: '의견 관리',

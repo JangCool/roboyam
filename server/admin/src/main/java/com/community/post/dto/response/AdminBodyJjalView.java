@@ -10,6 +10,8 @@ package com.community.post.dto.response;
  * @param height   그림 높이(px)
  * @param animated 움짤(여러 장 GIF)
  * @param blocked  내려간 짤 — {@code url} 이 null 인 까닭
+ * @param adminUrl 운영자 전용 원본 주소 {@code /api/admin/jjals/{id}/image}({@code post.read} 또는 {@code report.read} — 세션 쿠키) — 원본 파일이 남아 있으면
+ *                 내려간 짤이어도 채운다(살아 있는 짤도 채움, 화면은 {@code url} 이 있으면 그것을 쓴다). 불법촬영물로 확정해 지운 짤(해시만 남음)이면 null
  */
-public record AdminBodyJjalView(String id, String url, int width, int height, boolean animated, boolean blocked) {
+public record AdminBodyJjalView(String id, String url, int width, int height, boolean animated, boolean blocked, String adminUrl) {
 }

@@ -4,6 +4,7 @@ import com.community.emoticon.service.EmoticonGuard;
 import com.community.emoticon.service.EmoticonShopService;
 import com.community.jjal.entity.JjalFileEntity;
 import com.community.jjal.repository.master.JjalFileRepository;
+import com.community.jjal.service.AdminJjalImageService;
 import com.community.jjal.service.JjalGuard;
 import com.community.media.service.ImageStorage;
 import com.community.post.dto.response.AdminBodyEmoticonView;
@@ -28,7 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       여러 본문(지금 본문 · 신고 당시 내용)을 합쳐 겹치면 한 번, 처음 나온 차례.</li>
  *   <li><b>로보티콘</b>: 공개 카탈로그와 같은 범위(판매 중 · 판매 중단 팩의 상점 판)·같은 {@code url}·{@code label}({@link EmoticonShopService#catalogItems}). 카탈로그에 없는 ID 는 빠진다.</li>
  *   <li><b>짤</b>: 공개 짤 조회와 같은 판정 — 지금 공개 주소로 내보낼 수 없는 짤({@link JjalFileEntity#servableAt} 거짓: 내려감 · 비공개 위치 · 불법촬영물로 지움)은
- *       {@code url null}·{@code blocked true}. 없는 ID 는 빠진다.</li>
+ *       {@code url null}·{@code blocked true}. 없는 ID 는 빠진다. 원본 파일이 남아 있으면 내려간 짤이어도 운영자 전용 원본 주소 {@code adminUrl}
+ *       ({@link AdminJjalImageService#adminUrl} — {@code GET /api/admin/jjals/{id}/image})를 채운다.</li>
  * </ul>
  */
 @Component
@@ -90,7 +92,8 @@ public class AdminBodyTokenImages {
                 continue;
             }
             boolean blocked = !f.servableAt(now);
-            out.add(new AdminBodyJjalView(f.getPublicId(), blocked ? null : storage.publicUrl(f.getStorageKey()), f.getWidth(), f.getHeight(), f.isAnimated(), blocked));
+            out.add(new AdminBodyJjalView(f.getPublicId(), blocked ? null : storage.publicUrl(f.getStorageKey()), f.getWidth(), f.getHeight(), f.isAnimated(), blocked,
+                    AdminJjalImageService.adminUrl(f)));
         }
         return out;
     }

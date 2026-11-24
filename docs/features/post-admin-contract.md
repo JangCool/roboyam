@@ -66,5 +66,7 @@
 ## 본문 로보티콘·짤 그림 (2026-11-24 — 사용자 「서랍에서 본문 이모지가 텍스트로만 나온다」)
 - 상세 `GET /api/admin/posts/{id}` 에 칸 둘(admin-web 은 공개 카탈로그·짤 조회를 부를 수 없다). 만드는 곳 admin `AdminBodyTokenImages`(신고 상세와 같이 쓴다), 토큰 파서는 서버 `EmoticonGuard.ids`·`JjalGuard.ids`(본문 전체 글자 — 링크·코드 안 토큰도 실린다, 화면이 그리지 않을 뿐).
   - `emoticons: [{ id, label, url }]` — 본문(제목 제외)의 `:emo-ID:` 중 공개 카탈로그(판매 중 · **판매 중단** 팩의 상점 판)에 있는 것, 겹치면 한 번. `label`·`url` 은 `GET /api/emoticons/catalog` 와 같은 코드(shared `EmoticonShopService.catalogItems`). 카탈로그에 없는 ID 는 빠진다(서랍은 「[로보티콘]」).
-  - `jjals: [{ id, url|null, width, height, animated, blocked }]` — 본문의 `:jjal-ID:`, 공개 `GET /api/jjals` 의 `JjalView` 에서 `collectable` 만 뺀 모양·같은 판정. **내려간 짤(신고·운영자 내림·비공개 위치·불법촬영물로 지움)은 `url: null`·`blocked: true`** — 비공개 원본은 짤 신고 사건(`/api/admin/reports/{id}/jjal-image`, `report.read`)에서만 본다. 없는 ID 는 빠진다.
+  - `jjals: [{ id, url|null, width, height, animated, blocked, adminUrl|null }]` — 본문의 `:jjal-ID:`, 공개 `GET /api/jjals` 의 `JjalView` 에서 `collectable` 만 뺀 모양·같은 판정. **내려간 짤(신고·운영자 내림·비공개 위치·불법촬영물로 지움)은 `url: null`·`blocked: true`**. 없는 ID 는 빠진다.
+  - `adminUrl` — 운영자 전용 원본 주소 `/api/admin/jjals/{id}/image`(같은 출처 상대 경로). 원본 파일이 남아 있으면 내려간 짤이어도 채운다(살아 있는 짤도 채움 — 화면은 `url` 이 있으면 `url`). 불법촬영물로 확정해 지운 짤(해시만 남음)은 `null`.
+  - **`GET /api/admin/jjals/{jjalId}/image`**(2026-11-24 사용자 「내려간 짤도 운영자는 원본 보이게」) — 권한 `post.read` **또는** `report.read`(`@RequirePermission(anyOf = …)`, 둘 다 없으면 `403`). 비공개·공개 위치 어느 쪽이든 원본 바이트를 짤의 `content_type` 그대로, `Cache-Control: no-store, private`·`X-Content-Type-Options: nosniff`. 없는 ID · 파일 없는 짤(지움) · 저장소에 파일 없음 `404 JJAL_NOT_FOUND`. 열람은 감사에 남기지 않는다(짤 사건 `…/reports/{id}/jjal-image` 와 같다). admin `AdminJjalController`·`AdminJjalImageService`.
   - 본문이 없으면(원문 파기 · 비공개 소모임 `contentBlocked`) · 토큰이 없으면 둘 다 `[]`.

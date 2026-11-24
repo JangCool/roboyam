@@ -77,6 +77,6 @@
 - **검증**: `compileJava`(shared·api·admin)·`compileTestJava`(shared·admin) 통과, V82 + 고친 `R__batch_18` 을 로컬 DB 에서 BEGIN…ROLLBACK 으로 적용해 봄(옛 PENDING 신고 묶기 확인). 서버를 다시 띄우지 않아 새 API 실제 호출·테스트는 하지 않았다.
 
 ## 본문 로보티콘·짤 그림 (2026-11-24)
-- 상세 `GET /{id}`(조치·무시·다시 열기 응답 포함)에 `emoticons: [{ id, label, url }]`·`jjals: [{ id, url|null, width, height, animated, blocked }]` — 모양·규칙은 post-admin-contract 「본문 로보티콘·짤 그림」과 같다(admin `AdminBodyTokenImages`).
+- 상세 `GET /{id}`(조치·무시·다시 열기 응답 포함)에 `emoticons: [{ id, label, url }]`·`jjals: [{ id, url|null, width, height, animated, blocked, adminUrl|null }]` — 모양·규칙은 post-admin-contract 「본문 로보티콘·짤 그림」과 같다(admin `AdminBodyTokenImages`).
   - 글·댓글 사건: 지금 본문 `content.body`(댓글 사건이면 댓글 본문)와 신고 당시 내용 `content.snapshot.body` 의 토큰을 합쳐 겹치면 한 번(스냅숏 제목은 보지 않는다). 짤·소모임 사건은 `[]`.
-  - 내려간 짤은 `url: null`·`blocked: true`(짤 사건 대상 짤 `case.target.jjal.url` 의 관리자 전용 주소와 따로).
+  - 내려간 짤은 `url: null`·`blocked: true`, 원본은 `adminUrl`(`GET /api/admin/jjals/{id}/image` — `post.read` 또는 `report.read`, 지운 짤은 `null`·`404 JJAL_NOT_FOUND`). 짤 사건 대상 짤 `case.target.jjal.url`(`…/reports/{id}/jjal-image`)은 그대로 따로 둔다.
