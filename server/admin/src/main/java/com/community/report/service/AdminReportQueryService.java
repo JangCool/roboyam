@@ -16,6 +16,7 @@ import com.community.group.service.GroupPeople;
 import com.community.hotdeal.service.HotdealAdminQueryService;
 import com.community.jjal.entity.JjalFileEntity;
 import com.community.jjal.repository.master.JjalFileRepository;
+import com.community.jjal.service.AdminJjalImageService;
 import com.community.media.service.ImageStorage;
 import com.community.report.dto.response.ReportJjalView;
 import com.community.report.dto.response.ReportDealView;
@@ -154,13 +155,17 @@ public class AdminReportQueryService {
     private final ImageStorage storage;
     /** 본문 로보티콘·짤 토큰의 그림(관리자 글 서랍과 같은 규칙) */
     private final AdminBodyTokenImages tokenImages;
+    /** 내려간 짤 원본 열람 감사(관리자 원본 주소와 같은 기록) */
+    private final AdminJjalImageService jjalImages;
 
     public AdminReportQueryService(AdminReportRepositoryQDSL search, ReportCaseRepository cases, ReportRepositoryQDSL reports, ReportEventRepository events,
                                    ReportCaseLog caseLog, PostRepository posts, CommentRepository comments, ProfileRepository profiles, UserRepository users,
                                    OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, GroupRepository groups,
                                    GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals, SanctionViews sanctionViews,
-                                   JjalFileRepository jjalFiles, ImageStorage storage, AdminBodyTokenImages tokenImages) {
+                                   JjalFileRepository jjalFiles, ImageStorage storage, AdminBodyTokenImages tokenImages,
+                                   AdminJjalImageService jjalImages) {
         this.tokenImages = tokenImages;
+        this.jjalImages = jjalImages;
         this.jjalFiles = jjalFiles;
         this.storage = storage;
         this.sanctionViews = sanctionViews;
@@ -407,8 +412,9 @@ public class AdminReportQueryService {
     public record JjalImage(byte[] data, String contentType) {
     }
 
-    /** 짤 사건의 그림 — 짤 사건이 아니거나 파일이 없으면(불법촬영물로 지움 포함) 404 REPORT_CASE_NOT_FOUND. 읽기는 감사 기록에 남기지 않는다(상세 읽기와 같다) */
-    public JjalImage jjalImage(String idText) {
+    /** 짤 사건의 그림 — 짤 사건이 아니거나 파일이 없으면(불법촬영물로 지움 포함) 404 REPORT_CASE_NOT_FOUND. 내려간 짤이면 감사 기록 JJAL_ORIGINAL_VIEW({@code caseId}) */
+    @Transactional
+    public JjalImage jjalImage(AdminActor actor, String idText) {
         Long id = parseId(idText);
         ReportCaseEntity c = id == null ? null : cases.findById(id).orElse(null);
         if (c == null || !c.isJjal()) {
@@ -419,6 +425,7 @@ public class AdminReportQueryService {
             throw new ReportCaseNotFoundException();
         }
         byte[] data = storage.readBytes(f.getStorageKey()).orElseThrow(ReportCaseNotFoundException::new);
+        jjalImages.recordOriginalView(actor, f, Long.toString(c.getId()));
         return new JjalImage(data, f.getContentType());
     }
 

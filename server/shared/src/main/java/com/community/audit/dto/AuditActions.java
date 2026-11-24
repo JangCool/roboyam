@@ -387,6 +387,12 @@ public final class AuditActions {
      * ABUSE · OTHER) · 메모 {@code memo}(감사 상세에만). 열린 회원 ID 는 싣지 않는다(감사를 읽는 사람에게 봉인이 풀리지 않게). 보관 분류는 개인정보 열람(2년)
      */
     public static final String ANONYMOUS_AUTHOR_REVEAL = "ANONYMOUS_AUTHOR_REVEAL";
+    /**
+     * 내려간 짤 원본 열람(2026-11-25 사용자 「원본 열람도 감사 기록 남기게」) — 대상 JJAL + 공개 ID, {@code status}·{@code blockedReason}, 짤 신고 사건 그림으로 열었으면
+     * {@code caseId}. 관리자 원본 주소({@code GET /api/admin/jjals/{id}/image})·짤 신고 사건 그림({@code GET /api/admin/reports/{id}/jjal-image})이 그림을 내보낼 때마다 남긴다.
+     * 공개 중인 짤은 누구나 보는 그림이라 남기지 않는다. 보관 분류는 개인정보 열람(2년)
+     */
+    public static final String JJAL_ORIGINAL_VIEW = "JJAL_ORIGINAL_VIEW";
     // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──
     /** 탈퇴 신청(회원) — 대상 MEMBER, {@code withdrawalId}·{@code result}(COMPLETED · SCHEDULED)·{@code pendingCount}·고른 것·사유 코드(메모 없음) */
     public static final String MEMBER_WITHDRAW_REQUEST = "MEMBER_WITHDRAW_REQUEST";

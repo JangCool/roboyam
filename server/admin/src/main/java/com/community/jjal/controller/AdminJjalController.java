@@ -2,6 +2,7 @@ package com.community.jjal.controller;
 
 import com.community.jjal.service.AdminJjalImageService;
 import com.community.permission.annotation.RequirePermission;
+import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -25,11 +26,11 @@ public class AdminJjalController {
         this.images = images;
     }
 
-    /** 짤 원본(내린 짤도 — 운영자 전용, {@code private, no-store}). 파일이 없으면 404 JJAL_NOT_FOUND */
+    /** 짤 원본(내린 짤도 — 운영자 전용, {@code private, no-store}). 내려간 짤이면 감사 기록 JJAL_ORIGINAL_VIEW. 파일이 없으면 404 JJAL_NOT_FOUND */
     @RequirePermission(anyOf = {Permission.POST_READ, Permission.REPORT_READ})
     @GetMapping("/{jjalId}/image")
-    public ResponseEntity<byte[]> image(@PathVariable String jjalId) {
-        AdminJjalImageService.JjalImage image = images.image(jjalId);
+    public ResponseEntity<byte[]> image(@PathVariable String jjalId, AdminActor actor) {
+        AdminJjalImageService.JjalImage image = images.image(actor, jjalId);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).contentType(MediaType.parseMediaType(image.contentType()))
                 .header("X-Content-Type-Options", "nosniff").body(image.data());
     }
