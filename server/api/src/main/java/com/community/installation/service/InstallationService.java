@@ -93,12 +93,15 @@ public class InstallationService {
     private final DemoInstallLauncher demoLauncher;
     private final InstallationStore store;
     private final SiteBrandInstaller brand;
+    private final AiMemberPresetInstaller aiMembers;
 
     public InstallationService(InstallationState state, InstallTokenService tokens, InstallTokenGuard tokenGuard,
                                InstallationChecks checks, InstallationInstaller installer, BoardPresetCatalog boardPresets,
                                SiteSettingsService siteSettings, MailSettingsService mailSettings, MailConnectionChecker mailChecker,
                                SocialSettingsService socialSettings, SecretEncryptor encryptor, Messages messages, DemoPackCatalog demoPack,
-                               DemoInstallLauncher demoLauncher, InstallationStore store, SiteBrandInstaller brand) {
+                               DemoInstallLauncher demoLauncher, InstallationStore store, SiteBrandInstaller brand,
+                               AiMemberPresetInstaller aiMembers) {
+        this.aiMembers = aiMembers;
         this.brand = brand;
         this.demoPack = demoPack;
         this.demoLauncher = demoLauncher;
@@ -189,6 +192,8 @@ public class InstallationService {
             }
         }
         if (!command.demoData()) {
+            // 구성의 AI 기본 계정(IROBIT 11계정 · 꺼진 채) — 설치는 커밋됐다. 실패해도 설치는 그대로(경고만, 다음 기동이 다시 시도). 데모 포함이면 데모 뒤에 한다(DemoInstallLauncher)
+            aiMembers.seedOnce("설치 직후");
             return new InstallCompletedResponse(true, InstallCompletedResponse.DEMO_NONE);
         }
         // 데모 — 설치는 이미 커밋됐다. 몇 분 걸리므로 요청과 따로 넣고 곧바로 돌려준다(화면은 demoStatus 로 결과를 따라온다).

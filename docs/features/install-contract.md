@@ -131,6 +131,13 @@
 - 시험 계정(seed-local `e2e.*`)과 그 글·댓글, local 공구 시더의 공구·카테고리는 팩에 넣지 않는다. 사업자 핫딜·사업자 광고는 데모 사업자 「파이언넷」(`seed/demo/business.json` — 데모 로더가 회원·신청·승인까지 만든다)이 낸다. 데모 공구는 남기고, 공구 카테고리·옵션 종류·배송비 정책은 데모 로더가 만든다(`groupbuys.json` 의 `categoryParents`·`optionTypes`).
 - 팩(`seed/demo-pack/`, 약 9MB)은 저장소에 둔다.
 
+### 4. AI 기본 계정 (2026-11-24 사용자 확정)
+- 「구조만」으로 설치해도 IROBIT 구성은 **AI 회원 11계정을 꺼진 채(`enabled = false`)** 만든다. 계정 정의는 데모와 같다(페르소나 8 · 동물 2 「백구진돗개」·「삼색이냥」 · AI 기자 「아이로빗기자」 — 닉네임·소개·글 방식·아바타·제공사/모델·하루 글 수·뉴스 비율·추가 지시·활동 게시판·활동 창·관계). **샘플 글·댓글·검수 대기·AI 소모임·모델 이력 연출은 넣지 않는다.** 전역 AI 설정(`ai_member_settings`)·키는 건드리지 않는다.
+- 파일: 프리셋 `aiMembers` → `install-presets/irobit.ai-members.json`(형식 1). 원천은 `seed/demo/ai-members.json` 의 `accounts` — `node scripts/build-ai-member-preset.mjs` 로 만든다(`--check` 는 비교만). 모델은 차례가 아니라 **이름**으로 적는다(새 DB 의 V189 켜진 모델 차례로 옮김). 기동 검사(`BoardPresetCatalog` → `AiMemberPresetValidator` — 관리자 저장 검사와 같은 한도·형식, 관계 상대는 같은 파일 안)가 틀리면 앱이 뜨지 않는다.
+- 만들기(`AiMemberPresetInstaller.seedOnce` — 자기 트랜잭션, 던지지 않음): 설치 행 잠금 + **shared V266 `installation.ai_members_seeded_at`** 이 비었을 때만 만들고 같은 트랜잭션에서 채운다(서버 여러 대·여러 번 떠도 한 번, 운영자가 지운 계정을 다시 만들지 않음). 구성에 파일이 없으면(NEUTRAL) 칸만 채운다. 계정 한 개 = 관리자 「AI 회원」 만들기와 같은 부품(shared `AiMemberAccountFactory` — admin 만들기도 이것을 쓴다), 만든 이 = 루트 운영자, 감사 `AI_MEMBER_CREATE`(`source: INSTALL_PRESET`).
+  - 같은 닉네임 회원이 있으면 건너뜀 · 모델이 그 DB 에 켜져 있지 않으면 그 제공사 기본 모델 → 그것도 없으면 경고하고 건너뜀 · 없거나 AI 가 못 쓰는 게시판은 빼고 하나도 없으면 건너뜀 · 카탈로그에 없는 아바타는 없이 · 관계는 양쪽이 이번에 만들어졌을 때만. DB 에서 실패하면 그 차례 전체가 롤백되고 칸이 비어 다음 기동이 다시 시도한다(설치는 그대로).
+- **언제**: 「구조만」 = 설치 커밋 뒤 요청 안(`InstallationService.complete`, 브랜드 그림 다음) · 「데모 포함」 = 데모를 넣은 뒤(`DemoInstallLauncher` — 성공이면 팩에 같은 11계정이 있어 모두 건너뛰고 칸만 채움, 데모가 실패·롤백됐으면 여기서 만듦). 데모보다 먼저 만들면 팩의 같은 닉네임이 유니크 인덱스에 걸리므로, 데모를 넣는 중(`demo_data` 이고 `demo_status` NULL 이고 설치 30분 안)에는 하지 않는다. **이미 설치된 곳**(운영 irobit.kr — 「구조만」, AI 계정 0개) = 공개 서버가 뜰 때 한 번(`BoardPresetBackfillRunner`, 게시판 적용 다음). 로컬 DB 처럼 데모로 이미 있는 곳은 모두 건너뛰고 칸만 채운다.
+
 ### 미확정
 - 구조 스냅숏의 말머리 영문 이름: DB 에 영문 칸이 없어 설치 화면 목록(`boards`)의 말머리 `nameEn` 은 예전 프리셋에 있던 것만 영문이고 나머지는 한국어 그대로(게시판 `name_en` 이 빈 게시판도 한국어).
 - 팩의 `dataKey` 는 local 개발 키(공개 값)라 팩의 개인정보 칸(가짜 사업자·광고주 연락처)은 사실상 공개다 — 데모 데이터라 괜찮다고 보았다.

@@ -41,7 +41,6 @@ import com.community.user.entity.UserEntity;
 import com.community.user.exception.UserNicknameTakenException;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.ProfileRepositoryQDSL;
-import com.community.user.repository.master.UserRepository;
 import com.community.user.service.UserPolicy;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -102,7 +101,7 @@ public class AiMemberAdminService {
     private final AiProviderKeys keys;
     private final AiModelCatalog modelCatalog;
     private final AiModelRepository models;
-    private final UserRepository users;
+    private final AiMemberAccountFactory factory;
     private final ProfileRepository profiles;
     private final ProfileRepositoryQDSL profileQueries;
     private final PointShopMemberStore avatarStore;
@@ -115,7 +114,7 @@ public class AiMemberAdminService {
     private final AiMemberModelHistoryRepository history;
 
     public AiMemberAdminService(AiMemberProfileRepository accounts, AiMemberQueries queries, AiMemberSettingsRepository settings, AiProviderKeys keys,
-                                AiModelCatalog modelCatalog, AiModelRepository models, UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries,
+                                AiModelCatalog modelCatalog, AiModelRepository models, AiMemberAccountFactory factory, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries,
                                 PointShopMemberStore avatarStore, AvatarCatalog avatars, BoardCatalog catalog, GroupRepository groups,
                                 GroupMemberRepository groupMembers, SnowflakeIdGenerator ids, AuditLogService audit, AiMemberModelHistoryRepository history) {
         this.history = history;
@@ -125,7 +124,7 @@ public class AiMemberAdminService {
         this.keys = keys;
         this.modelCatalog = modelCatalog;
         this.models = models;
-        this.users = users;
+        this.factory = factory;
         this.profiles = profiles;
         this.profileQueries = profileQueries;
         this.avatarStore = avatarStore;
@@ -196,18 +195,9 @@ public class AiMemberAdminService {
             throw new UserNicknameTakenException();
         }
         Instant now = now();
-        long userId = ids.nextId();
-        users.persist(UserEntity.createAiAccount(userId, now));
-        ProfileEntity profile = ProfileEntity.create(userId, nickname, now);
-        profile.changeBio(c.bio(), now);
-        profiles.persist(profile);
-        AiMemberProfileEntity a = AiMemberProfileEntity.create(ids.nextId(), userId, c.values(), actor.operatorId(), now);
-        accounts.persist(a);
-        history.persist(AiMemberModelHistoryEntity.of(ids.nextId(), a.getId(), a.getProvider(), a.getModel(), now, actor.operatorId())); // 모델 이력 첫 줄
-        accounts.flush();
-        if (c.avatarId() != null) {
-            avatarStore.setAvatar(userId, AvatarCatalog.PROFILE_IMAGE_PREFIX + c.avatarId(), c.animated() ? null : c.avatarId(), now);
-        }
+        // 회원 + 프로필 + 확장 줄 + 모델 이력 첫 줄 + 아바타 — 설치 프리셋의 AI 기본 계정과 같은 부품
+        AiMemberProfileEntity a = factory.create(nickname, c.bio(), c.values(), c.avatarId(), c.animated(), actor.operatorId(), now);
+        long userId = a.getUserId();
         Map<String, Object> relation = applyRelation(a, c, actor.operatorId(), now);
         syncGroups(userId, c.groupIds(), now);
         AuditEvent created = AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.AI_MEMBER_CREATE, AuditResult.SUCCESS).target(AUDIT_TARGET, Long.toString(a.getId()))

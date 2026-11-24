@@ -34,11 +34,14 @@ import java.util.Locale;
  *                      저장 규칙은 관리자 저장과 같다({@code SiteAbouts} — 길이·소독). 이미 설치된 DB 의 기본 소개는 마이그레이션 V203·V205 가 넣었다
  * @param siteBrand     이 구성으로 설치하면 사이트 아이콘·링크 미리보기 이미지에 브랜드 그림({@code install-presets/brand/})을 넣는가 — 데모 포함 여부와 무관
  *                      ({@code SiteBrandInstaller}, 사용자 2026-11-13). 비우면 false
+ * @param aiMembers     AI 기본 계정 파일 이름({@code install-presets/} 안, 예: {@code irobit.ai-members.json} — {@code scripts/build-ai-member-preset.mjs} 가 데모 원고에서 만든다).
+ *                      이 구성으로 설치하면 데모 포함 여부와 무관하게 그 계정들을 꺼진 채 만든다({@code AiMemberPresetInstaller} — 이미 같은 닉네임이 있으면 건너뜀, 사용자 2026-11-24).
+ *                      없으면(null) 만들지 않는다
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BoardPreset(String id, String name, String nameEn, String description, String descriptionEn, boolean defaultPreset, int order,
                           String siteName, String siteTagline, List<Board> boards, List<MenuEntry> menu, String structure, Boolean demo,
-                          String siteAbout, Boolean siteBrand) {
+                          String siteAbout, Boolean siteBrand, String aiMembers) {
 
     /** 설치 때 브랜드 그림(사이트 아이콘·링크 미리보기)을 넣는 구성인가 */
     public boolean brandOn() {

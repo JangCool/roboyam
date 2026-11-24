@@ -25,10 +25,12 @@ public class DemoInstallLauncher implements DisposableBean {
     private static final Logger log = LoggerFactory.getLogger(DemoInstallLauncher.class);
 
     private final DemoDataInstaller demoInstaller;
+    private final AiMemberPresetInstaller aiMembers;
     private final ExecutorService executor = Executors.newSingleThreadExecutor(Thread.ofPlatform().name("install-demo").factory());
 
-    public DemoInstallLauncher(DemoDataInstaller demoInstaller) {
+    public DemoInstallLauncher(DemoDataInstaller demoInstaller, AiMemberPresetInstaller aiMembers) {
         this.demoInstaller = demoInstaller;
+        this.aiMembers = aiMembers;
     }
 
     /** 데모 넣기를 시작한다 — 곧바로 돌아온다 */
@@ -49,6 +51,8 @@ public class DemoInstallLauncher implements DisposableBean {
                 log.warn("데모 실패를 적지 못했다 원인={}", markFailure.getClass().getSimpleName());
             }
         }
+        // 구성의 AI 기본 계정 — 데모 뒤에(데모 팩에 같은 닉네임이 있으면 건너뛰고 표시만, 데모가 롤백됐으면 여기서 만든다). 던지지 않는다
+        aiMembers.seedOnce("데모 뒤");
     }
 
     /** 끄는 중이면 새 일은 받지 않고, 넣던 데모는 잠깐 기다린다(못 끝내면 롤백된다) */
