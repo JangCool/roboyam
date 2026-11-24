@@ -29,8 +29,8 @@
   - 모르는 자리표시가 있으면 게시를 거절한다(서버). 쓴 자리표시의 값이 운영 주체 설정에 없으면(선택 칸을 비워 둠 등) 미리보기가 경고하고 서버도 게시를 거절한다(빈칸 게시본 방지, 2026-11-10).
   - 지난 판을 「이 본문으로 초안 만들기」로 복사하면 자리표시가 이미 값으로 바뀐 글이 들어온다(되돌리지 않는다) — 토스트로 알린다. 자리표시가 든 새 초안은 [기본 문안으로 초안 만들기]로 만든다.
 - **버전 사본**: 게시본에 바꾼 본문과 그때의 운영 주체 값을 함께 저장한다. 나중에 단계를 바꿔도 지난 판은 바뀌지 않는다.
-- **최소 시행일**(`terms-contract.md` 의 「내일 이후」 규칙을 넓힘)
-  - 그 종류의 첫 게시본: 내일
+- **최소 시행일**(`terms-contract.md` 의 시행일 규칙을 넓힘)
+  - 그 종류의 첫 게시본: 오늘(2026-11-24 사용자 — 「오늘부터 적용되게」, 예전 「내일」)
   - 개정: 7일 뒤
   - 회원에게 불리한 개정(`unfavorable`): 30일 뒤 + 가입 회원에게 메일 알림
   - 「마지막 시행일 이후」 규칙은 그대로 둔다.
@@ -64,7 +64,7 @@
 - **마이그레이션**: shared `V158__site_operator_terms_policy.sql`(가번호 V159 → develop 병합 때 V158 로 당김 — profile-privacy 는 그 뒤 번호). `site_operator`(1행, 사업자 정보의 정본) · `site_operator_history` · 커머스 사업자 정보 → 운영 주체로 옮기고(상호가 있으면 `SOLE_PROPRIETOR`) `commerce_business_info` 의 겹치는 열 삭제 · 약관 종류 CHECK ∪ `OPERATION_POLICY` · `terms_versions.unfavorable`·`operator_snapshot(jsonb)`. shared `V179__site_operator_mail_provider.sql` — `site_operator.mail_provider varchar(50)`(선택, 사본 JSON 에도 `mailProvider`).
 - **관리자** `GET·PUT /api/admin/site/operator`(`site.read`·`site.manage`): 응답·요청은 화면 타입 그대로. 오류 `400 VALIDATION fields.{stage,operatorName,contactEmail,phone,privacyOfficerName,privacyOfficerEmail,hostingProvider,mailProvider,business.*}`(문구 `siteOperator.*`), 판매 중 개인 단계·신고번호 비우기 `409 COMMERCE_SALES_OPEN`. 전화는 화면과 같이 띄어쓰기도 받는다. 감사 `SITE_OPERATOR_STAGE_CHANGE`(+이력)·`SITE_OPERATOR_UPDATE`(대상 SITE/1, 바뀐 칸 before/after, 이메일은 가림).
 - **공개** `GET /api/site/info` 에 `operator{stage, contactEmail|null}`(사본·ETag 경로 그대로).
-- **약관 게시**: `unfavorable`(없으면 false), 최소 시행일 첫 판 내일 · 개정 7일 뒤(`terms.effectiveDate.revision`) · 불리 30일 뒤(`terms.effectiveDate.unfavorable`). 자리표시는 `TermsPlaceholders`(정화된 초안의 `{<!-- -->{` 를 되돌린 뒤 바꾸고 다시 정화), 모르는 이름 `fields.draft`(`terms.draft.unknownPlaceholder`), 값이 빈 이름 `fields.draft`(`terms.draft.emptyPlaceholder`). 버전 목록·상세에 `unfavorable`·`operatorSnapshot{stage,operatorName,businessName}`(DB 에는 사본 전체). 감사 `TERMS_PUBLISH` after 에 `unfavorable`.
+- **약관 게시**: `unfavorable`(없으면 false), 최소 시행일 첫 판 오늘(2026-11-24, 예전 내일) · 개정 7일 뒤(`terms.effectiveDate.revision`) · 불리 30일 뒤(`terms.effectiveDate.unfavorable`). 자리표시는 `TermsPlaceholders`(정화된 초안의 `{<!-- -->{` 를 되돌린 뒤 바꾸고 다시 정화), 모르는 이름 `fields.draft`(`terms.draft.unknownPlaceholder`), 값이 빈 이름 `fields.draft`(`terms.draft.emptyPlaceholder`). 버전 목록·상세에 `unfavorable`·`operatorSnapshot{stage,operatorName,businessName}`(DB 에는 사본 전체). 감사 `TERMS_PUBLISH` after 에 `unfavorable`.
 - **불리한 변경 메일**: 필수 안내 메일 `MEMBER_TERMS_CHANGE`(끌 수 없음)를 커머스 메일 대기열에 회원마다 한 줄(탈퇴·삭제·미인증 제외), 1분에 20통씩 `next_attempt_at` 을 미뤄 넣는다(`TermsChangeMails`). 이용약관·개인정보처리방침·운영정책만(`TermsKind.memberNotice`).
 - **커머스**: 사업자 정보 읽기의 겹치는 칸은 운영 주체(법인 = 회사명, 보호책임자 = 운영 주체의 보호책임자). `PUT /api/admin/commerce/business-info` 는 `businessHours`·`shippingRefundPolicy` 만 저장하고 나머지는 받아도 무시. 판매 켜기 자동 조건에 `OPERATOR_STAGE`(개인사업자 이상 + 통신판매업 신고번호) 추가.
 

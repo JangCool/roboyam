@@ -166,7 +166,7 @@ public class TermsAdminService {
      * 초안 본문으로 새 버전을 게시하고 초안을 지운다(terms-operator-contract).
      *
      * <ol>
-     *   <li><b>최소 시행일</b>(사이트 시간대): 그 종류의 첫 게시본 = 내일 이후, 개정 = 7일 뒤 이후, 회원에게 불리한 변경({@code unfavorable}) = 30일 뒤 이후. 마지막 게시본 시행일 이후(같은 날 허용)는 그대로.</li>
+     *   <li><b>최소 시행일</b>(사이트 시간대): 그 종류의 첫 게시본 = 오늘 이후(오늘 시행 가능 — 알릴 회원이 아직 없다, 2026-11-24 사용자), 개정 = 7일 뒤 이후, 회원에게 불리한 변경({@code unfavorable}) = 30일 뒤 이후. 마지막 게시본 시행일 이후(같은 날 허용)는 그대로.</li>
      *   <li><b>자리표시</b>: 초안(자리표시 그대로)을 지금 운영 주체 값·사이트 이름·시행일로 바꾼 뒤({@link TermsPlaceholders}) {@link TermsHtml} 로 다시 정화해 버전 본문으로 저장한다.
      *       초안은 자리표시 그대로다(게시하면 지운다). 모르는 자리표시가 있거나, 쓴 자리표시의 값이 운영 주체 설정에 없으면 거절({@code fields.draft}).</li>
      *   <li><b>사본</b>: 게시 당시 운영 주체 값을 버전에 함께 남긴다 — 나중에 단계를 바꿔도 지난 판은 그대로다.</li>
@@ -187,7 +187,7 @@ public class TermsAdminService {
         if (effectiveDate != null) {
             LocalDate min = minEffectiveDate(today, latest.isPresent(), unfavorable);
             if (effectiveDate.isBefore(min)) {
-                // 첫 게시본은 「내일부터」(오늘 시행은 받지 않는다) · 개정은 7일 뒤 · 불리한 변경은 30일 뒤부터
+                // 첫 게시본은 「오늘부터」 · 개정은 7일 뒤 · 불리한 변경은 30일 뒤부터
                 errors.put("effectiveDate", unfavorable ? new MessageRef("terms.effectiveDate.unfavorable", min.toString())
                         : latest.isPresent() ? new MessageRef("terms.effectiveDate.revision", min.toString()) : new MessageRef("terms.effectiveDate.past"));
             } else if (latest.isPresent() && effectiveDate.isBefore(latest.get().effectiveDate())) {
@@ -331,12 +331,12 @@ public class TermsAdminService {
         return snapshot == null ? null : new TermsOperatorSnapshotView(snapshot.stage(), snapshot.operatorName(), snapshot.businessName());
     }
 
-    /** 최소 시행일 — 첫 게시본 내일 · 개정 7일 뒤 · 불리한 변경 30일 뒤(사이트 시간대의 오늘 기준) */
+    /** 최소 시행일 — 첫 게시본 오늘 · 개정 7일 뒤 · 불리한 변경 30일 뒤(사이트 시간대의 오늘 기준) */
     static LocalDate minEffectiveDate(LocalDate today, boolean revision, boolean unfavorable) {
         if (unfavorable) {
             return today.plusDays(UNFAVORABLE_NOTICE_DAYS);
         }
-        return today.plusDays(revision ? REVISION_NOTICE_DAYS : 1);
+        return revision ? today.plusDays(REVISION_NOTICE_DAYS) : today;
     }
 
     private static String nameOf(Map<Long, String> names, Long operatorId) {
