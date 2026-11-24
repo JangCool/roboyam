@@ -25,7 +25,7 @@ public record OperatorMemberAccountView(Linked linked, Candidate candidate, Powe
     }
 
     /**
-     * 이 운영자 이메일과 같은 이메일로 가입한 회원.
+     * 이 운영자 이메일과 같은 이메일로 가입한 회원 — 추천 후보(같은 이메일이 아닌 회원은 {@code …/candidates?q=} 검색으로 찾아 잇는다, 2026-11-24).
      *
      * @param ineligibleReasons  EMAIL_NOT_VERIFIED · MEMBER_RESTRICTED · BUSINESS_ACCOUNT · LINKED_TO_OTHER(여럿 가능)
      * @param linkedOperatorName {@code LINKED_TO_OTHER} 일 때 그 운영자 이름 — 아니면 null

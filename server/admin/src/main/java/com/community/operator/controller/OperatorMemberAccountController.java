@@ -3,6 +3,7 @@ package com.community.operator.controller;
 import com.community.operator.dto.request.OperatorMemberCreateRequest;
 import com.community.operator.dto.request.OperatorMemberLinkRequest;
 import com.community.operator.dto.response.OperatorMemberAccountView;
+import com.community.operator.dto.response.OperatorMemberCandidates;
 import com.community.operator.dto.response.OperatorMemberCreateResult;
 import com.community.operator.service.OperatorMemberAccountAdminService;
 import com.community.operator.service.OperatorMemberCreateService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -27,8 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <ul>
  *   <li>{@code GET /api/admin/operators/{operatorId}/member-account}({@code operator.read}) → {@code OperatorMemberAccountView} · 404 {@code OPERATOR_NOT_FOUND}</li>
- *   <li>{@code PUT …/member-account { userId }}({@code operator.manage}) → 같은 모양 · 409 {@code OPERATOR_MEMBER_NOT_CANDIDATE}·{@code OPERATOR_MEMBER_NOT_ELIGIBLE}·
- *       {@code OPERATOR_MEMBER_ALREADY_LINKED}·{@code OPERATOR_ROOT_PROTECTED}</li>
+ *   <li>{@code GET …/member-account/candidates?q=}({@code operator.read}) → {@code OperatorMemberCandidates} — 회원 검색(닉네임 · 이메일 · 회원번호)</li>
+ *   <li>{@code PUT …/member-account { userId }}({@code operator.manage}) → 같은 모양 · 404 {@code MEMBER_NOT_FOUND} · 409 {@code OPERATOR_MEMBER_NOT_ELIGIBLE}(+ {@code ineligibleReasons})·
+ *       {@code OPERATOR_MEMBER_ALREADY_LINKED}·{@code OPERATOR_ROOT_PROTECTED} — 같은 이메일이 아니어도 된다(2026-11-24)</li>
  *   <li>{@code DELETE …/member-account}({@code operator.manage}) → 같은 모양 · 409 {@code OPERATOR_MEMBER_NOT_LINKED}·{@code OPERATOR_ROOT_PROTECTED}</li>
  *   <li>{@code POST …/member-account { email, nickname, passwordMode, password }}({@code operator.manage}) → 201 {@code OperatorMemberCreateResult} — 새 계정을 만들어 잇는다</li>
  * </ul>
@@ -49,6 +52,16 @@ public class OperatorMemberAccountController {
     @GetMapping
     public ApiResponse<OperatorMemberAccountView> get(@PathVariable String operatorId) {
         return ApiResponse.success(service.get(operatorId));
+    }
+
+    /**
+     * 이을 회원 찾기(같은 이메일이 아니어도 된다 — 세션 정리 결정 2026-11-24) — {@code OperatorMemberCandidates}(최대 20건) · 400 {@code VALIDATION fields.q}(앞뒤 공백 자르고 2~100자) ·
+     * 404 {@code OPERATOR_NOT_FOUND}
+     */
+    @RequirePermission(Permission.OPERATOR_READ)
+    @GetMapping("/candidates")
+    public ApiResponse<OperatorMemberCandidates> candidates(@PathVariable String operatorId, @RequestParam(required = false) String q) {
+        return ApiResponse.success(service.searchCandidates(operatorId, q));
     }
 
     @RequirePermission(Permission.OPERATOR_MANAGE)

@@ -88,10 +88,10 @@
                 <div v-if="selectedOperator && email.trim().toLowerCase() !== selectedOperator.email.toLowerCase()">
                     <Button type="button" :label="t('operatorMember.create.useOperatorEmail', { email: selectedOperator.email })" icon="pi pi-at" size="small" severity="secondary" variant="text" class="-ml-2" :disabled="view.busy" @click="email = selectedOperator.email" />
                 </div>
-                <!-- 이미 가입한 이메일 — 새로 만들지 말고 그 회원을 연결하라는 안내 -->
+                <!-- 이미 가입한 이메일 — 새로 만들지 말고 운영자 서랍에서 그 회원을 검색해 연결하라는 안내(이메일이 운영자와 같든 다르든) -->
                 <Message v-if="emailTakenHint" severity="secondary" size="small" variant="simple" :closable="false">
                     <span>{{ emailTakenHint }}</span>
-                    <div v-if="emailSameAsOperator && showOperatorLink && selectedOperator" class="mt-1.5">
+                    <div v-if="showOperatorLink && selectedOperator" class="mt-1.5">
                         <Button type="button" :label="t('operatorMember.create.goLink')" icon="pi pi-link" size="small" severity="secondary" variant="outlined" @click="emit('open-operator', selectedOperator.operatorId)" />
                     </div>
                 </Message>
@@ -172,7 +172,7 @@ interface Props {
     view: OperatorMemberCreateView;
     /** 결과 화면의 [회원 관리에서 보기] — 회원 조회 권한(`member.read`)이 있을 때 */
     canOpenMember?: boolean;
-    /** [운영자 서랍 열기]·「운영자 서랍에서 연결」을 보인다 — 운영자 서랍 밖(회원 관리)에서 열었을 때 */
+    /** [운영자 서랍 열기]·「운영자 서랍에서 연결」(이미 가입한 이메일일 때)을 보인다 — 운영자 서랍 밖(회원 관리)에서 열었을 때 */
     showOperatorLink?: boolean;
 }
 
@@ -281,13 +281,8 @@ const emailError = computed(() => {
     const problem = UtilValidation.email(email.value);
     return problem ? UtilOperatorMemberMessages.emailProblem(t, problem) : '';
 });
-const emailSameAsOperator = computed(() => !!selectedOperator.value && email.value.trim().toLowerCase() === selectedOperator.value.email.toLowerCase());
-/** 이미 가입한 이메일(`EMAIL_TAKEN`)이 칸에 보이는 동안의 안내 */
-const emailTakenHint = computed(() => {
-    if (props.view.errorCode !== 'EMAIL_TAKEN' || !server('email')) return '';
-    if (!emailSameAsOperator.value) return t('operatorMember.create.emailTakenOther');
-    return props.view.fixed ? t('operatorMember.create.emailTakenSameHere') : t('operatorMember.create.emailTakenSame');
-});
+/** 이미 가입한 이메일(`EMAIL_TAKEN`)이 칸에 보이는 동안의 안내 — 이미 있는 회원은 이메일이 달라도 「사이트 계정」 탭에서 검색해 이을 수 있다 */
+const emailTakenHint = computed(() => (props.view.errorCode === 'EMAIL_TAKEN' && server('email') ? t('operatorMember.create.emailTaken') : ''));
 
 const nicknameError = computed(() => {
     if (server('nickname')) return server('nickname');

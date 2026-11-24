@@ -12,10 +12,24 @@ export default {
     readOnly: '사이트 계정 연결을 바꿀 권한이 없어 읽기만 할 수 있어요.',
     superOnlySelf: '최고 관리자의 사이트 계정은 본인만 바꿀 수 있어요.',
 
-    // 연결 안 됨 — 같은 이메일로 가입한 회원
-    candidateTitle: '이 운영자 이메일({email})로 가입한 회원',
-    candidateNone: '같은 이메일로 가입한 회원 계정이 없어요',
-    candidateNoneHint: '운영자가 사이트에서 같은 이메일로 가입한 뒤 연결하세요.',
+    // 연결 안 됨 — 추천(운영자와 같은 이메일) · 회원 검색(이메일이 달라도) · 새 계정 만들기
+    recommendTag: '추천',
+    recommendTitle: '운영자와 같은 이메일({email})로 가입한 회원',
+    unlinkedNone: '연결된 회원 계정이 없어요 — 회원을 검색해 연결하거나 새 계정을 만드세요.',
+    unlinkedNoneReadOnly: '연결된 회원 계정이 없어요.',
+    search: {
+        label: '회원 검색',
+        placeholder: '닉네임·이메일·회원번호',
+        help: "숫자만 넣으면 회원번호(와 숫자 닉네임), {'@'}가 있으면 이메일, 그 밖은 닉네임 일부로 찾아요. 이메일은 전체 주소로 입력하세요. 운영자와 이메일이 달라도 연결할 수 있어요.",
+        tooShort: '{min}자 이상 입력해 주세요.',
+        empty: '「{query}」에 맞는 회원이 없어요.',
+        results: '찾은 회원',
+        limit: '{count}명까지 보여요. 더 자세히 입력해 찾아 보세요.',
+        memberNo: '회원번호 {no}',
+        joinedAt: '가입 {date}',
+        noEmail: '이메일 없음(소셜 가입)',
+    },
+    createHint: '찾는 회원이 없으면 운영자가 쓸 계정을 새로 만들 수 있어요.',
     fieldNickname: '닉네임',
     fieldGrade: '등급',
     fieldJoinedAt: '가입일',
@@ -30,6 +44,15 @@ export default {
         MEMBER_RESTRICTED: '정지 중이거나 탈퇴를 진행 중인 회원이에요.',
         BUSINESS_ACCOUNT: '사업자 계정은 연결할 수 없어요.',
         LINKED_TO_OTHER: '이미 다른 운영자 「{name}」에 연결된 회원이에요.',
+    },
+    /** 연결 실패(`OPERATOR_MEMBER_NOT_ELIGIBLE`)의 `LINKED_TO_OTHER` 인데 운영자 이름을 모를 때 */
+    linkedToOtherNoName: '이미 다른 운영자에 연결된 회원이에요.',
+    /** 검색 결과의 까닭 뱃지(짧게) — 풀이는 `ineligible.*` */
+    ineligibleShort: {
+        EMAIL_NOT_VERIFIED: '이메일 미인증',
+        MEMBER_RESTRICTED: '정지·탈퇴 진행',
+        BUSINESS_ACCOUNT: '사업자 계정',
+        LINKED_TO_OTHER: '「{name}」에 연결됨',
     },
     link: '연결',
     linkLabel: '{nickname} 계정 연결',
@@ -85,7 +108,6 @@ export default {
     // 새 계정 만들기 — 관리자가 운영자용 회원 계정을 바로 만들고 잇는다
     createOpen: '운영자 계정 만들기',
     createHere: '새 계정 만들기',
-    createOther: '다른 이메일로 새 계정 만들기',
     create: {
         title: '운영자 사이트 계정 만들기',
         intro: '운영자가 사이트에서 쓸 회원 계정을 새로 만들고 그 운영자에 바로 연결해요.',
@@ -101,9 +123,7 @@ export default {
         useOperatorEmail: '운영자 이메일({email}) 쓰기',
         emailRequired: '이메일을 입력해 주세요.',
         emailFormat: '이메일 형식이 올바르지 않아요.',
-        emailTakenSame: '운영자 이메일로 이미 가입한 회원이 있어요. 새로 만들지 말고 운영자 서랍 「사이트 계정」에서 그 회원을 연결하세요.',
-        emailTakenSameHere: '운영자 이메일로 이미 가입한 회원이 있어요. 이 창을 닫고 「사이트 계정」 탭에서 그 회원을 연결하세요.',
-        emailTakenOther: '이 이메일로 이미 가입한 회원이 있어요. 이미 있는 회원은 운영자 이메일과 같은 이메일일 때만 연결할 수 있어요 — 다른 이메일을 쓰세요.',
+        emailTaken: '이미 가입한 회원이에요 — 운영자 서랍 「사이트 계정」에서 검색해 연결하세요.',
         goLink: '운영자 서랍에서 연결',
         nicknameHint: '2~12자',
         nicknameHelp: '운영자 계정이라 아이로빗·운영자 같은 이름도 쓸 수 있어요. 한글·영문·숫자·밑줄과 글자 사이 공백 한 칸.',

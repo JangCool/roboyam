@@ -60,15 +60,24 @@ public class OperatorMemberAccountStore extends IrobitRepositoryQDSL {
     }
 
     /**
-     * 연결 후보 회원(운영자와 같은 이메일) — 자격 재료를 함께.
+     * 연결 후보 회원(같은 이메일 추천 · 관리자 검색 · 고른 회원) — 자격 재료를 함께.
      *
-     * @param status             회원 상태(ACTIVE · SUSPENDED · BANNED · WITHDRAWING)
+     * @param email              가입 이메일(정규화한 소문자 — 화면에는 가려서 준다)
+     * @param status             회원 상태(ACTIVE · SUSPENDED · BANNED · WITHDRAWING · WITHDRAWN)
      * @param business           사업자 계정(사업자 회원 역할 또는 살아 있는 사업자 신원 — 심사 중 · 승인 · 정지)
      * @param linkedOperatorId   이미 이어진 운영자(없으면 null)
      */
-    public record Candidate(long userId, String nickname, String gradeKey, Instant joinedAt, String status, boolean emailVerified, boolean deleted, boolean business,
-                            Long linkedOperatorId, String linkedOperatorName, int managerCount, int staffCount) {
+    public record Candidate(long userId, String email, String nickname, String gradeKey, Instant joinedAt, String status, boolean emailVerified, boolean deleted,
+                            boolean business, Long linkedOperatorId, String linkedOperatorName, int managerCount, int staffCount) {
+
+        /** 탈퇴를 마친 회원(검색·추천에서 뺀다) */
+        public boolean withdrawn() {
+            return deleted || "WITHDRAWN".equals(status);
+        }
     }
+
+    /** 후보 검색 방식 — 회원번호(회원 ID) · 이메일(전체 주소 일치) · 닉네임(부분 일치) */
+    public enum CandidateSearch { MEMBER_NO, EMAIL, NICKNAME }
 
     private static final QOperatorMemberAccountEntity M = QOperatorMemberAccountEntity.operatorMemberAccountEntity;
     private static final QOperatorEntity O = new QOperatorEntity("linkedOperator");
@@ -78,6 +87,14 @@ public class OperatorMemberAccountStore extends IrobitRepositoryQDSL {
     private static final QUserRoleEntity ROLE = QUserRoleEntity.userRoleEntity;
     private static final QBusinessProfileEntity BIZ = QBusinessProfileEntity.businessProfileEntity;
     private static final QBoardStaffEntity STAFF = QBoardStaffEntity.boardStaffEntity;
+
+    /** 사업자 계정 — 사업자 회원 역할 또는 살아 있는 사업자 신원(심사 중 · 승인 · 정지) */
+    private static final BooleanExpression CANDIDATE_BUSINESS = flag(JPAExpressions.selectOne().from(ROLE)
+            .where(ROLE.userId.eq(U.id), ROLE.boardId.isNull(), ROLE.roleId.eq(MemberRoleIds.BUSINESS)).exists()
+            .or(JPAExpressions.selectOne().from(BIZ).where(BIZ.userId.eq(U.id), BIZ.status.in(BusinessStatus.PENDING, BusinessStatus.APPROVED, BusinessStatus.SUSPENDED))
+                    .exists()));
+    private static final Expression<Long> CANDIDATE_MANAGERS = JPAExpressions.select(STAFF.count()).from(STAFF).where(STAFF.userId.eq(U.id), STAFF.role.eq("MANAGER"));
+    private static final Expression<Long> CANDIDATE_STAFF = JPAExpressions.select(STAFF.count()).from(STAFF).where(STAFF.userId.eq(U.id), STAFF.role.eq("STAFF"));
 
     private final OperatorMemberAccountRepository accounts;
     private final EntityManager entityManager;
@@ -173,28 +190,74 @@ public class OperatorMemberAccountStore extends IrobitRepositoryQDSL {
         return Set.copyOf(select.where(M.userId.in(ids)).fetch());
     }
 
-    /** 이 이메일(정규화한 소문자)로 가입한 회원 — 연결 후보(정책 2). 없으면 빈 값. 색인 {@code ux_users_email} */
+    /** 이 이메일(정규화한 소문자)로 가입한 회원 — 같은 이메일 추천 후보(정책 2). 없으면 빈 값. 색인 {@code ux_users_email} */
     public Optional<Candidate> candidateByEmail(String normalizedEmail) {
         if (normalizedEmail == null || normalizedEmail.isBlank()) {
             return Optional.empty();
         }
-        BooleanExpression business = JPAExpressions.selectOne().from(ROLE).where(ROLE.userId.eq(U.id), ROLE.boardId.isNull(), ROLE.roleId.eq(MemberRoleIds.BUSINESS))
-                .exists()
-                .or(JPAExpressions.selectOne().from(BIZ)
-                        .where(BIZ.userId.eq(U.id), BIZ.status.in(BusinessStatus.PENDING, BusinessStatus.APPROVED, BusinessStatus.SUSPENDED)).exists());
-        Expression<Long> managers = JPAExpressions.select(STAFF.count()).from(STAFF).where(STAFF.userId.eq(U.id), STAFF.role.eq("MANAGER"));
-        Expression<Long> staff = JPAExpressions.select(STAFF.count()).from(STAFF).where(STAFF.userId.eq(U.id), STAFF.role.eq("STAFF"));
-        BooleanExpression businessFlag = flag(business);
-        List<Tuple> rows = query.select(U.id, P.nickname, P.gradeKey, U.createdAt, U.status, U.emailVerifiedAt, U.deletedAt, businessFlag, M.operatorId, O.operatorName,
-                        managers, staff)
-                .from(U).leftJoin(P).on(P.userId.eq(U.id)).leftJoin(M).on(M.userId.eq(U.id)).leftJoin(O).on(O.id.eq(M.operatorId))
-                .where(U.email.eq(normalizedEmail)).fetch();
-        return rows.stream().findFirst().map(t -> {
-            UserStatus status = t.get(U.status);
-            return new Candidate(t.get(U.id), t.get(P.nickname), t.get(P.gradeKey), t.get(U.createdAt), status == null ? null : status.name(),
-                    t.get(U.emailVerifiedAt) != null, t.get(U.deletedAt) != null, Boolean.TRUE.equals(t.get(businessFlag)), t.get(M.operatorId),
-                    t.get(O.operatorName), count(t.get(managers)), count(t.get(staff)));
-        });
+        return candidateRows().where(U.email.eq(normalizedEmail)).fetch().stream().findFirst().map(OperatorMemberAccountStore::candidate);
+    }
+
+    /** 그 회원 — 관리자가 고른 회원(연결할 때). 없으면 빈 값 */
+    public Optional<Candidate> candidateById(long userId) {
+        return candidateRows().where(U.id.eq(userId)).fetch().stream().findFirst().map(OperatorMemberAccountStore::candidate);
+    }
+
+    /**
+     * 관리자 후보 검색(세션 정리 결정 2026-11-24) — 탈퇴를 마친 회원과 {@code excludeOperatorId} 에 이미 이어진 회원은 뺀다.
+     * 정확히 맞는 것(회원번호 · 닉네임 전체 일치 · 이메일) 먼저, 그다음 가입 최신순.
+     *
+     * @param search  {@link CandidateSearch} — 회원번호 검색은 숫자만인 닉네임의 부분 일치도 함께 찾는다(회원번호 일치가 먼저)
+     * @param keyword 회원번호면 숫자 글자, 이메일이면 정규화한 소문자, 닉네임이면 소문자
+     */
+    public List<Candidate> searchCandidates(CandidateSearch search, String keyword, long excludeOperatorId, int limit) {
+        BooleanExpression byNickname = P.nickname.lower().contains(keyword);
+        BooleanExpression nicknameExact = P.nickname.lower().eq(keyword);
+        BooleanExpression where;
+        BooleanExpression exact;
+        switch (search) {
+            case MEMBER_NO -> {
+                BooleanExpression byId = memberNo(keyword);
+                where = byId.or(byNickname);
+                exact = byId.or(nicknameExact);
+            }
+            case EMAIL -> {
+                where = U.email.eq(keyword);
+                exact = where;
+            }
+            default -> {
+                where = byNickname;
+                exact = nicknameExact;
+            }
+        }
+        BooleanExpression notWithdrawn = U.deletedAt.isNull().and(U.status.ne(UserStatus.WITHDRAWN));
+        BooleanExpression notThisOperator = M.operatorId.isNull().or(M.operatorId.ne(excludeOperatorId));
+        return candidateRows().where(where, notWithdrawn, notThisOperator)
+                .orderBy(new CaseBuilder().when(exact).then(0).otherwise(1).asc(), U.createdAt.desc(), U.id.desc())
+                .limit(limit).fetch().stream().map(OperatorMemberAccountStore::candidate).toList();
+    }
+
+    /** 회원번호(회원 ID) 일치 — long 범위 밖이면 그런 회원이 없다(늘 거짓: ID 는 비지 않는다) */
+    private static BooleanExpression memberNo(String digits) {
+        try {
+            return U.id.eq(Long.parseLong(digits));
+        } catch (NumberFormatException e) {
+            return U.id.isNull();
+        }
+    }
+
+    /** 후보 줄 질의 — 자격 재료(사업자 · 연결 · 게시판 담당 수)를 함께. 거르기는 부르는 쪽이 붙인다 */
+    private JPAQuery<Tuple> candidateRows() {
+        return query.select(U.id, U.email, P.nickname, P.gradeKey, U.createdAt, U.status, U.emailVerifiedAt, U.deletedAt, CANDIDATE_BUSINESS, M.operatorId,
+                        O.operatorName, CANDIDATE_MANAGERS, CANDIDATE_STAFF)
+                .from(U).leftJoin(P).on(P.userId.eq(U.id)).leftJoin(M).on(M.userId.eq(U.id)).leftJoin(O).on(O.id.eq(M.operatorId));
+    }
+
+    private static Candidate candidate(Tuple t) {
+        UserStatus status = t.get(U.status);
+        return new Candidate(t.get(U.id), t.get(U.email), t.get(P.nickname), t.get(P.gradeKey), t.get(U.createdAt), status == null ? null : status.name(),
+                t.get(U.emailVerifiedAt) != null, t.get(U.deletedAt) != null, Boolean.TRUE.equals(t.get(CANDIDATE_BUSINESS)), t.get(M.operatorId),
+                t.get(O.operatorName), count(t.get(CANDIDATE_MANAGERS)), count(t.get(CANDIDATE_STAFF)));
     }
 
     // ── 쓰기 ──────────────────────────────────────────────────────────────

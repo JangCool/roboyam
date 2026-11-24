@@ -212,6 +212,7 @@
             :member-account-loading="memberAccountLoading"
             :member-account-error="memberAccountError"
             :member-account-busy="memberAccountBusy"
+            :member-search="memberSearch.view.value"
             :is-self="!!drawerOperator && drawerOperator.operatorId === user?.id"
             @update:visible="onDrawerVisible"
             @update:dirty="(v: boolean) => (drawerDirty = v)"
@@ -219,6 +220,7 @@
             @save-status="saveStatus"
             @reset-mfa="resetMfa"
             @link-member="linkMemberAccount"
+            @search-member="(query: string) => drawerOperator && memberSearch.search(drawerOperator.operatorId, query)"
             @unlink-member="unlinkMemberAccount"
             @retry-member-account="drawerOperator && loadMemberAccount(drawerOperator.operatorId)"
             @create-member="drawerOperator && memberCreate.start(drawerOperator)"
@@ -257,11 +259,12 @@ import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorInvitationView, OperatorRoleRef, OperatorStatusRequest, OperatorTab, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
-import type { OperatorMemberAccountView } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
+import type { OperatorMemberAccountView, OperatorMemberCandidate } from '~/composables/operator/api/useOperatorMemberAccountApi.types';
 import type { OperatorMemberCreateSubmit } from '~/composables/operator/useOperatorMemberCreate.types';
 import type { RoleView } from '~/composables/role/api/useRoleApi.types';
 import type { RoleTypeView } from '~/composables/role/api/useRoleTypeApi.types';
 import UtilOperator from '~/utils/util-operator';
+import UtilOperatorMemberMessages from '~/utils/util-operator-member-messages';
 import UtilOperatorMessages from '~/utils/util-operator-messages';
 import UtilRole from '~/utils/util-role';
 
@@ -515,10 +518,15 @@ function memberAccountTitle(operator: OperatorView): string {
     return account.active ? t('operatorMember.listTagTitle', { nickname: account.nickname }) : t('operatorMember.listTagPausedTitle', { nickname: account.nickname });
 }
 
+/** 사이트 계정 탭의 회원 검색 — 이메일이 달라도 회원을 찾아 잇는다(`useOperatorMemberAccountApi.searchCandidates`) */
+const memberSearch = useOperatorMemberSearch();
+
 async function loadMemberAccount(operatorId: string): Promise<void> {
     memberAccountLoading.value = true;
     memberAccountError.value = '';
     drawerMemberAccount.value = null;
+    // 다른 운영자의 검색 결과를 남기지 않는다(같은 운영자를 다시 받을 때도 비운다 — 자격이 바뀌었을 수 있다)
+    memberSearch.reset();
     try {
         const view = await memberAccountApi.get(operatorId);
         // 그 사이 다른 운영자로 바뀌었으면 버린다
@@ -560,23 +568,35 @@ async function refreshMemberAccountBadges(): Promise<void> {
     await reload();
 }
 
-/** [연결] — 맡은 게시판 매니저·스텝 지정이 끝난다는 것을 확인창에서 알린다(0개면 그 말은 뺀다) */
-async function linkMemberAccount(userId: string): Promise<void> {
+/**
+ * [연결] — 추천(같은 이메일) 카드나 회원 검색 결과의 회원을 잇는다(이메일이 달라도 된다). 맡은 게시판 매니저·스텝 지정이 끝난다는 것을 확인창에서 알린다(0개면 그 말은 뺀다).
+ * 실패하면 서버 문구를 토스트로(`OPERATOR_MEMBER_NOT_ELIGIBLE` 이면 `extras.ineligibleReasons` 의 까닭을 붙인다) — 자격이 바뀌었거나 회원이 없어졌을 수 있어(`OPERATOR_MEMBER_NOT_ELIGIBLE`·404 `MEMBER_NOT_FOUND`)
+ * 검색을 다시 하고, 운영자가 그 사이 이어졌으면(`OPERATOR_MEMBER_ALREADY_LINKED`) 탭을 다시 받는다. `OPERATOR_ROOT_PROTECTED` 는 토스트만.
+ */
+async function linkMemberAccount(candidate: OperatorMemberCandidate): Promise<void> {
     const target = drawerOperator.value;
-    const candidate = drawerMemberAccount.value?.candidate;
-    if (!target || !candidate || candidate.userId !== userId) return;
+    if (!target || !candidate.eligible) return;
     const boards = candidate.boardManagerCount + candidate.boardStaffCount;
     const message = boards > 0 ? t('operatorMember.linkMessageBoards', { nickname: candidate.nickname, count: boards }) : t('operatorMember.linkMessage', { nickname: candidate.nickname });
     const ok = await confirm({ title: t('operatorMember.linkTitle'), message, confirmLabel: t('operatorMember.link') });
     if (!ok) return;
     memberAccountBusy.value = true;
     try {
-        const view = await memberAccountApi.link(target.operatorId, { userId });
-        if (drawerOperator.value?.operatorId === target.operatorId) drawerMemberAccount.value = view;
+        const view = await memberAccountApi.link(target.operatorId, { userId: candidate.userId });
+        if (drawerOperator.value?.operatorId === target.operatorId) {
+            drawerMemberAccount.value = view;
+            memberSearch.reset();
+        }
         toast.success(t('operatorMember.linked'));
         await refreshMemberAccountBadges();
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        const failure = errorOf(e);
+        // 이을 수 없는 까닭은 오류 본문 최상위 `ineligibleReasons`(→ `extras`)로 온다 — 서버 문구 뒤에 까닭을 붙인다
+        const reasons = failure.code === 'OPERATOR_MEMBER_NOT_ELIGIBLE' ? UtilOperatorMemberMessages.ineligibleReasons(t, failure.extras, candidate.linkedOperatorName) : [];
+        toast.error([failure.message, ...reasons].join(' '), 10000);
+        if (drawerOperator.value?.operatorId !== target.operatorId) return;
+        if (failure.code === 'OPERATOR_MEMBER_ALREADY_LINKED') void loadMemberAccount(target.operatorId);
+        else if (failure.code === 'OPERATOR_MEMBER_NOT_ELIGIBLE' || failure.code === 'MEMBER_NOT_FOUND') void memberSearch.refresh();
     } finally {
         memberAccountBusy.value = false;
     }

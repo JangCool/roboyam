@@ -9,7 +9,7 @@
 
 ## 정책
 1. **연결 1:1**: 운영자 하나 ↔ 회원 하나. 회원 표(`users`)에는 값을 두지 않고 운영자 쪽 표가 회원을 가리킨다.
-2. **연결 대상 = 같은 이메일**: 운영자 이메일과 같은 이메일(대소문자 무시)로 가입하고 **이메일 인증을 마친** 회원만. 본인 확인을 대신한다. 서버가 그 회원을 찾아 후보로 준다(관리자가 아무 회원이나 고르지 못한다). 이은 뒤 회원이 이메일을 바꿔도 연결은 그대로.
+2. **연결 대상 = 관리자가 고른 회원**(2026-11-24 개정 — 아래 「세션 정리 결정 2026-11-24」): 관리자가 회원을 검색해 고르고, 연결 자격(정책 3)만 맞으면 잇는다 — **운영자와 같은 이메일이 아니어도 된다**. 운영자 이메일과 같은 이메일(대소문자 무시)로 가입한 회원은 지금처럼 서버가 찾아 **추천 후보**(`candidate`)로 준다. 이은 뒤 회원이 이메일을 바꿔도 연결은 그대로. ~~(옛 규칙: 같은 이메일 회원만, 관리자가 아무 회원이나 고르지 못한다)~~
 3. **연결 자격**(연결할 때 판정): 회원 상태 정상(정지·탈퇴 진행·탈퇴 아님) · 이메일 인증 · 사업자 계정 아님 · 다른 운영자에 이어져 있지 않음. 사유 `EMAIL_NOT_VERIFIED`·`MEMBER_RESTRICTED`·`BUSINESS_ACCOUNT`·`LINKED_TO_OTHER`(여럿 가능).
 4. **연결하면 그 회원의 게시판 매니저·스텝 지정이 모두 끝난다**(`board_staff` 행 삭제 — 종료 사유 칸은 없으므로 연결 감사 `detail.releasedBoards` 에 끝난 게시판 ID 를 남긴다). 연결된 동안은 매니저·스텝 후보에서 자격 미달(`OPERATOR_ACCOUNT`).
 5. **연결·해제 권한**: `operator.manage`. 대상이 최고 관리자(루트)면 루트 본인만(`OPERATOR_ROOT_PROTECTED`). 해제는 언제든 된다.
@@ -52,7 +52,8 @@
   - `Linked { userId, nickname, grade, linkedAt, linkedBy: {operatorId, operatorName}|null, active, pausedReasons: [OPERATOR_UNAVAILABLE|MEMBER_SUSPENDED] }`
   - `Candidate { userId, nickname, grade, joinedAt, boardManagerCount, boardStaffCount, eligible, ineligibleReasons: [...정책 3], linkedOperatorName|null }`
   - `powers.items.key`: `ROBOTICON_ALL`·`OPERATOR_BADGE`(permission null, 늘 granted) · `POST_MODERATE`·`COMMENT_DELETE`(`post.manage`) · `AUTHOR_SANCTION`(`sanction.manage`) · `ACTION_READ`(`keeper-action.read`) · `ACTION_RESTORE`(`keeper-action.restore`). 정확한 칸은 admin-web `useOperatorMemberAccountApi.types.ts` 가 정본.
-- `PUT …/member-account` `{ userId }`(`operator.manage`) → 같은 View. `userId` 가 지금 후보가 아니면 409 `OPERATOR_MEMBER_NOT_CANDIDATE`, 자격 미달 409 `OPERATOR_MEMBER_NOT_ELIGIBLE`, 이미 이어져 있으면 409 `OPERATOR_MEMBER_ALREADY_LINKED`, 루트 409 `OPERATOR_ROOT_PROTECTED`.
+- `GET …/member-account/candidates?q=`(`operator.read`) → `{ items: SearchCandidate[] }` 최대 20건 — 2026-11-24 새로(아래 「세션 정리 결정 2026-11-24」).
+- `PUT …/member-account` `{ userId }`(`operator.manage`) → 같은 View. 없는 회원 404 `MEMBER_NOT_FOUND`, 자격 미달 409 `OPERATOR_MEMBER_NOT_ELIGIBLE`(+ 최상위 `ineligibleReasons`), 이미 이어져 있으면 409 `OPERATOR_MEMBER_ALREADY_LINKED`, 루트 409 `OPERATOR_ROOT_PROTECTED`. ~~409 `OPERATOR_MEMBER_NOT_CANDIDATE`~~(2026-11-24 없앰).
 - `DELETE …/member-account`(`operator.manage`) → 같은 View. 없으면 409 `OPERATOR_MEMBER_NOT_LINKED`.
 - `OperatorView.memberAccount: { userId, nickname, active } | null` · 회원 상세 `operatorAccount: { operatorId, operatorName, active } | null`.
 - 게시판 담당 후보 `ineligible` 에 `OPERATOR_ACCOUNT`.
@@ -105,3 +106,13 @@
 - 로그인: DIRECT 계정은 공개 가입과 같이 인증 전에도 로그인은 되고 글·댓글·추천·쪽지는 인증 뒤(사이트 기존 규칙 그대로). MAIL 계정은 비밀번호를 정하기 전에는 로그인할 수 없다.
 - 그대로 둔 것: 사이트 「운영자 회원 계정」의 닉네임 변경이 예약어를 건너뛰는 규칙(`MyProfileService`). 회원 만들기 DB 일은 api `MemberSignupWriter` 를 shared(같은 패키지)로 옮겨 공개 가입과 같이 쓴다(돌려주는 값 = 회원 ID). 재가입 제한 예외 `AuthRejoinBlockedException` 도 shared 로(같은 패키지).
 - **검증**: `compileJava`·`compileTestJava`(shared·api·admin) 통과. 새 시험 admin `OperatorMemberCreateAdminTest` 4개(HTTP 201·DB 행·감사·대기열·보낼 때 링크·판정 순서·403) · api `PasswordSetupLinkTest` 2개(정하기 링크 → 인증 끝 · 재설정 링크는 인증 안 바꿈 · 인증 화면에서 못 씀) 통과(Testcontainers). 재가입 제한 409 는 시험하지 않음(공개 가입과 같은 호출).
+
+## 세션 정리 결정 2026-11-24 — 같은 이메일이 아니어도 잇는다(사용자 「같은 이메일이 아니어도 연결 된다고 회원 계정과 운영자 계정 말이야」)
+**정본**: 정책 2 「같은 이메일 회원만」 제한을 없앤다. 관리자가 회원을 검색해 고르면 정책 3 자격(인증 · 정상 회원 · 사업자 아님 · 다른 운영자에 안 이어짐)만 판정해 잇는다. 같은 이메일 회원은 `GET …/member-account` 의 `candidate` 로 추천한다(그대로). 정책 4(게시판 담당 끝내기)·프로필 비공개·감사 `OPERATOR_MEMBER_LINK` 는 그대로, 감사 `detail` 에 `sameEmail`(운영자 이메일과 같았나) 을 더한다.
+- **검색** `GET /api/admin/operators/{operatorId}/member-account/candidates?q=`(`operator.read`) → `{ items: [{ userId, memberNo, nickname, maskedEmail, grade, joinedAt, boardManagerCount, boardStaffCount, eligible, ineligibleReasons, linkedOperatorName }] }` 최대 20건.
+  - `memberNo` = 관리자 회원 관리의 회원번호(= 회원 ID, `userId` 와 같은 값). `maskedEmail` = 관리자 회원 목록의 가림(`MemberMasking.email` — `ab***@gmail.com`), **늘 가린다**(검색 입구 권한이 `operator.read` 라 `member.pii` 를 보지 않는다). 이메일 없는 회원(소셜)은 `null`.
+  - `q`: 앞뒤 공백을 자르고 2~100자(어기면 400 `VALIDATION fields.q` — 문구는 공용 검색 키 `search.q.tooShort`·`search.q.tooLong`). 숫자만 = 회원번호 일치(숫자만인 닉네임의 부분 일치도 함께, 회원번호 일치가 먼저) · `@` 포함 = 이메일 **전체 주소** 일치(대소문자 무시 — 관리자 회원 목록이 개인정보 권한 없이 찾는 방식과 같다, 일부로는 못 찾는다) · 그 밖 = 닉네임 부분 일치(대소문자 무시).
+  - 탈퇴를 마친 회원(WITHDRAWN·익명화)과 **이 운영자에 이미 이어진 회원은 뺀다**. 탈퇴 진행·정지 회원은 `MEMBER_RESTRICTED`, 다른 운영자에 이어진 회원은 `LINKED_TO_OTHER` + `linkedOperatorName` 으로 온다. 정렬 = 정확히 맞는 것(회원번호 · 닉네임 전체 일치 · 이메일) 먼저 → 가입 최신순.
+- **연결** `PUT …/member-account { userId }` 판정 순서: 404 `OPERATOR_NOT_FOUND` → 409 `OPERATOR_ROOT_PROTECTED` → 409 `OPERATOR_MEMBER_ALREADY_LINKED` → 404 `MEMBER_NOT_FOUND`(없거나 ID 형식이 틀림 — 회원 행 잠금) → 409 `OPERATOR_MEMBER_NOT_ELIGIBLE`(오류 본문 최상위 `ineligibleReasons: [...]`). `OPERATOR_MEMBER_NOT_CANDIDATE` 코드·문구는 지웠다.
+- 서버: shared `OperatorMemberAccountStore`(`candidateById`·`searchCandidates`, 후보 줄에 `email`) · admin `OperatorMemberAccountAdminService#searchCandidates`·`link` · `OperatorMemberAccountController` `GET /candidates` · DTO `OperatorMemberCandidates`. DB 변경 없음.
+- 검증: `compileJava`(shared·admin·api)·admin `compileTestJava` 통과. admin `OperatorMemberAccountAdminTest` 19개 통과(Testcontainers — 다른 이메일 회원 연결·`sameEmail`·없는 회원 404·자격 미달 409 + 사유·검색 닉네임/이메일/회원번호·가린 이메일·2자 미만 400·403·탈퇴/이 운영자 연결 제외·다른 운영자 연결 사유).

@@ -2,6 +2,7 @@ package com.community.operator.exception;
 
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.message.MessageRef;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -9,7 +10,6 @@ import org.springframework.http.HttpStatus;
  */
 public class OperatorMemberAccountException extends CommonException {
 
-    public static final String NOT_CANDIDATE = "OPERATOR_MEMBER_NOT_CANDIDATE";
     public static final String NOT_ELIGIBLE = "OPERATOR_MEMBER_NOT_ELIGIBLE";
     public static final String ALREADY_LINKED = "OPERATOR_MEMBER_ALREADY_LINKED";
     public static final String NOT_LINKED = "OPERATOR_MEMBER_NOT_LINKED";
@@ -23,14 +23,14 @@ public class OperatorMemberAccountException extends CommonException {
         return new OperatorMemberAccountException(code, new MessageRef("error." + code));
     }
 
-    /** 고른 회원이 지금 후보(운영자와 같은 이메일로 가입한 회원)가 아니다 */
-    public static OperatorMemberAccountException notCandidate() {
-        return of(NOT_CANDIDATE);
-    }
-
-    /** 후보지만 자격 미달(인증 안 됨 · 정지·탈퇴 진행 · 사업자 · 다른 운영자에 이어짐) */
-    public static OperatorMemberAccountException notEligible() {
-        return of(NOT_ELIGIBLE);
+    /**
+     * 고른 회원이 자격 미달(인증 안 됨 · 정지·탈퇴 진행 · 사업자 · 다른 운영자에 이어짐 — 정책 3). 오류 본문 최상위에 {@code ineligibleReasons}(사유 목록)를 싣는다.
+     * 「같은 이메일 회원만」 제한(옛 409 {@code OPERATOR_MEMBER_NOT_CANDIDATE})은 2026-11-24 에 없앴다.
+     */
+    public static OperatorMemberAccountException notEligible(List<String> reasons) {
+        OperatorMemberAccountException e = of(NOT_ELIGIBLE);
+        e.extra("ineligibleReasons", List.copyOf(reasons));
+        return e;
     }
 
     /** 이 운영자는 이미 회원 계정이 이어져 있다 */
