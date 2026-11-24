@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * AI 회원 생성물 쓰기(ai-members-contract 정책 9 · 「서버 구현 결과」 「쓰기 제한 면제」) — 관리자 서버의 실행기({@link AiDraftPublisher})가 승인 줄을 글 · 소모임 글 · 댓글 · 답글로
@@ -82,6 +83,51 @@ public class AiContentWriter {
     static final String TARGET_GONE = "TARGET_GONE";
     static final String WRITE_BLOCKED = "WRITE_BLOCKED";
     private static final String TEXT = ContentFormat.TEXT.name();
+    private static final String HTML = ContentFormat.HTML.name();
+    private static final java.util.regex.Pattern VIDEO_ID = java.util.regex.Pattern.compile("[A-Za-z0-9_-]{11}");
+    private static final java.util.regex.Pattern URL_IN_TEXT = java.util.regex.Pattern.compile("https?://[^\\s<>\"']+");
+    private static final java.util.regex.Pattern BLANK_LINES = java.util.regex.Pattern.compile("\\n\\s*\\n+");
+
+    /**
+     * 유튜브 영상 글 본문(순수 함수) — 맨 위 YouTube 표식 {@code <div data-youtube-id="ID"></div>}(화면이 youtube-nocookie 플레이어로 그린다) + 평문 본문의 문단.
+     * 빈 줄 = 문단 나눔, 한 줄 바꿈 = {@code <br>}, 글자는 모두 HTML 이스케이프, 글자 속 http(s) 주소는 링크로. 정화·검사는 글 저장 경로({@link PostContentFields})가 한다.
+     */
+    static String videoHtml(String youtubeVideoId, String bodyText) {
+        if (youtubeVideoId == null || !VIDEO_ID.matcher(youtubeVideoId).matches()) {
+            throw new IllegalArgumentException("youtubeVideoId");
+        }
+        StringBuilder html = new StringBuilder("<div data-youtube-id=\"").append(youtubeVideoId).append("\"></div>");
+        String text = bodyText == null ? "" : bodyText.replace("\r\n", "\n").replace('\r', '\n').strip();
+        for (String para : BLANK_LINES.split(text)) {
+            String p = para.strip();
+            if (p.isEmpty()) {
+                continue;
+            }
+            html.append("<p>");
+            String[] lines = p.split("\n");
+            for (int i = 0; i < lines.length; i++) {
+                if (i > 0) {
+                    html.append("<br>");
+                }
+                appendLinked(html, lines[i].strip());
+            }
+            html.append("</p>");
+        }
+        return html.toString();
+    }
+
+    /** 한 줄 — 주소는 {@code <a href>}, 나머지는 이스케이프 */
+    private static void appendLinked(StringBuilder html, String line) {
+        java.util.regex.Matcher m = URL_IN_TEXT.matcher(line);
+        int at = 0;
+        while (m.find()) {
+            html.append(HtmlUtils.htmlEscape(line.substring(at, m.start())));
+            String url = HtmlUtils.htmlEscape(m.group());
+            html.append("<a href=\"").append(url).append("\">").append(url).append("</a>");
+            at = m.end();
+        }
+        html.append(HtmlUtils.htmlEscape(line.substring(at)));
+    }
 
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
@@ -171,15 +217,29 @@ public class AiContentWriter {
      */
     public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, List<PostSource> sources, boolean gradeExempt,
                      String ip) {
+        return post(userId, boardId, prefixId, titleText, bodyText, tags, sources, null, gradeExempt, ip);
+    }
+
+    /**
+     * 게시판 글 — 유튜브 영상 플레이어까지(AI 기자 「유튜브 영상 글」 2026-11-24, V268). 영상 ID 가 있고 그 게시판 글 에디터가 고급이면({@link AiNewsSources#playerAllowed})
+     * 평문 본문을 HTML 로 바꿔({@link #videoHtml} — 맨 위 YouTube 표식 + 문단) 공개 글쓰기와 같은 정화·검사를 거쳐 저장한다. 아니면 지금처럼 평문 글.
+     *
+     * @param youtubeVideoId 영상 ID(11자, 없으면 null)
+     */
+    public long post(long userId, long boardId, Long prefixId, String titleText, String bodyText, List<String> tags, List<PostSource> sources, String youtubeVideoId,
+                     boolean gradeExempt, String ip) {
         Writable w = writable(userId, boardId, gradeExempt);
         BoardCatalogSnapshot s = w.snapshot();
         EffectiveBoard b = w.board();
         BoardActor actor = w.actor();
         BoardSecurityValues sec = s.security();
 
+        boolean player = youtubeVideoId != null && AiNewsSources.playerAllowed(b);
+        String format = player ? HTML : TEXT;
+        String body = player ? videoHtml(youtubeVideoId, bodyText) : bodyText;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         PostContentFields.Cleaned c = PostContentFields.check(b, actor.staffOf(b.id()), memberWriter(b, actor, s), null, prefixId == null ? null : Long.toString(prefixId),
-                titleText, TEXT, bodyText, null, sec, fields);
+                titleText, format, body, null, sec, fields);
         if (prefixId != null && !fields.containsKey("prefixId") && b.prefix(prefixId).map(BoardPrefixInfo::adultOnly).orElse(false)) {
             fields.put("prefixId", new MessageRef("board.content.prefix.unknown")); // AI 글은 19금이 없다 — 성인 전용 말머리는 쓰지 않는다
         }

@@ -3,6 +3,7 @@ package com.community.aimember.service;
 import com.community.aimember.entity.AiMemberProfileEntity;
 import com.community.aimember.entity.AiNewsItemEntity;
 import com.community.aimember.entity.AiNewsSourceEntity;
+import com.community.aimember.entity.AiNewsSourceKind;
 import com.community.aimember.llm.AiPromptConfig;
 import com.community.aimember.repository.master.AiMemberQueries;
 import com.community.aimember.repository.master.AiNewsItemRepository;
@@ -14,6 +15,7 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
 import com.community.board.service.ContentRules;
+import com.community.board.service.RichText;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.service.PostTags;
@@ -115,12 +117,56 @@ public class AiNewsSources {
      * @param summary    수집 항목은 RSS 요약(짧다), 회원 글은 평문 본문
      * @param sourceName 원 언론사·채널 이름(회원 글이면 null)
      * @param link       원문 링크(수집 항목). 회원 글이면 null — 사이트 안 주소는 {@link #link} 로 만든다
+     * @param youtubeVideoId 유튜브 채널 출처(YOUTUBE)의 항목이면 영상 ID(11자 — {@link #youtubeVideoId}), 아니면 null
      */
-    public record Material(Long itemId, Long postId, String title, String summary, String sourceName, String link, Instant publishedAt) {
+    public record Material(Long itemId, Long postId, String title, String summary, String sourceName, String link, Instant publishedAt, String youtubeVideoId) {
 
         public boolean collected() {
             return itemId != null;
         }
+
+        /** 유튜브 영상 소재인가 */
+        public boolean video() {
+            return youtubeVideoId != null;
+        }
+    }
+
+    private static final Pattern WATCH_V = Pattern.compile("(?:^|&)v=([A-Za-z0-9_-]{11})(?:&|$)");
+    /** youtube.com 의 영상 경로(쇼츠·퍼가기·라이브) */
+    private static final Pattern YOUTUBE_PATH = Pattern.compile("/(?:shorts|embed|live)/([A-Za-z0-9_-]{11})/?");
+    /** youtu.be 의 짧은 주소 */
+    private static final Pattern SHORT_PATH = Pattern.compile("/([A-Za-z0-9_-]{11})/?");
+
+    /**
+     * 유튜브 영상 주소 → 영상 ID(순수 함수). 채널 RSS 의 {@code https://www.youtube.com/watch?v=ID} 와 {@code /shorts/ID} · {@code /embed/ID} · {@code /live/ID} ·
+     * {@code https://youtu.be/ID}. 호스트는 youtube.com(·www·m) · youtu.be 만. 아니면 null.
+     */
+    public static String youtubeVideoId(String link) {
+        if (link == null || link.isBlank()) {
+            return null;
+        }
+        java.net.URI u;
+        try {
+            u = java.net.URI.create(link.strip());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        String host = u.getHost() == null ? "" : u.getHost().toLowerCase(Locale.ROOT);
+        String path = u.getRawPath() == null ? "" : u.getRawPath();
+        java.util.regex.Matcher m;
+        if (host.equals("youtu.be")) {
+            m = SHORT_PATH.matcher(path);
+            return m.matches() ? m.group(1) : null;
+        }
+        if (!host.equals("youtube.com") && !host.equals("www.youtube.com") && !host.equals("m.youtube.com")) {
+            return null;
+        }
+        if (path.equals("/watch")) {
+            m = WATCH_V.matcher(u.getRawQuery() == null ? "" : u.getRawQuery());
+            return m.find() ? m.group(1) : null;
+        }
+        m = YOUTUBE_PATH.matcher(path);
+        return m.matches() ? m.group(1) : null;
     }
 
     /**
@@ -133,10 +179,14 @@ public class AiNewsSources {
         if (item.isPresent()) {
             AiNewsItemEntity i = item.get();
             taken.add(i.getId());
-            return Optional.of(new Material(i.getId(), null, i.getTitle(), i.getSummary(), i.getSourceName(), i.getLink(), i.getPublishedAt()));
+            // 유튜브 채널 출처의 항목이면 영상 ID(영상·짤 게시판에 플레이어로 — 「유튜브 영상 글」)
+            boolean youtube = i.getSourceId() != null
+                    && newsSources.findById(i.getSourceId()).map(src -> src.getKind() == AiNewsSourceKind.YOUTUBE).orElse(false);
+            String videoId = youtube ? youtubeVideoId(i.getLink()) : null;
+            return Optional.of(new Material(i.getId(), null, i.getTitle(), i.getSummary(), i.getSourceName(), i.getLink(), i.getPublishedAt(), videoId));
         }
         // 회원 글의 사이트 안 주소는 부르는 쪽이 트랜잭션 밖에서 만든다({@link #link} — 사이트 설정 읽기 실패가 바깥 트랜잭션을 되돌리지 않게)
-        return find(a, c, now, random).map(s -> new Material(null, s.postId(), s.title(), s.contentText(), null, null, null));
+        return find(a, c, now, random).map(s -> new Material(null, s.postId(), s.title(), s.contentText(), null, null, null, null));
     }
 
     /** 수집 항목 고르기 — 켜진 출처 · 최근 {@code newsDays}일 · 안 쓴 것. 관심사·추가 지시 낱말이 많이 든 것 먼저, 같으면 최신 {@value #PICK_FROM}개 중 무작위 */
@@ -331,6 +381,24 @@ public class AiNewsSources {
         }
         long id = news.get().id();
         return writer.canPost(a.getUserId(), id, a.getBoardIds().contains(id)) ? news : Optional.empty();
+    }
+
+    /**
+     * 유튜브 영상 글을 쓸 게시판(「유튜브 영상 글」 2026-11-24) — 영상·짤 게시판({@link BoardFields#VIDEO_SLUG})이 일반 게시판이고 · 글 에디터가 영상 표식을 받는 고급
+     * ({@link #playerAllowed})이고 · 이 AI 계정이 지금 쓸 수 있으면({@link AiContentWriter#canPost} — {@link #newsTarget} 과 같은 판정) 그 게시판. 비면 부르는 쪽이 뉴스 게시판으로 되돌린다.
+     */
+    public Optional<EffectiveBoard> videoTarget(AiMemberProfileEntity a, BoardCatalogSnapshot snap) {
+        Optional<EffectiveBoard> video = snap.board(BoardFields.VIDEO_SLUG).filter(b -> BoardFields.KIND_GENERAL.equals(b.kind()) && playerAllowed(b));
+        if (video.isEmpty()) {
+            return Optional.empty();
+        }
+        long id = video.get().id();
+        return writer.canPost(a.getUserId(), id, a.getBoardIds().contains(id)) ? video : Optional.empty();
+    }
+
+    /** 그 게시판 글에 영상 플레이어(YouTube 표식)를 넣을 수 있나 — 글 에디터 고급만(간단·평문은 표식을 지운다 — {@link RichText}) */
+    public static boolean playerAllowed(EffectiveBoard b) {
+        return b != null && RichText.level(b.postEditor()) == RichText.Level.ADVANCED;
     }
 
     /**
