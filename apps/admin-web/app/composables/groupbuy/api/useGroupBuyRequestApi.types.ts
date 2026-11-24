@@ -139,9 +139,11 @@ export interface GroupBuyRequestDetail extends GroupBuyRequestRow {
     /** 이 공구에 청약철회 제한 문구가 있는가(없으면 `USED_VALUE_LOSS` 거절 경고 — 결정 55) */
     withdrawalRestricted: boolean;
     rejectReasonCode: GroupBuyRejectReasonCode | null;
+    /** 운영자 거절 메모 — 주문 개인정보를 지우면(마지막 거래 + 5년, R__batch_47) null */
     rejectReason: string | null;
     rejectPhotos: { id: string; url: string }[];
-    exchangeShipment: { carrierCode: string; trackingNo: string; shippedAt: string } | null;
+    /** 교환 재발송 — 주문 개인정보를 지웠으면 `trackingNo` null(회수 송장도 지워 `pickup` 은 null) */
+    exchangeShipment: { carrierCode: string; trackingNo: string | null; shippedAt: string } | null;
     /** 운영자가 금액을 정한 환불의 누계·문턱(보상액 — 결정 70) */
     adminRefundTotal: number;
     largeRefundThreshold: number;

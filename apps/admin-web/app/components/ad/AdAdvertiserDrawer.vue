@@ -57,7 +57,7 @@
                                     <dt class="text-muted-color">{{ t('adAdvertiser.bizName') }}</dt>
                                     <dd class="m-0">{{ detail.business.name }}</dd>
                                     <dt class="text-muted-color">{{ t('business.regNo') }}</dt>
-                                    <dd class="m-0 tabular-nums">{{ detail.business.maskedRegNo }}</dd>
+                                    <dd class="m-0 tabular-nums">{{ detail.business.maskedRegNo ?? '—' }}</dd>
                                     <dt class="text-muted-color">{{ t('adAdvertiser.bizStatus') }}</dt>
                                     <dd class="m-0 flex flex-wrap items-center gap-1.5">
                                         <Tag :value="t(`business.status.${detail.business.status}`)" :severity="UtilBusiness.statusSeverity(detail.business.status)" />
@@ -292,7 +292,7 @@ const summaryItems = computed<AdDrawerSummaryItem[]>(() => {
     const ymd = (iso: string) => time.value.serviceDate(UtilBizApplication.kstDate(iso));
     return [
         { key: 'id', label: t('adAdvertiser.sumId'), value: d.id, code: true, title: d.id },
-        ...(d.business ? [{ key: 'regNo', label: t('business.regNo'), value: d.business.maskedRegNo }] : []),
+        ...(d.business ? [{ key: 'regNo', label: t('business.regNo'), value: d.business.maskedRegNo ?? '—' }] : []),
         { key: 'created', label: t('adAdvertiser.sumCreated'), value: ymd(d.createdAt) },
         { key: 'paid', label: t('adAdvertiser.col.paid'), value: won(d.paidTotal), valueClass: d.paidTotal ? EMPH.money : 'text-muted-color' },
         { key: 'lastAd', label: t('adAdvertiser.col.lastAd'), value: d.lastAdAt ? ymd(d.lastAdAt) : t('adAdvertiser.noAdYet'), valueClass: d.lastAdAt ? EMPH.date : 'text-muted-color' },

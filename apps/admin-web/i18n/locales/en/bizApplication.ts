@@ -157,6 +157,8 @@ export default {
         viewLog: 'Originals are kept (5 years). Viewing is logged.',
         uploaded: 'Uploaded {n} file(s).',
         replacedDone: 'Replaced (the old file stays as “Replaced”).',
+        erased: 'Erased {at}',
+        erasedHelp: 'The copy was erased after the retention period (5 years after the ad ended). Only its name, size and upload time remain.',
     },
     deposit: {
         title: 'Deposit check',
@@ -171,6 +173,8 @@ export default {
         saved: 'Deposit saved.',
         savedBy: 'Checked by {who} · {at}',
         required: { amount: 'Enter the amount.', depositedOn: 'Pick the deposit date.', depositorName: 'Enter the depositor name.', mismatchReason: 'Enter why the amount differs.' },
+        erasedName: '(erased)',
+        erasedHelp: 'The depositor name and difference reason were erased after the retention period (5 years after the ad ended, {at}). The amount and date remain.',
     },
     refundTitle: 'Cancel/refund request',
     refundStatus: { REQUESTED: 'Pending', APPROVED: 'Approved', DENIED: 'Denied' },

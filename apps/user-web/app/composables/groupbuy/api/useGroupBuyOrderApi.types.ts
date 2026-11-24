@@ -90,8 +90,9 @@ export interface MyGroupBuyAddress {
 
 export interface MyGroupBuyShipment {
     carrierName: string;
-    trackingNo: string;
-    /** 택배사 조회 주소(템플릿에 송장 번호를 넣은 것) — 없으면 null */
+    /** 마지막 거래 + 5년이 지나 주문 개인정보를 지웠으면 null(R__batch_47) */
+    trackingNo: string | null;
+    /** 택배사 조회 주소(템플릿에 송장 번호를 넣은 것) — 없으면(송장 번호를 지웠을 때도) null */
     trackingUrl: string | null;
     kind: 'ORIGINAL' | 'EXCHANGE';
     shippedAt: string;

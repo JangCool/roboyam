@@ -260,7 +260,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
     const h = head.value;
     if (!h) return [];
     return [
-        { key: 'regNo', label: t('business.regNo'), value: h.maskedRegNo, code: true },
+        { key: 'regNo', label: t('business.regNo'), value: h.maskedRegNo ?? '—', code: true },
         { key: 'applicant', label: t('business.col.applicant'), value: h.applicant.nickname },
         { key: 'appliedAt', label: t('business.col.appliedAt'), value: time.value.shortDateTime(h.appliedAt), valueClass: UtilBizApplication.EMPH.date },
     ];

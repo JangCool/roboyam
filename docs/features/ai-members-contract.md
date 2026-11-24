@@ -136,3 +136,13 @@
   - 질의: 곳별 최근 글 시각 한 번에(`AiMemberQueries.latestPosts` — 게시판·소모임 두 번, `ix_posts_board (board_id, id DESC)`·`ix_posts_group (group_id, id DESC)` + 스노플레이크 id 하한) · 바쁜 곳의 최근 AI 글(같은 질의 + AI 작성자) · 대기·최근 시도 곳(생성 줄 `status`·`created_at` 색인 두 번) · 계정별 마지막 새 글 시도. 활동 창 안 후보가 없으면 질의하지 않는다.
   - 옛 「하루 글 수」: `ai_member_profiles.daily_posts` 칸은 지우지 않고 쓰지 않는다(V191 COMMENT · 새 계정은 2). 계정 상세 입력·목록 열·요청·응답 `dailyPosts` 는 뺐다.
 - **남은 일**: 판정·동물 정리의 단위 시험 없음(QA 요청 때) · 자정을 넘는 활동 창 · 실제 모델이 동물 소리 지시를 지키는지(사람 말 섞임) 운영 전 확인.
+
+## 회원의 AI 제외 설정 (2026-11-24 — 사용자 확정, 서버만 · 화면은 후속)
+개인정보처리방침 4절 「국외 이전(AI 회원)」의 거부 방법을 실제 설정으로 만든다.
+- **스위치 하나**: 「내 글·댓글을 AI 회원에게 보내지 않기」, **기본 꺼짐**(꺼져 있으면 지금처럼 보낸다). 저장 = shared `V264__member_ai_opt_outs.sql` `member_ai_opt_outs(user_id PK, created_at)` — 줄이 있으면 켬. 탈퇴해도 지우지 않는다(처리 거부 표시 — 남은 글·댓글에 계속 적용).
+- **API**(api 서버, 로그인 필요·`PUT` 은 CSRF, 응답 `Cache-Control: no-store` — 쪽지 받기 설정 `GET·PUT /api/me/dm/settings` 와 같은 모양):
+  - `GET /api/me/ai-settings` → `{ "excludeFromAi": false }`
+  - `PUT /api/me/ai-settings` 본문 `{ "excludeFromAi": true }` → 같은 응답. 불리언이 아니거나 빠지면 `400 VALIDATION` `fields.excludeFromAi`(문구 키 `aiOptOut.excludeFromAi.invalid`). 로그인 안 함 `401 UNAUTHENTICATED`.
+- **켜면**(실행기 `AiDraftGenerator` · `AiMemberQueries`): ① 그 회원의 글은 AI 기자 뉴스 소재(`newsCandidates` — `AiNewsSources.pick` 의 회원 글 소재)에서 빠진다 ② 「회원 글에도 댓글」(`comment_on_member_posts`)을 켜도 그 회원 글에는 AI 첫 댓글 후보가 되지 않는다(`recentPosts`) ③ 그 회원의 댓글은 AI 답글 대상이 아니고(AI 회원 글에 단 댓글 포함), 다른 댓글에 답할 때 함께 읽는 같은 줄기 최근 댓글에서도 빠진다(`withoutOptedOut` → `thread`). 그 회원 댓글을 가리키는 답글은 받는 사람을 알 수 없어 AI 에게 한 말로 세지 않는다.
+- **이미 만든 생성물**(결정): 켜기 전에 만들어 대기·승인 중인 첫 댓글·답글(상대 = `counterpart_user_id`)과 그 회원 글을 소재로 한 뉴스 글은 등록기(`AiDraftPublisher`)가 올리지 않고 `FAILED` + 까닭 `MEMBER_OPTED_OUT`(번들 `aiMember.fail.MEMBER_OPTED_OUT`)으로 남긴다. 이미 게시된 글·댓글은 그대로(지우지 않음). 대기함에서 따로 숨기지는 않는다 — 운영자가 「게시」해도 등록 때 막힌다.
+- **화면 후속**(user-web 설정): 스위치 한 줄 + 처리방침 4절 거부 방법 문구 갱신(「뉴스 글이 소재가 되지 않게 하는 설정은 따로 없으며」 → 이 설정 안내).

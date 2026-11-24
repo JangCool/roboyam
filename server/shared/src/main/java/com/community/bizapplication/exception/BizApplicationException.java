@@ -16,6 +16,7 @@ public class BizApplicationException extends CommonException {
     public static final String DEPOSIT_INCOMPLETE = "BIZ_DEPOSIT_INCOMPLETE";
     public static final String PRODUCT_CLOSED = "BIZ_PRODUCT_CLOSED";
     public static final String CONTRACT_NOT_FOUND = "BIZ_CONTRACT_NOT_FOUND";
+    public static final String CONTRACT_ERASED = "BIZ_CONTRACT_ERASED";
     public static final String SELF_APPROVAL_DENIED = "BIZ_SELF_APPROVAL_DENIED";
     public static final String ADVERTISER_NOT_FOUND = "AD_ADVERTISER_NOT_FOUND";
     public static final String PAUSE_LIMIT = "BIZ_PAUSE_LIMIT";
@@ -103,6 +104,11 @@ public class BizApplicationException extends CommonException {
     /** 사업자 광고주는 보관·삭제가 없다(사업자 정지·탈퇴를 따른다) */
     public static BizApplicationException advertiserBusiness() {
         return new BizApplicationException(HttpStatus.CONFLICT, ADVERTISER_BUSINESS);
+    }
+
+    /** 계약서 사본은 있지만 보관 기간(게재 끝 + 5년)이 지나 내용을 지웠다(V263 — R__batch_46). 줄의 이름·크기·올린 시각은 목록에 남는다 */
+    public static BizApplicationException contractErased() {
+        return new BizApplicationException(HttpStatus.GONE, CONTRACT_ERASED);
     }
 
     /** 계약서 사본이 없다(다른 신청 건의 것 포함) */

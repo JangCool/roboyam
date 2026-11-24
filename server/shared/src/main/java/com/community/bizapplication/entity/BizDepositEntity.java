@@ -23,6 +23,8 @@ public class BizDepositEntity {
     private String mismatchReason;
     private Long confirmedBy;
     private Instant confirmedAt;
+    /** 보관 기간이 지나 입금자명·불일치 사유를 지운 시각(V263 — R__batch_46) */
+    private Instant erasedAt;
 
     protected BizDepositEntity() {
     }

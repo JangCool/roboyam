@@ -43,8 +43,8 @@ export interface BusinessServiceRow {
 export interface BusinessRow {
     id: string;
     name: string;
-    /** 가린 등록번호(`124-**-***98`) */
-    maskedRegNo: string;
+    /** 가린 등록번호(`124-**-***98`) — 익명화한 사업자(V265 — 상호 「삭제된 사업자」)면 null */
+    maskedRegNo: string | null;
     status: BusinessStatus;
     /** 승인 뒤 상호·번호를 고쳐 다시 심사 중(F7 — `status` 는 `PENDING`) */
     reReview: boolean;

@@ -199,6 +199,8 @@ export interface BizContractFile {
     replacedBy: string | null;
     /** 들어온 길 — 올림 · 전자 팩스(V140, biz-doc-intake-contract) */
     channel: DocFileChannel;
+    /** 보관 기간(게재 끝 + 5년)이 지나 내용을 파기한 시각(V263) — 있으면 열 수 없다(열기 410 `BIZ_CONTRACT_ERASED`). 이름·크기·올린 시각은 남는다 */
+    erasedAt: string | null;
 }
 
 /** 계약서 사본 열람 — `data:` 주소(사업자등록증 열람과 같은 모양). 열람 기록이 남는다 */
@@ -213,11 +215,14 @@ export interface BizDeposit {
     amount: number;
     /** 입금일 `YYYY-MM-DD` */
     depositedOn: string;
-    depositorName: string;
-    /** 입금액이 계약 금액과 다를 때 사유 */
+    /** 파기했으면(`erasedAt`) null */
+    depositorName: string | null;
+    /** 입금액이 계약 금액과 다를 때 사유 — 파기했으면 null */
     mismatchReason: string | null;
     confirmedBy: string;
     confirmedAt: string;
+    /** 보관 기간(게재 끝 + 5년)이 지나 입금자명·사유를 파기한 시각(V263) — 입금액·입금일은 남는다 */
+    erasedAt: string | null;
 }
 
 export interface BizDepositRequest {
@@ -427,7 +432,8 @@ export interface BizApplicationRow {
     kind: BizApplicationKind;
     adType: BizAdType | null;
     status: BizApplicationStatus;
-    business: { id: string; name: string; maskedRegNo: string };
+    /** 익명화한 사업자(V265)면 `name` 「삭제된 사업자」 · `maskedRegNo` null */
+    business: { id: string; name: string; maskedRegNo: string | null };
     submittedAt: string;
     period: BizPeriod;
     /** 사업자가 고른 결제 방식 */

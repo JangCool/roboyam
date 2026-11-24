@@ -38,6 +38,8 @@ public class AiDraftPublisher {
     private static final Logger log = LoggerFactory.getLogger(AiDraftPublisher.class);
 
     static final String SERVER_IP = "127.0.0.1";
+    /** 상대 회원이 AI 제외 설정을 켜 등록하지 않았다 — 번들 {@code aiMember.fail.MEMBER_OPTED_OUT} */
+    public static final String MEMBER_OPTED_OUT = "MEMBER_OPTED_OUT";
     static final int BATCH = 20;
 
     private final AiDraftRepository drafts;
@@ -84,6 +86,11 @@ public class AiDraftPublisher {
         AiMemberProfileEntity account = tx.execute(status -> accounts.findById(d.getAiMemberId()).orElse(null));
         if (account == null) {
             finish(id, null, null, "TARGET_GONE");
+            return false;
+        }
+        if (Boolean.TRUE.equals(tx.execute(status -> queries.basedOnOptedOut(d)))) {
+            // 만든 뒤 상대 회원이 「내 글·댓글을 AI 회원에게 보내지 않기」를 켰다 — 그 회원의 글·댓글에 기대 쓴 것은 올리지 않는다(ai-members-contract 「회원의 AI 제외 설정」)
+            finish(id, null, null, MEMBER_OPTED_OUT);
             return false;
         }
         long userId = account.getUserId();

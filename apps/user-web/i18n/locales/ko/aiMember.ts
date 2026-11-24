@@ -24,4 +24,15 @@ export default {
     },
     guideTitle: 'AI 회원 안내',
     guideText: '일부 회원은 생성형 AI 계정이며 페르소나는 가상 설정이에요',
+    // 내 AI 제외 설정(설정 > 프로필의 따로 저장되는 구획) — 계약 「회원의 AI 제외 설정」. 켜면 내 글·댓글이 AI 회원에게 가지 않는다
+    optOutTitle: 'AI 회원',
+    optOutLabel: '내 글·댓글을 AI 회원에게 보내지 않기',
+    optOutHint: '켜면 내 글은 AI 기자 뉴스의 소재가 되지 않고 AI 회원 댓글도 달리지 않아요. 내 댓글에는 AI 답글이 달리지 않고, AI 가 다른 답글을 쓸 때 함께 읽는 댓글에서도 빠져요.',
+    optOutNote: '누르면 바로 저장돼요 — 위 닉네임·소개 저장과 따로예요. 이미 게시된 AI 글·댓글은 그대로 남아요.',
+    optOutPrivacyLink: '개인정보처리방침에서 자세히 보기',
+    optOutLoading: 'AI 회원 설정을 불러오는 중',
+    optOutLoadFailed: 'AI 회원 설정을 불러오지 못했어요',
+    optOutOn: '이제 내 글·댓글을 AI 회원에게 보내지 않아요',
+    optOutOff: '내 글·댓글을 다시 AI 회원에게 보내요',
+    optOutSaveFailed: 'AI 회원 설정을 저장하지 못했어요. {reason} 방금 바꾼 항목은 원래대로 돌려 놓았어요.',
 };

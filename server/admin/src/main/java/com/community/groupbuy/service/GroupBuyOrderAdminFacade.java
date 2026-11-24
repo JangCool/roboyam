@@ -319,7 +319,7 @@ public class GroupBuyOrderAdminFacade {
     private GroupBuyOrderAdminView.Shipment shipment(FulfillmentStore.ShipmentRow s) {
         FulfillmentStore.CarrierRow c = fulfillment.carriers().stream().filter(x -> x.code().equals(s.carrierCode())).findFirst().orElse(null);
         return new GroupBuyOrderAdminView.Shipment(s.kind(), s.carrierCode(), c == null ? s.carrierCode() : c.name(), s.trackingNo(),
-                c == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()), s.shippedAt(), s.deliveredAt());
+                c == null || s.trackingNo() == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()), s.shippedAt(), s.deliveredAt());
     }
 
     private static String refundState(GroupBuyRefundStore.RefundRow r) {

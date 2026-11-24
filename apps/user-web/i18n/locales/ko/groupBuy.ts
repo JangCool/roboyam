@@ -409,6 +409,7 @@ export default {
     carrier: '택배사',
     trackingNo: '송장 번호',
     trackOpen: '배송 조회',
+    trackingErased: '보관 기간이 지나 송장 번호를 지웠어요.',
     newWindow: '(새 창)',
     exchangeShipment: '교환 상품',
     shippedAt: '발송',

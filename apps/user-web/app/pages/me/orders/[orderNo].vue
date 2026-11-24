@@ -192,7 +192,8 @@
                     <dd class="m-0">{{ order.shipment.carrierName }}<template v-if="order.shipment.kind === 'EXCHANGE'"> · {{ t('groupBuy.exchangeShipment') }}</template></dd>
                     <dt class="text-muted-color">{{ t('groupBuy.trackingNo') }}</dt>
                     <dd class="m-0 flex flex-wrap items-center gap-2">
-                        <span class="tabular-nums">{{ order.shipment.trackingNo }}</span>
+                        <span v-if="order.shipment.trackingNo" class="tabular-nums">{{ order.shipment.trackingNo }}</span>
+                        <span v-else class="text-muted-color">{{ t('groupBuy.trackingErased') }}</span>
                         <a v-if="order.shipment.trackingUrl" :href="order.shipment.trackingUrl" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">{{ t('groupBuy.trackOpen') }}<span class="sr-only"> {{ t('groupBuy.newWindow') }}</span></a>
                     </dd>
                     <dt class="text-muted-color">{{ t('groupBuy.shippedAt') }}</dt>

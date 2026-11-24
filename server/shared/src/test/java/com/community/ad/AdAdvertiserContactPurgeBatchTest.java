@@ -18,8 +18,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * 광고주 연락처 파기 DB 배치 {@code ad-advertiser-contact-purge}({@code R__batch_35}, V131 — ad-advertiser-contract 규칙 9) — 실제 PostgreSQL 에서 프로시저를 {@code CALL} 한다.
- * 보관한 직접 등록 광고주 중 마지막 광고 끝(건이 없으면 보관 시각) + 5년이 지난 것만 담당자·연락처·이메일 암호문·가린 값을 비우고 {@code contact_purged_at} 을 찍는다. 이름·메모·열람 기록·처리
- * 기록은 남는다. 보관하지 않은 광고주 · 5년이 안 된 광고주 · 마지막 광고 끝이 5년 안인 광고주는 그대로. 카탈로그는 DB 배치 · 매일 04:10 KST · 보관 5년, 번들 두 언어.
+ * 직접 등록 광고주 중 진행 중·예약된 광고가 없고 마지막 광고 끝(건이 없으면 보관 시각, 그것도 없으면 만든 시각) + 5년이 지난 것만 — 보관 처리 여부와 상관없이(2026-11-24 넓힘) —
+ * 담당자·연락처·이메일 암호문·가린 값을 비우고 {@code contact_purged_at} 을 찍는다. 이름·메모·열람 기록·처리 기록은 남는다. 5년이 안 된 광고주 · 마지막 광고 끝이 5년 안인 광고주 ·
+ * 심사 대기 같은 열린 건이 있는 광고주는 그대로. 카탈로그는 DB 배치 · 매일 04:10 KST · 보관 5년, 번들 두 언어.
  */
 class AdAdvertiserContactPurgeBatchTest {
 
@@ -44,10 +45,15 @@ class AdAdvertiserContactPurgeBatchTest {
 
     /** 연락처가 다 있는 직접 등록 광고주(보관 시각 선택) + 열람 기록·처리 기록 한 줄씩 */
     private long advertiser(Instant archivedAt) {
+        return advertiser(archivedAt, Instant.now());
+    }
+
+    /** 만든 시각까지 고른 광고주(보관도 건도 없으면 만든 시각이 기준) */
+    private long advertiser(Instant archivedAt, Instant createdAt) {
         long id = id();
         jdbc.update("INSERT INTO ad_advertisers (id, name, contact_name_enc, contact_phone_enc, email_enc, contact_name_masked, contact_phone_masked, email_masked, memo, "
                         + "created_by, created_at, updated_at, archived_at, archived_by) VALUES (?, ?, 'd1:x', 'd1:y', 'd1:z', '김*당', '010-****-1234', 'ad***@example.com', "
-                        + "'메모', 1, now(), now(), ?, ?)", id, "파기시험" + id, archivedAt == null ? null : Timestamp.from(archivedAt),
+                        + "'메모', 1, ?, now(), ?, ?)", id, "파기시험" + id, Timestamp.from(createdAt), archivedAt == null ? null : Timestamp.from(archivedAt),
                 archivedAt == null ? null : 1L);
         jdbc.update("INSERT INTO ad_advertiser_views (id, advertiser_id, operator_id, reason, created_at) VALUES (?, ?, 1, '계약 확인 전화', now())", id(), id);
         jdbc.update("INSERT INTO ad_advertiser_events (id, advertiser_id, action, actor_id, created_at) VALUES (?, ?, 'CREATE', 1, now())", id(), id);
@@ -56,11 +62,17 @@ class AdAdvertiserContactPurgeBatchTest {
 
     /** 그 광고주의 신청 건(심사 대기에서 취소된 모양 — 상태와 상관없이 끝 시각만 본다) */
     private void booking(long advertiserId, Instant end) {
+        booking(advertiserId, end, "CANCELED");
+    }
+
+    /** 상태를 고른 신청 건 — 심사 대기(SUBMITTED)는 끝 시각이 지나도 「열린 건」이라 파기를 미룬다 */
+    private void booking(long advertiserId, Instant end, String status) {
         long id = id();
         jdbc.update("INSERT INTO biz_applications (id, application_no, kind, status, source, advertiser_id, advertiser_name, title, start_at, end_at, preferred_method, "
                         + "quote_supply, quote_vat, quote_total, closed_at, stop_fee_rate, created_by, created_at, updated_at) "
-                        + "VALUES (?, ?, 'AD_TEXT_LINE', 'CANCELED', 'OPERATOR', ?, '파기시험', '파기 시험', ?, ?, 'MANUAL', 1000, 100, 1100, ?, 0, 1, now(), now())",
-                id, "PG-" + (id % 1_000_000_000_000L), advertiserId, Timestamp.from(end.minusSeconds(86_400 * 7)), Timestamp.from(end), Timestamp.from(end));
+                        + "VALUES (?, ?, 'AD_TEXT_LINE', ?, 'OPERATOR', ?, '파기시험', '파기 시험', ?, ?, 'MANUAL', 1000, 100, 1100, ?, 0, 1, now(), now())",
+                id, "PG-" + (id % 1_000_000_000_000L), status, advertiserId, Timestamp.from(end.minusSeconds(86_400 * 7)), Timestamp.from(end),
+                "CANCELED".equals(status) ? Timestamp.from(end) : null);
     }
 
     private Map<String, Object> row(long id) {
@@ -109,23 +121,34 @@ class AdAdvertiserContactPurgeBatchTest {
     }
 
     @Test
-    void 보관하고_마지막_광고_끝_또는_보관_시각에서_5년이_지난_직접_등록_광고주만_연락처를_비운다() {
+    void 보관_여부와_상관없이_마지막_광고_끝_또는_보관_만든_시각에서_5년이_지나고_열린_건이_없는_직접_등록_광고주만_연락처를_비운다() {
         long oldNoBookings = advertiser(yearsAgo(5.2));            // 건 없음 · 보관 5년 지남 → 파기
         long oldBookingEnded = advertiser(yearsAgo(5.1));          // 마지막 광고 끝 6년 전 → 파기
         booking(oldBookingEnded, yearsAgo(6));
         long recentBooking = advertiser(yearsAgo(5.5));            // 보관은 오래됐지만 마지막 광고 끝이 2년 전 → 그대로
         booking(recentBooking, yearsAgo(2));
         long recentArchive = advertiser(yearsAgo(1));              // 보관 1년 → 그대로
-        long notArchived = advertiser(null);                       // 보관하지 않음 → 그대로
+        long notArchived = advertiser(null);                       // 보관하지 않음 · 마지막 광고 끝 9년 전 → 파기(2026-11-24 넓힘)
         booking(notArchived, yearsAgo(9));
+        long notArchivedRecent = advertiser(null);                 // 보관하지 않음 · 마지막 광고 끝 3년 전 → 그대로
+        booking(notArchivedRecent, yearsAgo(3));
+        long notArchivedOpen = advertiser(null);                   // 보관하지 않음 · 끝난 광고는 9년 전이지만 심사 대기 건이 있다 → 그대로
+        booking(notArchivedOpen, yearsAgo(9));
+        booking(notArchivedOpen, yearsAgo(8), "SUBMITTED");
+        long notArchivedOldNoBookings = advertiser(null, yearsAgo(6)); // 보관도 건도 없음 · 만든 지 6년 → 파기
+        long notArchivedNewNoBookings = advertiser(null, yearsAgo(1)); // 보관도 건도 없음 · 만든 지 1년 → 그대로
 
         jdbc.execute("CALL batch_ad_advertiser_contact_purge('MANUAL', NULL, NULL)");
 
         assertPurged(oldNoBookings);
         assertPurged(oldBookingEnded);
+        assertPurged(notArchived);
+        assertPurged(notArchivedOldNoBookings);
         assertKept(recentBooking);
         assertKept(recentArchive);
-        assertKept(notArchived);
+        assertKept(notArchivedRecent);
+        assertKept(notArchivedOpen);
+        assertKept(notArchivedNewNoBookings);
         assertThat(jdbc.queryForObject("SELECT message_key FROM batch_runs WHERE job_key = ? ORDER BY started_at DESC, id DESC LIMIT 1", String.class, JOB))
                 .isEqualTo("batch.result.adAdvertiserContactPurge");
 

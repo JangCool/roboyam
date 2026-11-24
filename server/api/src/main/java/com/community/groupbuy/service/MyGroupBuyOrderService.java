@@ -343,7 +343,7 @@ public class MyGroupBuyOrderService {
 
     private MyGroupBuyOrderView.Shipment shipment(FulfillmentStore.ShipmentRow s) {
         FulfillmentStore.CarrierRow c = fulfillment.carriers().stream().filter(x -> x.code().equals(s.carrierCode())).findFirst().orElse(null);
-        return new MyGroupBuyOrderView.Shipment(c == null ? s.carrierCode() : c.name(), s.trackingNo(), c == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()),
+        return new MyGroupBuyOrderView.Shipment(c == null ? s.carrierCode() : c.name(), s.trackingNo(), c == null || s.trackingNo() == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()),
                 s.kind(), s.shippedAt(), s.deliveredAt());
     }
 

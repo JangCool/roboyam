@@ -6,6 +6,7 @@ import com.community.aimember.entity.AiDraftStatus;
 import com.community.aimember.entity.AiProvider;
 import com.community.aimember.entity.QAiDraftEntity;
 import com.community.aimember.entity.QAiMemberProfileEntity;
+import com.community.aimember.entity.QMemberAiOptOutEntity;
 import com.community.comment.entity.QCommentEntity;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.post.entity.QPostEntity;
@@ -70,6 +71,27 @@ public class AiMemberQueries extends IrobitRepositoryQDSL {
 
     public boolean isAi(long userId) {
         return query.selectOne().from(A).where(A.userId.eq(userId)).fetchFirst() != null;
+    }
+
+    private static final QMemberAiOptOutEntity OPT_OUT = QMemberAiOptOutEntity.memberAiOptOutEntity;
+
+    /**
+     * 작성자가 「내 글·댓글을 AI 회원에게 보내지 않기」를 켜지 않은 조건(작성자 열 — V264, ai-members-contract 「회원의 AI 제외 설정」). 비회원 글(작성자 null)은 참.
+     * AI 기자 뉴스 소재({@link #newsCandidates})·첫 댓글 후보({@link #recentPosts})가 건다. 댓글(답글 대상·함께 읽는 같은 줄기)은 실행기가 {@code MemberAiOptOutStore} 로 거른다.
+     */
+    public static BooleanExpression notOptedOut(com.querydsl.core.types.dsl.NumberPath<Long> authorId) {
+        return authorId.isNull().or(JPAExpressions.selectOne().from(OPT_OUT).where(OPT_OUT.userId.eq(authorId)).notExists());
+    }
+
+    /**
+     * 그 생성물이 AI 제외를 켠 회원의 글·댓글을 바탕으로 만들어졌는가 — 첫 댓글·답글은 상대(글쓴이 · 답한 댓글의 작성자 = {@code counterpart_user_id}), 뉴스 글은 소재 글의 작성자.
+     * 켜기 전에 만들어 대기·승인 중인 줄을 등록기({@code AiDraftPublisher})가 등록하지 않게 본다.
+     */
+    public boolean basedOnOptedOut(AiDraftEntity d) {
+        Long member = d.getKind() == AiDraftKind.POST
+                ? (d.getSourcePostId() == null ? null : query.select(P.authorId).from(P).where(P.id.eq(d.getSourcePostId())).fetchFirst())
+                : d.getCounterpartUserId();
+        return member != null && query.selectOne().from(OPT_OUT).where(OPT_OUT.userId.eq(member)).fetchFirst() != null;
     }
 
     /** 회원 ID 가 AI 회원이 아닌 조건(작성자 열) — 비회원 글(작성자 null)은 참 */
@@ -254,6 +276,8 @@ public class AiMemberQueries extends IrobitRepositoryQDSL {
                 .and(P.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(P.createdAt.goe(since)).and(P.createdAt.loe(until));
         if (!includeMembers) {
             where = where.and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).exists());
+        } else {
+            where = where.and(notOptedOut(P.authorId)); // 회원 글은 AI 제외를 켠 회원 것 빼고(V264)
         }
         return query.select(P.id, P.boardId, P.groupId, P.authorId, P.title, P.contentText, P.createdAt).from(P).where(where).orderBy(P.id.desc()).limit(limit).fetch()
                 .stream().map(t -> new PostCandidate(t.get(P.id), t.get(P.boardId), t.get(P.groupId), t.get(P.authorId), t.get(P.title), t.get(P.contentText),
@@ -283,6 +307,7 @@ public class AiMemberQueries extends IrobitRepositoryQDSL {
                 .and(source).and(P.boardId.in(boardIds))
                 .and(P.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(P.createdAt.goe(since)).and(P.createdAt.loe(until))
                 .and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).notExists())
+                .and(notOptedOut(P.authorId)) // AI 제외를 켠 회원의 글은 소재로 보내지 않는다(V264)
                 .and(JPAExpressions.selectOne().from(D).where(D.sourcePostId.eq(P.id), D.status.ne(AiDraftStatus.FAILED)).notExists());
         return query.select(P.id, P.boardId, P.groupId, P.authorId, P.title, P.contentText, P.createdAt).from(P).where(where).orderBy(P.id.desc()).limit(limit).fetch()
                 .stream().map(t -> new PostCandidate(t.get(P.id), t.get(P.boardId), t.get(P.groupId), t.get(P.authorId), t.get(P.title), t.get(P.contentText),

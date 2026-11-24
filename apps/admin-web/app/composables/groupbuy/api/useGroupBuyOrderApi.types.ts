@@ -157,7 +157,9 @@ export interface GroupBuyShipment {
     kind: 'ORIGINAL' | 'EXCHANGE';
     carrierCode: string;
     carrierName: string;
-    trackingNo: string;
+    /** 마지막 거래 + 5년이 지나 개인정보를 지운 주문이면 null(R__batch_47 — 받는 분을 알아볼 수 있는 연결 고리) */
+    trackingNo: string | null;
+    /** 송장 번호가 없으면(지웠거나 택배사를 모르면) null */
     trackingUrl: string | null;
     shippedAt: string;
     deliveredAt: string | null;

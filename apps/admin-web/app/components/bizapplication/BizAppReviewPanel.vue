@@ -366,10 +366,11 @@
                 <i18n-t v-if="detail.deposit" keypath="bizApplication.depositLine" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
                     <template #amount><span :class="EMPH.money">{{ won(detail.deposit.amount) }}</span></template>
                     <template #date><span :class="EMPH.date">{{ time.serviceDate(detail.deposit.depositedOn) }}</span></template>
-                    <template #name>{{ detail.deposit.depositorName }}</template>
+                    <template #name><span :class="detail.deposit.depositorName === null ? 'text-muted-color' : ''">{{ detail.deposit.depositorName ?? t('bizApplication.deposit.erasedName') }}</span></template>
                     <template #who>{{ detail.deposit.confirmedBy }}</template>
                     <template #at>{{ time.shortDateTime(detail.deposit.confirmedAt) }}</template>
                 </i18n-t>
+                <p v-if="detail.deposit?.erasedAt" class="m-0 text-xs text-muted-color">{{ t('bizApplication.deposit.erasedHelp', { at: time.shortDate(detail.deposit.erasedAt) }) }}</p>
             </template>
         </section>
 

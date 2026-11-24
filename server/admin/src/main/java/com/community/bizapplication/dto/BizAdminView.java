@@ -36,12 +36,13 @@ public final class BizAdminView {
     public record OnlinePayment(Instant paidAt, String pgTxId) {
     }
 
-    /** 계약서 사본 한 장 — {@code channel} 들어온 길 {@code UPLOAD}·{@code FAX}(전자 팩스, V140) */
+    /** 계약서 사본 한 장 — {@code channel} 들어온 길 {@code UPLOAD}·{@code FAX}(전자 팩스, V140). {@code erasedAt}: 보관 기간(게재 끝 + 5년)이 지나 내용을 지운 시각(V263 — null 이면 열 수 있다, 있으면 열기 410 {@code BIZ_CONTRACT_ERASED}) */
     public record Contract(String id, String fileName, String mimeType, long size, Instant uploadedAt, String uploadedBy, Instant replacedAt, String replacedBy,
-                           String channel) {
+                           String channel, Instant erasedAt) {
     }
 
-    public record Deposit(long amount, LocalDate depositedOn, String depositorName, String mismatchReason, String confirmedBy, Instant confirmedAt) {
+    /** 입금 기록 — {@code erasedAt} 이 있으면 보관 기간(게재 끝 + 5년)이 지나 {@code depositorName}·{@code mismatchReason} 을 지웠다(null, V263). 입금액·입금일은 남는다 */
+    public record Deposit(long amount, LocalDate depositedOn, String depositorName, String mismatchReason, String confirmedBy, Instant confirmedAt, Instant erasedAt) {
     }
 
     /**

@@ -84,7 +84,7 @@ const uid = useId();
 const total = computed(() => props.detail.approval?.amount.total ?? props.detail.total);
 /** 부모가 건마다 `:key` 로 다시 만든다 — 처음 값은 저장된 입금 기록 */
 const saved = props.detail.deposit;
-const draft = ref<BizDepositDraft>(saved ? { amount: saved.amount, depositedOn: saved.depositedOn, depositorName: saved.depositorName, mismatchReason: saved.mismatchReason ?? '' } : UtilBizApplication.emptyDeposit());
+const draft = ref<BizDepositDraft>(saved ? { amount: saved.amount, depositedOn: saved.depositedOn, depositorName: saved.depositorName ?? '', mismatchReason: saved.mismatchReason ?? '' } : UtilBizApplication.emptyDeposit());
 const tried = ref(false);
 
 const overdue = computed(() => Boolean(props.detail.deadlineAt) && Date.parse(props.detail.deadlineAt!) < props.now);
