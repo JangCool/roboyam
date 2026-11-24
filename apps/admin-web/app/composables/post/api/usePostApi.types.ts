@@ -286,7 +286,7 @@ export interface AdminPostDetail {
      * 본문이 없거나 토큰이 없으면 `[]`, 옛 응답에는 칸이 없다 — 목록에 없는 ID 는 서랍이 「[로보티콘]」 으로 보인다.
      */
     emoticons?: AdminBodyEmoticonView[] | null;
-    /** 본문 내 짤 토큰(`:jjal-ID:`)의 그림 — 내려간 짤은 `url: null`·`blocked: true`(「내려간 짤」 자리), 없는 ID 는 빠진다(서랍은 「[짤]」) */
+    /** 본문 내 짤 토큰(`:jjal-ID:`)의 그림 — 내려간 짤은 `url: null`·`blocked: true`(원본이 남았으면 `adminUrl` 로 그림 + 「운영자만 보임」 딱지, 없으면 「내려간 짤」 자리), 없는 ID 는 빠진다(서랍은 「[짤]」) */
     jjals?: AdminBodyJjalView[] | null;
 }
 
@@ -312,6 +312,11 @@ export interface AdminBodyJjalView {
     animated: boolean;
     /** 내려간 짤 — `url` 이 null 인 까닭 */
     blocked: boolean;
+    /**
+     * 운영자 전용 원본 주소(admin 서버 `/api/admin/jjals/{id}/image` — 같은 출처 쿠키 인증이라 `<img src>` 그대로). 원본 파일이 없으면(불법촬영물로 확정해 지운 짤) null.
+     * 내려간 짤도 서랍은 이 주소로 그림을 보이고 「내려간 짤 · 운영자만 보임」 딱지를 단다. 옛 응답에는 칸이 없다.
+     */
+    adminUrl?: string | null;
 }
 
 /**

@@ -2,6 +2,8 @@ package com.community.post;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -9,6 +11,7 @@ import com.community.board.service.BoardCatalog;
 import com.community.commerce.Commerce04AdminTestBase;
 import com.community.emoticon.dto.response.EmoticonPublicView;
 import com.community.emoticon.service.EmoticonShopService;
+import com.community.media.service.ImageStorage;
 import com.community.permission.entity.Permission;
 import jakarta.servlet.http.Cookie;
 import java.util.Map;
@@ -26,6 +29,8 @@ class AdminBodyTokenImagesHttpTest extends Commerce04AdminTestBase {
     private BoardCatalog catalog;
     @Autowired
     private EmoticonShopService shop;
+    @Autowired
+    private ImageStorage storage;
 
     private long board() {
         long id = ids.nextId();
@@ -77,9 +82,11 @@ class AdminBodyTokenImagesHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.jjals[0].height").value(90))
                 .andExpect(jsonPath("$.data.jjals[0].animated").value(true))
                 .andExpect(jsonPath("$.data.jjals[0].blocked").value(false))
+                .andExpect(jsonPath("$.data.jjals[0].adminUrl").value("/api/admin/jjals/" + live + "/image"))
                 .andExpect(jsonPath("$.data.jjals[1].id").value(down))
                 .andExpect(jsonPath("$.data.jjals[1].url").isEmpty())
-                .andExpect(jsonPath("$.data.jjals[1].blocked").value(true));
+                .andExpect(jsonPath("$.data.jjals[1].blocked").value(true))
+                .andExpect(jsonPath("$.data.jjals[1].adminUrl").value("/api/admin/jjals/" + down + "/image"));
         mvc.perform(get("/api/admin/posts/" + plainId).cookie(posts)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.emoticons.length()").value(0)).andExpect(jsonPath("$.data.jjals.length()").value(0));
         assertThat(inCatalog.url()).isNotBlank();
@@ -99,6 +106,72 @@ class AdminBodyTokenImagesHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.emoticons[0].url").value(inCatalog.url()))
                 .andExpect(jsonPath("$.data.jjals.length()").value(1))
                 .andExpect(jsonPath("$.data.jjals[0].id").value(live))
-                .andExpect(jsonPath("$.data.jjals[0].blocked").value(false));
+                .andExpect(jsonPath("$.data.jjals[0].blocked").value(false))
+                .andExpect(jsonPath("$.data.jjals[0].adminUrl").value("/api/admin/jjals/" + live + "/image"));
+    }
+
+    /** 불법촬영물로 확정해 지운 짤 — 파일을 지우고 해시 행만 남는다(저장소 키 없음) */
+    private String purgedJjal(long uploader) {
+        long id = ids.nextId();
+        String publicId = "p" + Long.toString(id, 36);
+        jdbc.update("INSERT INTO jjal_files (id, public_id, sha256, storage_key, content_type, size_bytes, width, height, animated, uploaded_by, status, blocked_reason, "
+                        + "blocked_at, purged_at) VALUES (?, ?, ?, NULL, 'image/gif', 1000, 120, 90, true, ?, 'BLOCKED', 'ILLEGAL', now(), now())",
+                id, publicId, String.format("%064x", id), uploader);
+        return publicId;
+    }
+
+    @Test
+    void 운영자는_내린_짤의_원본을_본다() throws Exception {
+        long author = newMember();
+        String down = jjal(author, true);
+        String live = jjal(author, false);
+        String purged = purgedJjal(author);
+        String missing = jjal(author, true); // 장부에는 키가 있지만 저장소에 파일이 없다
+        byte[] downBytes = "GIF89a-down".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] liveBytes = "GIF89a-live".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        String downKey = "private/jjal/" + down + ".gif";
+        String liveKey = "jjal/" + live + ".gif";
+        storage.put(downKey, downBytes);
+        storage.put(liveKey, liveBytes);
+        try {
+            // 글 서랍에서 지운 짤은 adminUrl null
+            long board = board();
+            long postId = ids.nextId();
+            boardFixture.post(postId, board, author, "짤 글", ":jjal-" + down + ": :jjal-" + purged + ":");
+            Cookie posts = login(operatorWith(Permission.POST_READ));
+            mvc.perform(get("/api/admin/posts/" + postId).cookie(posts)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.jjals.length()").value(2))
+                    .andExpect(jsonPath("$.data.jjals[0].adminUrl").value("/api/admin/jjals/" + down + "/image"))
+                    .andExpect(jsonPath("$.data.jjals[1].id").value(purged))
+                    .andExpect(jsonPath("$.data.jjals[1].blocked").value(true))
+                    .andExpect(jsonPath("$.data.jjals[1].adminUrl").isEmpty());
+
+            // post.read 만 — 내린 짤 원본 200, 형식 그대로, 캐시 금지
+            mvc.perform(get("/api/admin/jjals/" + down + "/image").cookie(posts)).andExpect(status().isOk())
+                    .andExpect(content().contentType("image/gif"))
+                    .andExpect(content().bytes(downBytes))
+                    .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.allOf(org.hamcrest.Matchers.containsString("no-store"),
+                            org.hamcrest.Matchers.containsString("private"))))
+                    .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+            // 살아 있는 짤도 같은 경로로
+            mvc.perform(get("/api/admin/jjals/" + live + "/image").cookie(posts)).andExpect(status().isOk()).andExpect(content().bytes(liveBytes));
+
+            // report.read 만 — 200
+            Cookie reports = login(operatorWith(Permission.REPORT_READ));
+            mvc.perform(get("/api/admin/jjals/" + down + "/image").cookie(reports)).andExpect(status().isOk()).andExpect(content().bytes(downBytes));
+
+            // 파일 없는 짤(지움 · 저장소에 없음) · 없는 ID — 404 JJAL_NOT_FOUND
+            for (String id : new String[] {purged, missing, "zzNoSuch1"}) {
+                mvc.perform(get("/api/admin/jjals/" + id + "/image").cookie(reports)).andExpect(status().isNotFound())
+                        .andExpect(jsonPath("$.error.code").value("JJAL_NOT_FOUND"));
+            }
+
+            // 둘 다 없음 — 403
+            Cookie neither = login(operatorWith(Permission.MEMBER_READ));
+            mvc.perform(get("/api/admin/jjals/" + down + "/image").cookie(neither)).andExpect(status().isForbidden());
+        } finally {
+            storage.delete(downKey);
+            storage.delete(liveKey);
+        }
     }
 }
