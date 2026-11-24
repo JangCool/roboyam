@@ -17,7 +17,8 @@ export interface AdAdvertiserBusiness {
     id: string;
     /** 상호(광고주 이름 = 상호) */
     name: string;
-    maskedRegNo: string;
+    /** 익명화한 사업자(V265 — 상호 「삭제된 사업자」, 광고주 이름 「삭제된 사업자 <번호>」)면 null */
+    maskedRegNo: string | null;
     status: BusinessStatus;
     /** 광고(`AD`) 서비스 줄 상태 — 핫딜만 쓰는 사업자는 `OFF` */
     adService: BusinessServiceStatus;

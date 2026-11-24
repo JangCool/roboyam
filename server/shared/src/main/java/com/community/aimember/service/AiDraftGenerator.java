@@ -17,6 +17,7 @@ import com.community.aimember.repository.master.AiDraftRepository;
 import com.community.aimember.repository.master.AiMemberProfileRepository;
 import com.community.aimember.repository.master.AiMemberQueries;
 import com.community.aimember.repository.master.AiMemberSettingsRepository;
+import com.community.aimember.repository.master.MemberAiOptOutStore;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
@@ -44,9 +45,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -116,11 +119,13 @@ public class AiDraftGenerator {
     private final AiPromptSettings prompts;
     private final AiNewsSources news;
     private final AiNewsArticleReader articles;
+    private final MemberAiOptOutStore optOuts;
 
     public AiDraftGenerator(AiMemberProfileRepository accounts, AiMemberSettingsRepository settings, AiDraftRepository drafts, AiMemberQueries queries,
                             AiProviderKeys keys, AiMemberProperties properties, AiLlmClient llm, AiDraftPublisher publisher, BoardCatalog catalog,
                             GroupRepository groups, GroupMemberRepository groupMembers, SnowflakeIdGenerator ids, PlatformTransactionManager txManager,
-                            AiModelCatalog models, AiPromptSettings prompts, AiNewsSources news, AiNewsArticleReader articles) {
+                            AiModelCatalog models, AiPromptSettings prompts, AiNewsSources news, AiNewsArticleReader articles, MemberAiOptOutStore optOuts) {
+        this.optOuts = optOuts;
         this.articles = articles;
         this.models = models;
         this.prompts = prompts;
@@ -467,7 +472,7 @@ public class AiDraftGenerator {
             return null;
         }
         Map<Long, AiMemberQueries.PostHead> heads = queries.postHeads(postIds);
-        List<AiMemberQueries.CommentRow> rows = queries.liveComments(postIds, now);
+        List<AiMemberQueries.CommentRow> rows = withoutOptedOut(queries.liveComments(postIds, now));
         Map<Long, AiMemberQueries.CommentRow> byId = new HashMap<>();
         rows.forEach(c -> byId.put(c.id(), c));
         Map<Long, List<AiDraftEntity>> onPost = byPost(queries.liveDraftsOn(postIds));
@@ -517,6 +522,15 @@ public class AiDraftGenerator {
             return new Task(t, place(head.boardId(), head.groupId()), ask);
         }
         return null;
+    }
+
+    /**
+     * 「내 글·댓글을 AI 회원에게 보내지 않기」를 켠 회원(V264)의 댓글을 뺀다 — 그 댓글에 답글을 쓰지 않고(답할 대상이 아니다), 다른 댓글에 답할 때 함께 읽는 같은 줄기 댓글({@link #thread})에도
+     * 싣지 않는다. 그 댓글을 가리키는 답글은 받는 사람을 알 수 없게 되어({@link #addressee} null) AI 에게 한 말로 세지 않는다. ai-members-contract 「회원의 AI 제외 설정」.
+     */
+    private List<AiMemberQueries.CommentRow> withoutOptedOut(List<AiMemberQueries.CommentRow> rows) {
+        Set<Long> out = optOuts.optedOut(rows.stream().map(AiMemberQueries.CommentRow::authorId).filter(Objects::nonNull).collect(Collectors.toSet()));
+        return out.isEmpty() ? rows : rows.stream().filter(c -> c.authorId() == null || !out.contains(c.authorId())).toList();
     }
 
     /** 그 댓글이 누구에게 한 말인가 — 원댓글이면 글쓴이, 답글이면 가리킨 댓글(없으면 원댓글)의 작성자 */

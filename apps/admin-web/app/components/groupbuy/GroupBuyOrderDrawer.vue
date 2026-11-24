@@ -116,7 +116,8 @@
                     <li v-for="(s, i) in detail.shipments" :key="i" class="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
                         <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" :severity="s.kind === 'EXCHANGE' ? 'warn' : 'info'" icon="pi pi-truck" />
                         <span>{{ s.carrierName }}</span>
-                        <code class="text-xs">{{ s.trackingNo }}</code>
+                        <code v-if="s.trackingNo" class="text-xs">{{ s.trackingNo }}</code>
+                        <span v-else class="text-xs text-muted-color">{{ t('groupBuy.trackingErased') }}</span>
                         <a v-if="s.trackingUrl" :href="s.trackingUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary hover:underline">{{ t('groupBuy.trackLink') }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /></a>
                         <span class="ml-auto text-[11px] text-muted-color">{{ t('groupBuy.shippedAt', { at: time.shortDateTime(s.shippedAt) }) }}<template v-if="s.deliveredAt"> · {{ t('groupBuy.deliveredAt', { at: time.shortDateTime(s.deliveredAt) }) }}</template></span>
                     </li>

@@ -307,9 +307,9 @@ public class BizApplicationAdminService {
                 a.approvedAt(), s.approvedByName());
         BizAdminView.OnlinePayment online = a.paidAt() == null ? null : new BizAdminView.OnlinePayment(a.paidAt(), s.payment() == null ? null : s.payment().pgTxId());
         List<BizAdminView.Contract> contracts = s.contracts().stream().map(c -> new BizAdminView.Contract(Long.toString(c.id()), c.fileName(), c.contentType(),
-                c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(), c.replacedByName(), c.channel().name())).toList();
+                c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(), c.replacedByName(), c.channel().name(), c.erasedAt())).toList();
         BizAdminView.Deposit deposit = s.deposit() == null ? null : new BizAdminView.Deposit(s.deposit().amount(), s.deposit().depositedOn(), s.deposit().depositorName(),
-                s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt());
+                s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt(), s.deposit().erasedAt());
         BizAdminView.Refund refund = BizAdminView.Refund.of(s.refund());
         BizAdminView.Rejection rejection = a.rejectCode() == null ? null : new BizAdminView.Rejection(a.rejectCode().name(), a.rejectText());
         BizAdminView.Takedown takedown = takedown(a);

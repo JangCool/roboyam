@@ -525,7 +525,10 @@ async function openContract(fileId: string): Promise<void> {
         contractOpen.value = true;
         void loadDetail();
     } catch (e) {
-        toast.error(toApiError(e).message, 8000);
+        const failure = toApiError(e);
+        toast.error(failure.message, 8000);
+        // 화면을 연 뒤 보관 기간 배치가 파기했으면(410) 상세를 다시 읽어 「파기됨」을 보인다
+        if (failure.code === 'BIZ_CONTRACT_ERASED') void loadDetail();
     } finally {
         working.value = null;
     }

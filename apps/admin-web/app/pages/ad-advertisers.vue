@@ -67,7 +67,7 @@
                             <span class="truncate text-[13px] font-medium">{{ data.name }}</span>
                             <Tag :value="t(`adAdvertiser.kind.${data.kind}`)" severity="secondary" />
                         </span>
-                        <span class="text-[11px] tabular-nums text-muted-color">{{ data.business ? data.business.maskedRegNo : t('adAdvertiser.directShort') }}</span>
+                        <span class="text-[11px] tabular-nums text-muted-color">{{ data.business ? (data.business.maskedRegNo ?? '—') : t('adAdvertiser.directShort') }}</span>
                     </template>
                 </Column>
                 <Column :header="t('adAdvertiser.col.contact')" style="min-width: 9rem">

@@ -67,7 +67,7 @@
                             <span class="truncate text-[13px] font-medium">{{ data.name }}</span>
                             <Tag v-if="(data as BusinessRow).reReview && data.status === 'PENDING'" :value="t('business.reReview')" severity="warn" class="shrink-0" />
                         </span>
-                        <code class="text-[11px] text-muted-color">{{ data.maskedRegNo }}</code>
+                        <code class="text-[11px] text-muted-color">{{ data.maskedRegNo ?? '—' }}</code>
                     </template>
                 </Column>
                 <Column :header="t('business.col.status')" style="min-width: 6rem">

@@ -33,6 +33,8 @@ public class BizContractFileEntity {
     private Long replacedByFileId;
     @Enumerated(EnumType.STRING)
     private DocFileChannel channel;
+    /** 보관 기간(게재 끝 + 5년)이 지나 내용을 지운 시각(V263 — R__batch_46). 지운 줄은 content 가 null */
+    private Instant erasedAt;
 
     protected BizContractFileEntity() {
     }

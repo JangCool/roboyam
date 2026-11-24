@@ -84,6 +84,8 @@ public class BusinessProfileEntity {
     private Long suspendedBy;
     private Instant withdrawnAt;
     private Instant erasedAt;
+    /** 신청 건이 가리켜 지우지 못한 반려·탈퇴 신원을 익명화한 시각(V265 — R__batch_45). 상호 「삭제된 사업자」 · 끝 4자리 null */
+    private Instant anonymizedAt;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -113,6 +115,9 @@ public class BusinessProfileEntity {
         this.reviewedAt = null;
         this.reviewedBy = null;
         this.ntsOverrideReason = null;
+        // 보관 기간 배치가 지웠거나(R__batch_36 erased_at) 익명화한(R__batch_45 anonymized_at) 줄도 새 신원으로 다시 채운다 — 심사 중 줄에 두 표시가 남으면 CHECK(ck_bp_erased·ck_bp_anonymized) 위반
+        this.erasedAt = null;
+        this.anonymizedAt = null;
         fill(identity, now);
         this.submittedAt = now;
         this.updatedAt = now;

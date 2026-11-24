@@ -287,10 +287,32 @@ public enum BatchCatalog implements BatchDefinition {
     BUSINESS_NTS_COUNT_CLEANUP("business-nts-count-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
-     * 보관한 직접 등록 광고주({@code ad_advertisers}, V131)의 연락처 파기 — 마지막 광고 끝(건이 없으면 보관 시각) + 보관 연수(기본 5년)가 지나면 담당자·연락처·이메일 암호문·가린 값을
-     * 비우고 {@code contact_purged_at} 을 찍는다. DB 배치, 기본 매일 04:10 KST({@code R__batch_35_ad_advertiser_contact_purge.sql}, ad-advertiser-contract 규칙 9)
+     * 직접 등록 광고주({@code ad_advertisers}, V131)의 연락처 파기 — 진행 중·예약된 광고가 없고 마지막 광고 끝(건이 없으면 보관 시각, 그것도 없으면 만든 시각) + 보관 연수(기본 5년)가
+     * 지나면 보관 처리 여부와 상관없이 담당자·연락처·이메일 암호문·가린 값을 비우고 {@code contact_purged_at} 을 찍는다(2026-11-24 넓힘). DB 배치, 기본 매일 04:10 KST
+     * ({@code R__batch_35_ad_advertiser_contact_purge.sql}, ad-advertiser-contract 규칙 9)
      */
     AD_ADVERTISER_CONTACT_PURGE("ad-advertiser-contact-purge", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 반려·탈퇴한 사업자 신원 기록 삭제·익명화 — 그 상태가 된 지 보관 연수(기본 5년)가 지난 신원과 등록증 사본·국세청 조회·처리·열람 기록·서비스 권한·등록증 종이 접수 기록. 신청 건(거래 기록)이
+     * 가리키는 신원은 그 건들도 끝나고 같은 기간이 지나면 줄을 남기고 상호·끝 4자리·개업일을 지워 익명화한다(V265 anonymized_at). DB 배치, 기본 매일 05:00 KST
+     * ({@code R__batch_45_business_profile_purge.sql}, 2026-11-24 사용자·메인 세션 결정)
+     */
+    BUSINESS_PROFILE_PURGE("business-profile-purge", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 광고·사업자 핫딜 신청 건의 계약서 사본 내용·입금자명·불일치 사유·환불 송금 메모 파기 — 게재가 끝난 날(환불·입금 확인이 더 늦으면 그때)부터 보관 연수(기본 5년) 뒤, 건에 붙지 않은 사본은
+     * 올린 지 같은 기간 뒤. 입금액·입금일·신청 건은 남긴다.
+     * DB 배치, 기본 매일 05:05 KST({@code R__batch_46_biz_payment_record_purge.sql}, 2026-11-24 사용자 결정)
+     */
+    BIZ_PAYMENT_RECORD_PURGE("biz-payment-record-purge", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 공동구매 거래 기록의 개인 칸 파기 — 끝난 주문의 마지막 거래 시각 + 보관 연수(기본 5년) 뒤 배송지·현금영수증 번호·운영 메모와 송장 번호·거절 메모·PG 영수증 주소를 비우고
+     * {@code privacy_purged_at} 을 찍는다. 주문 번호·금액·
+     * 상품·상태·날짜는 남긴다. DB 배치, 기본 매일 05:10 KST({@code R__batch_47_commerce_record_privacy_purge.sql}, commerce.md 17-3, 2026-11-24 사용자 결정)
+     */
+    COMMERCE_RECORD_PRIVACY_PURGE("commerce-record-privacy-purge", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
      * 사업자 신청 건 결제 기한 만료 — 결제 기한이 지난 결제 대기 전부를 열린 결제부터 닫고 EXPIRED(자리 반납) + 사업자 알림(Java 배치 {@code BizPaymentExpireJob},

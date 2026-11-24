@@ -159,7 +159,7 @@ public class AdAdminService {
         BizAdminView.OnlinePayment online = a.paidAt() == null ? null : new BizAdminView.OnlinePayment(a.paidAt(), s.payment() == null ? null : s.payment().pgTxId());
         List<BizAdminView.Contract> contracts = s.contracts().stream().map(AdAdminService::contract).toList();
         BizAdminView.Deposit deposit = s.deposit() == null ? null : new BizAdminView.Deposit(s.deposit().amount(), s.deposit().depositedOn(), s.deposit().depositorName(),
-                s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt());
+                s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt(), s.deposit().erasedAt());
         BizAdminView.Pause pause = BizAdminView.Pause.of(pauses.info(a, s.items()));
         String by = a.takedownActor() == com.community.bizapplication.entity.BizActorType.MEMBER ? pauses.nameOf(a)
                 : a.takenDownBy() == null ? null : reader.operatorName(a.takenDownBy());
@@ -348,7 +348,7 @@ public class AdAdminService {
 
     private static BizAdminView.Contract contract(ContractRow c) {
         return new BizAdminView.Contract(Long.toString(c.id()), c.fileName(), c.contentType(), c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(),
-                c.replacedByName(), c.channel().name());
+                c.replacedByName(), c.channel().name(), c.erasedAt());
     }
 
     private static BizAdminView.Amount amount(com.community.bizapplication.service.BizPricing.Amount a) {

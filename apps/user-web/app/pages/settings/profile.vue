@@ -178,6 +178,40 @@
 
             <StickySaveBar v-if="!restricted" :dirty="dirty" :saving="saving" :count="changedCount" :error-count="errorCount" :error="formError" :disabled="errorCount > 0" revertable submit @revert="revert" />
             </form>
+
+            <!--
+                AI 회원 제외 — 이 구획도 **누르면 바로 저장**된다(`PUT /api/me/ai-settings`). 위 폼과 저장 단위가 달라 폼 밖에 따로 두고 「바로 저장돼요」를 적는다(forms.md 2-4).
+                정지 중에도 바꿀 수 있다(서버가 막지 않는다 — 처리 거부 표시라 잠그지 않는다).
+            -->
+            <section class="flex flex-col gap-3 panel-card p-4" :aria-labelledby="`${uid}-ai`" data-testid="profile-ai-optout">
+                <h2 :id="`${uid}-ai`" class="m-0 text-sm font-semibold">{{ t('aiMember.optOutTitle') }}</h2>
+                <div v-if="aiStatus === 'loading'" class="h-12 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('aiMember.optOutLoading')" data-testid="profile-ai-optout-loading" />
+                <ErrorState v-else-if="aiStatus === 'error'" :title="t('aiMember.optOutLoadFailed')" :description="aiError" retry class="py-6!" data-testid="profile-ai-optout-error" @retry="loadAi" />
+                <template v-else>
+                    <div class="flex items-start gap-3">
+                        <div class="min-w-0 flex-1">
+                            <label :for="`${uid}-ai-switch`" class="block text-sm font-medium">{{ t('aiMember.optOutLabel') }}</label>
+                            <p :id="`${uid}-ai-hint`" class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">{{ t('aiMember.optOutHint') }}</p>
+                        </div>
+                        <ToggleSwitch
+                            :model-value="excludeFromAi"
+                            :input-id="`${uid}-ai-switch`"
+                            class="mt-0.5 shrink-0"
+                            :aria-describedby="`${uid}-ai-hint ${uid}-ai-note`"
+                            data-testid="profile-ai-optout-switch"
+                            @update:model-value="chooseAi"
+                        />
+                    </div>
+                    <p :id="`${uid}-ai-note`" class="m-0 text-xs leading-relaxed text-muted-color" data-testid="profile-ai-optout-note">{{ t('aiMember.optOutNote') }}</p>
+                    <NuxtLink
+                        to="/privacy"
+                        class="inline-flex w-fit items-center gap-1 rounded text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                        data-testid="profile-ai-optout-privacy"
+                    >
+                        <i class="pi pi-shield text-xs" aria-hidden="true" />{{ t('aiMember.optOutPrivacyLink') }}
+                    </NuxtLink>
+                </template>
+            </section>
         </template>
     </div>
 </template>
@@ -209,6 +243,8 @@ import UtilValidation from '~/utils/util-validation';
  * 정지·영구 정지 중(로그인 정보 `restriction`, 또는 저장 때 서버 `403 ACCOUNT_RESTRICTED`)이면 폼은 읽기 전용이고 저장 줄을 그리지 않으며 제재 안내(`/sanction`) 링크를 보인다.
  * 저장하면 로그인 정보(`me`)를 다시 받아 셸의 닉네임을 맞춘다.
  * 프로필 공개 범위(`profile-privacy-contract.md` — 서버 연결됨): 공개(기본) / 비공개. 같은 저장 줄로 저장하고, 정지 중에는 다른 칸처럼 바꿀 수 없다.
+ * AI 회원 제외(`ai-members-contract.md` 「회원의 AI 제외 설정」 — 서버 연결됨): 스위치 하나 「내 글·댓글을 AI 회원에게 보내지 않기」(기본 꺼짐), 폼 밖 구획에서 **누르면 바로 저장**
+ * (`useAiSettingsApi` — `GET·PUT /api/me/ai-settings`). 먼저 반영하고 실패하면 되돌리고 서버 문구를 토스트(8초), 성공은 토스트(3초). 정지 중에도 바꿀 수 있다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -466,6 +502,57 @@ async function chooseAvatar(id: string) {
     } finally {
         savingAvatarId.value = null;
     }
+}
+
+/* ── AI 회원 제외(누르면 바로 저장 — 폼과 따로, 쪽지 수신 설정과 같은 방식) ── */
+const aiApi = useAiSettingsApi();
+const aiStatus = ref<'loading' | 'ready' | 'error'>('loading');
+const aiError = ref('');
+/** 화면 값 — 누르면 먼저 바꾸고(낙관적) 실패하면 되돌린다 */
+const excludeFromAi = ref(false);
+/** 서버가 마지막으로 확인해 준 값 */
+let aiConfirmed = false;
+/** 저장 요청은 한 줄로 세워 차례로 보내고, 차례가 되면 그때의 화면 값을 보낸다 */
+let aiSaveChain: Promise<void> = Promise.resolve();
+let aiRequest = 0;
+
+async function loadAi() {
+    const mine = ++aiRequest;
+    aiStatus.value = 'loading';
+    aiError.value = '';
+    try {
+        const res = await aiApi.settings();
+        if (mine !== aiRequest) return;
+        aiConfirmed = res.excludeFromAi;
+        excludeFromAi.value = res.excludeFromAi;
+        aiStatus.value = 'ready';
+    } catch (e) {
+        if (mine !== aiRequest) return;
+        aiError.value = messageOf(e);
+        aiStatus.value = 'error';
+    }
+}
+void loadAi();
+onBeforeUnmount(() => aiRequest++);
+
+async function saveAi(): Promise<void> {
+    const target = excludeFromAi.value;
+    if (target === aiConfirmed) return;
+    try {
+        const res = await aiApi.updateSettings(target);
+        aiConfirmed = res.excludeFromAi;
+        if (excludeFromAi.value === target) excludeFromAi.value = res.excludeFromAi;
+        toast.success(res.excludeFromAi ? t('aiMember.optOutOn') : t('aiMember.optOutOff'));
+    } catch (e) {
+        if (excludeFromAi.value === target) excludeFromAi.value = aiConfirmed;
+        toast.error(t('aiMember.optOutSaveFailed', { reason: messageOf(e) }), 8000);
+    }
+}
+
+function chooseAi(value: boolean) {
+    if (value === excludeFromAi.value) return;
+    excludeFromAi.value = value;
+    aiSaveChain = aiSaveChain.then(saveAi);
 }
 
 // 저장하지 않은 변경이 있으면 떠나기 전에 묻는다

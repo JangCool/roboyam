@@ -107,11 +107,11 @@
                 <p v-if="detail.pickup" class="m-0 flex items-center gap-2"><i class="pi pi-truck text-muted-color" aria-hidden="true" />{{ t('groupBuy.pickupLine', { carrier: detail.pickup.carrierCode, no: detail.pickup.trackingNo }) }}</p>
                 <p v-if="detail.receivedAt" class="m-0 flex items-center gap-2"><i class="pi pi-inbox text-green-700 dark:text-green-400" aria-hidden="true" />{{ t('groupBuy.receivedLine', { at: time.date(detail.receivedAt) }) }}</p>
                 <p v-if="detail.exchangeShipment" class="m-0 flex items-center gap-2">
-                    <i class="pi pi-send text-sky-700 dark:text-sky-400" aria-hidden="true" />{{ t('groupBuy.exchangeLine', { carrier: detail.exchangeShipment.carrierCode, no: detail.exchangeShipment.trackingNo, at: time.shortDateTime(detail.exchangeShipment.shippedAt) }) }}
+                    <i class="pi pi-send text-sky-700 dark:text-sky-400" aria-hidden="true" />{{ t('groupBuy.exchangeLine', { carrier: detail.exchangeShipment.carrierCode, no: detail.exchangeShipment.trackingNo ?? t('groupBuy.trackingErased'), at: time.shortDateTime(detail.exchangeShipment.shippedAt) }) }}
                 </p>
                 <template v-if="detail.rejectReasonCode">
                     <p class="m-0 flex items-center gap-2 text-red-600 dark:text-red-400">
-                        <i class="pi pi-ban" aria-hidden="true" />{{ t('groupBuy.rejectedLine', { code: t(`groupBuy.rejectReason.${detail.rejectReasonCode}`), reason: detail.rejectReason ?? '' }) }}
+                        <i class="pi pi-ban" aria-hidden="true" />{{ detail.rejectReason ? t('groupBuy.rejectedLine', { code: t(`groupBuy.rejectReason.${detail.rejectReasonCode}`), reason: detail.rejectReason }) : t('groupBuy.rejectedLineNoNote', { code: t(`groupBuy.rejectReason.${detail.rejectReasonCode}`) }) }}
                     </p>
                     <div v-if="detail.rejectPhotos.length" class="flex flex-wrap gap-2">
                         <img v-for="(p, i) in detail.rejectPhotos" :key="p.id" :src="p.url" :alt="t('groupBuy.evidenceAlt', { n: i + 1 })" class="size-16 rounded-md border border-(--line) object-cover" />

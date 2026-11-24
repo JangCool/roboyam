@@ -130,7 +130,7 @@ public class BizApplicationStore extends IrobitRepositoryQDSL {
 
     /** 입금 확인 — 확인자 이름 포함 */
     public record DepositRow(long applicationId, long amount, LocalDate depositedOn, String depositorName, String mismatchReason, long confirmedBy,
-                             String confirmedByName, Instant confirmedAt) {
+                             String confirmedByName, Instant confirmedAt, Instant erasedAt) {
     }
 
     /** 신청 건 한 줄을 읽는 칸(차례가 {@link #app} 과 같다) */
@@ -550,15 +550,15 @@ public class BizApplicationStore extends IrobitRepositoryQDSL {
     public void upsertDeposit(long applicationId, long amount, LocalDate depositedOn, String depositorName, String mismatchReason, long operatorId, Instant now) {
         jdbc.update("INSERT INTO biz_deposits (application_id, amount, deposited_on, depositor_name, mismatch_reason, confirmed_by, confirmed_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (application_id) DO UPDATE SET amount = EXCLUDED.amount, deposited_on = EXCLUDED.deposited_on, depositor_name = EXCLUDED.depositor_name, "
-                        + "mismatch_reason = EXCLUDED.mismatch_reason, confirmed_by = EXCLUDED.confirmed_by, confirmed_at = EXCLUDED.confirmed_at",
+                        + "mismatch_reason = EXCLUDED.mismatch_reason, confirmed_by = EXCLUDED.confirmed_by, confirmed_at = EXCLUDED.confirmed_at, erased_at = NULL",
                 applicationId, amount, java.sql.Date.valueOf(depositedOn), depositorName, mismatchReason, operatorId, Timestamp.from(now));
     }
 
     public Optional<DepositRow> deposit(long applicationId) {
-        Tuple t = query.select(D.applicationId, D.amount, D.depositedOn, D.depositorName, D.mismatchReason, D.confirmedBy, O.operatorName, D.confirmedAt).from(D)
+        Tuple t = query.select(D.applicationId, D.amount, D.depositedOn, D.depositorName, D.mismatchReason, D.confirmedBy, O.operatorName, D.confirmedAt, D.erasedAt).from(D)
                 .leftJoin(O).on(O.id.eq(D.confirmedBy)).where(D.applicationId.eq(applicationId)).fetchFirst();
         return Optional.ofNullable(t).map(r -> new DepositRow(r.get(D.applicationId), r.get(D.amount), r.get(D.depositedOn), r.get(D.depositorName),
-                r.get(D.mismatchReason), r.get(D.confirmedBy), r.get(O.operatorName), r.get(D.confirmedAt)));
+                r.get(D.mismatchReason), r.get(D.confirmedBy), r.get(O.operatorName), r.get(D.confirmedAt), r.get(D.erasedAt)));
     }
 
     // ── 이름 ────────────────────────────────────────────────────────────────

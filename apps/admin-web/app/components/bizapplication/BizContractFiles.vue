@@ -5,21 +5,24 @@
         열람은 권한(`ad.manage` 이상) + 기록(안내 한 줄) — `viewable` 이면 줄마다 [보기](`view`, 부모가 `data:` 주소를 받아 연다).
         서버는 부르지 않는다 — 고른 파일은 `upload`·`replace` 로 올린다(신청 건 화면은 한 장씩 나눠 올린다).
         전자 팩스로 받은 파일(파일 줄 `channel === 'FAX'`)은 줄에 작은 Tag 「전자 팩스」.
+        보관 기간(게재 끝 + 5년)이 지나 내용을 파기한 사본(`erasedAt`)은 줄에 Tag 「파기됨 날짜」 + 안내 한 줄, [보기]·[바꾸기] 를 두지 않는다(서버도 열기 410).
     -->
     <div class="flex flex-col gap-2">
         <ul v-if="files.length" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
-            <li v-for="f in files" :key="f.id" class="flex items-center gap-3 px-3 py-2 text-[13px]" :class="f.replacedAt ? 'opacity-60' : ''">
-                <i :class="f.mimeType === 'application/pdf' ? 'pi pi-file-pdf' : 'pi pi-image'" class="text-muted-color" aria-hidden="true" />
+            <li v-for="f in files" :key="f.id" class="flex items-center gap-3 px-3 py-2 text-[13px]" :class="f.replacedAt || f.erasedAt ? 'opacity-60' : ''">
+                <i :class="f.erasedAt ? 'pi pi-file' : f.mimeType === 'application/pdf' ? 'pi pi-file-pdf' : 'pi pi-image'" class="text-muted-color" aria-hidden="true" />
                 <div class="flex min-w-0 flex-1 flex-col">
                     <span class="inline-flex min-w-0 items-center gap-2">
                         <span class="truncate" :class="f.replacedAt ? 'line-through' : 'font-medium'">{{ f.fileName }}</span>
                         <Tag v-if="f.replacedAt" :value="t('bizApplication.contract.replaced')" severity="secondary" />
+                        <Tag v-if="f.erasedAt" :value="t('bizApplication.contract.erased', { at: time.shortDate(f.erasedAt) })" severity="secondary" icon="pi pi-trash" />
                         <Tag v-if="f.channel === 'FAX'" :value="t('docIntake.efax')" severity="info" icon="pi pi-print" />
                     </span>
                     <span class="text-[11px] text-muted-color">{{ UtilBizApplication.fileSize(f.size) }} · {{ time.shortDateTime(f.uploadedAt) }} · {{ f.uploadedBy }}</span>
+                    <span v-if="f.erasedAt" class="text-[11px] text-muted-color">{{ t('bizApplication.contract.erasedHelp') }}</span>
                 </div>
-                <Button v-if="viewable" type="button" :label="t('bizApplication.contract.view')" icon="pi pi-eye" size="small" severity="secondary" variant="text" :disabled="busy" @click="emit('view', f.id)" />
-                <Button v-if="editable && !f.replacedAt" type="button" :label="t('bizApplication.contract.replace')" icon="pi pi-sync" size="small" severity="secondary" variant="text" :disabled="busy" @click="pickReplace(f.id)" />
+                <Button v-if="viewable && !f.erasedAt" type="button" :label="t('bizApplication.contract.view')" icon="pi pi-eye" size="small" severity="secondary" variant="text" :disabled="busy" @click="emit('view', f.id)" />
+                <Button v-if="editable && !f.replacedAt && !f.erasedAt" type="button" :label="t('bizApplication.contract.replace')" icon="pi pi-sync" size="small" severity="secondary" variant="text" :disabled="busy" @click="pickReplace(f.id)" />
             </li>
         </ul>
         <p v-else class="m-0 flex items-center gap-1.5 text-[13px] text-amber-700 dark:text-amber-400"><i class="pi pi-exclamation-triangle" aria-hidden="true" />{{ t('bizApplication.contract.none') }}</p>

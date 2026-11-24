@@ -407,6 +407,7 @@ export default {
     carrier: 'Courier',
     trackingNo: 'Tracking no.',
     trackOpen: 'Track',
+    trackingErased: 'The tracking number was deleted after the retention period.',
     newWindow: '(new window)',
     exchangeShipment: 'Exchange item',
     shippedAt: 'Shipped',

@@ -157,6 +157,8 @@ export default {
         viewLog: '원본은 지우지 않고 보존해요(5년). 열람하면 기록이 남아요.',
         uploaded: '계약서 {n}장을 올렸어요.',
         replacedDone: '새 계약서로 바꿨어요(옛 파일은 「대체됨」으로 남아요).',
+        erased: '파기됨 {at}',
+        erasedHelp: '보관 기간(게재가 끝나고 5년)이 지나 사본 내용을 파기했어요. 파일 이름·크기·올린 시각만 남아요.',
     },
     deposit: {
         title: '입금 확인',
@@ -171,6 +173,8 @@ export default {
         saved: '입금 확인을 저장했어요.',
         savedBy: '{who} · {at} 확인',
         required: { amount: '입금액을 입력해 주세요.', depositedOn: '입금일을 골라 주세요.', depositorName: '입금자명을 입력해 주세요.', mismatchReason: '금액이 다른 사유를 적어 주세요.' },
+        erasedName: '(파기됨)',
+        erasedHelp: '보관 기간(게재가 끝나고 5년)이 지나 입금자명·금액 차이 사유를 파기했어요({at}). 입금액·입금일은 남아요.',
     },
     refundTitle: '취소·환불 요청',
     refundStatus: { REQUESTED: '심사 대기', APPROVED: '승인함', DENIED: '거절함' },

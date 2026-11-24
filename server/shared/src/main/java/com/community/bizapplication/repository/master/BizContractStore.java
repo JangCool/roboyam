@@ -31,7 +31,13 @@ public class BizContractStore extends IrobitRepositoryQDSL {
 
     /** 계약서 한 장의 정보(내용 없음) — 올린 사람·대체한 사람 이름 포함. {@code channel} = 들어온 길(V140 — 올림 · 전자 팩스) */
     public record ContractRow(long id, long applicationId, String fileName, String contentType, int sizeBytes, String sha256, Long uploadedBy, String uploadedByName,
-                              Instant uploadedAt, Instant replacedAt, Long replacedBy, String replacedByName, Long replacedByFileId, DocFileChannel channel) {
+                              Instant uploadedAt, Instant replacedAt, Long replacedBy, String replacedByName, Long replacedByFileId, DocFileChannel channel,
+                              Instant erasedAt) {
+
+        /** 보관 기간이 지나 내용을 지웠다(V263 — 열면 410 BIZ_CONTRACT_ERASED) */
+        public boolean erased() {
+            return erasedAt != null;
+        }
 
         public boolean active() {
             return replacedAt == null;
@@ -41,7 +47,7 @@ public class BizContractStore extends IrobitRepositoryQDSL {
     /** 미리 올린 사본은 건이 없어 0 으로 읽는다(예전 {@code getLong} 과 같다) */
     private static final Expression<ContractRow> ROW = Projections.constructor(ContractRow.class, CF.id, CF.applicationId.coalesce(0L), CF.fileName, CF.contentType,
             CF.sizeBytes, CF.sha256, CF.uploadedBy, UPLOADER.operatorName, CF.uploadedAt, CF.replacedAt, CF.replacedBy, REPLACER.operatorName, CF.replacedByFileId,
-            CF.channel);
+            CF.channel, CF.erasedAt);
 
     private final EntityManager entityManager;
 

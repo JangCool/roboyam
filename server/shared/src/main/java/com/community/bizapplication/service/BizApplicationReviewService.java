@@ -436,6 +436,9 @@ public class BizApplicationReviewService {
         return tx.execute(status -> {
             AppRow app = store.find(id).orElseThrow(BizApplicationException::notFound);
             ContractRow row = contracts.find(id, fileId).orElseThrow(BizApplicationException::contractNotFound);
+            if (row.erased()) {
+                throw BizApplicationException.contractErased(); // 보관 기간이 지나 내용을 지웠다(R__batch_46) — 열람 기록·감사는 남기지 않는다
+            }
             byte[] plain = cipher.decryptBytes(CONTRACT, contracts.content(id, fileId).orElseThrow(BizApplicationException::contractNotFound));
             Instant now = ops.now();
             ops.event(id, BizEventAction.CONTRACT_VIEWED, BizActorType.OPERATOR, actor.operatorId(), row.fileName(), now);

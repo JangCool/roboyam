@@ -61,12 +61,13 @@ const rows = computed(() => {
     const m = props.detail.masked;
     return [
         { key: 'name', label: t('business.col.name'), value: props.detail.name },
-        { key: 'regNo', label: t('business.regNo'), value: r?.regNo ?? props.detail.maskedRegNo },
-        { key: 'rep', label: t('business.representative'), value: r?.representative ?? m.representative },
-        { key: 'opened', label: t('business.openedOn'), value: props.detail.openedOn ? time.value.serviceDate(props.detail.openedOn) : t('business.openedOnNone') },
-        { key: 'addr', label: t('business.address'), value: r?.address ?? m.address },
-        { key: 'phone', label: t('business.phone'), value: r?.phone ?? m.phone },
-        { key: 'email', label: t('business.email'), value: r?.email ?? m.email },
+        { key: 'regNo', label: t('business.regNo'), value: r?.regNo ?? props.detail.maskedRegNo ?? '—' },
+        { key: 'rep', label: t('business.representative'), value: r?.representative ?? (m.representative || '—') },
+        // 등록번호가 null 인 신원은 익명화한 것뿐이다(V265 ck_bp_last4_present) — 그때 개업일 null 은 「옛 신청」이 아니라 지운 값
+        { key: 'opened', label: t('business.openedOn'), value: props.detail.openedOn ? time.value.serviceDate(props.detail.openedOn) : props.detail.maskedRegNo === null ? '—' : t('business.openedOnNone') },
+        { key: 'addr', label: t('business.address'), value: r?.address ?? (m.address || '—') },
+        { key: 'phone', label: t('business.phone'), value: r?.phone ?? (m.phone || '—') },
+        { key: 'email', label: t('business.email'), value: r?.email ?? (m.email || '—') },
     ];
 });
 </script>
