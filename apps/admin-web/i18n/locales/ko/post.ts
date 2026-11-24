@@ -200,6 +200,10 @@ export default {
     reasonPlaceholder: '예: 운영 원칙에 맞지 않아요.',
     reasonRequired: '사유를 적어 주세요.',
     reasonTooLong: '사유는 {max}자까지 쓸 수 있어요.',
+    reasonPresetPlaceholder: '자주 쓰는 사유 고르기',
+    reasonPresetCustom: '직접 입력',
+    reasonCustomLabel: '사유 직접 입력',
+    reasonPickRequired: '사유를 골라 주세요. 목록에 없으면 「직접 입력」을 골라 적어 주세요.',
     notifyAuthor: '작성자에게 알림 보내기',
     notifyAuthorHelp: '숨겼다는 알림이 사유와 함께 가요.',
     done: {
@@ -230,6 +234,49 @@ export default {
     movePrefixNone: '말머리 없음',
     moveBoardRequired: '옮길 게시판을 골라 주세요.',
     moveSame: '지금 있는 자리와 같아요. 다른 게시판이나 말머리를 골라 주세요.',
+    /**
+     * 자주 쓰는 사유(조치별) — 고른 문장이 화면 언어와 상관없이 **이 한국어 문장 그대로** 사유로 저장된다(작성자 알림에 그대로 간다 — 공손한 완료형).
+     * 차례는 `util-post.ts` 의 `REASON_PRESETS`, 분류는 운영정책(`terms-templates/operation-policy.ts` 2절 금지 게시물 · 3절 신고와 처리)
+     */
+    reasonPreset: {
+        MOVE: {
+            OFF_TOPIC: '게시판 주제와 맞지 않아 옮겼어요.',
+            BETTER_BOARD: '글 내용에 더 알맞은 게시판으로 옮겼어요.',
+            PREFIX: '글 내용에 맞는 말머리로 정리했어요.',
+            GUIDELINE: '게시판 운영 원칙에 따라 옮겼어요.',
+            DUPLICATE: '같은 내용의 글이 여러 번 올라와 정리했어요.',
+            AUTHOR_REQUEST: '작성자 요청으로 옮겼어요.',
+        },
+        HIDE: {
+            ABUSE: '욕설·비하 등 운영정책에 어긋나는 내용이 있어 가렸어요.',
+            SPAM: '스팸·광고 글로 보여 가렸어요.',
+            PRIVACY: '다른 사람의 개인정보가 드러나 있어 가렸어요.',
+            ADULT: '음란·선정적인 내용이라 가렸어요.',
+            RIGHTS: '권리 침해 신고가 들어와 임시로 가렸어요.',
+            BANNED: '법령이 금지한 행위·사칭·피싱 등 금지된 게시물이라 가렸어요.',
+        },
+        UNHIDE: {
+            REVIEWED: '검토 결과 운영정책 위반이 없어 다시 보이게 했어요.',
+            REPORT_UNFOUNDED: '신고 내용이 사실과 달라 다시 보이게 했어요.',
+            APPEAL: '작성자의 이의제기를 받아들여 다시 보이게 했어요.',
+            TEMPORARY_ENDED: '권리 침해 임시조치를 마쳐 다시 보이게 했어요.',
+        },
+        DELETE: {
+            POLICY: '운영정책을 어긴 게시물이라 지웠어요.',
+            SPAM: '스팸·광고 글이라 지웠어요.',
+            ILLEGAL: '불법촬영물 등 불법 정보라 지웠어요.',
+            PRIVACY: '다른 사람의 개인정보가 드러나 있어 지웠어요.',
+            RIGHTS: '권리 침해가 확인되어 지웠어요.',
+            DUPLICATE: '같은 내용을 여러 번 올린 도배 글이라 지웠어요.',
+            AUTHOR_REQUEST: '작성자 요청으로 지웠어요.',
+        },
+        RESTORE: {
+            REVIEWED: '검토 결과 운영정책 위반이 없어 글을 되돌렸어요.',
+            REPORT_UNFOUNDED: '신고 내용이 사실과 달라 글을 되돌렸어요.',
+            APPEAL: '작성자의 이의제기를 받아들여 글을 되돌렸어요.',
+            MISTAKE: '잘못 지운 글이라 되돌렸어요.',
+        },
+    },
     prefixStaffOnly: '{name} (운영진 전용)',
 
     // ── 일괄 ──
@@ -283,6 +330,11 @@ export default {
     groupMoveLocked: '소모임 글은 다른 게시판으로 옮길 수 없어요.',
     bodyTitle: '본문',
     bodyEmpty: '본문이 없어요.',
+    /** 본문의 로보티콘 토큰을 그림으로 못 그릴 때(그림 정보 없음) 토큰 글자 대신 */
+    emoticonFallback: '[로보티콘]',
+    /** 본문의 내 짤 — 내려간 짤(신고·운영자 내림) 자리 · 짤 정보가 없을 때 토큰 글자 대신 */
+    jjalBlocked: '내려간 짤',
+    jjalFallback: '[짤]',
     debateTitle: '찬반 토론',
     debateSettings: '토론 설정',
     debateOpinions: '의견 관리',

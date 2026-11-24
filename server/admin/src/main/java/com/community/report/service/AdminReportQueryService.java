@@ -25,6 +25,7 @@ import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
+import com.community.post.service.AdminBodyTokenImages;
 import com.community.post.repository.master.PostRepository;
 import com.community.report.dto.response.ReportAuthorCardView;
 import com.community.report.dto.response.ReportAuthorView;
@@ -151,12 +152,15 @@ public class AdminReportQueryService {
     /** 짤 사건의 대상 짤(V261) */
     private final JjalFileRepository jjalFiles;
     private final ImageStorage storage;
+    /** 본문 로보티콘·짤 토큰의 그림(관리자 글 서랍과 같은 규칙) */
+    private final AdminBodyTokenImages tokenImages;
 
     public AdminReportQueryService(AdminReportRepositoryQDSL search, ReportCaseRepository cases, ReportRepositoryQDSL reports, ReportEventRepository events,
                                    ReportCaseLog caseLog, PostRepository posts, CommentRepository comments, ProfileRepository profiles, UserRepository users,
                                    OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, GroupRepository groups,
                                    GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals, SanctionViews sanctionViews,
-                                   JjalFileRepository jjalFiles, ImageStorage storage) {
+                                   JjalFileRepository jjalFiles, ImageStorage storage, AdminBodyTokenImages tokenImages) {
+        this.tokenImages = tokenImages;
         this.jjalFiles = jjalFiles;
         this.storage = storage;
         this.sanctionViews = sanctionViews;
@@ -246,8 +250,11 @@ public class AdminReportQueryService {
             content = post == null ? new ReportContentView(ContentFormat.TEXT.name(), null, snapshot)
                     : new ReportContentView(post.getContentFormat().name(), post.isPurged() ? null : post.getContent(), snapshot);
         }
+        // 본문 토큰 그림 — 글·댓글 사건만, 지금 본문과 신고 당시 내용을 합쳐(겹치면 한 번). 짤·소모임 사건은 빈 목록
+        AdminBodyTokenImages.Images images = c.isJjal() || c.isGroup() ? AdminBodyTokenImages.Images.EMPTY
+                : tokenImages.of(content.body(), snapshot == null ? null : snapshot.body());
         return new ReportCaseDetailView(item, content, lines(reports.ofCase(c.getId())), authorCard(c, post, comment, first, now),
-                eventViews(events.findByCaseIdOrderByIdAsc(c.getId())), publicUrlOf(c), group == null ? null : groupView(group), null);
+                eventViews(events.findByCaseIdOrderByIdAsc(c.getId())), publicUrlOf(c), group == null ? null : groupView(group), null, images.emoticons(), images.jjals());
     }
 
     /** 소모임 사건의 대상 소모임(지금 값) */

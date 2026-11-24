@@ -1,5 +1,6 @@
 import type { GroupCategoryRef, GroupPerson } from '~/composables/group/api/useGroupAdminApi.types';
 import type { DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AdminBodyEmoticonView, AdminBodyJjalView } from '~/composables/post/api/usePostApi.types';
 import type { SanctionLine, SanctionPreview, SanctionWithReport } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
@@ -280,6 +281,12 @@ export interface ReportCaseDetail {
     group?: ReportGroup | null;
     /** 이 처리(`resolve`)에서 준 제재 — 조치 응답에만 있고, 제재가 없거나 그 밖의 응답이면 null(서버 `ReportCaseDetailView.issuedSanction`) */
     issuedSanction?: SanctionLine | null;
+    /**
+     * 본문 로보티콘 그림(계약 「본문 로보티콘·짤 그림」) — 지금 본문과 신고 당시 내용(`content.snapshot.body`)의 토큰을 합쳐 겹치면 한 번. 짤·소모임 사건은 `[]`, 옛 응답에는 칸이 없다.
+     */
+    emoticons?: AdminBodyEmoticonView[] | null;
+    /** 본문 내 짤 그림 — 범위는 `emoticons` 와 같다. 내려간 짤은 `url: null`·`blocked: true` */
+    jjals?: AdminBodyJjalView[] | null;
 }
 
 /** 소모임 사건의 대상 소모임(서버 `ReportGroupView`) — 신고 당시 이름·소개는 `content.snapshot` */

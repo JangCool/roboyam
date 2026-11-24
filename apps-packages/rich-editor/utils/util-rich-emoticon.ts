@@ -139,14 +139,23 @@ export default class UtilRichEmoticon {
     /**
      * 요소 안 **글자 노드만** 훑어 아는 토큰을 그림으로 바꾼다 — 글 본문·HTML 댓글(서버가 정화한 HTML 을 `v-html` 로 넣은 뒤). 링크·코드 안은 그대로 둔다.
      * 여러 번 불러도 안전하다(이미 바꾼 자리는 글자가 아니다).
+     * `fallback` 을 주면 모르는 토큰을 그 짧은 말(`<span title="토큰">`)로 바꾼다 — 그림 정보를 받지 못하는 화면(관리자 앱 글 서랍)이 토큰 글자 대신 쓴다. 주지 않으면 글자 그대로(지금 동작).
      * @param {HTMLElement} root - 본문이 든 요소.
      * @param {RichEmoticonResolve} resolve - ID → 그림(모르면 null).
-     * @returns {number} 바꾼 수.
+     * @param {string} [fallback] - 모르는 토큰 자리에 넣을 말(화면 언어 — 앱이 번역해 준다).
+     * @returns {number} 바꾼 수(짧은 말로 바꾼 자리 포함).
      */
-    static replaceIn(root: HTMLElement, resolve: RichEmoticonResolve): number {
+    static replaceIn(root: HTMLElement, resolve: RichEmoticonResolve, fallback?: string): number {
+        const doc = root.ownerDocument;
         return UtilRichEmoticon.walk(root, (id, raw) => {
             const image = resolve(id);
-            return image ? UtilRichEmoticon.image(root.ownerDocument, id, image) : raw;
+            if (image) return UtilRichEmoticon.image(doc, id, image);
+            if (!fallback) return raw;
+            const span = doc.createElement('span');
+            span.textContent = fallback;
+            span.title = raw;
+            span.dataset.emoticonId = id;
+            return span;
         });
     }
 

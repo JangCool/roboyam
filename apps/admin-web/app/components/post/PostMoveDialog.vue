@@ -1,6 +1,6 @@
 <template>
     <!--
-        글 이동 대화창 — 게시판 → 말머리(그 게시판의 켜진 말머리, 「말머리 없음」 포함) → 사유. 「고정은 풀려요」 안내.
+        글 이동 대화창 — 게시판 → 말머리(그 게시판의 켜진 말머리, 「말머리 없음」 포함) → 사유(자주 쓰는 사유 선택 상자 + 「직접 입력」 — `UtilPost.reasonPresetKeys('MOVE')`, 저장은 한국어 문장). 「고정은 풀려요」 안내.
         게시판·말머리 선택지는 부른 화면이 `board-options` 로 받아 내려 준다(못 받으면 다시 불러오기). 지금 자리와 같으면 보내지 않는다(서버도 400 `fields.prefixId`).
         서버 칸 오류(`fields.boardId`·`fields.prefixId`·`fields.reason`)는 그 칸 아래, 그 밖은 대화창 안 한 줄(서버 문구 그대로). 열 때마다 비운다.
     -->
@@ -42,7 +42,7 @@
                 </template>
             </LabeledField>
 
-            <PostReasonField v-model="reason" :error="reasonError" :disabled="busy" />
+            <PostReasonField v-model="reason" :error="reasonError" :disabled="busy" :presets="reasonPresets" />
 
             <Message v-if="error" severity="error" size="small" variant="simple" :closable="false">{{ error }}</Message>
         </form>
@@ -101,6 +101,8 @@ const problem = computed(() => (props.item ? UtilPost.moveProblem(props.item, bo
 const boardError = computed(() => props.fieldErrors.boardId || (tried.value && problem.value === 'BOARD_REQUIRED' ? UtilPostMessages.moveProblem(t, problem.value) : ''));
 const prefixError = computed(() => props.fieldErrors.prefixId || (tried.value && problem.value === 'SAME_LOCATION' ? UtilPostMessages.moveProblem(t, problem.value) : ''));
 const reasonError = computed(() => props.fieldErrors.reason || (tried.value ? UtilPostMessages.reasonProblem(t, UtilPost.reasonProblem(reason.value)) : ''));
+/** 자주 쓰는 이동 사유의 문구 키 — 고른 문장이 한국어로 그대로 사유가 된다(`PostReasonField`) */
+const reasonPresets = UtilPost.reasonPresetKeys('MOVE');
 
 // 게시판을 바꾸면 말머리를 고른 게시판의 것으로 — 같은 이름이 있으면 그것, 없으면 「말머리 없음」
 watch(boardId, () => {

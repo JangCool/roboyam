@@ -54,6 +54,21 @@ export type PostReasonProblem = 'REQUIRED' | 'TOO_LONG';
 /** 이동 칸의 문제 */
 export type PostMoveProblem = 'BOARD_REQUIRED' | 'SAME_LOCATION';
 
+/** 자주 쓰는 사유 목록이 있는 조치 — 이동 · 숨기기 · 숨김 해제 · 삭제 · 복구(일괄 숨기기·숨김 해제·삭제도 같은 목록) */
+export type PostReasonPresetAction = 'MOVE' | 'HIDE' | 'UNHIDE' | 'DELETE' | 'RESTORE';
+
+/**
+ * 조치별 자주 쓰는 사유(선택 상자 차례) — 문구는 `post.reasonPreset.<조치>.<값>`. 운영정책(`terms-templates/operation-policy.ts` 2절 금지 게시물 · 3절 신고와 처리)의 분류에 맞춘다.
+ * 고른 문장은 화면 언어와 상관없이 **한국어 문장으로 저장**된다(`PostReasonField` — 작성자 알림에 그대로 간다).
+ */
+const REASON_PRESETS: Readonly<Record<PostReasonPresetAction, readonly string[]>> = Object.freeze({
+    MOVE: ['OFF_TOPIC', 'BETTER_BOARD', 'PREFIX', 'GUIDELINE', 'DUPLICATE', 'AUTHOR_REQUEST'],
+    HIDE: ['ABUSE', 'SPAM', 'PRIVACY', 'ADULT', 'RIGHTS', 'BANNED'],
+    UNHIDE: ['REVIEWED', 'REPORT_UNFOUNDED', 'APPEAL', 'TEMPORARY_ENDED'],
+    DELETE: ['POLICY', 'SPAM', 'ILLEGAL', 'PRIVACY', 'RIGHTS', 'DUPLICATE', 'AUTHOR_REQUEST'],
+    RESTORE: ['REVIEWED', 'REPORT_UNFOUNDED', 'APPEAL', 'MISTAKE'],
+});
+
 /** 글 하나의 조치 */
 export type PostActionKind = 'HIDE' | 'UNHIDE' | 'DELETE' | 'RESTORE' | 'MOVE' | 'NOTICE' | 'PIN' | 'UNPIN' | 'FEATURE' | 'UNFEATURE' | 'CANDIDATE' | 'UNCANDIDATE';
 
@@ -313,6 +328,17 @@ export default class UtilPost {
     }
 
     /* ── 사유 ── */
+
+    /**
+     * 조치의 자주 쓰는 사유 — 문구 키(`post.reasonPreset.<조치>.<값>`) 차례. 목록이 없는 조치(공지·고정·고정 해제·투표 지우기)는 빈 배열(입력 칸만).
+     * 맨 끝의 「직접 입력」은 사유 칸(`PostReasonField`)이 붙인다.
+     * @param {PostActionKind | 'POLL_DELETE' | null | undefined} action - 조치(일괄 조치 값도 같다).
+     * @returns {string[]} 문구 키들.
+     */
+    static reasonPresetKeys(action: PostActionKind | 'POLL_DELETE' | null | undefined): string[] {
+        const keys = action && action in REASON_PRESETS ? REASON_PRESETS[action as PostReasonPresetAction] : [];
+        return keys.map((key) => `post.reasonPreset.${action}.${key}`);
+    }
 
     static reasonLength(text: string): number {
         return lengthOf(text.trim());

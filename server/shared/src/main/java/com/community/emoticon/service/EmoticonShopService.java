@@ -19,6 +19,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -70,13 +71,25 @@ public class EmoticonShopService {
         List<EmoticonPublicView.CatalogItem> items = new ArrayList<>();
         StringBuilder canonical = new StringBuilder();
         for (CatalogRow row : reads.catalog()) {
-            String url = content.url(row.storageKey(), row.staticPath());
-            boolean animated = EmoticonContent.animated(row.format(), row.frames());
-            items.add(new EmoticonPublicView.CatalogItem(Long.toString(row.emoticonId()), Long.toString(row.packId()), row.label(), url, animated));
-            canonical.append(row.emoticonId()).append('\u001f').append(row.packId()).append('\u001f').append(row.label()).append('\u001f').append(url).append('\u001f')
-                    .append(animated).append('\n');
+            EmoticonPublicView.CatalogItem item = catalogItem(row);
+            items.add(item);
+            canonical.append(row.emoticonId()).append('\u001f').append(row.packId()).append('\u001f').append(row.label()).append('\u001f').append(item.url())
+                    .append('\u001f').append(item.animated()).append('\n');
         }
         return new CatalogResult(new EmoticonPublicView.Catalog(items), fingerprint(canonical.toString()));
+    }
+
+    /**
+     * 카탈로그 줄 중 이 로보티콘 ID 들만 — 공개 카탈로그와 같은 범위(판매 중 · 판매 중단 팩의 상점 판)·같은 {@code url}·{@code label}. 관리자 글·신고 서랍이 본문 토큰을
+     * 그릴 때 쓴다(관리자 앱은 공개 카탈로그를 부를 수 없다). 카탈로그에 없는 ID 는 빠지고, 차례는 카탈로그 차례(팩 ID → 판의 차례).
+     */
+    public List<EmoticonPublicView.CatalogItem> catalogItems(Collection<Long> emoticonIds) {
+        return reads.catalogOf(emoticonIds).stream().map(this::catalogItem).toList();
+    }
+
+    private EmoticonPublicView.CatalogItem catalogItem(CatalogRow row) {
+        return new EmoticonPublicView.CatalogItem(Long.toString(row.emoticonId()), Long.toString(row.packId()), row.label(),
+                content.url(row.storageKey(), row.staticPath()), EmoticonContent.animated(row.format(), row.frames()));
     }
 
     /**

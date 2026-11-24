@@ -128,12 +128,15 @@ public class AdminPostQueryService {
     private final PostThumbnailChoices thumbnails;
     private final PostFeatureRepository features;
     private final TitleMonthlyCandidateRepository titleCandidates;
+    private final AdminBodyTokenImages tokenImages;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
                                  UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
                                  GroupRepository groupRepository, PostDealRepository deals, PostProcessStatusHistoryRepository statusHistory,
-                                 PostThumbnailChoices thumbnails, PostFeatureRepository features, TitleMonthlyCandidateRepository titleCandidates) {
+                                 PostThumbnailChoices thumbnails, PostFeatureRepository features, TitleMonthlyCandidateRepository titleCandidates,
+                                 AdminBodyTokenImages tokenImages) {
         this.titleCandidates = titleCandidates;
+        this.tokenImages = tokenImages;
         this.features = features;
         this.statusHistory = statusHistory;
         this.thumbnails = thumbnails;
@@ -202,8 +205,9 @@ public class AdminPostQueryService {
         boolean blocked = row.restricted();
         AdminPostContentView content = new AdminPostContentView(post.getContentFormat().name(), post.isPurged() || blocked ? null : post.getContent(),
                 post.getEditedAt());
+        AdminBodyTokenImages.Images images = tokenImages.of(content.body()); // 본문(제목 제외)의 로보티콘·짤 — 본문이 없으면(파기·비공개 소모임) 빈 목록
         return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id), blocked ? null : pollOf(id, now),
-                blocked ? BLOCKED_GROUP_PRIVATE : null, blocked || post.isPurged() ? null : thumbnailOf(post));
+                blocked ? BLOCKED_GROUP_PRIVATE : null, blocked || post.isPurged() ? null : thumbnailOf(post), images.emoticons(), images.jjals());
     }
 
     /** 글 상세의 대표 썸네일(list-thumbnail-contract 「2단계」) — 지금 상태 · 자동 그림 · 고르기 격자(본문 이미지) */

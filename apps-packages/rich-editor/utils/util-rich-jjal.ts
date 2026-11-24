@@ -153,13 +153,21 @@ export default class UtilRichJjal {
      * 여러 번 불러도 안전하다(이미 바꾼 자리는 글자가 아니다).
      * @param {HTMLElement} root - 본문이 든 요소.
      * @param {RichJjalResolve} resolve - ID → 그림(모르면 null).
+     * `fallback` 을 주면 모르는 토큰을 그 짧은 말(`<span title="토큰">`)로 바꾼다 — 짤 정보를 다 받지 못하는 화면(관리자 앱 글·신고 서랍)이 토큰 글자 대신 쓴다. 주지 않으면 글자 그대로(지금 동작).
      * @param {string} blockedLabel - 내려간 짤 자리 글.
-     * @returns {number} 바꾼 수.
+     * @param {string} [fallback] - 모르는 토큰 자리에 넣을 말(화면 언어 — 앱이 번역해 준다).
+     * @returns {number} 바꾼 수(짧은 말로 바꾼 자리 포함).
      */
-    static replaceIn(root: HTMLElement, resolve: RichJjalResolve, blockedLabel: string): number {
+    static replaceIn(root: HTMLElement, resolve: RichJjalResolve, blockedLabel: string, fallback?: string): number {
+        const doc = root.ownerDocument;
         return UtilRichJjal.walk(root, (id, raw) => {
             const image = resolve(id);
-            return image ? UtilRichJjal.element(root.ownerDocument, id, image, blockedLabel) : raw;
+            if (image) return UtilRichJjal.element(doc, id, image, blockedLabel);
+            if (!fallback) return raw;
+            const span = doc.createElement('span');
+            span.textContent = fallback;
+            span.title = raw; // 짤 ID 속성(`ID_ATTR`)은 붙이지 않는다 — 앱이 그 속성으로 누르기(짤 메뉴)를 찾는다
+            return span;
         });
     }
 
