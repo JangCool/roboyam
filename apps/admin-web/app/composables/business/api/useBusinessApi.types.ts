@@ -143,6 +143,8 @@ export interface BusinessDetail extends BusinessRow {
     masked: { representative: string; address: string; phone: string; email: string };
     /** 개업일(`YYYY-MM-DD`, 가리지 않는다) — 개업일 칸이 생기기 전 신청이면 null(진위 미확인) */
     openedOn: string | null;
+    /** 익명화한 시각(ISO) — 반려·탈퇴 5년 뒤 파기 배치가 상호를 「삭제된 사업자」로 바꾸고 등록번호·개업일·신원을 비운 신원, 아니면 null */
+    anonymizedAt: string | null;
     certificate: BusinessCertificate | null;
     serviceCards: BusinessServiceCard[];
     impact: BusinessSuspendImpact;

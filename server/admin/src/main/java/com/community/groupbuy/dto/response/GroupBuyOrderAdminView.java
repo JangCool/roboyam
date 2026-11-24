@@ -126,6 +126,7 @@ public final class GroupBuyOrderAdminView {
     public record Photo(String id, String url) {
     }
 
+    /** 회수 송장 — 5년 지난 주문은 개인정보 파기(R__batch_47)로 {@code trackingNo} 가 null 이고 택배사만 남는다 */
     public record Pickup(String carrierCode, String trackingNo) {
     }
 

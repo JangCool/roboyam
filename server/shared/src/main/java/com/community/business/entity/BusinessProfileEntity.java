@@ -366,6 +366,11 @@ public class BusinessProfileEntity {
         return erasedAt;
     }
 
+    /** 익명화한 시각(R__batch_45 — 광고 신청 건이 가리켜 지우지 못한 신원, 반려·탈퇴 5년 뒤) */
+    public Instant getAnonymizedAt() {
+        return anonymizedAt;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

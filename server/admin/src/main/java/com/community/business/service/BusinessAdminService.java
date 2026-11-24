@@ -499,7 +499,7 @@ public class BusinessAdminService {
                 ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, p.getOpenedOn(), cert, cards,
                 new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running(), impact.trialRecruiting(), impact.trialRunning()), rejection,
                 suspension, history,
-                p.getCertificateDelivery().name(), receipt.received(p));
+                p.getCertificateDelivery().name(), receipt.received(p), p.getAnonymizedAt());
     }
 
     /** 승인 판정의 갈래 — 바로 · 사유를 적으면 */

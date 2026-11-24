@@ -104,7 +104,7 @@
             <!-- ④ 회수·교환·거절 -->
             <section v-if="detail.pickup || detail.receivedAt || detail.exchangeShipment || detail.rejectReasonCode" class="flex flex-col gap-1.5 text-[13px]" :aria-labelledby="`${titleId}-logistics`">
                 <h3 :id="`${titleId}-logistics`" class="text-sm font-semibold">{{ t('groupBuy.secLogistics') }}</h3>
-                <p v-if="detail.pickup" class="m-0 flex items-center gap-2"><i class="pi pi-truck text-muted-color" aria-hidden="true" />{{ t('groupBuy.pickupLine', { carrier: detail.pickup.carrierCode, no: detail.pickup.trackingNo }) }}</p>
+                <p v-if="detail.pickup" class="m-0 flex items-center gap-2"><i class="pi pi-truck text-muted-color" aria-hidden="true" />{{ detail.pickup.trackingNo ? t('groupBuy.pickupLine', { carrier: detail.pickup.carrierCode, no: detail.pickup.trackingNo }) : t('groupBuy.pickupLineErased', { carrier: detail.pickup.carrierCode }) }}</p>
                 <p v-if="detail.receivedAt" class="m-0 flex items-center gap-2"><i class="pi pi-inbox text-green-700 dark:text-green-400" aria-hidden="true" />{{ t('groupBuy.receivedLine', { at: time.date(detail.receivedAt) }) }}</p>
                 <p v-if="detail.exchangeShipment" class="m-0 flex items-center gap-2">
                     <i class="pi pi-send text-sky-700 dark:text-sky-400" aria-hidden="true" />{{ t('groupBuy.exchangeLine', { carrier: detail.exchangeShipment.carrierCode, no: detail.exchangeShipment.trackingNo ?? t('groupBuy.trackingErased'), at: time.shortDateTime(detail.exchangeShipment.shippedAt) }) }}
