@@ -50,7 +50,7 @@
                 <Button type="button" :label="t('groupBuy.actDeliver')" icon="pi pi-check-circle" size="small" severity="success" v-tooltip.top="t('groupBuy.actDeliverHint')" :disabled="!selection.length || working !== null" :loading="working === 'deliver'" @click="bulkDeliver" />
             </template>
             <span class="mx-1 hidden h-5 w-px bg-(--line) sm:inline-block" aria-hidden="true" />
-            <Button v-if="canManage && selectedGroup?.status === 'CLOSED_SUCCESS' && selectedGroup.fulfillment === 'AFTER_CLOSE'" type="button" :label="t('groupBuy.actMarkOrdered')" icon="pi pi-truck" size="small" severity="secondary" variant="outlined" :loading="working === 'ordered'" @click="markOrdered" />
+            <Button v-if="canManage && selectedGroup?.status === 'CLOSED_SUCCESS' && selectedGroup.fulfillment === 'AFTER_CLOSE'" type="button" :label="t('groupBuy.actMarkOrdered')" icon="pi pi-send" size="small" severity="secondary" variant="outlined" :loading="working === 'ordered'" @click="markOrdered" />
             <Button v-if="canExport" type="button" :label="t('groupBuy.actExport')" icon="pi pi-download" size="small" severity="secondary" variant="outlined" :disabled="!applied.groupBuyId" v-tooltip.top="applied.groupBuyId ? undefined : t('groupBuy.exportNeedGroup')" @click="openExport" />
             <span v-if="selection.length > UtilGroupBuy.BULK_MAX" class="text-xs text-red-600 dark:text-red-400">{{ t('groupBuy.bulkTooMany', { max: UtilGroupBuy.BULK_MAX }) }}</span>
         </div>
