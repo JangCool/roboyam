@@ -45,9 +45,9 @@
         <div v-if="canManage || canExport" class="flex flex-wrap items-center gap-2">
             <span class="text-[13px] text-muted-color">{{ t('groupBuy.selectedCount', { n: selection.length }) }}</span>
             <template v-if="canManage">
-                <Button type="button" :label="t('groupBuy.actPrepare')" size="small" severity="secondary" variant="outlined" :disabled="!selection.length || working !== null" :loading="working === 'prepare'" @click="bulkPrepare" />
-                <Button type="button" :label="t('groupBuy.actShip')" icon="pi pi-send" size="small" :disabled="!selection.length || working !== null" @click="openShip(selection)" />
-                <Button type="button" :label="t('groupBuy.actDeliver')" icon="pi pi-check" size="small" severity="secondary" variant="outlined" :disabled="!selection.length || working !== null" :loading="working === 'deliver'" @click="bulkDeliver" />
+                <Button type="button" :label="t('groupBuy.actPrepare')" icon="pi pi-box" size="small" severity="info" v-tooltip.top="t('groupBuy.actPrepareHint')" :disabled="!selection.length || working !== null" :loading="working === 'prepare'" @click="bulkPrepare" />
+                <Button type="button" :label="t('groupBuy.actShip')" icon="pi pi-truck" size="small" v-tooltip.top="t('groupBuy.actShipHint')" :disabled="!selection.length || working !== null" @click="openShip(selection)" />
+                <Button type="button" :label="t('groupBuy.actDeliver')" icon="pi pi-check-circle" size="small" severity="success" v-tooltip.top="t('groupBuy.actDeliverHint')" :disabled="!selection.length || working !== null" :loading="working === 'deliver'" @click="bulkDeliver" />
             </template>
             <span class="mx-1 hidden h-5 w-px bg-(--line) sm:inline-block" aria-hidden="true" />
             <Button v-if="canManage && selectedGroup?.status === 'CLOSED_SUCCESS' && selectedGroup.fulfillment === 'AFTER_CLOSE'" type="button" :label="t('groupBuy.actMarkOrdered')" icon="pi pi-truck" size="small" severity="secondary" variant="outlined" :loading="working === 'ordered'" @click="markOrdered" />
