@@ -14,7 +14,7 @@
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
           가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(8종 전부 — 내용·모양·노출)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
-          편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
+          편집 중에도 기기 노출은 공개 화면과 같다 — PC 미리보기에 「모바일만」 가젯은 그리지 않는다(2026-11-25 사용자 결정, 모바일 가젯은 「모바일」 미리보기에서 고친다). 공개 화면(편집 아님)에는 아무 영향이 없다.
           편집 중에는 칸마다 옅은 점선 윤곽을 그리고, 크기 꼬리표는 최적 칸 수보다 작으면 빨강·크면 주황 알림을 늘 보인다(`UtilGadgetGrid.sizeHint` — 저장은 막지 않는다).
           **한 열(관리자 「모바일」 미리보기, 사용자 2026-11-15 — PC 처럼 실제 화면에서)**: 모바일에 보이는 가젯만 그리고, 같은 점선 손잡이 층에서 위아래로 끌면 놓을 자리 줄을 보이고 놓으면 `order`(그 가젯 앞 `before`, 맨 뒤 null)를 알린다.
           ↑·↓ 단추로 한 칸씩도 옮기고 ⚙ · × 는 PC 와 같다. 크기 손잡이는 없다(크기는 PC 배치). 꼬리표는 「모바일 n번째」.
@@ -31,7 +31,7 @@
             :data-grid-stretched="stretchedOf(cell)"
             :data-grid-height="mode === 'stack' ? undefined : Math.round(cell.height)"
             class="flex min-w-0 flex-col empty:hidden [&>*]:grow"
-            :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind !== 'size' ? 'z-20 opacity-80' : '', mode === 'stack' || cell.gadget.desktop ? '' : 'opacity-50'] : ''"
+            :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind !== 'size' ? 'z-20 opacity-80' : ''] : ''"
             :style="[cellStyle(cell), dragStyle(cell)]"
         >
             <!-- 게시판 레이아웃의 고정 칸 — 게시판 목록(·글 보기) 화면 내용 그대로(`provideBoardLayoutBody`) -->
@@ -155,13 +155,23 @@ const stackRule = useGadgetLookOptions().mobile.order;
 provideGadgetStacked(computed(() => mode.value === 'stack'));
 const columns = computed(() => (mode.value === 'half' ? props.layout.columns / 2 : props.layout.columns));
 
+/**
+ * 편집 중 이 미리보기 기기에 보이는 가젯인가 — 한 열(관리자 「모바일」)은 모바일 켬, 그 밖은 공개 화면처럼 lg 이상이면 PC 켬·아니면 모바일 켬.
+ * 「모바일만」 가젯을 PC 미리보기에 흐리게 그리던 것을 없앴다(사용자 2026-11-25 — 「모바일 단추를 누르지 않았으면 PC 화면이니 모바일 가젯이 보이면 안 된다」).
+ */
+function editShown(g: Gadget): boolean {
+    if (mode.value === 'stack') return g.mobile;
+    return wide.value ? g.desktop : g.mobile;
+}
+
 /** 이 폭에서 그릴 가젯의 운영자 자리 */
 const visibleItems = computed(() => {
-    // 관리자 미리보기 편집 중에는 PC 에서 숨는 가젯도 그린다(흐리게 — 자리를 고칠 수 있게). 한 열(모바일)은 모바일에 보이는 가젯만(모바일 차례에 드는 가젯)
+    // 관리자 미리보기 편집 중에도 공개 화면과 같은 노출 — PC 미리보기는 PC 에 보이는 가젯만, 한 열(모바일)은 모바일에 보이는 가젯만(`editShown`).
+    // 편집 중에만 더 그리는 것은 비어서 감추는 가젯뿐이다(내용이 생기면 보일 자리를 고칠 수 있게)
     // 게시판 본문은 게시판 레이아웃 안에서 늘 그린다(아는 가젯 종류가 아니라 `isVisible` 이 거른다)
     const shown = new Set(
         props.gadgets
-            .filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty && (mode.value !== 'stack' || g.mobile)) || UtilGadget.isVisible(g, wide.value, viewer.value)))
+            .filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty && editShown(g)) || UtilGadget.isVisible(g, wide.value, viewer.value)))
             .map((g) => g.id),
     );
     return props.layout.items.filter((it) => shown.has(it.gadgetId));
