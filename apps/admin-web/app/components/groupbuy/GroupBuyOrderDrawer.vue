@@ -187,10 +187,10 @@
                 <h3 :id="`${titleId}-actions`" class="text-sm font-semibold">{{ t('groupBuy.secOrderActions') }}</h3>
                 <div class="flex flex-wrap items-center gap-2">
                     <template v-if="canManage">
-                        <Button v-if="detail.actions.canPrepare" type="button" :label="t('groupBuy.actPrepare')" size="small" severity="secondary" variant="outlined" :disabled="busy" @click="emit('prepare')" />
-                        <Button v-if="detail.actions.canShip" type="button" :label="t('groupBuy.actShip')" icon="pi pi-send" size="small" :disabled="busy" @click="emit('ship')" />
+                        <Button v-if="detail.actions.canPrepare" type="button" :label="t('groupBuy.actPrepare')" icon="pi pi-box" size="small" severity="info" v-tooltip.top="t('groupBuy.actPrepareHint')" :disabled="busy" @click="emit('prepare')" />
+                        <Button v-if="detail.actions.canShip" type="button" :label="t('groupBuy.actShip')" icon="pi pi-truck" size="small" v-tooltip.top="t('groupBuy.actShipHint')" :disabled="busy" @click="emit('ship')" />
                         <Button v-if="detail.actions.canFixTracking" type="button" :label="t('groupBuy.actFixTracking')" size="small" severity="secondary" variant="outlined" :disabled="busy" @click="emit('fixTracking')" />
-                        <Button v-if="detail.actions.canDeliver" type="button" :label="t('groupBuy.actDeliver')" icon="pi pi-check" size="small" severity="secondary" variant="outlined" :disabled="busy" @click="emit('deliver')" />
+                        <Button v-if="detail.actions.canDeliver" type="button" :label="t('groupBuy.actDeliver')" icon="pi pi-check-circle" size="small" severity="success" v-tooltip.top="t('groupBuy.actDeliverHint')" :disabled="busy" @click="emit('deliver')" />
                     </template>
                     <Button v-if="canRefund && detail.actions.refundMode" type="button" :label="t('groupBuy.actRefund')" icon="pi pi-undo" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('refund')" />
                 </div>
