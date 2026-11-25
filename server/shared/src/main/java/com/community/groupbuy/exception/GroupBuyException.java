@@ -65,6 +65,11 @@ public class GroupBuyException extends CommonException {
     // 2b-4 설정·관리자 API
     public static final String SHIPPING_POLICY_STARTED = "COMMERCE_SHIPPING_POLICY_STARTED";
     public static final String CATEGORY_IN_USE = "GROUP_BUY_CATEGORY_IN_USE";
+    // 결정 90 배송 상태 자동 반영(스마트택배)
+    public static final String TRACKING_KEY_MISSING = "COMMERCE_TRACKING_KEY_MISSING";
+    public static final String TRACKING_KEY_ERROR = "COMMERCE_TRACKING_KEY_ERROR";
+    public static final String TRACKING_NOT_AVAILABLE = "GROUP_BUY_TRACKING_NOT_AVAILABLE";
+    public static final String TRACKING_DAILY_LIMIT = "GROUP_BUY_TRACKING_DAILY_LIMIT";
 
     private GroupBuyException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -334,5 +339,25 @@ public class GroupBuyException extends CommonException {
     /** 발송 이력이 있는 택배사는 지우지 못하고 끄기만(결정 11) */
     public static GroupBuyException carrierInUse(java.util.List<String> codes) {
         return new GroupBuyException(HttpStatus.CONFLICT, CARRIER_IN_USE).with("codes", codes);
+    }
+
+    /** 스마트택배 API 키가 없다(결정 90) */
+    public static GroupBuyException trackingKeyMissing() {
+        return new GroupBuyException(HttpStatus.CONFLICT, TRACKING_KEY_MISSING);
+    }
+
+    /** 스마트택배가 키를 받지 않았다(101 키 없음 · 102 만료 · 103 사용량 초과) — 오류 본문 {@code providerCode} */
+    public static GroupBuyException trackingKeyError(String code) {
+        return new GroupBuyException(HttpStatus.CONFLICT, TRACKING_KEY_ERROR).with("providerCode", code);
+    }
+
+    /** 지금 조회할 수 있는 발송이 없다(배송완료됐거나 택배사에 스마트택배 코드가 없다) */
+    public static GroupBuyException trackingNotAvailable() {
+        return new GroupBuyException(HttpStatus.CONFLICT, TRACKING_NOT_AVAILABLE);
+    }
+
+    /** 같은 송장 하루 조회 수(20회)를 다 썼다 */
+    public static GroupBuyException trackingDailyLimit() {
+        return new GroupBuyException(HttpStatus.CONFLICT, TRACKING_DAILY_LIMIT);
     }
 }

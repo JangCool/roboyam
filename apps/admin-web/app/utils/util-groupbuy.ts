@@ -90,6 +90,22 @@ export default class UtilGroupBuy {
         return 'secondary';
     }
 
+    /**
+     * 스마트택배 단계(결정 90 — 0 스캔 없음 ~ 6 배송 완료)를 문구 키 끝마디로 — 범위 밖 값은 0.
+     * @example UtilGroupBuy.trackingLevelKey(3) // '3'
+     */
+    static trackingLevelKey(level: number): string {
+        return Number.isInteger(level) && level >= 0 && level <= 6 ? String(level) : '0';
+    }
+
+    /** 단계 색 — 조회 전·스캔 없음·배송준비중은 회색, 이동 중은 파랑, 배송출발은 주황, 완료는 초록 */
+    static trackingLevelSeverity(level: number | null): GroupBuyTagSeverity {
+        if (level === 6) return 'success';
+        if (level === 5) return 'warn';
+        if (level !== null && level >= 2) return 'info';
+        return 'secondary';
+    }
+
     static requestSeverity(status: GroupBuyRequestStatus): GroupBuyTagSeverity {
         if (status === 'REQUESTED') return 'warn';
         if (status === 'APPROVED') return 'info';

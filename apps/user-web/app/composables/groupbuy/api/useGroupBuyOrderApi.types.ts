@@ -97,6 +97,23 @@ export interface MyGroupBuyShipment {
     kind: 'ORIGINAL' | 'EXCHANGE';
     shippedAt: string;
     deliveredAt: string | null;
+    /** 스마트택배 단계(결정 90) — 0 스캔 없음 · 1 배송준비중 · 2 집화완료 · 3 배송중 · 4 지점 도착 · 5 배송출발 · 6 배송 완료. 아직 조회 전이면 null */
+    level: number | null;
+    /** 택배사가 배송 완료라고 했다 */
+    complete: boolean;
+    /** 시각·진행 상태·위치·단계 이력(기사 이름·전화 없음) */
+    events: MyGroupBuyTrackingEvent[];
+    /** 마지막 조회(아직 조회 전이면 null) */
+    lastCheckedAt: string | null;
+}
+
+/** 배송 추적 이력 한 줄 */
+export interface MyGroupBuyTrackingEvent {
+    time: string;
+    /** 택배사가 준 진행 상태 글 */
+    kind: string;
+    where: string;
+    level: number;
 }
 
 export interface MyGroupBuyRequestItem {

@@ -4,7 +4,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 발송 — shared V102.
@@ -29,6 +32,24 @@ public class GroupBuyShipmentEntity {
     private Boolean escrowApplicable;
     private Instant escrowLogisticsAt;
     private Instant escrowCompletedAt;
+    // ── 배송 추적(V272 — 결정 90, 쓰기는 ParcelTrackingStore) ──
+    /** 마지막 조회 단계(0 스캔 없음 ~ 6 배송 완료) */
+    private Integer trackingLevel;
+    private Boolean trackingComplete;
+    /** 이력 jsonb {@code [{time,kind,where,level}]} — 기사 이름·전화 없음 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String trackingEvents;
+    private Instant trackingCheckedAt;
+    private Instant trackingNextAt;
+    private Integer trackingFailCount;
+    private String trackingErrorCode;
+    /** 하루 조회 수의 KST 날짜 */
+    private LocalDate trackingDay;
+    private Integer trackingDayCount;
+    /** 택배사가 준 완료 시각 */
+    private Instant trackingCompletedAt;
+    /** 완료를 받았지만 자동 배송완료를 하지 않은 사유(BEFORE_SHIPPED · IN_FUTURE) */
+    private String trackingHoldReason;
     private Long createdBy;
     private Instant createdAt;
     private Instant updatedAt;

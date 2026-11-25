@@ -2,7 +2,7 @@
     <!--
         공구 주문 상세 서랍 — 주문 목록에서 줄을 누르면 연다(`?order=ID`). 열리는 쪽은 설정의 「서랍 위치」. 서버가 열 때마다 열람 감사(`GROUPBUY_ORDER_VIEW`)를 남긴다는 한 줄은 본문 맨 위 요약 영역(`DrawerSummary` — 공구·회원·열린 요청)에 둔다. 머리는 주문 번호 · 주문 상태.
         구획: ① 금액(주문·환불 누계·보상·남은 결제액)과 주문 줄(취소·반품·다시 판매 수량) ② 결제 ③ 배송지(가린 값 — 「배송지 열람」은 사유 5~200자 → 남은 시간 뒤 다시 가림, 열람 기록)
-        ④ 배송(송장·조회 링크·교환 재발송) ⑤ 환불 기록(진행 표시 — 결정 16) ⑥ 운영 메모 ⑦ 상태 이력 ⑧ 운영 동작(준비중·발송·송장 정정·배송완료·운영 환불).
+        ④ 배송(송장·조회 링크·교환 재발송 · 줄마다 스마트택배 단계·이력 `GroupBuyShipmentTracking` + 머리의 [지금 조회] — 결정 90) ⑤ 환불 기록(진행 표시 — 결정 16) ⑥ 운영 메모 ⑦ 상태 이력 ⑧ 운영 동작(준비중·발송·송장 정정·배송완료·운영 환불).
         서버는 부르지 않는다(`components.md`) — 동작은 emit 으로 올리고, 열람한 배송지(`revealed`)는 부르는 쪽 메모리에만 두고 `revealExpiresAt` 이 지나면 지운다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '48rem', maxWidth: '100vw' }">
@@ -109,17 +109,25 @@
 
             <!-- ④ 배송 -->
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-ship`">
-                <h3 :id="`${titleId}-ship`" class="text-sm font-semibold">{{ t('groupBuy.secShipment') }}</h3>
+                <div class="flex flex-wrap items-center gap-2">
+                    <h3 :id="`${titleId}-ship`" class="text-sm font-semibold">{{ t('groupBuy.secShipment') }}</h3>
+                    <!-- [지금 조회] — 주문 단위(배송완료 전 발송 줄을 모두 조회, 결정 90). 키만 있으면 자동 조회가 꺼져도 된다 -->
+                    <Button v-if="canManage && pendingShipments.length" type="button" :label="t('groupBuy.trkRefresh')" icon="pi pi-refresh" size="small" severity="secondary" variant="outlined" class="ml-auto" :loading="refreshing" :disabled="busy || !!refreshBlocked" @click="emit('refreshTracking')" />
+                </div>
+                <p v-if="canManage && refreshBlocked" class="m-0 text-xs text-muted-color">{{ refreshBlocked }}</p>
                 <p class="m-0 text-xs text-muted-color">{{ detail.shipDueAt ? t('groupBuy.shipDue', { at: time.date(detail.shipDueAt) }) : t('groupBuy.shipDueNone') }}</p>
                 <p v-if="!detail.shipments.length" class="m-0 text-[13px] text-muted-color">{{ t('groupBuy.shipmentsEmpty') }}</p>
                 <ul v-else class="m-0 flex list-none flex-col gap-1 p-0">
-                    <li v-for="(s, i) in detail.shipments" :key="i" class="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
-                        <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" :severity="s.kind === 'EXCHANGE' ? 'warn' : 'info'" icon="pi pi-truck" />
-                        <span>{{ s.carrierName }}</span>
-                        <code v-if="s.trackingNo" class="text-xs">{{ s.trackingNo }}</code>
-                        <span v-else class="text-xs text-muted-color">{{ t('groupBuy.trackingErased') }}</span>
-                        <a v-if="s.trackingUrl" :href="s.trackingUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary hover:underline">{{ t('groupBuy.trackLink') }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /></a>
-                        <span class="ml-auto text-[11px] text-muted-color">{{ t('groupBuy.shippedAt', { at: time.shortDateTime(s.shippedAt) }) }}<template v-if="s.deliveredAt"> · {{ t('groupBuy.deliveredAt', { at: time.shortDateTime(s.deliveredAt) }) }}</template></span>
+                    <li v-for="s in detail.shipments" :key="s.id" class="flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" :severity="s.kind === 'EXCHANGE' ? 'warn' : 'info'" icon="pi pi-truck" />
+                            <span>{{ s.carrierName }}</span>
+                            <code v-if="s.trackingNo" class="text-xs">{{ s.trackingNo }}</code>
+                            <span v-else class="text-xs text-muted-color">{{ t('groupBuy.trackingErased') }}</span>
+                            <a v-if="s.trackingUrl" :href="s.trackingUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary hover:underline">{{ t('groupBuy.trackLink') }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /></a>
+                            <span class="ml-auto text-[11px] text-muted-color">{{ t('groupBuy.shippedAt', { at: time.shortDateTime(s.shippedAt) }) }}<template v-if="s.deliveredAt"> · {{ t('groupBuy.deliveredAt', { at: time.shortDateTime(s.deliveredAt) }) }}</template></span>
+                        </div>
+                        <GroupBuyShipmentTracking :tracking="s.tracking" :delivered-at="s.deliveredAt" />
                     </li>
                 </ul>
             </section>
@@ -221,6 +229,8 @@ interface Props {
     memoBusy?: boolean;
     /** 동작 하나가 도는 중 */
     busy?: boolean;
+    /** [지금 조회] 도는 중 */
+    refreshing?: boolean;
     /** `commerce.order.manage` */
     canManage?: boolean;
     /** `commerce.refund.approve` */
@@ -229,8 +239,8 @@ interface Props {
     canReveal?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, revealed: null, revealBusy: false, memoBusy: false, busy: false, canManage: false, canRefund: false, canReveal: false });
-const emit = defineEmits<{ retry: []; reveal: []; saveMemo: [memo: string]; prepare: []; ship: []; fixTracking: []; deliver: []; refund: [] }>();
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, revealed: null, revealBusy: false, memoBusy: false, busy: false, refreshing: false, canManage: false, canRefund: false, canReveal: false });
+const emit = defineEmits<{ retry: []; reveal: []; saveMemo: [memo: string]; prepare: []; ship: []; fixTracking: []; deliver: []; refund: []; refreshTracking: [] }>();
 
 const { t, te, locale } = useI18n();
 const time = useDisplayTime();
@@ -322,6 +332,18 @@ function statusDot(status: GroupBuyOrderDetail['status']): string {
     if (severity === 'contrast') return 'bg-surface-700 dark:bg-surface-200';
     return 'bg-surface-400';
 }
+
+/** 배송완료 전 발송 줄 — 이것이 있을 때만 [지금 조회]를 보인다 */
+const pendingShipments = computed(() => (props.detail?.shipments ?? []).filter((s) => !s.deliveredAt));
+/** [지금 조회]를 막는 이유(화면이 미리 알리는 것 — 판정은 서버): 조회할 수 있는 줄 없음 · 모두 받은 완료 보류 · 오늘 한도를 다 씀 */
+const refreshBlocked = computed(() => {
+    const pending = pendingShipments.value;
+    if (!pending.length) return '';
+    const trackable = pending.filter((s) => s.tracking.available && !s.tracking.complete);
+    if (!trackable.length) return pending.some((s) => s.tracking.available) ? t('groupBuy.trkRefreshCompleted') : t('groupBuy.trkRefreshNotAvailable');
+    if (trackable.every((s) => s.tracking.todayCount >= s.tracking.dailyLimit)) return t('groupBuy.trkRefreshLimit');
+    return '';
+});
 
 const shipBlockedText = computed(() => {
     const d = props.detail;

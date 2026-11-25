@@ -6,7 +6,7 @@
 **community 와의 관계**: 큰 줄기는 community 커머스와 같고 irobit 이 더 엄격하다(늦은 결제는 살리지 않고 자동 취소). 에스크로·영업일·고객 택배비 보상·계좌 송금은 irobit 설계가 정본.
 
 ## 범위 밖
-- **뒤 단계로 미룸**: 공구 포인트 결제(commerce.md 11절 — 3+ 단계, 열만 둔다: 결정 76) · 회원 주최 공구 · 택배사 API(배송완료는 운영자 — 결정 7) · 매출·정산 화면과 세금계산서 요청·발행(16-2) · 구매 확정 단추 · 저장된 배송지 불러오기 · 1:1 문의(공구 밖 문의는 사업자 정보의 전화·이메일) · 장바구니(결정 88) · 입력형 옵션(각인 문구 등 — 주문 줄에 적는 글)·주문 제작 공구(결정 55).
+- **뒤 단계로 미룸**: 공구 포인트 결제(commerce.md 11절 — 3+ 단계, 열만 둔다: 결정 76) · 회원 주최 공구 · 택배사 직접 연동(운송장 발급·집화·회수 접수 — 배송 상태는 스마트택배 조회로: 결정 90) · 매출·정산 화면과 세금계산서 요청·발행(16-2) · 구매 확정 단추 · 저장된 배송지 불러오기 · 1:1 문의(공구 밖 문의는 사업자 정보의 전화·이메일) · 장바구니(결정 88) · 입력형 옵션(각인 문구 등 — 주문 줄에 적는 글)·주문 제작 공구(결정 55).
 - **하지 않기로 함**:
   - **쿠폰·프로모션(장바구니·등급 할인·정기 결제 포함)은 하지 않는다** — 공구가 자체가 할인이고, 부분 환불 계산이 복잡해지며 1인 운영으로 악용 관리가 어렵다. 이벤트성 혜택은 회원 포인트 지급으로 대신한다(사용자 결정 2026-10-29). 실제 운영에서 요청이 생기면 그때 검토.
   - 발송 지연 보상(결정 52 — 자리도 두지 않는다).
@@ -88,7 +88,7 @@
 4. **에스크로**: `PaymentGateway.registerEscrowLogistics`·`completeEscrow` — 발송 처리 때 에스크로 결제 건이면 배송 정보 등록(가짜 PG 는 기록만). 주문서에는 「결제대금예치 선택 가능」 고지만(체크 칸 없음). 실제 적용 범위는 dev 확인(「남은 일」).
 5. **현금영수증**: 카드·간편결제만 받으므로 주문서 입력은 두지 않고 표 열만(SDK 현금영수증 인자는 가상계좌·계좌이체용).
 6. **계좌 송금 표** `commerce_bank_transfers`(V102 — 계좌 암호문 `IROBIT_DATA_KEY`, 「송금 완료」 후 계좌 삭제): 보상이 남은 결제액을 넘는 부분(9-3)·PG 로 못 돌려주는 환불(67). 3단계 충전 환불도 이어 쓴다.
-7. **배송완료**: 운영자가 처리(일괄 가능). 자동 배송완료 없음(청약철회 7일의 시작점이라 추측하지 않는다). 누락은 대시보드 「발송 뒤 7일 지난 SHIPPED」.
+7. **배송완료**: 운영자가 처리(일괄 가능) **또는 스마트택배 조회가 「배송 완료」를 주면 자동(→ 결정 90, 2026-11-25 사용자 결정)**. 추측으로 시작하지 않는다 — 자동 완료 시각은 택배사가 준 완료 시각, 조회가 안 되는 송장은 기본값으로 운영자 처리. 누락은 대시보드 「발송 뒤 7일 지난 SHIPPED」. (고침)
 8. **영업일**: ~~주말 + 관리자 휴일 목록(`group_buy_settings`, 설정 화면 편집), 공휴일 API 없음~~ → **쉬는 날 = 사이트 휴일 표 하나**(사용자 지시 2026-11-05): 토·일 + `site_holidays`(공공데이터 공휴일 — 매월 1일 배치 `holiday-sync` · 기본값 · 운영자가 넣는 회사 휴무일) 의 모든 날, 판정은 `BusinessDayCalendar` 하나(`GroupBuyStore#settings().calendar()`). 공구 설정의 휴일 칸은 없앴고 옛 값은 회사 휴무일 「공동구매 휴일(옮김)」로 옮겼다(V150). 휴일은 「설정 › 시스템 › 휴일 관리」(`/settings/holidays`)에서 정한다. 이미 정해 저장한 기한은 휴일이 바뀌어도 다시 계산하지 않는다. 2·3영업일 기한(P35)·환불 기한 표시·발송 기한·공급 불가 선택 기한·Q&A 답변 기한이 같이 쓴다.
 9. **공구 COMPLETED**: 선착순 즉시 발송은 마감됐고 수량에 든 주문이 모두 DELIVERED·CANCELED·REFUNDED 이면. 마감 후 발주는 `ORDERED → SHIPPING`(첫 발송 처리) `→ COMPLETED`(같은 조건). 판단은 배송완료 트랜잭션이 아니라 1분 워커의 조건부 sweep(`… WHERE NOT EXISTS 진행 중 주문`). 반품 요청은 COMPLETED 뒤에도 받는다(주문·요청 기준).
 10. **공구 설정**(`GroupBuySettingsService` — 범위·처음 값의 정본, 바뀐 칸만 전→후 감사 `GROUPBUY_SETTINGS_UPDATE`): 선점 5분(3~30) · 성사형 기간 상한 14일 · 선착순 30일 · 연장 최대 30분 · 연장 판단 창 5분 · 판정 여유 2분 · 고객 택배비 보상 상한(`compensation_cap`) 10,000원 · 고액 환불 문턱 100,000원(0 = 끔) · 배송지 열람 유지 10분 · ~~휴일 목록~~(휴일 관리로 옮김 — 결정 8) · 만료 주문 배송지 보관 30일 · 즉시 발송 기본 3영업일(51) · 공급 불가 선택 기한 3영업일(53) · Q&A 답변 기한 2영업일(60).
@@ -229,6 +229,16 @@
     - **모집 시작 사본**: 상품 내용(이름·설명·이미지·축·단품·고시)의 사본을 공구 수정 이력에 남긴다(표시·광고 기록, 공급가는 넣지 않음).
     - **카테고리** `group_buy_categories`: 2단(앱 검사)·이름 유일 (부모, 이름)·차례·숨김, 상품이 있으면 못 지움, 통째 저장, 감사 `GROUPBUY_CATEGORY_SAVE`. 회원 목록 필터(`publicList(categoryId)`): 공개된 공구(중단 제외), 위 단을 고르면 아래 단 포함, 숨긴 카테고리(숨긴 부모 아래 포함) 제외.
     - **공급가**: 상품 단품 기본 공급가(선택)를 공구 단품으로 복사해 고친다. DRAFT 는 비워도 저장, **모집 시작 때 모든 공구 단품(MAIN·ADDON, 판매 끈 것 포함)에 필수**(0 은 명시 입력만, 빈 값 409 `GROUP_BUY_SUPPLY_PRICE_MISSING {skuIds}`). 판매가 < 공급가면 `marginConfirmed` 없이 409 `GROUP_BUY_NEGATIVE_MARGIN {skuIds}`(화면이 이름으로 바꿔 확인 창 → `marginConfirmed: true` 로 다시, 모집 시작 감사에 `negativeMarginSkus`). 모집 뒤 공구 수정은 공급가만(`PATCH …/content` — 비우기 거절, 판매가보다 크게 올리면 확인, 단품마다 감사 `GROUPBUY_SUPPLY_PRICE`). 보는 권한 `commerce.product.price`·`commerce.settlement.read`, 회원 응답에는 없다.
+
+90. **배송 상태 자동 반영 — 스마트택배(스윗트래커) 조회 API**(2026-11-25 사용자 결정 — 흔한 쇼핑몰 방식):
+    - **연동**: 조회 API `POST https://info.sweettracker.co.kr/api/v1/trackingInfo`(JSON `t_key`·`t_code`·`t_invoice` — GET 은 2026-12-01 종료, TLS 1.2 이상). 응답 `level`(0 스캔 없음·1 배송준비중·2 집화완료·3 배송중·4 지점 도착·5 배송출발·6 배송 완료)·`complete`·`trackingDetails[]`(`timeString` KST·`kind`·`where`·`level`). 오류 101 키 없음·102 만료·103 사용량 초과·104 운송장/코드 잘못·105 같은 송장 하루 제한(20회)·106 조회 오류. 추적 API(콜백)는 연간 계약이라 뒤로 — 조회 부분을 갈아 끼울 수 있게 둔다.
+    - **택배사 코드**: `commerce_carriers` 에 스마트택배 코드 칸(시드 CJ 04·HANJIN 05·LOGEN 06·LOTTE 08·EPOST 01·KDEXP 23, 운영자가 고칠 수 있음). 비면 그 택배사는 자동 조회 안 함.
+    - **조회 배치**(admin, `irobit.batch.enabled` 서버만): 발송 줄 중 배송완료 전(주문 SHIPPED·교환 재발송 포함)만, 설정 주기(기본 3시간)마다. 송장당 하루 20회 안. 104·106·스캔 없음이 이어지면 간격을 늘리고 실패 횟수·사유를 남긴다. 101·102·103(키 문제)은 그 회차를 멈추고 운영자 알림 한 번.
+    - **반영**: 단계·이력·마지막 조회 시각을 발송 줄에 저장(회원·관리자 화면). level 6(또는 `complete`)이면 **택배사 완료 시각**(완료 단계 `timeString`, 없으면 조회 시각)으로 운영자 배송완료와 같은 처리(조건부 전이 — 이미 운영자가 했으면 아무것도 안 함, 이력 행위자 = 시스템, 감사 `AUTO` 표시, 회원 알림·에스크로 그대로). 완료 시각이 발송 시각보다 이르거나 미래면 자동 처리하지 않고 운영자 몫.
+    - **조회가 안 되는 송장**: 기본은 운영자 처리(「배송 지연」 알림 그대로). 설정 「발송 뒤 N일 자동 배송완료」(기본 꺼짐, 켜면 N 기본 10일)를 켜면 N일 지난 SHIPPED 를 그 시각으로 자동 완료.
+    - **설정**(`/settings/commerce` 택배사 구획): 자동 조회 켜기·주기·API 키(암호화 저장, 화면에는 「설정됨」만 — 바꾸기·지우기, 감사)·이용권 남은 양 보기·N일 자동 완료.
+    - **화면**: 관리자 주문 서랍에 단계·이력·마지막 조회·실패 사유 + [지금 조회](`commerce.order.manage` 권한, 하루 제한 안). 회원 `/me/orders/{orderNo}` 에 단계 표시(집화 → 배송중 → 배송출발 → 배송완료)와 시각·위치 이력(마지막 조회 기준), 택배사 조회 링크는 그대로.
+    - **구현에서 정한 세부**(V272): 택배사 `sweettracker_code`(숫자·영문 1~10자, 통째 저장에서 칸이 빠지면 저장된 값 그대로·빈 글이면 지움) · 발송 줄 `tracking_level`·`tracking_complete`·`tracking_events`(jsonb `[{time,kind,where,level}]`)·`tracking_checked_at`·`tracking_next_at`·`tracking_fail_count`·`tracking_error_code`·`tracking_day`/`tracking_day_count`(KST)·`tracking_completed_at`·`tracking_hold_reason` · 설정 `commerce_tracking_settings`(1행 — 주기 60~1440분 기본 180 · N 3~30일 기본 10 · 키 `SecretEncryptor` 암호문 · 키 오류 알림 상태). 배치 admin `GroupBuyTrackingScheduler` 5분 바퀴(워커 `groupbuy-tracking`) — 한 바퀴 50줄, 발송 30일 안, 줄마다 `SKIP LOCKED` + 10분 임대. 하루 20회 중 배치 18회(남은 2회는 [지금 조회]), 다 쓰면 다음 조회 KST 내일 0시. 실패 간격: 1~2번째 주기 · 3번째 ×2 · 4번째 ×4 · 5번째부터 ×8(최대 24시간), 단계 1 이상이면 0. 완료 시각은 단계 6 이력의 `timeString`(KST) → 없으면 조회 시각, 지금 + 10분 넘으면 미래. 완료를 받은 줄(보류 포함)은 더 자동 조회하지 않음. 주문 이력 사유 `DELIVER_TRACKING`·`DELIVER_AFTER_DAYS`(배치 행위자 시스템, [지금 조회]는 누른 운영자). 감사: `GROUPBUY_FULFILLMENT`(`step=DELIVER`·`auto=TRACKING|AFTER_DAYS`·`via=BATCH|REFRESH`, 교환은 `step=EXCHANGE_DELIVER`) · `COMMERCE_TRACKING_SETTINGS_UPDATE`·`COMMERCE_TRACKING_KEY_UPDATE`·`COMMERCE_TRACKING_KEY_DELETE`(일반). 운영자 알림 `COMMERCE_TRACKING_KEY_ERROR`(설정·주문 처리 권한, 같은 코드 한 번). 오류 409 `COMMERCE_TRACKING_KEY_MISSING`·`COMMERCE_TRACKING_KEY_ERROR`(`providerCode`)·`GROUP_BUY_TRACKING_NOT_AVAILABLE`·`GROUP_BUY_TRACKING_DAILY_LIMIT`. 배송완료에 회원 알림은 원래 없다(운영자 배송완료와 같음).
 
 ## 구현에서 정한 세부 (단위별 번호 — 코드가 「2b-N 정한 세부 n」으로 가리킨다)
 결정으로 옮긴 것은 「→ 결정 N」만 적는다.
@@ -402,6 +412,12 @@
 | 워커 | 배치를 켠 서버만·워커 따로·워커 기록·가린 오류 · 기한 점검 | admin `GroupBuyStateSchedulerTest` · `기한_점검은_…` |
 | 결정 11·87 | local 시드(조건 검사 통과해 켬·예시 품목 여덟 고시 완성·공구 여덟·이름으로 가리는 단품 여럿) | admin `GroupBuyLocalSeederTest` |
 | 홈 가젯 | 모집 중만·마감 순·줄 모양 / 공개 전·집계 중·숨긴 카테고리 제외 / `count` 1~10·기본 5 / 판매 꺼짐 | api `GadgetGroupBuyTest`(4) |
+| 결정 90 | 중간 단계는 단계·이력(기사 이름·전화 없음)·다음 조회만 | `GroupBuyParcelTrackingTest.결정90_중간_단계는_…` · `SweetTrackerClientTest`(5) |
+| 결정 90·7·14 | 단계 6 → 택배사 완료 시각으로 DELIVERED · 이력 `DELIVER_TRACKING` 행위자 시스템 · 감사 `auto=TRACKING` · 구매 확정 7일도 그 시각 기준 | `GroupBuyParcelTrackingTest.결정90_배송_완료면_…` |
+| 결정 90 | 이미 운영자가 배송완료한 주문은 무변화 · 완료 시각이 발송 전/미래면 자동 안 함(사유 `BEFORE_SHIPPED`·`IN_FUTURE`) | `GroupBuyParcelTrackingTest.결정90_이미_운영자가_…` · `결정90_완료_시각이_…` |
+| 결정 90 | 송장당 하루 20회(배치 18) · 105 · 104·스캔 없음 반복 간격 늘림 · 키 오류는 회차 중단 + 알림 한 번 | `GroupBuyParcelTrackingTest.결정90_송장당_…` · `결정90_104가_…` · `결정90_키_오류는_…` |
+| 결정 90 | 자동 조회 꺼짐·키 없음·코드 없는 택배사 제외 · N일 자동 배송완료 켬/끔(발송 + N일 시각) · 교환 재발송은 그 줄만 · [지금 조회] | `GroupBuyParcelTrackingTest.결정90_자동_조회_꺼짐_…` · `결정90_발송_뒤_N일_…` · `결정90_지금_조회는_…` |
+| 결정 90 | API 키 암호문·응답/감사에 값 없음 · 설정 범위·바뀐 칸만 감사 · 택배사 스마트택배 코드 | `GroupBuyParcelTrackingTest.결정90_API_키는_…` · `결정90_택배사_…` · admin `GroupBuyAdminHttpTest.결정90_…`(둘) · api `GroupBuyHttpTest.결정90_…` |
 
 ## 2b-5 로컬 실제 확인 (포트원 테스트 채널 KG이니시스 V2 카드 — 결제만 포트원, 본인인증은 가짜)
 | 확인 | 결과 |

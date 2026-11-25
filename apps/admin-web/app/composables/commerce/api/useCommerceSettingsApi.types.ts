@@ -83,6 +83,8 @@ export interface CarrierLine {
     active: boolean;
     /** 발송 이력이 있다(지우지 못하고 끄기만 — 결정 11) */
     used: boolean;
+    /** 스마트택배 택배사 코드(결정 90 — 숫자·영문 1~10자, 비면 null = 자동 조회 안 함) */
+    sweetTrackerCode: string | null;
 }
 
 /** `GET`·`PUT /api/admin/commerce/carriers`(목록 통째로 저장, 차례 = 배열 차례) */
@@ -93,7 +95,8 @@ export interface CarrierList {
 }
 
 export interface CarrierSaveRequest {
-    items: { code: string; name: string; trackingUrlTemplate: string; active: boolean }[];
+    /** `sweetTrackerCode` 빈 글 = 지움, 빠지면 저장된 값 그대로(결정 90) */
+    items: { code: string; name: string; trackingUrlTemplate: string; active: boolean; sweetTrackerCode?: string }[];
 }
 
 /**
@@ -194,4 +197,51 @@ export interface GroupBuySettingsView {
 
 export interface GroupBuySettingsSaveRequest {
     values: GroupBuySettingsValues;
+}
+
+// ── 배송 조회(스마트택배) — 계약 결정 90 ─────
+
+/** 배송 조회 설정 값 — 주기는 분(범위·기본값은 서버 `ranges`·`defaults`) */
+export interface TrackingSettingsValues {
+    /** 자동 조회(배치) 켜기 — 꺼져도 [지금 조회]는 키만 있으면 된다 */
+    enabled: boolean;
+    intervalMinutes: number;
+    /** 발송 뒤 N일 자동 배송완료(기본 꺼짐) */
+    autoDeliverEnabled: boolean;
+    autoDeliverDays: number;
+}
+
+/**
+ * `GET`·`PUT /api/admin/commerce/tracking-settings`(키 저장·지우기도 이 모양) — **API 키 값은 없다**(`apiKeyConfigured` 설정됨 여부만).
+ * `cryptoConfigured=false` 면 서버 암호화 키가 없어 키를 저장하지 못한다(503 `CRYPTO_KEY_MISSING`).
+ */
+export interface TrackingSettingsView {
+    values: TrackingSettingsValues;
+    defaults: TrackingSettingsValues;
+    ranges: Record<'intervalMinutes' | 'autoDeliverDays', { min: number; max: number }>;
+    apiKeyConfigured: boolean;
+    cryptoConfigured: boolean;
+    keyUpdatedAt: string | null;
+    keyUpdatedBy: string | null;
+    /** 지금 키가 받는 오류(101 키 없음 · 102 만료 · 103 사용량 초과, 없으면 null) */
+    keyAlertCode: string | null;
+    keyAlertAt: string | null;
+    updatedAt: string | null;
+    updatedBy: string | null;
+}
+
+/** `PUT /api/admin/commerce/tracking-settings` — 400 `fields.values.<칸>` */
+export interface TrackingSettingsSaveRequest {
+    values: TrackingSettingsValues;
+}
+
+/** `GET /api/admin/commerce/tracking-settings/usage` — 스마트택배를 한 번 부른다. `outcome` 이 OK 가 아니면 `errorCode`(101~106 · HTTP_404 · TIMEOUT · ERROR) */
+export interface TrackingUsageView {
+    outcome: string;
+    errorCode: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    totalAmount: number | null;
+    leftAmount: number | null;
+    checkedAt: string;
 }

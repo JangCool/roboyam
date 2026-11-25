@@ -134,6 +134,7 @@
             :reveal-busy="revealBusy"
             :memo-busy="memoBusy"
             :busy="working !== null"
+            :refreshing="working === 'refreshTracking'"
             :can-manage="canManage"
             :can-refund="can('commerce.refund.approve')"
             :can-reveal="can('commerce.address.reveal')"
@@ -144,6 +145,7 @@
             @ship="drawerDetail && openShip([drawerDetail])"
             @deliver="drawerDetail && runBulk('deliver', [drawerDetail.id])"
             @fix-tracking="openFix"
+            @refresh-tracking="refreshTracking"
             @refund="openRefund"
         />
 
@@ -213,7 +215,7 @@ interface OrderFilter {
     q: string;
 }
 type AppliedQuery = Omit<GroupBuyOrderQuery, 'page' | 'size' | 'status'>;
-type Work = 'prepare' | 'ship' | 'deliver' | 'ordered' | 'fix' | 'refund' | 'export';
+type Work = 'prepare' | 'ship' | 'deliver' | 'ordered' | 'fix' | 'refund' | 'export' | 'refreshTracking';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('groupBuy.ordersTitle') });
@@ -601,6 +603,25 @@ async function submitFix(reason: string): Promise<void> {
         fixCarrierError.value = failure.field('carrierCode') ?? '';
         fixTrackingError.value = failure.field('trackingNo') ?? '';
         fixError.value = fixReasonError.value || fixCarrierError.value || fixTrackingError.value ? '' : failure.message;
+    } finally {
+        working.value = null;
+    }
+}
+
+// ── [지금 조회](스마트택배 — 결정 90) ──
+async function refreshTracking(): Promise<void> {
+    const d = drawerDetail.value;
+    if (!d || working.value) return;
+    working.value = 'refreshTracking';
+    try {
+        drawerDetail.value = await api.refreshTracking(d.id);
+        toast.success(t('groupBuy.trkRefreshed'));
+        void reload(); // 배송완료로 바뀌었을 수 있다
+    } catch (e) {
+        const failure = toApiError(e);
+        // 키 오류는 스마트택배가 준 코드(101 키 없음·102 만료·103 사용량 초과)를 붙인다 — 문구는 서버 그대로
+        const provider = failure.code === 'COMMERCE_TRACKING_KEY_ERROR' ? failure.extras?.providerCode : undefined;
+        toast.error(typeof provider === 'string' && provider ? `${failure.message} (${t('groupBuy.trkProviderCode', { code: provider })})` : failure.message, 8000);
     } finally {
         working.value = null;
     }

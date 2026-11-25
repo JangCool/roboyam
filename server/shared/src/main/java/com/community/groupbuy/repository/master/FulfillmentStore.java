@@ -36,7 +36,8 @@ public class FulfillmentStore extends GroupBuyStoreSupport {
     private static final QGroupBuyEscrowJobEntity J = QGroupBuyEscrowJobEntity.groupBuyEscrowJobEntity;
     private static final QGroupBuyRequestEntity RQ = QGroupBuyRequestEntity.groupBuyRequestEntity;
 
-    public record CarrierRow(String code, String name, String trackingUrl, boolean enabled, int sortOrder) {
+    /** 택배사 한 줄 — {@code sweetTrackerCode} 스마트택배 택배사 코드(비면 자동 조회 안 함 — 결정 90) */
+    public record CarrierRow(String code, String name, String trackingUrl, boolean enabled, int sortOrder, String sweetTrackerCode) {
     }
 
     public record ShipmentRow(long id, long participationId, long groupBuyId, String kind, Long requestId, String carrierCode, String trackingNo, Instant shippedAt,
@@ -58,15 +59,16 @@ public class FulfillmentStore extends GroupBuyStoreSupport {
     // ── 택배사 ──────────────────────────────────────────────────────────────
 
     public List<CarrierRow> carriers() {
-        return query.select(Projections.constructor(CarrierRow.class, CA.code, CA.name, CA.trackingUrl, CA.enabled, CA.sortOrder)).from(CA)
+        return query.select(Projections.constructor(CarrierRow.class, CA.code, CA.name, CA.trackingUrl, CA.enabled, CA.sortOrder, CA.sweettrackerCode)).from(CA)
                 .orderBy(CA.sortOrder.asc(), CA.code.asc()).fetch();
     }
 
     /** 넣거나 고친다 — Native SQL 인 이유: 코드가 키인 {@code ON CONFLICT (code) DO UPDATE} upsert */
     public void upsertCarrier(CarrierRow c, Long operatorId, Instant now) {
-        jdbc.update("INSERT INTO commerce_carriers (code, name, tracking_url, enabled, sort_order, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?) "
+        jdbc.update("INSERT INTO commerce_carriers (code, name, tracking_url, enabled, sort_order, sweettracker_code, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (code) DO UPDATE SET name = excluded.name, tracking_url = excluded.tracking_url, enabled = excluded.enabled, sort_order = excluded.sort_order, "
-                        + "updated_at = excluded.updated_at, updated_by = excluded.updated_by", c.code(), c.name(), c.trackingUrl(), c.enabled(), c.sortOrder(), Timestamp.from(now),
+                        + "sweettracker_code = excluded.sweettracker_code, "
+                        + "updated_at = excluded.updated_at, updated_by = excluded.updated_by", c.code(), c.name(), c.trackingUrl(), c.enabled(), c.sortOrder(), c.sweetTrackerCode(), Timestamp.from(now),
                 operatorId);
     }
 
@@ -103,8 +105,9 @@ public class FulfillmentStore extends GroupBuyStoreSupport {
         return query.update(SH).set(SH.carrierCode, carrierCode).set(SH.trackingNo, trackingNo).set(SH.updatedAt, now).where(SH.id.eq(shipmentId)).execute() == 1;
     }
 
-    public void markDelivered(long participationId, Instant now) {
-        query.update(SH).set(SH.deliveredAt, now).set(SH.updatedAt, now).where(SH.participationId.eq(participationId), SH.kind.eq("ORIGINAL"), SH.deliveredAt.isNull())
+    /** 처음 발송의 배송완료 시각(이미 있으면 그대로) */
+    public void markDelivered(long participationId, Instant deliveredAt, Instant now) {
+        query.update(SH).set(SH.deliveredAt, deliveredAt).set(SH.updatedAt, now).where(SH.participationId.eq(participationId), SH.kind.eq("ORIGINAL"), SH.deliveredAt.isNull())
                 .execute();
     }
 

@@ -70,6 +70,41 @@ public class CommerceGroupBuySettingsController {
         return ok(facade.saveCarriers(actor, body));
     }
 
+    /** 배송 조회 설정(결정 90) — API 키 값은 돌려주지 않는다(설정됨 여부만) */
+    @RequirePermission(Permission.COMMERCE_SETTINGS)
+    @GetMapping("/api/admin/commerce/tracking-settings")
+    public ResponseEntity<ApiResponse<CommerceGroupBuySettingsView.TrackingSettings>> trackingSettings() {
+        return ok(facade.trackingSettings());
+    }
+
+    @RequirePermission(Permission.COMMERCE_SETTINGS)
+    @PutMapping("/api/admin/commerce/tracking-settings")
+    public ResponseEntity<ApiResponse<CommerceGroupBuySettingsView.TrackingSettings>> saveTrackingSettings(
+            @RequestBody(required = false) GroupBuyAdminRequest.TrackingSettings body, AdminActor actor) {
+        return ok(facade.saveTrackingSettings(actor, body));
+    }
+
+    /** 스마트택배 API 키 저장(암호문) — 암호화 키가 없으면 503 {@code CRYPTO_KEY_MISSING} */
+    @RequirePermission(Permission.COMMERCE_SETTINGS)
+    @PutMapping("/api/admin/commerce/tracking-settings/api-key")
+    public ResponseEntity<ApiResponse<CommerceGroupBuySettingsView.TrackingSettings>> saveTrackingKey(@RequestBody(required = false) GroupBuyAdminRequest.TrackingKey body,
+                                                                                                     AdminActor actor) {
+        return ok(facade.saveTrackingKey(actor, body));
+    }
+
+    @RequirePermission(Permission.COMMERCE_SETTINGS)
+    @DeleteMapping("/api/admin/commerce/tracking-settings/api-key")
+    public ResponseEntity<ApiResponse<CommerceGroupBuySettingsView.TrackingSettings>> deleteTrackingKey(AdminActor actor) {
+        return ok(facade.deleteTrackingKey(actor));
+    }
+
+    /** 이용권 남은 양 — 스마트택배를 한 번 부른다. 키가 없으면 409 {@code COMMERCE_TRACKING_KEY_MISSING} */
+    @RequirePermission(Permission.COMMERCE_SETTINGS)
+    @GetMapping("/api/admin/commerce/tracking-settings/usage")
+    public ResponseEntity<ApiResponse<CommerceGroupBuySettingsView.TrackingUsage>> trackingUsage() {
+        return ok(facade.trackingUsage());
+    }
+
     @RequirePermission(Permission.COMMERCE_SETTINGS)
     @GetMapping("/api/admin/commerce/business-info")
     public ResponseEntity<ApiResponse<CommerceGroupBuySettingsView.BusinessInfo>> businessInfo() {

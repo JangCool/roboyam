@@ -208,6 +208,8 @@ public final class AuditRetention {
             AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE, AuditActions.GROUPBUY_OPTION_TYPE_SAVE,
             // 발주·발송·배송완료·택배사 — 일반 운영(돈은 환불이 움직인다)
             AuditActions.GROUPBUY_FULFILLMENT, AuditActions.COMMERCE_CARRIER_SAVE,
+            // 배송 조회 설정·스마트택배 API 키 저장·지우기(결정 90) — 일반 운영(배송완료와 같은 분류, 키는 공공데이터포털 키와 같은 조회 키)
+            AuditActions.COMMERCE_TRACKING_SETTINGS_UPDATE, AuditActions.COMMERCE_TRACKING_KEY_UPDATE, AuditActions.COMMERCE_TRACKING_KEY_DELETE,
             // 운영 체크 항목·사업자 정보·주문 메모 — 일반 운영(판매를 켜는 일은 스위치가 돈 관련으로 남긴다)
             AuditActions.COMMERCE_SALES_CHECKLIST, AuditActions.COMMERCE_BUSINESS_INFO_UPDATE, AuditActions.GROUPBUY_ORDER_MEMO,
             // 공구 문의·리뷰 숨김·답변(답글) 수정(2b-6)

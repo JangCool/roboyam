@@ -42,7 +42,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>발송은 주문 한 번에(결정 47): CONFIRMED·PREPARING, 마감 후 발주 공구는 발주 뒤, 열린 요청이 있거나 공급 불가 답을 기다리는 주문은 막는다(10-3·결정 53). 발송 때 처음 배송비를 고정한다(결정 43).
  *       첫 발송이 공구를 ORDERED → SHIPPING 으로. 한 번에 200줄까지.</li>
  *   <li>송장은 숫자·영문만 남겨 6~30자(결정 11). 택배사는 켜진 것만.</li>
- *   <li>에스크로 배송 정보 등록·수정은 커밋 뒤 대기열(결정 64 — {@link GroupBuyEscrowWorker}). 배송완료는 운영자가(자동 배송완료 없음 — 결정 7).</li>
+ *   <li>에스크로 배송 정보 등록·수정은 커밋 뒤 대기열(결정 64 — {@link GroupBuyEscrowWorker}). 배송완료는 운영자가, 또는 스마트택배 완료·발송 뒤 N일로 자동
+ *       ({@link #deliverAt} — 결정 7·90, {@code ParcelTrackingService}).</li>
  * </ul>
  */
 @Service
@@ -50,6 +51,15 @@ public class FulfillmentService {
 
     /** 한 번에 발송 처리할 수 있는 줄(화면 안 표 — 계약 화면 목록) */
     public static final int SHIP_BATCH_MAX = 200;
+    /** 스마트택배 택배사 코드 모양(결정 90) */
+    public static final String SWEETTRACKER_CODE = "[0-9A-Za-z]{1,10}";
+    /** 자동 배송완료 종류(감사 {@code auto}) — 결정 90 */
+    public static final String AUTO_TRACKING = "TRACKING";
+    public static final String AUTO_AFTER_DAYS = "AFTER_DAYS";
+    /** 주문 이력 사유 — 운영자 배송완료 · 스마트택배 완료로 자동 · 발송 뒤 N일 자동 */
+    public static final String CAUSE_DELIVER = "DELIVER";
+    public static final String CAUSE_DELIVER_TRACKING = "DELIVER_TRACKING";
+    public static final String CAUSE_DELIVER_AFTER_DAYS = "DELIVER_AFTER_DAYS";
 
     /** 일괄 처리 한 줄 결과 — 실패면 오류 코드 */
     public record RowResult(long participationId, boolean ok, String code) {
@@ -111,6 +121,9 @@ public class FulfillmentService {
                     || !codes.add(c.code())) {
                 throw ValidationException.of("carriers", new MessageRef("commerce.carrier.invalid"));
             }
+            if (c.sweetTrackerCode() != null && !c.sweetTrackerCode().matches(SWEETTRACKER_CODE)) {
+                throw ValidationException.of("carriers", new MessageRef("commerce.carrier.trackingCode.invalid"));
+            }
         }
         tx.executeWithoutResult(status -> {
             Instant now = now();
@@ -119,10 +132,13 @@ public class FulfillmentService {
                 throw GroupBuyException.carrierInUse(inUse);
             }
             store.carriers().stream().map(CarrierRow::code).filter(code -> !codes.contains(code)).forEach(store::deleteCarrier);
+            Map<String, Object> trackingCodes = new LinkedHashMap<>();
             for (CarrierRow c : list) {
-                store.upsertCarrier(new CarrierRow(c.code(), c.name().strip(), c.trackingUrl(), c.enabled(), c.sortOrder()), operatorId, now);
+                store.upsertCarrier(new CarrierRow(c.code(), c.name().strip(), c.trackingUrl(), c.enabled(), c.sortOrder(), c.sweetTrackerCode()), operatorId, now);
+                trackingCodes.put(c.code(), c.sweetTrackerCode() == null ? "" : c.sweetTrackerCode());
             }
-            audit.record(operatorId, AuditActions.COMMERCE_CARRIER_SAVE, GroupBuyAudit.TARGET_CARRIER, "ALL", ip, Map.of("codes", List.copyOf(codes)));
+            audit.record(operatorId, AuditActions.COMMERCE_CARRIER_SAVE, GroupBuyAudit.TARGET_CARRIER, "ALL", ip, Map.of("codes", List.copyOf(codes), "sweetTrackerCodes",
+                    trackingCodes));
         });
         return store.carriers();
     }
@@ -234,20 +250,60 @@ public class FulfillmentService {
         return shipmentId;
     }
 
-    /** 배송완료(SHIPPED → DELIVERED) 일괄 — 청약철회 7일이 여기서 시작한다 */
+    /** 배송완료(SHIPPED → DELIVERED) 일괄 — 청약철회 7일이 여기서 시작한다(배송완료 시각 = 지금) */
     public BatchResult deliver(List<Long> participationIds, Long operatorId, String ip) {
         BatchResult result = batch(requireBatch(participationIds), id -> {
-            Instant now = now();
             ParticipationRow p = participations.lock(id).orElseThrow(GroupBuyException::orderNotFound);
-            if (!participations.deliver(id, now)) {
+            if (!deliverLocked(p, now(), operatorId, CAUSE_DELIVER)) {
                 throw GroupBuyException.orderState();
             }
-            store.markDelivered(id, now);
-            participations.insertHistory(ids.nextId(), p, ParticipationStatus.SHIPPED, ParticipationStatus.DELIVERED, "DELIVER", operatorId, now);
             return null;
         });
         auditBatch("DELIVER", result, operatorId, ip);
         return result;
+    }
+
+    /**
+     * 자동 배송완료(결정 90) — 운영자 배송완료와 같은 처리를 {@code deliveredAt}(택배사 완료 시각 · 발송 + N일)으로. 부르는 쪽 트랜잭션이 있으면 그 안에서(주문 행을 먼저 잠근다).
+     * 주문이 SHIPPED 가 아니면(이미 운영자가 했거나 환불됨) 아무것도 하지 않고 false. 감사 {@code GROUPBUY_FULFILLMENT} {@code step=DELIVER}·{@code auto}(TRACKING·AFTER_DAYS) —
+     * 행위자가 없으면 시스템.
+     *
+     * @param auto  {@code TRACKING}(스마트택배 완료) · {@code AFTER_DAYS}(발송 뒤 N일)
+     * @param extra 감사 detail 에 더할 값(값이 null 인 칸은 빼고)
+     */
+    public boolean deliverAt(long participationId, Instant deliveredAt, String auto, Long actorId, String ip, Map<String, Object> extra) {
+        String cause = AUTO_TRACKING.equals(auto) ? CAUSE_DELIVER_TRACKING : CAUSE_DELIVER_AFTER_DAYS;
+        Boolean done = tx.execute(status -> {
+            ParticipationRow p = participations.lock(participationId).orElseThrow(GroupBuyException::orderNotFound);
+            if (p.status() != ParticipationStatus.SHIPPED || !deliverLocked(p, deliveredAt, actorId, cause)) {
+                return false;
+            }
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("step", "DELIVER");
+            detail.put("auto", auto);
+            detail.put("deliveredAt", deliveredAt.toString());
+            if (extra != null) {
+                extra.forEach((k, v) -> {
+                    if (v != null) {
+                        detail.put(k, v);
+                    }
+                });
+            }
+            audit.record(actorId, AuditActions.GROUPBUY_FULFILLMENT, GroupBuyAudit.TARGET_ORDER, participationId, ip, detail);
+            return true;
+        });
+        return Boolean.TRUE.equals(done);
+    }
+
+    /** 배송완료 한 건(주문 행은 잠갔다) — 조건부 전이(SHIPPED 만), 처음 발송의 배송완료 시각, 이력. 전이하지 못했으면 false */
+    private boolean deliverLocked(ParticipationRow p, Instant deliveredAt, Long actorId, String cause) {
+        Instant now = now();
+        if (!participations.deliver(p.id(), deliveredAt, now)) {
+            return false;
+        }
+        store.markDelivered(p.id(), deliveredAt, now);
+        participations.insertHistory(ids.nextId(), p, ParticipationStatus.SHIPPED, ParticipationStatus.DELIVERED, cause, actorId, now);
+        return true;
     }
 
     /** 송장 정정(SHIPPED·DELIVERED) — 에스크로 배송 정보를 다시 보낸다(등록됐으면 수정 — 결정 14) */
