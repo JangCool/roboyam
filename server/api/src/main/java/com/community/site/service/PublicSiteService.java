@@ -9,6 +9,7 @@ import com.community.board.service.BoardFields;
 import com.community.site.dto.response.SiteAnalyticsView;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
+import com.community.site.dto.SearchVerificationCodes;
 import com.community.site.dto.SiteFooterNotice;
 import com.community.site.dto.SiteLogoUrls;
 import com.community.site.dto.SiteOperatorValues;
@@ -194,9 +195,14 @@ public class PublicSiteService implements CacheReloader {
         SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElseGet(() -> SiteThemeMenus.initialOf(theme)));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
-        // 지문에 소개 본문도 넣는다 — 본문만 바뀌어도 /api/site/about 이 304 로 옛 본문을 돌려주지 않게
-        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, aboutHtml, publicUrl,
-                fingerprint(info + "|" + themeView + "|" + (aboutHtml == null ? "" : aboutHtml), manifest, ogCustom));
+        // 검색 엔진 소유 확인 코드(V271) — index.html 머리에만 넣는다. 관리자 저장은 site.info 세대 번호로 모든 서버에 닿는다
+        SearchVerificationCodes verification = found
+                .map(row -> new SearchVerificationCodes(row.getSearchVerifyNaver(), row.getSearchVerifyGoogle(), row.getSearchVerifyBing()))
+                .orElse(SearchVerificationCodes.NONE);
+        // 지문에 소개 본문·소유 확인 코드도 넣는다 — 본문만 바뀌어도 /api/site/about 이 304 로 옛 본문을 돌려주지 않게,
+        // 코드만 바뀌어도 index.html 머리 사본(IndexHtmlRenderer — 이 지문으로 캐시)을 다시 만들게
+        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, aboutHtml, publicUrl, verification,
+                fingerprint(info + "|" + themeView + "|" + (aboutHtml == null ? "" : aboutHtml) + "|" + verification, manifest, ogCustom));
     }
 
     /** 성별 묶음 하나의 공개 모양 — 정하지 않았거나(기념일에는 성별 무관 묶음과 같으면) null */

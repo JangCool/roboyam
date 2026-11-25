@@ -15,6 +15,7 @@
           ② 표시 기본값(`display-defaults`) — 언어·시간대·시간 형식·날짜 형식(공유 레이어의 `DisplayValueForm`). 이 값이 곧 내 정보 > 개인 설정 탭의 "기본 설정"(내 표시 형식을 쓰지 않을 때 따르는 값)이다.
           ③ 공지 띠(`notice-bar`, `SiteNoticeBarSettings`) — 공개 사이트 모든 화면의 메뉴 줄 아래 한 줄 공지(공지 게시판 최근 5·10개 / 직접 입력).
           ④ 사이트 소개(`site-about`, `SiteAboutSettings`) — 공개 사이트 `/about` 본문(약관과 같은 문서 편집기). 소개가 있으면 공개 푸터에 「사이트 소개」 링크가 보인다.
+          ⑤ 검색 엔진 등록(`search-verification`, `SiteSearchVerificationSettings`) — 네이버·구글·빙 소유 확인 코드(메타 태그 `content`). 공개 사이트 첫 HTML 머리에 서버(`IndexHtmlRenderer`)가 넣는다.
           (운영 주체 — 개인 · 개인사업자 · 법인 단계와 운영자·사업자 정보 — 는 2026-11-07 설정 › 운영·약관 › 운영 주체 화면 `/settings/operator` 로 옮겼다.)
           (공개 사이트 테마·메뉴 설정·홈 구성은 설정 › 테마 › 레이아웃 화면 `/settings/theme` 에 있다 — 사용자 결정 2026-10-28.)
         구획은 서로 따로 읽고 저장한다 — 한쪽이 실패해도 다른 쪽은 보인다. 구획 주소(`anchor`)는 우측 구역 내비가 쓴다.
@@ -147,6 +148,9 @@
 
         <!-- ④ 사이트 소개 — 공개 사이트 `/about` 본문과 푸터 「사이트 소개」 링크(따로 읽고 저장한다) -->
         <SiteAboutSettings />
+
+        <!-- ⑤ 검색 엔진 등록 — 공개 사이트 첫 HTML 머리의 소유 확인 메타 태그(네이버·구글·빙, 따로 읽고 저장한다) -->
+        <SiteSearchVerificationSettings />
     </div>
 </template>
 

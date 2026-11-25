@@ -105,6 +105,15 @@ public class SiteSettingEntity {
     /** 사이트 소개를 마지막으로 바꾼 때(V203) — 행의 {@code updatedAt} 은 다른 설정 저장에도 바뀐다. 저장한 적 없으면 null */
     private Instant aboutUpdatedAt;
 
+    /** 검색 엔진 소유 확인 코드(V271) — 네이버 {@code naver-site-verification}. 없으면(null) 태그를 넣지 않는다 */
+    private String searchVerifyNaver;
+
+    /** 검색 엔진 소유 확인 코드(V271) — 구글 {@code google-site-verification}. 없으면(null) 태그를 넣지 않는다 */
+    private String searchVerifyGoogle;
+
+    /** 검색 엔진 소유 확인 코드(V271) — 빙 {@code msvalidate.01}. 없으면(null) 태그를 넣지 않는다 */
+    private String searchVerifyBing;
+
     protected SiteSettingEntity() {
     }
 
@@ -227,6 +236,26 @@ public class SiteSettingEntity {
         this.aboutHtml = html;
         this.aboutUpdatedAt = now;
         touch(operatorId, now);
+    }
+
+    /** 검색 엔진 소유 확인 코드 셋을 통째로 바꾼다(검사·빈 값 정리는 부르는 쪽이 끝냈다 — null 이면 그 태그를 넣지 않는다) */
+    public void changeSearchVerification(String naver, String google, String bing, long operatorId, Instant now) {
+        this.searchVerifyNaver = naver;
+        this.searchVerifyGoogle = google;
+        this.searchVerifyBing = bing;
+        touch(operatorId, now);
+    }
+
+    public String getSearchVerifyNaver() {
+        return searchVerifyNaver;
+    }
+
+    public String getSearchVerifyGoogle() {
+        return searchVerifyGoogle;
+    }
+
+    public String getSearchVerifyBing() {
+        return searchVerifyBing;
     }
 
     /** 사이트 소개 HTML(소독된 것). 없으면 null */

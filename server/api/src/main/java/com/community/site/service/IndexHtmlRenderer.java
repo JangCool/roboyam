@@ -3,6 +3,7 @@ package com.community.site.service;
 import com.community.site.dto.PostLinkPreview;
 import com.community.site.dto.PublicSiteSnapshot;
 import com.community.site.dto.RenderedIndex;
+import com.community.site.dto.SearchVerificationCodes;
 import com.community.site.dto.response.SiteIconResponse;
 import com.community.site.dto.response.SiteInfoResponse;
 import com.community.zconfiguration.StaticAssetUrls;
@@ -32,6 +33,7 @@ import org.springframework.web.util.HtmlUtils;
  *   <li>올린 로고가 있으면 첫 로딩 스플래시용 {@code <meta name="irobit-site-logo">} 도 넣는다(SVG 로고는 주소 대신 {@code inline}).</li>
  *   <li>이름·소개·주소는 모두 HTML 이스케이프한다(속성값 포함). 설정 행이 없으면(설치 전) 틀을 그대로 내린다.</li>
  *   <li>결과는 설정 사본({@link PublicSiteSnapshot})이 바뀔 때까지 캐시한다.</li>
+ *   <li>검색 엔진 소유 확인 코드(V271 — 네이버·구글·빙)가 있으면 그 메타를 {@code </head>} 바로 앞에 넣는다(값이 있는 것만, 사본에 함께 캐시).</li>
  *   <li>구글 애드센스(V176)가 켜져 있으면 부르는 쪽이 {@link #withAdSense} 로 머리 끝에 메타·스크립트를 더한다(바탕 사본 지문 + 게시자 ID 로 캐시 — 설정은 요청마다 읽으므로 바꾸면 다음 요청부터).</li>
  * </ul>
  */
@@ -74,6 +76,11 @@ public class IndexHtmlRenderer {
     /** 구글 애드센스 사이트 확인 메타 이름 · 스크립트 주소(V176 — 구글이 정한 값) */
     static final String ADSENSE_ACCOUNT_META = "google-adsense-account";
     static final String ADSENSE_SCRIPT = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
+
+    /** 검색 엔진 소유 확인 메타 이름(V271 — 각 검색 엔진이 정한 값) */
+    static final String NAVER_VERIFICATION_META = "naver-site-verification";
+    static final String GOOGLE_VERIFICATION_META = "google-site-verification";
+    static final String BING_VERIFICATION_META = "msvalidate.01";
 
     private volatile String template;
     private volatile Cached cached;
@@ -228,7 +235,26 @@ public class IndexHtmlRenderer {
         if (charset.find()) {
             at = charset.end();
         }
-        return html.substring(0, open.end()) + cleaned.substring(0, at) + "\n" + block + cleaned.substring(at) + html.substring(close.start());
+        return html.substring(0, open.end()) + cleaned.substring(0, at) + "\n" + block + cleaned.substring(at) + searchVerification(snapshot.searchVerification())
+                + html.substring(close.start());
+    }
+
+    /**
+     * 검색 엔진 소유 확인 메타(V271 — 관리자 설정 > 일반 「검색 엔진 등록」) — 값이 있는 것만 {@code </head>} 바로 앞에. 값은 관리자 서버가 검사했지만 다른 칸처럼 이스케이프한다.
+     * 머리 사본({@link #render})에 들어 사본 지문으로 함께 캐시된다(코드도 지문에 든다 — {@code PublicSiteService}).
+     */
+    private static String searchVerification(SearchVerificationCodes codes) {
+        StringBuilder b = new StringBuilder();
+        if (codes.naver() != null) {
+            b.append(meta("name", NAVER_VERIFICATION_META, codes.naver()));
+        }
+        if (codes.google() != null) {
+            b.append(meta("name", GOOGLE_VERIFICATION_META, codes.google()));
+        }
+        if (codes.bing() != null) {
+            b.append(meta("name", BING_VERIFICATION_META, codes.bing()));
+        }
+        return b.toString();
     }
 
     /** {@code <script>}·{@code <style>} 는 그대로 두고 그 밖의 곳에서 우리가 다시 넣을 태그를 지운다 */

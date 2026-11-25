@@ -59,6 +59,8 @@ public final class AuditActions {
     public static final String SITE_NOTICE_BAR_UPDATE = "SITE_NOTICE_BAR_UPDATE";
     /** 사이트 소개 저장(공개 푸터 「사이트 소개」 페이지, V203) — 대상 SITE/1, {@code beforeLength}·{@code afterLength}(소독된 HTML 글자 수, 바뀐 때만) */
     public static final String SITE_ABOUT_UPDATE = "SITE_ABOUT_UPDATE";
+    /** 검색 엔진 소유 확인 코드 저장(설정 > 일반 「검색 엔진 등록」, V271) — 대상 SITE/1, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만, 없는 값은 빈 글자) */
+    public static final String SITE_SEARCH_VERIFICATION_UPDATE = "SITE_SEARCH_VERIFICATION_UPDATE";
     /** 팝업 만들기(콘텐츠 > 팝업 관리, site-popup-contract) — 대상 SITE_POPUP + 팝업 ID, {@code after} 칸 값 */
     public static final String SITE_POPUP_CREATE = "SITE_POPUP_CREATE";
     /** 팝업 고치기 — 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */

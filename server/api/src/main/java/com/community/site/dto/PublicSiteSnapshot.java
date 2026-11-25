@@ -12,8 +12,19 @@ import com.community.site.dto.response.WebManifestResponse;
  * @param ogCustom  링크 미리보기 이미지를 운영자가 올렸는가(올렸으면 1200×630 PNG 라 크기를 메타에 적는다)
  * @param aboutHtml 사이트 소개(소독된 HTML, V203 — {@code /api/site/about}). 없으면 null({@code info.about} 이 false)
  * @param publicUrl 사이트 공개 주소(설정 값 그대로 — 없으면 null). 글 공유 미리보기 그림을 절대 주소로 만들 때 쓴다({@code PostLinkPreviewService})
- * @param etag 사본 내용의 지문(따옴표 없는 16진수) — 내용이 바뀌면 바뀐다(소개 본문도 든다)
+ * @param searchVerification 검색 엔진 소유 확인 코드(V271) — {@code index.html} 머리에만 쓴다. 지문({@code etag})에 든다
+ * @param etag 사본 내용의 지문(따옴표 없는 16진수) — 내용이 바뀌면 바뀐다(소개 본문·소유 확인 코드도 든다)
  */
 public record PublicSiteSnapshot(SiteInfoResponse info, SiteThemeResponse theme, WebManifestResponse manifest, boolean ogCustom, String aboutHtml,
-                                 String publicUrl, String etag) {
+                                 String publicUrl, SearchVerificationCodes searchVerification, String etag) {
+
+    public PublicSiteSnapshot {
+        searchVerification = searchVerification == null ? SearchVerificationCodes.NONE : searchVerification;
+    }
+
+    /** 소유 확인 코드 없는 사본(시험용) */
+    public PublicSiteSnapshot(SiteInfoResponse info, SiteThemeResponse theme, WebManifestResponse manifest, boolean ogCustom, String aboutHtml,
+                              String publicUrl, String etag) {
+        this(info, theme, manifest, ogCustom, aboutHtml, publicUrl, SearchVerificationCodes.NONE, etag);
+    }
 }
