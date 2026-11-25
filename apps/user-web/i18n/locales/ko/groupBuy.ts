@@ -415,7 +415,7 @@ export default {
     shippedAt: '발송',
     deliveredAt: '배송완료',
     trkProgressLabel: '배송 진행',
-    trkStep: { PICKED_UP: '집화', IN_TRANSIT: '배송중', OUT_FOR_DELIVERY: '배송출발', DELIVERED: '배송완료' },
+    trkStep: { PICKED_UP: '집화', IN_TRANSIT: '배송중', DELIVERED: '배송완료' },
     trkCurrent: '(지금 단계)',
     trkBefore: '택배사 조회 전이에요. 택배사가 상품을 받으면 진행 상황이 여기에 보여요.',
     trkHistory: '배송 이력',

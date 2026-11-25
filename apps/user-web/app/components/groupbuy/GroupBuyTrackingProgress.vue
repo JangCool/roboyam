@@ -1,11 +1,12 @@
 <template>
     <!--
-        내 주문 상세 「배송」의 배송 진행(계약 결정 90) — 스마트택배 단계를 네 칸(집화 → 배송중 → 배송출발 → 배송완료)으로 묶어 보인다:
-        2 집화완료 → 집화 · 3 배송중·4 지점 도착 → 배송중 · 5 배송출발 · 6 배송 완료(또는 배송완료 처리됨) → 배송완료. 0·1·조회 전은 「택배사 조회 전」.
+        내 주문 상세 「배송」의 배송 진행(계약 결정 90) — 스마트택배 단계를 세 칸(집화 → 배송중 → 배송완료)으로 묶어 보인다:
+        2 집화완료 → 집화 · 3 배송중·4 지점 도착·5 배송출발 → 배송중 · 6 배송 완료(또는 배송완료 처리됨) → 배송완료. 0·1·조회 전은 「택배사 조회 전」.
+        「배송출발」 칸은 두지 않는다(사용자 2026-11-25 — 「배송중 다음에 배송완료」). 배송출발은 이력 줄에 그대로 보인다.
         아래에 시각·위치 이력(최신 위, 많으면 접기)과 「마지막 조회 ○○」. 서버는 부르지 않는다(받은 주문 상세만 그린다).
     -->
     <div class="flex flex-col gap-3">
-        <ol class="m-0 grid list-none grid-cols-4 gap-1 p-0" :aria-label="t('groupBuy.trkProgressLabel')">
+        <ol class="m-0 grid list-none grid-cols-3 gap-1 p-0" :aria-label="t('groupBuy.trkProgressLabel')">
             <li v-for="(step, i) in STEPS" :key="step" class="flex min-w-0 flex-col items-center gap-1 text-center" :aria-current="i === current ? 'step' : undefined">
                 <div class="flex w-full items-center">
                     <span class="h-0.5 flex-1" :class="i === 0 ? 'bg-transparent' : i <= current ? 'bg-primary' : 'bg-surface-200 dark:bg-surface-700'" aria-hidden="true" />
@@ -57,8 +58,8 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { level: null, complete: false, deliveredAt: null, events: () => [], lastCheckedAt: null });
 
-/** 네 칸 — 키 끝마디 */
-const STEPS = ['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const;
+/** 세 칸 — 키 끝마디 */
+const STEPS = ['PICKED_UP', 'IN_TRANSIT', 'DELIVERED'] as const;
 /** 접었을 때 보이는 이력 수 */
 const FOLD = 3;
 
@@ -73,8 +74,7 @@ const done = computed(() => !!props.deliveredAt || props.complete || props.level
 const current = computed(() => {
     if (done.value) return STEPS.length - 1;
     const level = props.level;
-    if (level === 5) return 2;
-    if (level === 3 || level === 4) return 1;
+    if (level === 3 || level === 4 || level === 5) return 1;
     if (level === 2) return 0;
     return -1;
 });

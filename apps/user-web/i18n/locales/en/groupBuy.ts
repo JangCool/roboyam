@@ -413,7 +413,7 @@ export default {
     shippedAt: 'Shipped',
     deliveredAt: 'Delivered',
     trkProgressLabel: 'Delivery progress',
-    trkStep: { PICKED_UP: 'Picked up', IN_TRANSIT: 'In transit', OUT_FOR_DELIVERY: 'Out for delivery', DELIVERED: 'Delivered' },
+    trkStep: { PICKED_UP: 'Picked up', IN_TRANSIT: 'In transit', DELIVERED: 'Delivered' },
     trkCurrent: '(current step)',
     trkBefore: 'Not yet tracked by the carrier. Progress appears here once the carrier picks up the package.',
     trkHistory: 'Delivery history',
