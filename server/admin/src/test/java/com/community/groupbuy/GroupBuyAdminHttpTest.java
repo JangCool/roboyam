@@ -1,6 +1,7 @@
 package com.community.groupbuy;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -135,5 +136,46 @@ class GroupBuyAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(post("/api/admin/payment-cancels/" + ids.nextId() + "/manual"), reconcile)
                         .content("{\"reason\":\"계좌로 돌려줬어요\",\"method\":\"BANK_TRANSFER\"}"))
                 .andExpect(status().isNotFound()); // 방법이 맞으면 서비스까지 간다 — 없는 취소는 404
+    }
+
+    @Test
+    void 결정90_배송_조회_설정은_키_값을_돌려주지_않고_암호문으로_저장_택배사에_스마트택배_코드() throws Exception {
+        Cookie settings = login(operatorWith(Permission.COMMERCE_SETTINGS));
+        String secret = "http-SWEET-key-9876";
+        try {
+            mvc.perform(get("/api/admin/commerce/tracking-settings").cookie(settings)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.defaults.intervalMinutes").value(180)).andExpect(jsonPath("$.data.defaults.autoDeliverDays").value(10))
+                    .andExpect(jsonPath("$.data.ranges.intervalMinutes.min").value(60)).andExpect(jsonPath("$.data.ranges.autoDeliverDays.max").value(30));
+            String saved = mvc.perform(withCsrf(put("/api/admin/commerce/tracking-settings/api-key"), settings).content("{\"apiKey\":\"" + secret + "\"}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.apiKeyConfigured").value(true)).andExpect(jsonPath("$.data.apiKey").doesNotExist())
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(saved).doesNotContain(secret);
+            String cipher = jdbc.queryForObject("SELECT api_key_cipher FROM commerce_tracking_settings WHERE id = 1", String.class);
+            assertThat(cipher).startsWith("v1:").doesNotContain(secret);
+            mvc.perform(withCsrf(put("/api/admin/commerce/tracking-settings"), settings)
+                            .content("{\"values\":{\"enabled\":true,\"intervalMinutes\":30,\"autoDeliverEnabled\":false,\"autoDeliverDays\":10}}"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields['values.intervalMinutes']").exists());
+            mvc.perform(withCsrf(put("/api/admin/commerce/tracking-settings"), settings)
+                            .content("{\"values\":{\"enabled\":false,\"intervalMinutes\":240,\"autoDeliverEnabled\":true,\"autoDeliverDays\":12}}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.values.intervalMinutes").value(240)).andExpect(jsonPath("$.data.values.autoDeliverDays").value(12));
+            mvc.perform(get("/api/admin/commerce/carriers").cookie(settings)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items[?(@.code == 'CJ')].sweetTrackerCode").value("04"));
+            mvc.perform(withCsrf(delete("/api/admin/commerce/tracking-settings/api-key"), settings)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.apiKeyConfigured").value(false));
+            mvc.perform(get("/api/admin/commerce/tracking-settings/usage").cookie(settings)).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error.code").value("COMMERCE_TRACKING_KEY_MISSING"));
+            mvc.perform(get("/api/admin/commerce/tracking-settings").cookie(login(operatorWith(Permission.COMMERCE_ORDER_MANAGE)))).andExpect(status().isForbidden());
+        } finally {
+            jdbc.update("UPDATE commerce_tracking_settings SET enabled = false, interval_minutes = 180, auto_deliver_enabled = false, auto_deliver_days = 10, "
+                    + "api_key_cipher = NULL, alert_code = NULL WHERE id = 1");
+        }
+    }
+
+    @Test
+    void 결정90_지금_조회는_주문_처리_권한() throws Exception {
+        String path = "/api/admin/group-buy-orders/" + ids.nextId() + "/tracking/refresh";
+        mvc.perform(withCsrf(post(path), login(operatorWith(Permission.COMMERCE_ORDER_READ)))).andExpect(status().isForbidden());
+        mvc.perform(withCsrf(post(path), login(operatorWith(Permission.COMMERCE_ORDER_READ, Permission.COMMERCE_ORDER_MANAGE)))).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("GROUP_BUY_ORDER_NOT_FOUND"));
     }
 }

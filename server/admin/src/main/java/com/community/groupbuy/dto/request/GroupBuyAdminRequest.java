@@ -118,7 +118,8 @@ public final class GroupBuyAdminRequest {
     public record ShippingPolicy(String code, String name, Long baseFee, Long freeShippingOver, Long returnFee, String returnFeeMode, Instant effectiveFrom) {
     }
 
-    public record Carrier(String code, String name, String trackingUrlTemplate, Boolean active) {
+    /** {@code sweetTrackerCode} 스마트택배 택배사 코드(결정 90) — 빠지면(null) 저장된 값 그대로, 빈 글이면 지운다 */
+    public record Carrier(String code, String name, String trackingUrlTemplate, Boolean active, String sweetTrackerCode) {
     }
 
     public record Carriers(List<Carrier> items) {
@@ -143,5 +144,21 @@ public final class GroupBuyAdminRequest {
     }
 
     public record Settings(SettingsValues values) {
+    }
+
+    // ── 배송 조회 설정(결정 90) ──
+    public record TrackingValues(Boolean enabled, Integer intervalMinutes, Boolean autoDeliverEnabled, Integer autoDeliverDays) {
+    }
+
+    public record TrackingSettings(TrackingValues values) {
+    }
+
+    /** 스마트택배 API 키 — 응답·로그·감사에 싣지 않는다 */
+    public record TrackingKey(String apiKey) {
+
+        @Override
+        public String toString() {
+            return "TrackingKey[apiKey=***]";
+        }
     }
 }

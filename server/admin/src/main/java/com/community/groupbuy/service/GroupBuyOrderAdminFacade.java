@@ -14,6 +14,7 @@ import com.community.groupbuy.repository.master.GroupBuyRefundStore;
 import com.community.groupbuy.repository.master.GroupBuyRowNames;
 import com.community.groupbuy.repository.master.GroupBuyRequestStore;
 import com.community.groupbuy.repository.master.GroupBuyStore;
+import com.community.groupbuy.repository.master.ParcelTrackingStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.groupbuy.repository.master.ParticipationStore;
 import com.community.groupbuy.repository.master.ParticipationStore.ItemRow;
@@ -65,13 +66,15 @@ public class GroupBuyOrderAdminFacade {
     private final GroupBuyAdminRefundService adminRefunds;
     private final GroupBuyShipDeadlines shipDeadlines;
     private final GroupBuyAudit audit;
+    private final ParcelTrackingStore trackingStore;
+    private final ParcelTrackingService tracking;
     private final PaymentDetailText paymentText;
     private final ObjectProvider<Clock> clocks;
 
     public GroupBuyOrderAdminFacade(GroupBuyOrderAdminQueries queries, PlatformTransactionManager transactions, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requests, GroupBuyRefundStore refunds,
                                     FulfillmentStore fulfillmentStore, FulfillmentService fulfillment, AddressRevealService addresses,
                                     GroupBuyAdminRefundService adminRefunds, GroupBuyShipDeadlines shipDeadlines, GroupBuyAudit audit, PaymentDetailText paymentText,
-                                    ObjectProvider<Clock> clocks) {
+                                    ObjectProvider<Clock> clocks, ParcelTrackingStore trackingStore, ParcelTrackingService tracking) {
         this.queries = queries;
         this.tx = new TransactionTemplate(transactions);
         this.participations = participations;
@@ -86,6 +89,8 @@ public class GroupBuyOrderAdminFacade {
         this.paymentText = paymentText;
         this.audit = audit;
         this.clocks = clocks;
+        this.trackingStore = trackingStore;
+        this.tracking = tracking;
     }
 
     // ── 목록·상세 ───────────────────────────────────────────────────────────
@@ -167,7 +172,10 @@ public class GroupBuyOrderAdminFacade {
             refundRows.add(new GroupBuyOrderAdminView.RefundRecord("pending-" + pr.id(), "ADMIN", "PG_CANCEL", "AWAITING_APPROVAL", pr.amount(), 0, 0, 0, 0, 0,
                     pr.amount(), pr.sellerFault(), pr.reason(), pr.operatorName(), null, pr.createdAt(), null));
         }
-        List<GroupBuyOrderAdminView.Shipment> shipments = fulfillmentStore.shipmentsOf(o.id()).stream().map(this::shipment).toList();
+        Map<Long, ParcelTrackingStore.TrackingRow> trackingRows = new HashMap<>();
+        trackingStore.ofParticipation(o.id()).forEach(t -> trackingRows.put(t.shipmentId(), t));
+        LocalDate today = ServiceTime.dateOf(now());
+        List<GroupBuyOrderAdminView.Shipment> shipments = fulfillmentStore.shipmentsOf(o.id()).stream().map(s -> shipment(s, trackingRows.get(s.id()), today)).toList();
         List<GroupBuyRequestStore.RequestRow> reqs = requests.ofParticipation(o.id());
         List<GroupBuyOrderAdminView.RequestRef> requestRefs = reqs.stream().map(q -> new GroupBuyOrderAdminView.RequestRef(Long.toString(q.id()), q.type().name(),
                 q.status().name(), q.createdAt())).toList();
@@ -316,10 +324,30 @@ public class GroupBuyOrderAdminFacade {
                 ship.map(FulfillmentStore.ShipmentRow::trackingNo).orElse(null), o.createdAt(), o.joinedAt(), o.shippedAt(), o.deliveredAt());
     }
 
-    private GroupBuyOrderAdminView.Shipment shipment(FulfillmentStore.ShipmentRow s) {
+    private GroupBuyOrderAdminView.Shipment shipment(FulfillmentStore.ShipmentRow s, ParcelTrackingStore.TrackingRow t, LocalDate today) {
         FulfillmentStore.CarrierRow c = fulfillment.carriers().stream().filter(x -> x.code().equals(s.carrierCode())).findFirst().orElse(null);
-        return new GroupBuyOrderAdminView.Shipment(s.kind(), s.carrierCode(), c == null ? s.carrierCode() : c.name(), s.trackingNo(),
-                c == null || s.trackingNo() == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()), s.shippedAt(), s.deliveredAt());
+        return new GroupBuyOrderAdminView.Shipment(Long.toString(s.id()), s.kind(), s.carrierCode(), c == null ? s.carrierCode() : c.name(), s.trackingNo(),
+                c == null || s.trackingNo() == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()), s.shippedAt(), s.deliveredAt(), tracking(t, today));
+    }
+
+    /** 발송 줄의 배송 추적(결정 90) — 기사 이름·전화는 저장하지 않으므로 없다 */
+    private static GroupBuyOrderAdminView.Tracking tracking(ParcelTrackingStore.TrackingRow t, LocalDate today) {
+        if (t == null) {
+            return null;
+        }
+        List<GroupBuyOrderAdminView.TrackingEvent> events = ParcelTrackingService.events(t.eventsJson()).stream()
+                .map(e -> new GroupBuyOrderAdminView.TrackingEvent(e.time(), e.kind(), e.where(), e.level())).toList();
+        return new GroupBuyOrderAdminView.Tracking(t.sweetTrackerCode() != null, t.level(), t.complete(), events, t.checkedAt(), t.deliveredAt() != null || t.complete()
+                ? null : t.nextAt(), t.failCount(), t.errorCode(), t.completedAt(), t.holdReason(), today.equals(t.day()) ? t.dayCount() : 0, ParcelTrackingService.DAILY_LIMIT);
+    }
+
+    // ── 지금 조회(결정 90) ──────────────────────────────────────────────────
+
+    /** [지금 조회] — 그 주문의 배송완료 전 발송을 바로 조회해 반영하고 상세를 돌려준다(주문 처리 권한, 하루 제한 안) */
+    public GroupBuyOrderAdminView.Detail refreshTracking(AdminActor actor, String idText) {
+        long id = AdminIds.parse(idText, GroupBuyException::orderNotFound);
+        tracking.refresh(id, actor.operatorId(), actor.ip());
+        return detail(actor, participations.find(id).orElseThrow());
     }
 
     private static String refundState(GroupBuyRefundStore.RefundRow r) {

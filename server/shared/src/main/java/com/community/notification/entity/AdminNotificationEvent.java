@@ -144,6 +144,11 @@ public enum AdminNotificationEvent {
      * 하루 한 건(묶음 키 = KST 날짜). 처리는 주문 목록의 「발송 기한 지남」
      */
     COMMERCE_SHIP_OVERDUE(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-orders?alert=SHIP_OVERDUE").collapse(86400)),
+    /**
+     * 배송 상태 자동 조회가 키 문제로 멈췄다 — 스마트택배 101 키 없음 · 102 만료 · 103 사용량 초과(계약 결정 90, admin 조회 배치·[지금 조회]). 같은 코드는 한 번 — 설정 행의 알림 상태가
+     * 막고(조회가 다시 되거나 키를 바꾸면 지운다), 묶음 키 = 오류 코드로 하루 한 건. 처리는 「설정 › 커머스」 택배사 구획의 API 키
+     */
+    COMMERCE_TRACKING_KEY_ERROR(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_SETTINGS, Permission.COMMERCE_ORDER_MANAGE).link("/settings/commerce").collapse(86400)),
     /** 공구 중단(결정 12) — 발송 전 주문 환불이 시작됐다. 중단한 운영자는 받지 않는다 */
     COMMERCE_GROUPBUY_CANCELED(spec(GROUPBUY, INFO).holders(Permission.COMMERCE_ORDER_MANAGE, Permission.COMMERCE_REFUND_APPROVE).excludeActor().link("/group-buys/{groupBuyId}")),
     /** 판매 스위치 켜기·끄기(commerce.md 20절) — 바꾼 운영자는 받지 않는다 */

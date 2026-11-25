@@ -297,9 +297,9 @@ public class ParticipationStore extends GroupBuyStoreSupport {
                 .set(PA.updatedAt, now).where(PA.id.eq(id), PA.status.in(ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING)).execute() == 1;
     }
 
-    /** 배송완료(SHIPPED → DELIVERED — 청약철회 7일의 시작, 결정 7) */
-    public boolean deliver(long id, Instant now) {
-        return query.update(PA).set(PA.status, ParticipationStatus.DELIVERED).set(PA.deliveredAt, now).set(PA.updatedAt, now)
+    /** 배송완료(SHIPPED → DELIVERED — 청약철회 7일의 시작, 결정 7). {@code deliveredAt} 운영자는 지금, 자동은 택배사 완료 시각·발송 + N일(결정 90) */
+    public boolean deliver(long id, Instant deliveredAt, Instant now) {
+        return query.update(PA).set(PA.status, ParticipationStatus.DELIVERED).set(PA.deliveredAt, deliveredAt).set(PA.updatedAt, now)
                 .where(PA.id.eq(id), PA.status.eq(ParticipationStatus.SHIPPED)).execute() == 1;
     }
 

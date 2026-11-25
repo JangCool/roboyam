@@ -139,6 +139,8 @@ final class GroupBuyTestKit {
     volatile boolean pgCancelDown = false;
     /** 에스크로 배송 정보 등록을 이만큼 실패하게(재시도 표 — 결정 64) */
     final java.util.concurrent.atomic.AtomicInteger escrowFailures = new java.util.concurrent.atomic.AtomicInteger();
+    /** 가짜 송장 조회(결정 90) — 송장마다 정한 결과(없으면 스캔 없음), 부른 송장 차례 */
+    final FakeParcelTracking parcelTracking = new FakeParcelTracking();
 
     final GroupBuyAdminService admin;
     final ShippingPolicyService policies;
@@ -192,7 +194,8 @@ final class GroupBuyTestKit {
     /** 시험 문맥 — 공구 패키지는 스캔(판매 스위치 기본 구현만 빼고 시험 것으로), 결제 모듈과 0단계 장치는 손으로 */
     @Configuration
     @EnableTransactionManagement
-    @ComponentScan(basePackages = "com.community.groupbuy", excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {DefaultGroupBuySalesSwitch.class, GroupBuyNoticeCatalog.class}))
+    @ComponentScan(basePackages = "com.community.groupbuy", excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {DefaultGroupBuySalesSwitch.class, GroupBuyNoticeCatalog.class,
+            com.community.groupbuy.tracking.ParcelTrackingConfig.class}))
     static class Wiring {
 
         @Bean
@@ -261,6 +264,20 @@ final class GroupBuyTestKit {
                     sink.add(event);
                 }
             };
+        }
+
+        /** 설정 비밀값 암호(스마트택배 API 키 — 결정 90) — 시험마다 새 키 */
+        @Bean
+        com.community.zconfiguration.crypto.SecretEncryptor secretEncryptor() {
+            byte[] key = new byte[32];
+            new SecureRandom().nextBytes(key);
+            return new com.community.zconfiguration.crypto.SecretEncryptor(Base64.getEncoder().encodeToString(key));
+        }
+
+        /** 송장 조회는 가짜(결정 90 — 실제 스마트택배 구현은 ParcelTrackingConfig 를 스캔에서 뺐다) */
+        @Bean
+        com.community.groupbuy.tracking.ParcelTrackingClient parcelTrackingClient() {
+            return current.parcelTracking;
         }
 
         @Bean
@@ -511,6 +528,7 @@ final class GroupBuyTestKit {
         salesOpen = true;
         pgCancelDown = false;
         escrowFailures.set(0);
+        parcelTracking.reset();
         events.clear();
         audits.clear();
         operatorNotices.clear();

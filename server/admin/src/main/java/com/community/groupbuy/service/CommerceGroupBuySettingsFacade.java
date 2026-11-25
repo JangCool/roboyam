@@ -49,11 +49,12 @@ public class CommerceGroupBuySettingsFacade {
     private final PaymentAdminQueries payments;
     private final ObjectProvider<Clock> clocks;
     private final SiteHolidayService siteHolidays;
+    private final ParcelTrackingSettingsService tracking;
 
     public CommerceGroupBuySettingsFacade(CommerceGroupBuySettingsQueries queries, ShippingPolicyService policies, ShippingPolicyStore policyStore, FulfillmentService fulfillment,
                                           FulfillmentStore fulfillmentStore, CommerceSalesService sales, GroupBuySettingsService settings,
                                           GroupBuyShipDeadlines shipDeadlines, PaymentAdminQueries payments, ObjectProvider<Clock> clocks,
-                                          SiteHolidayService siteHolidays) {
+                                          SiteHolidayService siteHolidays, ParcelTrackingSettingsService tracking) {
         this.queries = queries;
         this.policies = policies;
         this.policyStore = policyStore;
@@ -65,6 +66,7 @@ public class CommerceGroupBuySettingsFacade {
         this.payments = payments;
         this.clocks = clocks;
         this.siteHolidays = siteHolidays;
+        this.tracking = tracking;
     }
 
     // ── 배송비 정책 ─────────────────────────────────────────────────────────
@@ -96,20 +98,68 @@ public class CommerceGroupBuySettingsFacade {
 
     public CommerceGroupBuySettingsView.Carriers carriers() {
         List<CommerceGroupBuySettingsView.CarrierLine> items = fulfillment.carriers().stream().map(c -> new CommerceGroupBuySettingsView.CarrierLine(c.code(), c.name(),
-                c.trackingUrl(), c.enabled(), fulfillmentStore.carrierInUse(c.code()))).toList();
+                c.trackingUrl(), c.enabled(), fulfillmentStore.carrierInUse(c.code()), c.sweetTrackerCode())).toList();
         CommerceGroupBuySettingsQueries.CarrierEdit last = queries.lastCarrierEdit().orElse(null);
         return new CommerceGroupBuySettingsView.Carriers(items, last == null ? null : last.updatedAt(), last == null ? null : last.operatorName());
     }
 
     public CommerceGroupBuySettingsView.Carriers saveCarriers(AdminActor actor, GroupBuyAdminRequest.Carriers body) {
         List<FulfillmentStore.CarrierRow> rows = new ArrayList<>();
+        Map<String, String> saved = new LinkedHashMap<>();
+        fulfillment.carriers().forEach(c -> saved.put(c.code(), c.sweetTrackerCode()));
         List<GroupBuyAdminRequest.Carrier> in = body == null || body.items() == null ? List.of() : body.items();
         for (int i = 0; i < in.size(); i++) {
             GroupBuyAdminRequest.Carrier c = in.get(i);
-            rows.add(new FulfillmentStore.CarrierRow(c.code(), c.name(), c.trackingUrlTemplate(), !Boolean.FALSE.equals(c.active()), i));
+            rows.add(new FulfillmentStore.CarrierRow(c.code(), c.name(), c.trackingUrlTemplate(), !Boolean.FALSE.equals(c.active()), i, trackingCode(c, saved)));
         }
         fulfillment.saveCarriers(rows, actor.operatorId(), actor.ip());
         return carriers();
+    }
+
+    /** 스마트택배 코드 — 칸이 빠졌으면(옛 화면) 저장된 값 그대로, 빈 글이면 지움, 아니면 앞뒤 공백을 지운 값(결정 90) */
+    private static String trackingCode(GroupBuyAdminRequest.Carrier c, Map<String, String> saved) {
+        if (c.sweetTrackerCode() == null) {
+            return saved.get(c.code());
+        }
+        String v = c.sweetTrackerCode().strip();
+        return v.isEmpty() ? null : v;
+    }
+
+    // ── 배송 조회 설정(결정 90) ─────────────────────────────────────────────
+
+    public CommerceGroupBuySettingsView.TrackingSettings trackingSettings() {
+        return view(tracking.view());
+    }
+
+    public CommerceGroupBuySettingsView.TrackingSettings saveTrackingSettings(AdminActor actor, GroupBuyAdminRequest.TrackingSettings body) {
+        GroupBuyAdminRequest.TrackingValues v = body == null || body.values() == null ? new GroupBuyAdminRequest.TrackingValues(null, null, null, null) : body.values();
+        return view(tracking.save(v.enabled(), v.intervalMinutes(), v.autoDeliverEnabled(), v.autoDeliverDays(), actor.operatorId(), actor.ip()));
+    }
+
+    public CommerceGroupBuySettingsView.TrackingSettings saveTrackingKey(AdminActor actor, GroupBuyAdminRequest.TrackingKey body) {
+        return view(tracking.saveKey(body == null ? null : body.apiKey(), actor.operatorId(), actor.ip()));
+    }
+
+    public CommerceGroupBuySettingsView.TrackingSettings deleteTrackingKey(AdminActor actor) {
+        return view(tracking.deleteKey(actor.operatorId(), actor.ip()));
+    }
+
+    public CommerceGroupBuySettingsView.TrackingUsage trackingUsage() {
+        ParcelTrackingSettingsService.UsageView u = tracking.usage();
+        return new CommerceGroupBuySettingsView.TrackingUsage(u.outcome(), u.errorCode(), u.startDate(), u.endDate(), u.totalAmount(), u.leftAmount(), u.checkedAt());
+    }
+
+    private static CommerceGroupBuySettingsView.TrackingSettings view(ParcelTrackingSettingsService.View v) {
+        ParcelTrackingSettingsService.Values d = ParcelTrackingSettingsService.defaults();
+        Map<String, CommerceGroupBuySettingsView.Range> ranges = new LinkedHashMap<>();
+        ranges.put("intervalMinutes", new CommerceGroupBuySettingsView.Range(ParcelTrackingSettingsService.INTERVAL_MIN, ParcelTrackingSettingsService.INTERVAL_MAX));
+        ranges.put("autoDeliverDays", new CommerceGroupBuySettingsView.Range(ParcelTrackingSettingsService.DAYS_MIN, ParcelTrackingSettingsService.DAYS_MAX));
+        return new CommerceGroupBuySettingsView.TrackingSettings(values(v.values()), values(d), ranges, v.apiKeyConfigured(), v.cryptoConfigured(), v.keyUpdatedAt(),
+                v.keyUpdatedBy(), v.keyAlertCode(), v.keyAlertAt(), v.updatedAt(), v.updatedBy());
+    }
+
+    private static CommerceGroupBuySettingsView.TrackingValues values(ParcelTrackingSettingsService.Values v) {
+        return new CommerceGroupBuySettingsView.TrackingValues(v.enabled(), v.intervalMinutes(), v.autoDeliverEnabled(), v.autoDeliverDays());
     }
 
     // ── 사업자 정보·판매 스위치 ─────────────────────────────────────────────

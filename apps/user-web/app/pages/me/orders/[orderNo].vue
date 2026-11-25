@@ -201,6 +201,16 @@
                     <dt class="text-muted-color">{{ t('groupBuy.deliveredAt') }}</dt>
                     <dd class="m-0 tabular-nums">{{ order.shipment.deliveredAt ? time.full(order.shipment.deliveredAt) : '—' }}</dd>
                 </dl>
+                <!-- 배송 진행 — 스마트택배 단계·이력(결정 90). 택배사 조회 링크는 위 그대로 -->
+                <GroupBuyTrackingProgress
+                    v-if="order.shipment"
+                    class="mt-4 border-t border-surface pt-4"
+                    :level="order.shipment.level"
+                    :complete="order.shipment.complete"
+                    :delivered-at="order.shipment.deliveredAt"
+                    :events="order.shipment.events"
+                    :last-checked-at="order.shipment.lastCheckedAt"
+                />
             </section>
 
             <!-- 배송지 — 가린 값 · 전체 보기 · 수정(기한 안 — 서버 actions) -->

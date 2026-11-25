@@ -267,4 +267,32 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
                 .andExpect(jsonPath("$.data.request.pickupTrackingNo").value(org.hamcrest.Matchers.nullValue()));
         mvc.perform(as(m, get("/api/me/orders/" + orderNo))).andExpect(status().isOk()).andExpect(jsonPath("$.data.requests[0].type").value("RETURN"));
     }
+
+    /** 결정 90 — 내 주문 상세의 발송 정보에 스마트택배 단계·완료·이력(시각·진행 상태·위치)·마지막 조회. 기사 이름·전화는 저장하지 않으므로 응답에도 없다 */
+    @Test
+    void 결정90_내_주문_상세_발송_정보에_배송_단계와_이력() throws Exception {
+        long[] g = recruiting();
+        long m = buyer();
+        String created = mvc.perform(as(m, post("/api/group-buys/" + g[0] + "/orders")).header("Idempotency-Key", "gb-" + ids.nextId()).content(orderBody(g[1], 1, 28_000)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode order = MAPPER.readTree(created).path("data");
+        String orderNo = order.path("orderNo").asString();
+        String paymentId = order.path("payment").path("checkout").path("paymentId").asString();
+        mvc.perform(as(m, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content("{\"outcome\":\"PAID\",\"late\":false}")).andExpect(status().isNoContent());
+        mvc.perform(as(m, post("/api/payments/" + paymentId + "/complete"))
+                .content("{\"orderType\":\"GROUP_BUY\",\"orderRefId\":\"" + order.path("payment").path("orderRefId").asString() + "\"}")).andExpect(status().isOk());
+        long participation = jdbc.queryForObject("SELECT id FROM group_buy_participations WHERE order_no = ?", Long.class, orderNo);
+        fulfillment.ship(List.of(new FulfillmentService.ShipLine(participation, "CJ", "223456789012")), newOperator(), "ip");
+        mvc.perform(as(m, get("/api/me/orders/" + orderNo))).andExpect(status().isOk()).andExpect(jsonPath("$.data.shipment.level").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.data.shipment.events.length()").value(0));
+
+        jdbc.update("UPDATE group_buy_shipments SET tracking_level = 5, tracking_checked_at = now(), tracking_events = CAST(? AS jsonb) WHERE participation_id = ?",
+                "[{\"time\":\"2026-11-24T00:00:00Z\",\"kind\":\"집화처리\",\"where\":\"서울 강남\",\"level\":2},"
+                        + "{\"time\":\"2026-11-25T00:00:00Z\",\"kind\":\"배송출발\",\"where\":\"부산 해운대\",\"level\":5}]", participation);
+        String detail = mvc.perform(as(m, get("/api/me/orders/" + orderNo))).andExpect(status().isOk()).andExpect(jsonPath("$.data.shipment.level").value(5))
+                .andExpect(jsonPath("$.data.shipment.complete").value(false)).andExpect(jsonPath("$.data.shipment.events[1].kind").value("배송출발"))
+                .andExpect(jsonPath("$.data.shipment.events[1].where").value("부산 해운대")).andExpect(jsonPath("$.data.shipment.lastCheckedAt").exists())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(detail).doesNotContain("manName").doesNotContain("telno");
+    }
 }

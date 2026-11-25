@@ -28,7 +28,15 @@ public final class MyGroupBuyOrderView {
     public record Address(String recipient, String phone, String postcode, String address1, String address2, String memo, boolean masked, boolean purged) {
     }
 
-    public record Shipment(String carrierName, String trackingNo, String trackingUrl, String kind, Instant shippedAt, Instant deliveredAt) {
+    /**
+     * 발송 정보 — 추적(결정 90): {@code level} 0 스캔 없음 · 1 배송준비중 · 2 집화완료 · 3 배송중 · 4 지점 도착 · 5 배송출발 · 6 배송 완료(아직 조회 전이면 null) ·
+     * {@code complete} 택배사가 배송 완료라고 함 · {@code events} 이력(시각·진행 상태·위치·단계 — 기사 이름·전화 없음) · {@code lastCheckedAt} 마지막 조회
+     */
+    public record Shipment(String carrierName, String trackingNo, String trackingUrl, String kind, Instant shippedAt, Instant deliveredAt, Integer level, boolean complete,
+                           List<TrackingEvent> events, Instant lastCheckedAt) {
+    }
+
+    public record TrackingEvent(Instant time, String kind, String where, int level) {
     }
 
     public record RequestItem(String skuId, String skuName, String kind, int qty, String reason) {

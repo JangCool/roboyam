@@ -12,6 +12,9 @@ import type {
     SalesToggleRequest,
     ShippingPolicyCreateRequest,
     ShippingPolicyList,
+    TrackingSettingsSaveRequest,
+    TrackingSettingsView,
+    TrackingUsageView,
 } from '~/composables/commerce/api/useCommerceSettingsApi.types';
 
 /**
@@ -25,6 +28,9 @@ import type {
  *  - `GET`·`PUT /api/admin/commerce/business-info` → `BusinessInfoView` · `PUT` 은 커머스 고유 칸(운영시간·배송/환불 안내)만 저장 — 겹치는 칸은 운영 주체 설정이 정본(받아도 버림) · `400 fields.values.<칸>`(글자 수)
  *  - `GET  /api/admin/commerce/sales` · `POST /sales/checklist/{key} {checked}` · `POST /sales {enabled, reason}` → `SalesSwitchView` · `409 COMMERCE_SALES_NOT_READY` · 감사 `COMMERCE_SALES_TOGGLE`
  *  - `GET`·`PUT /api/admin/commerce/group-buy-settings` → `GroupBuySettingsView` · `400 fields.values.<칸>`
+ *  - `GET`·`PUT /api/admin/commerce/tracking-settings` → `TrackingSettingsView` · `400 fields.values.<칸>`(결정 90)
+ *  - `PUT`·`DELETE /api/admin/commerce/tracking-settings/api-key {apiKey}` → `TrackingSettingsView`(키 값은 응답에 없다) · `400 fields.apiKey` · `503 CRYPTO_KEY_MISSING`
+ *  - `GET  /api/admin/commerce/tracking-settings/usage` → `TrackingUsageView`(스마트택배를 부른다 — 버튼으로만) · `409 COMMERCE_TRACKING_KEY_MISSING`
  *
  */
 const PATH = {
@@ -37,6 +43,9 @@ const PATH = {
     sales: () => `${PATH.root}/sales`,
     salesChecklist: (key: SalesChecklistKey) => `${PATH.root}/sales/checklist/${encodeURIComponent(key)}`,
     groupBuySettings: () => `${PATH.root}/group-buy-settings`,
+    trackingSettings: () => `${PATH.root}/tracking-settings`,
+    trackingKey: () => `${PATH.root}/tracking-settings/api-key`,
+    trackingUsage: () => `${PATH.root}/tracking-settings/usage`,
 };
 
 export function useCommerceSettingsApi() {
@@ -94,5 +103,23 @@ export function useCommerceSettingsApi() {
 
         saveGroupBuySettings: (body: GroupBuySettingsSaveRequest): Promise<GroupBuySettingsView> =>
             client.put<GroupBuySettingsView>(PATH.groupBuySettings(), body),
+
+        /** 배송 조회 설정(키 값 없음) */
+        trackingSettings: (): Promise<TrackingSettingsView> =>
+            client.get<TrackingSettingsView>(PATH.trackingSettings()),
+
+        saveTrackingSettings: (body: TrackingSettingsSaveRequest): Promise<TrackingSettingsView> =>
+            client.put<TrackingSettingsView>(PATH.trackingSettings(), body),
+
+        /** 스마트택배 API 키 저장(서버가 암호문으로) */
+        saveTrackingKey: (apiKey: string): Promise<TrackingSettingsView> =>
+            client.put<TrackingSettingsView>(PATH.trackingKey(), { apiKey }),
+
+        deleteTrackingKey: (): Promise<TrackingSettingsView> =>
+            client.del<TrackingSettingsView>(PATH.trackingKey()),
+
+        /** 이용권 남은 양 — 외부 호출이라 버튼을 눌러서만 */
+        trackingUsage: (): Promise<TrackingUsageView> =>
+            client.get<TrackingUsageView>(PATH.trackingUsage()),
     };
 }

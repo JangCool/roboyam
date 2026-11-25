@@ -154,6 +154,7 @@ export interface GroupBuyRefundRecord {
 
 /** 배송 한 줄 — 원래 발송 · 교환 재발송(결정 54) */
 export interface GroupBuyShipment {
+    id: string;
     kind: 'ORIGINAL' | 'EXCHANGE';
     carrierCode: string;
     carrierName: string;
@@ -163,6 +164,42 @@ export interface GroupBuyShipment {
     trackingUrl: string | null;
     shippedAt: string;
     deliveredAt: string | null;
+    /** 스마트택배 추적(결정 90) — 택배사에 스마트택배 코드가 없으면 `available=false` */
+    tracking: GroupBuyShipmentTracking;
+}
+
+/** 배송 단계 — 0 스캔 없음 · 1 배송준비중 · 2 집화완료 · 3 배송중 · 4 지점 도착 · 5 배송출발 · 6 배송 완료 */
+export type GroupBuyTrackingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** 추적 이력 한 줄(기사 이름·전화 없음) */
+export interface GroupBuyTrackingEvent {
+    time: string;
+    /** 택배사가 준 진행 상태 글 */
+    kind: string;
+    where: string;
+    level: number;
+}
+
+/** 자동 배송완료를 하지 않은 사유 — 택배사 완료 시각이 발송보다 이름 · 미래 */
+export type GroupBuyTrackingHoldReason = 'BEFORE_SHIPPED' | 'IN_FUTURE';
+
+export interface GroupBuyShipmentTracking {
+    available: boolean;
+    /** 아직 조회 전이면 null */
+    level: number | null;
+    complete: boolean;
+    events: GroupBuyTrackingEvent[];
+    lastCheckedAt: string | null;
+    nextCheckAt: string | null;
+    /** 이어진 실패 수 */
+    failCount: number;
+    /** 마지막 실패(101~106 · NO_SCAN · TIMEOUT · HTTP_404 · ERROR) */
+    errorCode: string | null;
+    completedAt: string | null;
+    holdReason: GroupBuyTrackingHoldReason | null;
+    /** 오늘(KST) 조회 수 / 하루 한도 */
+    todayCount: number;
+    dailyLimit: number;
 }
 
 /** 이 주문에 지금 할 수 있는 일(서버가 정한다) */

@@ -26,6 +26,7 @@ import type {
  *   - `PUT  /api/admin/group-buy-orders/{id}/memo {memo}` → `GroupBuyOrderDetail`
  *   - `POST /api/admin/group-buy-orders/prepare {orderIds}` · `…/ship {rows}` · `…/deliver {orderIds}` → `GroupBuyBulkResult`(최대 200건, 줄 단위 부분 성공)
  *   - `POST /api/admin/group-buy-orders/{id}/tracking {carrierCode, trackingNo, reason}` → `GroupBuyOrderDetail`
+ *   - `POST /api/admin/group-buy-orders/{id}/tracking/refresh` → `GroupBuyOrderDetail`(결정 90 [지금 조회], `commerce.order.manage`) · `409 COMMERCE_TRACKING_KEY_MISSING`·`COMMERCE_TRACKING_KEY_ERROR`(`providerCode`)·`GROUP_BUY_TRACKING_NOT_AVAILABLE`·`GROUP_BUY_TRACKING_DAILY_LIMIT`
  *   - `POST /api/admin/group-buy-orders/{id}/refund-preview` · `…/refunds` → `GroupBuyRefundPreview` · `GroupBuyAdminRefundResult` · `409 GROUP_BUY_REFUND_SHIPPED`·`GROUP_BUY_PAYMENT_UNRECONCILED`
  *   - `GET  /api/admin/group-buy-orders/carriers` → `GroupBuyCarrierChoice[]`(켜진 택배사)
  *   - `POST /api/admin/group-buy-orders/export {groupBuyId, reason}` → `GroupBuyExportResult`(한 번 쓰는 내려받기 주소) · `409 GROUP_BUY_EXPORT_NOT_READY`
@@ -78,6 +79,10 @@ export function useGroupBuyOrderApi() {
         /** 송장 정정 */
         fixTracking: (id: string, body: GroupBuyTrackingFixRequest): Promise<GroupBuyOrderDetail> =>
             client.post<GroupBuyOrderDetail>(PATH.sub(id, 'tracking'), body),
+
+        /** [지금 조회] — 배송완료 전 발송을 스마트택배로 바로 조회해 반영한 상세(결정 90) */
+        refreshTracking: (id: string): Promise<GroupBuyOrderDetail> =>
+            client.post<GroupBuyOrderDetail>(PATH.sub(id, 'tracking/refresh')),
 
         /** 운영 환불 미리 보기 */
         refundPreview: (id: string, body: GroupBuyAdminRefundRequest): Promise<GroupBuyRefundPreview> =>

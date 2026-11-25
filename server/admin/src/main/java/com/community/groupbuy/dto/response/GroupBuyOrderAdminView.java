@@ -55,7 +55,22 @@ public final class GroupBuyOrderAdminView {
                                Instant completedAt) {
     }
 
-    public record Shipment(String kind, String carrierCode, String carrierName, String trackingNo, String trackingUrl, Instant shippedAt, Instant deliveredAt) {
+    /** {@code tracking} 스마트택배 추적(결정 90) — 택배사에 스마트택배 코드가 없으면 {@code available=false} */
+    public record Shipment(String id, String kind, String carrierCode, String carrierName, String trackingNo, String trackingUrl, Instant shippedAt, Instant deliveredAt,
+                           Tracking tracking) {
+    }
+
+    /**
+     * 발송 줄의 배송 추적(결정 90). {@code level} 0 스캔 없음 · 1 배송준비중 · 2 집화완료 · 3 배송중 · 4 지점 도착 · 5 배송출발 · 6 배송 완료(아직 조회 전이면 null).
+     * {@code errorCode} 마지막 실패(101~106 · NO_SCAN · TIMEOUT · HTTP_404 · ERROR) · {@code failCount} 이어진 실패 · {@code holdReason} 완료를 받았지만 자동 배송완료를 하지 않은 사유
+     * (BEFORE_SHIPPED 완료 시각이 발송보다 이름 · IN_FUTURE 미래) · {@code todayCount}/{@code dailyLimit} 오늘(KST) 조회 수 · {@code available} 조회할 수 있는 택배사인가
+     */
+    public record Tracking(boolean available, Integer level, boolean complete, List<TrackingEvent> events, Instant lastCheckedAt, Instant nextCheckAt, int failCount,
+                           String errorCode, Instant completedAt, String holdReason, int todayCount, int dailyLimit) {
+    }
+
+    /** 이력 한 줄 — 기사 이름·전화 없음 */
+    public record TrackingEvent(Instant time, String kind, String where, int level) {
     }
 
     public record RequestRef(String id, String type, String status, Instant createdAt) {

@@ -106,6 +106,16 @@ public class GroupBuyOrderAdminController {
         return ok(facade.tracking(actor, id, body));
     }
 
+    /**
+     * [지금 조회](결정 90) — 배송완료 전 발송을 스마트택배로 바로 조회해 반영한 상세. 409 {@code COMMERCE_TRACKING_KEY_MISSING}·{@code COMMERCE_TRACKING_KEY_ERROR}({@code providerCode})·
+     * {@code GROUP_BUY_TRACKING_NOT_AVAILABLE}·{@code GROUP_BUY_TRACKING_DAILY_LIMIT}
+     */
+    @RequirePermission(Permission.COMMERCE_ORDER_MANAGE)
+    @PostMapping("/{id}/tracking/refresh")
+    public ResponseEntity<ApiResponse<GroupBuyOrderAdminView.Detail>> refreshTracking(@PathVariable String id, AdminActor actor) {
+        return ok(facade.refreshTracking(actor, id));
+    }
+
     @RequirePermission(Permission.COMMERCE_REFUND_APPROVE)
     @PostMapping("/{id}/refund-preview")
     public ResponseEntity<ApiResponse<GroupBuyOrderAdminView.RefundPreview>> refundPreview(@PathVariable String id,

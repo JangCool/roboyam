@@ -583,6 +583,12 @@ public final class AuditActions {
     public static final String GROUPBUY_SHIPPING_EXPORT = "GROUPBUY_SHIPPING_EXPORT";
     /** 택배사 목록 저장(결정 11) — {@code codes}. 일반 */
     public static final String COMMERCE_CARRIER_SAVE = "COMMERCE_CARRIER_SAVE";
+    /** 배송 조회 설정 저장(결정 90 — 자동 조회·주기·N일 자동 배송완료) — 바뀐 칸만 {@code before}/{@code after}. 일반 */
+    public static final String COMMERCE_TRACKING_SETTINGS_UPDATE = "COMMERCE_TRACKING_SETTINGS_UPDATE";
+    /** 스마트택배 API 키 저장(결정 90) — 칸 이름 {@code fields} 만(값 없음). 일반 */
+    public static final String COMMERCE_TRACKING_KEY_UPDATE = "COMMERCE_TRACKING_KEY_UPDATE";
+    /** 스마트택배 API 키 지우기(결정 90) — 칸 이름 {@code field} 만. 일반 */
+    public static final String COMMERCE_TRACKING_KEY_DELETE = "COMMERCE_TRACKING_KEY_DELETE";
     /** 배송비 정책 줄 추가(예약) — 대상 SHIPPING_POLICY + 줄 ID, {@code code}·{@code effectiveFrom}·{@code before}/{@code after}. 돈 관련 */
     public static final String COMMERCE_SHIPPING_POLICY_CREATE = "COMMERCE_SHIPPING_POLICY_CREATE";
     // ── 2b-4 판매 스위치·사업자 정보·공구 설정·주문 조회 — 대상 COMMERCE_SETTINGS(sales·business-info·group-buy-settings)·SHIPPING_POLICY·GROUP_BUY_ORDER ──

@@ -1,6 +1,6 @@
 <template>
     <!--
-        커머스 설정(`/settings/commerce`) — 판매·결제에 공통으로 쓰는 설정(`docs/domain/commerce.md` 13-5). 구획: ① 요청 제한 ② 판매 스위치·오픈 체크리스트 ③ 사업자 정보 ④ 배송비 정책 ⑤ 택배사 ⑥ 공구 설정
+        커머스 설정(`/settings/commerce`) — 판매·결제에 공통으로 쓰는 설정(`docs/domain/commerce.md` 13-5). 구획: ① 요청 제한 ② 판매 스위치·오픈 체크리스트 ③ 사업자 정보 ④ 배송비 정책 ⑤ 택배사 ⑤-2 배송 조회(스마트택배 — 결정 90) ⑥ 공구 설정
         (② ~ ⑥ 은 커머스 2b — `components/commerce/Commerce*Section.vue`, 지금 목업). **구획마다 따로 저장한다**(구획마다 자기 API — 구획 맨 아래 저장 줄 `SaveBar`, `forms.md` 2-4).
         요청 제한(12-4): 회원 한 명이 1분 동안 보낼 수 있는 돈 관련 요청 수(공구 참여 · 충전 요청 · 상점 구매 · 환불 신청, 차례 고정). 0~100 정수, 0 = 제한 없음. 넘으면 서버가 429 + 몇 초 뒤 가능한지 알린다.
         권한 `commerce.settings`(메뉴 권한이 없으면 셸이 이 화면을 그리지 않는다) — 판매 **켜기**만 최고 관리자. 막는 것은 서버(403)다.
@@ -90,6 +90,8 @@
         <CommerceBusinessInfoSection can-edit @dirty="(d: boolean) => setDirty('business', d)" @saved="salesSection?.reload()" />
         <CommerceShippingPolicySection can-edit @dirty="(d: boolean) => setDirty('policy', d)" />
         <CommerceCarrierSection can-edit @dirty="(d: boolean) => setDirty('carrier', d)" @saved="salesSection?.reload()" />
+        <!-- 배송 조회(스마트택배 — 결정 90) — 택배사 구획 바로 아래 -->
+        <CommerceTrackingSection can-edit @dirty="(d: boolean) => setDirty('tracking', d)" />
         <CommerceGroupBuySettingsSection can-edit @dirty="(d: boolean) => setDirty('groupBuy', d)" />
     </div>
 </template>

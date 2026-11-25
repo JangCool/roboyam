@@ -22,6 +22,8 @@ public class CommerceCarrierEntity {
     private String trackingUrl;
     private Boolean enabled;
     private Integer sortOrder;
+    /** 스마트택배 택배사 코드(V272 — 결정 90, 비면 자동 조회 안 함) */
+    private String sweettrackerCode;
     private Instant updatedAt;
     private Long updatedBy;
 

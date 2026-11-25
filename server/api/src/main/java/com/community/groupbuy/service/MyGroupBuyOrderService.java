@@ -23,6 +23,7 @@ import com.community.groupbuy.repository.master.GroupBuyRequestStore;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.groupbuy.repository.master.GroupBuyStore.SkuRow;
+import com.community.groupbuy.repository.master.ParcelTrackingStore;
 import com.community.groupbuy.repository.master.ParticipationStore;
 import com.community.groupbuy.repository.master.ParticipationStore.ItemRow;
 import com.community.groupbuy.repository.master.ParticipationStore.ParticipationRow;
@@ -69,11 +70,12 @@ public class MyGroupBuyOrderService {
     private final GroupBuyImageUploader images;
     private final GroupBuyMemberService members;
     private final ObjectProvider<Clock> clocks;
+    private final ParcelTrackingStore trackingStore;
 
     public MyGroupBuyOrderService(GroupBuyMemberQueries queries, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requestStore,
                                   GroupBuyRefundStore refundStore, FulfillmentStore fulfillment, CommerceSalesStore sales, GroupBuyJoinService joins,
                                   ParticipationCancelService cancels, GroupBuyRequestService requests, GroupBuySupplyService supply, AddressRevealService addresses,
-                                  GroupBuyImageUploader images, GroupBuyMemberService members, ObjectProvider<Clock> clocks) {
+                                  GroupBuyImageUploader images, GroupBuyMemberService members, ObjectProvider<Clock> clocks, ParcelTrackingStore trackingStore) {
         this.queries = queries;
         this.participations = participations;
         this.groups = groups;
@@ -89,6 +91,7 @@ public class MyGroupBuyOrderService {
         this.images = images;
         this.members = members;
         this.clocks = clocks;
+        this.trackingStore = trackingStore;
     }
 
     // ── 목록·상세 ───────────────────────────────────────────────────────────
@@ -341,10 +344,14 @@ public class MyGroupBuyOrderService {
         return new MyGroupBuyOrderView.Address(nz(m.recipient()), nz(m.phone()), nz(m.postcode()), nz(m.address1()), nz(m.address2()), nz(m.memo()), true, false);
     }
 
+    /** 발송 정보 + 배송 추적(결정 90 — 단계·완료·이력의 시각·진행 상태·위치·마지막 조회, 기사 이름·전화 없음) */
     private MyGroupBuyOrderView.Shipment shipment(FulfillmentStore.ShipmentRow s) {
+        ParcelTrackingStore.TrackingRow t = trackingStore.find(s.id()).orElse(null);
+        List<MyGroupBuyOrderView.TrackingEvent> events = t == null ? List.of() : ParcelTrackingService.events(t.eventsJson()).stream()
+                .map(e -> new MyGroupBuyOrderView.TrackingEvent(e.time(), e.kind(), e.where(), e.level())).toList();
         FulfillmentStore.CarrierRow c = fulfillment.carriers().stream().filter(x -> x.code().equals(s.carrierCode())).findFirst().orElse(null);
         return new MyGroupBuyOrderView.Shipment(c == null ? s.carrierCode() : c.name(), s.trackingNo(), c == null || s.trackingNo() == null ? null : c.trackingUrl().replace("{no}", s.trackingNo()),
-                s.kind(), s.shippedAt(), s.deliveredAt());
+                s.kind(), s.shippedAt(), s.deliveredAt(), t == null ? null : t.level(), t != null && t.complete(), events, t == null ? null : t.checkedAt());
     }
 
     /** [단순 변심 반품 기한, 하자·오배송 반품 기한] — 배송완료(한국 날짜) + 7일 / + 3개월 그날 끝(계약 2b-3 「정한 세부」 3) */

@@ -54,7 +54,7 @@ class GroupBuyFulfillmentTest {
         List<FulfillmentStore.CarrierRow> withoutCj = kit.fulfillment.carriers().stream().filter(c -> !c.code().equals("CJ")).toList();
         assertThatThrownBy(() -> kit.fulfillment.saveCarriers(withoutCj, kit.operator, "127.0.0.1"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.CARRIER_IN_USE));
-        assertThatThrownBy(() -> kit.fulfillment.saveCarriers(List.of(new FulfillmentStore.CarrierRow("XX", "x", "http://a/{no}", true, 1)), kit.operator, "127.0.0.1"))
+        assertThatThrownBy(() -> kit.fulfillment.saveCarriers(List.of(new FulfillmentStore.CarrierRow("XX", "x", "http://a/{no}", true, 1, null)), kit.operator, "127.0.0.1"))
                 .as("https 와 {no} 한 번").isInstanceOf(com.community.zconfiguration.exception.ValidationException.class);
     }
 

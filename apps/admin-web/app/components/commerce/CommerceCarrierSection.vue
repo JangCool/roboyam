@@ -1,7 +1,7 @@
 <template>
     <!--
         커머스 설정 구획 「택배사」(계약 결정 11) — 6개 시드(`CJ`·`HANJIN`·`LOTTE`·`EPOST`·`LOGEN`·`KDEXP`) + 조회 주소 템플릿(`https://…{no}`, `{no}` 한 번), 켜기/끄기, 차례(위·아래).
-        목록 통째로 저장(PUT 한 번 — 구획 맨 아래 저장 줄). 발송 이력이 있는 코드는 지우지 못하고 끄기만(서버 `409 COMMERCE_CARRIER_IN_USE`). 켜진 택배사가 하나는 있어야 판매를 켤 수 있다.
+        목록 통째로 저장(PUT 한 번 — 구획 맨 아래 저장 줄). 줄마다 스마트택배 택배사 코드(결정 90 — 숫자·영문 1~10자, 비우면 그 택배사는 자동 배송 조회를 하지 않는다). 발송 이력이 있는 코드는 지우지 못하고 끄기만(서버 `409 COMMERCE_CARRIER_IN_USE`). 켜진 택배사가 하나는 있어야 판매를 켤 수 있다.
         서버 칸 오류는 `items[i].<칸>` 키로 그 칸 아래에. 서버 호출은 `useCommerceSettingsApi`(목업 — `?mock=carriers-fail`).
     -->
     <AppGadget :title="t('commerce.carrierSection')" anchor="commerce-carriers" :changes="dirty ? 1 : 0" :invalid="problemCount">
@@ -10,12 +10,13 @@
         <div v-else class="flex flex-col gap-3">
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('commerce.carrierLead') }}</p>
             <div class="overflow-x-auto rounded-lg border border-(--line)">
-                <table class="w-full min-w-[46rem] border-collapse text-[13px]">
+                <table class="w-full min-w-[54rem] border-collapse text-[13px]">
                     <thead>
                         <tr class="border-b border-(--line) text-left text-xs text-muted-color">
                             <th class="w-28 px-2 py-1.5 font-normal">{{ t('commerce.carrierCode') }}</th>
                             <th class="w-40 px-2 py-1.5 font-normal">{{ t('commerce.carrierName') }}</th>
                             <th class="px-2 py-1.5 font-normal">{{ t('commerce.carrierTemplate') }}</th>
+                            <th class="w-24 px-2 py-1.5 font-normal">{{ t('commerce.carrierSweetTracker') }}</th>
                             <th class="w-16 px-2 py-1.5 font-normal">{{ t('commerce.carrierActive') }}</th>
                             <th class="w-28 px-2 py-1.5"><span class="sr-only">{{ t('commerce.carrierOrder') }}</span></th>
                         </tr>
@@ -34,6 +35,10 @@
                                 <InputText :model-value="row.trackingUrlTemplate" :aria-label="t('commerce.carrierTemplateN', { n: i + 1 })" maxlength="300" :readonly="!editable" :invalid="!!fieldError(i, 'trackingUrlTemplate')" class="font-mono text-[12px]" fluid @update:model-value="(v: string | undefined) => patch(i, { trackingUrlTemplate: v ?? '' })" />
                                 <p v-if="fieldError(i, 'trackingUrlTemplate')" class="m-0 mt-0.5 text-[11px] text-red-600 dark:text-red-400">{{ fieldError(i, 'trackingUrlTemplate') }}</p>
                             </td>
+                            <td class="px-2 py-1.5">
+                                <InputText :model-value="row.sweetTrackerCode" :aria-label="t('commerce.carrierSweetTrackerN', { n: i + 1 })" maxlength="10" autocomplete="off" :readonly="!editable" :invalid="!!fieldError(i, 'sweetTrackerCode')" :placeholder="t('commerce.carrierSweetTrackerNone')" class="font-mono text-[12px]" fluid @update:model-value="(v: string | undefined) => patch(i, { sweetTrackerCode: (v ?? '').trim() })" />
+                                <p v-if="fieldError(i, 'sweetTrackerCode')" class="m-0 mt-0.5 text-[11px] text-red-600 dark:text-red-400">{{ fieldError(i, 'sweetTrackerCode') }}</p>
+                            </td>
                             <td class="px-2 py-1.5"><ToggleSwitch :model-value="row.active" :aria-label="t('commerce.carrierActiveN', { n: i + 1 })" :disabled="!editable" @update:model-value="(v: boolean) => patch(i, { active: v })" /></td>
                             <td class="px-2 py-1.5 text-right whitespace-nowrap">
                                 <template v-if="editable">
@@ -47,6 +52,7 @@
                     </tbody>
                 </table>
             </div>
+            <p class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-muted-color"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('commerce.carrierSweetTrackerHelp') }}</span></p>
             <div v-if="editable"><Button type="button" :label="t('commerce.carrierAdd')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" @click="addRow" /></div>
             <p v-if="!rows.some((r) => r.active)" class="m-0 text-xs text-red-600 dark:text-red-400">{{ t('commerce.carrierNoneActive') }}</p>
             <p class="m-0 text-xs text-muted-color">{{ saved.updatedAt ? t('commerce.lastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy ?? '—' }) : t('commerce.neverSaved') }}</p>
@@ -74,6 +80,8 @@ interface Row {
     trackingUrlTemplate: string;
     active: boolean;
     used: boolean;
+    /** 스마트택배 코드 — 빈 글 = 자동 조회 안 함 */
+    sweetTrackerCode: string;
     isNew: boolean;
 }
 
@@ -92,28 +100,32 @@ const formError = ref('');
 const serverErrors = ref<Record<string, string>>({});
 const editable = computed(() => props.canEdit && !saving.value);
 
-const snap = (list: Row[]) => JSON.stringify(list.map((r) => [r.code, r.name, r.trackingUrlTemplate, r.active]));
+const snap = (list: Row[]) => JSON.stringify(list.map((r) => [r.code, r.name, r.trackingUrlTemplate, r.active, r.sweetTrackerCode]));
 const initial = ref('');
 const dirty = computed(() => !!saved.value && snap(rows.value) !== initial.value);
 watch(dirty, (d) => emit('dirty', d));
 
-function localProblem(row: Row, field: 'code' | 'name' | 'trackingUrlTemplate'): string {
+type Field = 'code' | 'name' | 'trackingUrlTemplate' | 'sweetTrackerCode';
+const FIELDS: readonly Field[] = ['code', 'name', 'trackingUrlTemplate', 'sweetTrackerCode'];
+
+function localProblem(row: Row, field: Field): string {
     if (field === 'code' && !/^[A-Z][A-Z0-9_]{1,19}$/.test(row.code)) return t('commerce.carrierCodeProblem');
     if (field === 'name' && !row.name.trim()) return t('commerce.carrierNameRequired');
     if (field === 'trackingUrlTemplate' && !UtilGroupBuy.carrierTemplateOk(row.trackingUrlTemplate)) return t('commerce.carrierTemplateProblem');
+    if (field === 'sweetTrackerCode' && row.sweetTrackerCode && !/^[0-9A-Za-z]{1,10}$/.test(row.sweetTrackerCode)) return t('commerce.carrierSweetTrackerProblem');
     return '';
 }
 
-function fieldError(i: number, field: 'code' | 'name' | 'trackingUrlTemplate'): string {
+function fieldError(i: number, field: Field): string {
     const row = rows.value[i];
     return serverErrors.value[`items[${i}].${field}`] ?? (row ? localProblem(row, field) : '');
 }
 
-const problemCount = computed(() => rows.value.reduce((n, r) => n + (['code', 'name', 'trackingUrlTemplate'] as const).filter((f) => localProblem(r, f)).length, 0));
+const problemCount = computed(() => rows.value.reduce((n, r) => n + FIELDS.filter((f) => localProblem(r, f)).length, 0));
 
 function applySaved(view: CarrierList): void {
     saved.value = view;
-    rows.value = view.items.map((c) => ({ key: c.code, ...c, isNew: false }));
+    rows.value = view.items.map((c) => ({ key: c.code, ...c, sweetTrackerCode: c.sweetTrackerCode ?? '', isNew: false }));
     initial.value = snap(rows.value);
     serverErrors.value = {};
     formError.value = '';
@@ -133,7 +145,7 @@ function move(i: number, delta: number): void {
 }
 
 function addRow(): void {
-    rows.value = [...rows.value, { key: `new-${Date.now()}`, code: '', name: '', trackingUrlTemplate: 'https://', active: true, used: false, isNew: true }];
+    rows.value = [...rows.value, { key: `new-${Date.now()}`, code: '', name: '', trackingUrlTemplate: 'https://', active: true, used: false, sweetTrackerCode: '', isNew: true }];
 }
 
 async function load(): Promise<void> {
@@ -154,7 +166,7 @@ async function save(): Promise<void> {
     formError.value = '';
     serverErrors.value = {};
     try {
-        applySaved(await api.saveCarriers({ items: rows.value.map((r) => ({ code: r.code, name: r.name.trim(), trackingUrlTemplate: r.trackingUrlTemplate.trim(), active: r.active })) }));
+        applySaved(await api.saveCarriers({ items: rows.value.map((r) => ({ code: r.code, name: r.name.trim(), trackingUrlTemplate: r.trackingUrlTemplate.trim(), active: r.active, sweetTrackerCode: r.sweetTrackerCode.trim() })) }));
         toast.success(t('commerce.carrierSaved'));
         emit('saved');
     } catch (e) {
