@@ -114,6 +114,7 @@ export default {
     adjustReasonRequired: 'Enter a reason when the amount differs from the rate card.',
     payDeadline: 'Payment deadline',
     payDeadlineLine: '{hours} hours after approval — by {at}',
+    payDeadlineClampedLine: 'Before the ad starts — by {at} (shorter than {hours} hours)',
     depositDeadline: 'Deposit deadline',
     depositDeadlineDate: 'Deposit deadline (end of day)',
     depositDeadlineHelp: 'Default {days} days. Not auto-canceled — it moves to “Deposit overdue”.',
