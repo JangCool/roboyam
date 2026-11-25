@@ -24,7 +24,7 @@
             <div class="flex flex-col gap-1.5">
                 <span class="text-sm font-medium">② {{ trial ? t('bizApplication.trial.periodLabel') : t('bizApplication.periodLabel') }}</span>
                 <div class="flex flex-wrap items-center gap-2 text-[13px] tabular-nums">
-                    {{ UtilBizApplicationMessages.period(t, time, period) }}
+                    <span :class="EMPH.date">{{ UtilBizApplicationMessages.period(t, time, period) }}</span>
                     <span class="text-muted-color">· {{ t('bizApplication.daysN', { n: UtilBizApplication.days(period) }) }}</span>
                     <Tag v-if="moved" :value="t('bizApplication.periodMoved')" severity="info" />
                 </div>
@@ -36,7 +36,7 @@
                     </div>
                 </Message>
                 <small v-if="fieldErrors.period" class="text-xs text-red-600 dark:text-red-400">{{ fieldErrors.period }}</small>
-                <span v-if="detail.adType && !trial" class="text-xs" :class="slotsLeft <= 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'">
+                <span v-if="detail.adType && !trial" class="text-xs" :class="slotsLeft <= 0 ? EMPH.refund : EMPH.ok">
                     <i v-if="checking" class="pi pi-spin pi-spinner mr-1 text-[11px]" aria-hidden="true" />{{ t('bizApplication.slotsLeft', { n: slotsLeft, limit: availability?.slotLimit ?? detail.slotLimit }) }}
                 </span>
             </div>
@@ -55,7 +55,11 @@
                     </template>
                 </LabeledField>
                 <p v-if="detail.proposedSupply !== null && operator" class="m-0 text-xs text-muted-color tabular-nums">{{ t('bizApplication.proposedSupplyNote') }} ({{ won(detail.proposedSupply) }})</p>
-                <p class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.totalLine', { supply: won(amount.supply), vat: won(amount.vat), total: won(amount.total) }) }}</p>
+                <i18n-t keypath="bizApplication.totalLine" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
+                    <template #supply>{{ won(amount.supply) }}</template>
+                    <template #vat>{{ won(amount.vat) }}</template>
+                    <template #total><span class="text-[15px]" :class="EMPH.money">{{ won(amount.total) }}</span></template>
+                </i18n-t>
                 <LabeledField v-if="adjusted" :label="t('bizApplication.adjustReason')" :error="adjustError">
                     <template #default="{ id, describedBy, invalid }">
                         <Textarea :id="id" v-model="adjustReason" rows="2" auto-resize maxlength="200" :disabled="busy" :invalid="invalid" :aria-describedby="describedBy" fluid />
@@ -66,7 +70,17 @@
             <div class="flex flex-col gap-1.5">
                 <span class="text-sm font-medium">④ {{ method === 'ONLINE' ? t('bizApplication.payDeadline') : t('bizApplication.depositDeadline') }}</span>
                 <p v-if="method === 'ONLINE' && trial" class="m-0 text-[13px]">{{ t('bizApplication.trial.deadlineOnline', { hours: UtilBizApplication.PAYMENT_DEADLINE_HOURS }) }}</p>
-                <p v-else-if="method === 'ONLINE'" class="m-0 text-[13px]">{{ t('bizApplication.payDeadlineLine', { hours: UtilBizApplication.PAYMENT_DEADLINE_HOURS, at: time.full(onlineDeadline) }) }}</p>
+                <!-- 시작이 72시간 안이면 기한이 시작 시각으로 줄어든다 — 줄어든 기한은 주의 색 + 안내 -->
+                <i18n-t
+                    v-else-if="method === 'ONLINE'"
+                    :keypath="deadlineClamped ? 'bizApplication.payDeadlineClampedLine' : 'bizApplication.payDeadlineLine'"
+                    tag="p"
+                    scope="global"
+                    class="m-0 text-[13px] tabular-nums"
+                >
+                    <template #hours>{{ UtilBizApplication.PAYMENT_DEADLINE_HOURS }}</template>
+                    <template #at><span :class="deadlineClamped ? EMPH.fee : EMPH.date">{{ time.full(onlineDeadline) }}</span></template>
+                </i18n-t>
                 <small v-if="method === 'ONLINE' && fieldErrors.deadlineAt" class="text-xs text-red-600 dark:text-red-400">{{ fieldErrors.deadlineAt }}</small>
                 <LabeledField
                     v-else-if="method === 'MANUAL'"
@@ -122,6 +136,8 @@ const { t, locale } = useI18n();
 const time = useDisplayTime();
 const formId = useId();
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
+/** 강조 색(돈·날짜·자리·주의) — 심사 패널과 같은 표 */
+const EMPH = UtilBizApplication.EMPH;
 
 const method = ref<BizPaymentMethod>('ONLINE');
 const period = ref<BizPeriod>({ startAt: '', endAt: '' });
@@ -175,6 +191,8 @@ function onlineDeadlineFrom(base: number): string {
     return new Date(Math.min(base + UtilBizApplication.PAYMENT_DEADLINE_HOURS * 3_600_000, Date.parse(period.value.startAt) || Infinity)).toISOString();
 }
 const onlineDeadline = computed(() => onlineDeadlineFrom(openedAt.value));
+/** 시작 시각 때문에 72시간보다 짧아진 기한인가 */
+const deadlineClamped = computed(() => Date.parse(onlineDeadline.value) < openedAt.value + UtilBizApplication.PAYMENT_DEADLINE_HOURS * 3_600_000);
 
 const supplyError = computed(() => props.fieldErrors.supply ?? (submitted.value && !(supply.value && supply.value > 0) ? t('bizApplication.supplyRequired') : ''));
 const memoError = computed(() => props.fieldErrors.memo ?? (submitted.value && selfApproval.value && !memo.value.trim() ? t('bizApplication.selfApprovalMemoRequired') : ''));

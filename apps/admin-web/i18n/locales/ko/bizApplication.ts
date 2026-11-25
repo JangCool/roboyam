@@ -114,6 +114,7 @@ export default {
     adjustReasonRequired: '요금표와 다른 금액이면 사유를 적어 주세요.',
     payDeadline: '결제 기한',
     payDeadlineLine: '승인 후 {hours}시간 — {at}까지',
+    payDeadlineClampedLine: '광고 시작 전까지 — {at}까지 ({hours}시간보다 짧아요)',
     depositDeadline: '입금 기한',
     depositDeadlineDate: '입금 기한(그날 24:00까지)',
     depositDeadlineHelp: '기본 {days}일 뒤. 지나도 자동 취소하지 않고 「입금 기한 지남」 목록에 올라요.',
