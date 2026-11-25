@@ -82,9 +82,9 @@ export default {
     normalPriceBasisLine: '{price} ({basis})',
     normalPriceBasis: {
         OFFICIAL_STORE: '공식 판매처 판매가',
-        PREV_ROUND: '직전 차수 공구가',
+        PREVIOUS_ROUND: '직전 차수 공구가',
         MARKET: '시중 판매가',
-        PREV_SALE: '종전 판매가',
+        PREVIOUS_SALE: '종전 판매가',
     },
     fulfillment: {
         IMMEDIATE: '즉시 발송',

@@ -80,9 +80,9 @@ export default {
     normalPriceBasisLine: '{price} ({basis})',
     normalPriceBasis: {
         OFFICIAL_STORE: 'Official store price',
-        PREV_ROUND: 'Previous round price',
+        PREVIOUS_ROUND: 'Previous round price',
         MARKET: 'Market price',
-        PREV_SALE: 'Previous selling price',
+        PREVIOUS_SALE: 'Previous selling price',
     },
     fulfillment: {
         IMMEDIATE: 'Ships right away',
