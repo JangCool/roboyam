@@ -8,6 +8,7 @@
 --
 -- 규칙 값 = 설정 표 popular_settings(행 하나, V74 — 관리자 「인기글 설정」이 바꾼다. 기본값은 예전 서버 상수와 같다):
 --   점수 = 추천 × like_weight + 댓글 × comment_weight + 조회 × view_weight (popular_rank_candidates).
+--   댓글 수는 글의 댓글 수 — 다만 AI 연애상담소 사연(V274 「AI 상담소」 말머리)은 상담사 AI 답을 뺀 수(최소 조건 min_comments 에도 같은 수).
 --   실시간만 시간 감쇠 ÷ (경과 시간(시) + age_offset_hours)^gravity — 경과 시간의 기준은 배치 시각, 밑은 0.1 아래로 내려가지 않는다(감쇠 보정 0 일 때 0 으로 나누지 않게).
 --   어제·이번 주는 감쇠 없음. 후보 조건: 추천 ≥ min_likes · 댓글 ≥ min_comments · 조회 ≥ min_views · 점수 0 초과.
 --   한 글쓴이는 한 탭에 최대 max_per_author 개(채운 글 포함 탭 전체로 센다).
@@ -63,7 +64,7 @@ RETURNS TABLE (post_id bigint, author_key text, score double precision)
 LANGUAGE sql STABLE AS $fn$
     SELECT p.id,
            popular_author_key(p.author_id, p.author_ip, p.guest_name),
-           (p.like_count * s.like_weight + p.comment_count * s.comment_weight + p.view_count * s.view_weight)::double precision
+           (p.like_count * s.like_weight + cc.comments * s.comment_weight + p.view_count * s.view_weight)::double precision
                / CASE WHEN p_decay
                       THEN power(greatest(greatest(extract(epoch FROM (p_now - p.created_at))::double precision / 3600.0, 0) + s.age_offset_hours::double precision, 0.1),
                                  s.gravity::double precision)
@@ -72,6 +73,13 @@ LANGUAGE sql STABLE AS $fn$
       JOIN boards b ON b.id = p.board_id
       JOIN board_defaults d ON d.id = 1
       JOIN popular_settings s ON s.id = 1
+      -- 점수의 댓글 수 — AI 연애상담소 사연(「AI 상담소」 말머리, V274)이면 상담사 AI 답(상담사 계정의 지우지 않은 원댓글)을 뺀다(ai-love-counsel-contract 「결정」).
+      -- 그 밖의 글은 글의 댓글 수 그대로(하위 질의를 돌리지 않는다)
+      CROSS JOIN LATERAL (
+          SELECT CASE WHEN p.prefix_id IS NOT NULL AND EXISTS (SELECT 1 FROM board_prefixes bp WHERE bp.id = p.prefix_id AND bp.counsel)
+                      THEN greatest(0, p.comment_count - (SELECT count(*) FROM comments c JOIN ai_member_profiles am ON am.user_id = c.author_id AND am.counselor
+                                                           WHERE c.post_id = p.id AND c.parent_id IS NULL AND c.deleted_at IS NULL))
+                      ELSE p.comment_count END AS comments) cc
      WHERE p.id >= board_snowflake_floor(p_from) AND p.id < board_snowflake_floor(p_to)
        AND p.created_at >= p_from AND p.created_at < p_to
        AND p.status = 'PUBLISHED' AND p.deleted_at IS NULL
@@ -88,8 +96,8 @@ LANGUAGE sql STABLE AS $fn$
        AND b.active
        AND NOT ('POPULAR' = ANY (b.gadget_exclusions))
        AND (NOT s.exclude_staff_boards OR coalesce(b.write_min, d.write_min) <> 'STAFF')
-       AND p.like_count >= s.min_likes AND p.comment_count >= s.min_comments AND p.view_count >= s.min_views
-       AND (p.like_count * s.like_weight + p.comment_count * s.comment_weight + p.view_count * s.view_weight) > 0
+       AND p.like_count >= s.min_likes AND cc.comments >= s.min_comments AND p.view_count >= s.min_views
+       AND (p.like_count * s.like_weight + cc.comments * s.comment_weight + p.view_count * s.view_weight) > 0
        AND NOT EXISTS (SELECT 1 FROM popular_exclusions e WHERE e.post_id = p.id)
        -- AI 회원 글(ai_member_profiles, V183 — ai-members-contract 정책 10)은 후보가 아니다. AI 계정은 추천을 누르지 않으므로(로그인할 수 없다) 추천 수에도 AI 몫이 없다
        AND NOT EXISTS (SELECT 1 FROM ai_member_profiles am WHERE am.user_id = p.author_id)

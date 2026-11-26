@@ -47,6 +47,9 @@ public class AiMemberSettingsEntity {
     private short dailyPostMax;
     /** 뉴스 관심 키워드(V230) — 쉼표로 이음, 빈 글자 = 거르지 않음. RSS·YOUTUBE 수집 항목은 제목·요약에 하나라도 들어간 것만 넣는다 */
     private String newsCollectKeywords;
+    /** AI 연애상담소(V274) — 회원 한 명이 하루 올리는 상담 사연 수 · 사이트 하루 상한(0 = 받지 않음) */
+    private short counselMemberDaily;
+    private int counselSiteDaily;
     private Instant updatedAt;
     private Long updatedBy;
 
@@ -142,6 +145,22 @@ public class AiMemberSettingsEntity {
 
     public PostTiming getPostTiming() {
         return new PostTiming(quietDays, busyIntervalDays, dailyPostMax);
+    }
+
+    /** AI 연애상담소 하루 상한(V274) — 회원 한 명 · 사이트 전체(한국 날짜, 0 = 받지 않음) */
+    public record CounselLimits(int memberDaily, int siteDaily) {
+    }
+
+    public CounselLimits getCounselLimits() {
+        return new CounselLimits(counselMemberDaily, counselSiteDaily);
+    }
+
+    /** 상담소 하루 상한 저장(검사를 마친 것 — 회원 0~10 · 사이트 0~5000) */
+    public void saveCounselLimits(CounselLimits limits, long operatorId, Instant now) {
+        this.counselMemberDaily = (short) limits.memberDaily();
+        this.counselSiteDaily = limits.siteDaily();
+        this.updatedAt = now;
+        this.updatedBy = operatorId;
     }
 
     public Instant getUpdatedAt() {

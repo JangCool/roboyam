@@ -42,6 +42,7 @@ public class AiMemberQueries extends IrobitRepositoryQDSL {
     private static final QOperatorEntity O = QOperatorEntity.operatorEntity;
     private static final QProfileEntity PR = QProfileEntity.profileEntity;
     private static final QUserEntity U = QUserEntity.userEntity;
+    private static final com.community.board.entity.QBoardPrefixEntity BP = com.community.board.entity.QBoardPrefixEntity.boardPrefixEntity;
     private static final List<AiDraftStatus> COUNTING = List.of(AiDraftStatus.PENDING, AiDraftStatus.APPROVED, AiDraftStatus.PUBLISHED);
 
     public AiMemberQueries(JPAQueryFactory query) {
@@ -278,6 +279,8 @@ public class AiMemberQueries extends IrobitRepositoryQDSL {
             where = where.and(JPAExpressions.selectOne().from(A).where(A.userId.eq(P.authorId)).exists());
         } else {
             where = where.and(notOptedOut(P.authorId)); // 회원 글은 AI 제외를 켠 회원 것 빼고(V264)
+            // AI 연애상담소 사연(「AI 상담소」 말머리, V274)에는 상담사만 답한다 — 보통 AI 회원은 첫 댓글을 달지 않는다(ai-love-counsel-contract)
+            where = where.and(P.prefixId.isNull().or(JPAExpressions.selectOne().from(BP).where(BP.id.eq(P.prefixId), BP.counsel.isTrue()).notExists()));
         }
         return query.select(P.id, P.boardId, P.groupId, P.authorId, P.title, P.contentText, P.createdAt).from(P).where(where).orderBy(P.id.desc()).limit(limit).fetch()
                 .stream().map(t -> new PostCandidate(t.get(P.id), t.get(P.boardId), t.get(P.groupId), t.get(P.authorId), t.get(P.title), t.get(P.contentText),

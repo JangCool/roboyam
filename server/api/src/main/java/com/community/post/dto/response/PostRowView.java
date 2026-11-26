@@ -16,16 +16,26 @@ import java.time.Instant;
  * @param purchaseSource 구입 경로(V241 — TRIAL·SELF·SPONSORED·BORROWED, 없으면 null) — 목록 칩. 게시판 글 목록만 채운다(숨긴 글 null)
  * @param purchaseProofApproved 구매 인증이 승인된 글인가 — 「구매 인증」 칩
  * @param debate       찬반 토론 요약(찬·반·중 수) — 토론 글만, 그 밖·숨긴 글·읽을 수 없는 비밀글은 null. 게시판 글 목록만 채운다(섞인 목록은 {@link PostFeedRowView#debate}) — feed-debate-counts-contract
+ * @param counsel      AI 연애상담소 상태(V274 — 「AI 상담소」 말머리 글만, 그 밖·숨긴 글은 null). 게시판 글 목록만 채운다 — ai-love-counsel-contract
  */
 public record PostRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                           Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked, boolean hasPoll,
-                          PostDealView deal, boolean secret, String processStatus, PostFeedDebateView debate, String purchaseSource, boolean purchaseProofApproved) {
+                          PostDealView deal, boolean secret, String processStatus, PostFeedDebateView debate, String purchaseSource, boolean purchaseProofApproved,
+                          PostCounselRowView counsel) {
+
+    /** 상담 칸 없이(프로필 글 목록 등 — 늘 비어 있다) */
+    public PostRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
+                       Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked, boolean hasPoll,
+                       PostDealView deal, boolean secret, String processStatus, PostFeedDebateView debate, String purchaseSource, boolean purchaseProofApproved) {
+        this(id, prefix, title, commentCount, hasImage, thumbnailUrl, author, createdAt, viewCount, likeCount, pinned, adult, hiddenReason, blocked, hasPoll, deal, secret,
+                processStatus, debate, purchaseSource, purchaseProofApproved, null);
+    }
 
     /** 구입 경로 칸 없이(섞인 목록 — 늘 비어 있다) */
     public PostRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                        Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked, boolean hasPoll,
                        PostDealView deal, boolean secret, String processStatus, PostFeedDebateView debate) {
         this(id, prefix, title, commentCount, hasImage, thumbnailUrl, author, createdAt, viewCount, likeCount, pinned, adult, hiddenReason, blocked, hasPoll, deal, secret,
-                processStatus, debate, null, false);
+                processStatus, debate, null, false, null);
     }
 }

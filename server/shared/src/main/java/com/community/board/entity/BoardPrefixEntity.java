@@ -23,6 +23,8 @@ public class BoardPrefixEntity {
     /** 성인 전용(V152, 고유 말머리만) — 이 말머리를 고른 글은 19금({@code posts.adult})으로 저장한다 */
     private boolean adultOnly;
     private String color;
+    /** AI 연애상담소 말머리(V274, 고유 말머리만) — 이 말머리 글에 상담사 AI 가 답한다(ai-love-counsel-contract). 관리자 게시판 저장({@link #change})은 건드리지 않는다 */
+    private boolean counsel;
     private boolean active;
     private int sortOrder;
     private Instant createdAt;
@@ -76,6 +78,12 @@ public class BoardPrefixEntity {
         this.updatedAt = now;
     }
 
+    /** AI 상담소 표시를 켜고 끈다(V274 — 고유 말머리만, 부르는 쪽이 확인) */
+    public void markCounsel(boolean on, Instant now) {
+        this.counsel = on;
+        this.updatedAt = now;
+    }
+
     /** 켜고 끈다(공통 말머리) */
     public void changeActive(boolean active, Instant now) {
         this.active = active;
@@ -112,6 +120,10 @@ public class BoardPrefixEntity {
 
     public String getColor() {
         return color;
+    }
+
+    public boolean isCounsel() {
+        return counsel;
     }
 
     public boolean isActive() {

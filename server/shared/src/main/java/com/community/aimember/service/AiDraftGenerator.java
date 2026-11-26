@@ -205,6 +205,9 @@ public class AiDraftGenerator {
         Map<Long, Boolean> restricted = queries.restricted(all.stream().map(AiMemberProfileEntity::getUserId).toList());
         List<AiMemberProfileEntity> active = new ArrayList<>();
         for (AiMemberProfileEntity a : all) {
+            if (a.isCounselor()) {
+                continue; // AI 연애상담소 상담사(V274)는 상담 답만 쓴다 — CounselRunner 가 돌린다(ai-love-counsel-contract 「결정」)
+            }
             if (AiMemberDirectory.restingReason(a, s, usable, paused, enabledModels.allows(a.getProvider(), a.getModel()),
                     restricted.getOrDefault(a.getUserId(), true)) == null) {
                 active.add(a);

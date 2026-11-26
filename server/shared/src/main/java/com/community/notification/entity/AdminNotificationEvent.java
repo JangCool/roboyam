@@ -111,6 +111,11 @@ public enum AdminNotificationEvent {
      * 처리는 AI 회원 설정의 키 줄(결제한 뒤 키 다시 저장 — {@code ai-member.secret})
      */
     AI_PROVIDER_PAUSED(spec(CONTENT, WARNING).holders(Permission.AI_MEMBER_MANAGE, Permission.AI_MEMBER_SECRET).email().link("/ai-members/settings")),
+    /**
+     * AI 연애상담소의 위험 사연 — 「AI 상담소」 말머리 글이 위험 판정(1차 낱말 목록 · 2차 AI 분류)에 걸려 AI 상담사가 답하지 않았다(shared {@code CounselRunner}, V274 —
+     * ai-love-counsel-contract 「결정」 위험 판정). 사연마다 한 건(묶음 키 = 글 ID). 인자 없음. 처리는 게시글 관리의 그 글({@code post.manage}) — 회원에게 도움 안내(109·1366)는 화면이 이미 보인다
+     */
+    AI_COUNSEL_RISK(spec(CONTENT, WARNING).holders(Permission.POST_MANAGE).email().link("/posts?post={postId}")),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     /** 닉네임 그림 검토 대기 — 회원이 신청할 때(api NicknameImageService). 5분 안의 연속 신청은 한 건. 2026-10-24 예약을 풀었다 */

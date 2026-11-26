@@ -1,6 +1,7 @@
 package com.community.post.service;
 
 import com.community.adultboard.service.AdultBoardGate;
+import com.community.counsel.service.CounselWriteGate;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardSecurityValues;
@@ -130,6 +131,8 @@ public class PostWriteService {
     private final TrialPostLinker purchases;
     /** 성인 전용 게시판 접근 판정(adult-board-pin-contract) */
     private final AdultBoardGate adultBoards;
+    /** AI 연애상담소 글쓰기 판정(V274 — 회원만 · 하루 상한) */
+    private final CounselWriteGate counselGate;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostCounterQueries counters,
@@ -137,7 +140,8 @@ public class PostWriteService {
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
                             DealWriter deals, EmoticonGuard emoticons, AdultContentGate adultGate, SecretPostUnlocks unlocks, PostWriteRules rules,
                             PostThumbnailChoices thumbnails, PostTagStore tagStore, TrialPostLinker purchases, AdultBoardGate adultBoards,
-                            PlatformTransactionManager txManager, JjalGuard jjals) {
+                            PlatformTransactionManager txManager, JjalGuard jjals, CounselWriteGate counselGate) {
+        this.counselGate = counselGate;
         this.jjals = jjals;
         this.adultBoards = adultBoards;
         this.purchases = purchases;
@@ -201,6 +205,8 @@ public class PostWriteService {
         TrialPostLinker.Decision purchase = purchases.checkForCreate(b, actor.guest() ? null : actor.userId(), body.purchaseSource(), body.trialParticipantId(), c.prefixId(),
                 fields);
         PostWriteRules.checkRequired(b, purchase.trial() ? Long.valueOf(0L) : c.prefixId(), tags == null ? 0 : tags.size(), fields); // 말머리 필수 fields.prefix · 태그 필수 fields.tags(V226) — 체험단 글은 서버가 말머리를 단다
+        // AI 연애상담소(V274) — 「AI 상담소」 말머리 글은 회원만 · AI 제외를 켜지 않은 회원만 · 회원당·사이트 하루 상한 안에서(fields.prefixId — ai-love-counsel-contract)
+        counselGate.check(s, b, purchase.trial() ? null : c.prefixId(), null, actor.guest() ? null : actor.userId(), null, fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields); // 로보티콘 토큰 20개까지(입력 오류와 함께 — emoticon-contract 목업 5차)
         jjals.countInto(c.body().content(), JjalGuard.Place.POST, "content", fields); // 짤 토큰 5개까지(my-jjal-contract)
         if (!fields.isEmpty()) {
@@ -516,6 +522,8 @@ public class PostWriteService {
             int tagCount = tags != null ? tags.size() : body.tags() == null && b.tagRequired() ? tagStore.of(post.getId()).size() : 0;
             PostWriteRules.checkRequired(b, c.prefixId(), tagCount, fields);
         }
+        // AI 연애상담소(V274) — 다른 말머리에서 「AI 상담소」로 바꿀 때만 상담 글쓰기와 같은 판정(회원만 · AI 제외 끔 · 하루 상한) — fields.prefixId
+        counselGate.check(s, b, post.isGroupPost() ? null : c.prefixId(), post.getPrefixId(), post.getAuthorId(), post.getId(), fields);
         EmoticonGuard.countInto(c.body().content(), "content", fields);
         jjals.countInto(c.body().content(), JjalGuard.Place.POST, "content", fields);
         if (!fields.isEmpty()) {

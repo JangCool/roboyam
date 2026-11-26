@@ -83,10 +83,13 @@ public class AiMemberPresetInstaller {
     private final ProfileRepositoryQDSL profiles;
     private final AuditLogService audit;
     private final TransactionTemplate tx;
+    /** AI 연애상담소 기본값(V274) — AI 기본 계정 바로 뒤에 */
+    private final CounselPresetInstaller counsel;
 
     public AiMemberPresetInstaller(InstallationRepositoryQDSL installation, BoardPresetCatalog presets, AiMemberAccountFactory factory, AiModelCatalog modelCatalog,
                                    AiModelRepository models, BoardCatalog boards, AvatarCatalog avatars, ProfileRepositoryQDSL profiles, AuditLogService audit,
-                                   PlatformTransactionManager transactions) {
+                                   PlatformTransactionManager transactions, CounselPresetInstaller counsel) {
+        this.counsel = counsel;
         this.installation = installation;
         this.presets = presets;
         this.factory = factory;
@@ -110,12 +113,16 @@ public class AiMemberPresetInstaller {
      * @return 이번에 만들었으면(또는 넣을 것이 없어 표시만 했으면) 그 결과, 할 차례가 아니었거나 실패했으면 비어 있다
      */
     public Optional<Outcome> seedOnce(String when) {
+        Optional<Outcome> out;
         try {
-            return Optional.ofNullable(tx.execute(status -> seedLocked(when)));
+            out = Optional.ofNullable(tx.execute(status -> seedLocked(when)));
         } catch (RuntimeException e) {
             log.warn("AI 기본 계정을 만들지 못해 건너뛰었다({}) — 설치는 그대로, 다음 기동에서 다시 시도한다. 원인={}", when, e.toString(), e);
-            return Optional.empty();
+            out = Optional.empty();
         }
+        // 이어서 AI 연애상담소 기본값(「AI 상담소」 말머리 · 상담사 3계정 — 꺼진 채, V274 표시 칸으로 한 번). 던지지 않는다
+        counsel.seedOnce(when);
+        return out;
     }
 
     private Outcome seedLocked(String when) {
