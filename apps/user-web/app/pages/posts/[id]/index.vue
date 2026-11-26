@@ -330,6 +330,21 @@
                         <!-- 투표 — 본문 바로 다음, 찬반 토론 위 -->
                         <PostPollCard v-if="post.poll" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
 
+                        <!-- AI 연애상담소(ai-love-counsel-contract) — 「AI 상담소」 말머리 글: 안내 → AI 상담사 답변(셋) · 위험 사연이면 도움 안내. 회원 답변·상담 경고는 아래 댓글 카드 -->
+                        <CounselPanel
+                            v-if="isCounsel"
+                            :counsel="counsel.data.value"
+                            :state="counsel.state.value === 'idle' ? 'loading' : counsel.state.value"
+                            :error-message="counsel.errorMessage.value"
+                            :mine="post.mine"
+                            :report-enabled="board.reportEnabled"
+                            :pick-busy-id="counsel.pickBusyId.value"
+                            @pick="onCounselPick"
+                            @like="onCounselLike"
+                            @report="(c) => openReport('COMMENT', c.id)"
+                            @retry="counsel.load"
+                        />
+
                         <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위 -->
                         <CommentSection
                             v-if="showDebate"
@@ -481,6 +496,8 @@
                         :sanction-enabled="sanctionEnabled"
                         :comment-delete-enabled="commentDeleteEnabled"
                         :ai-post="postAi"
+                        :counsel="counselPick"
+                        @pick="onCounselPick"
                         @sort="comments.setSort"
                         @retry="comments.load"
                         @report="(c) => openReport('COMMENT', c.id)"
@@ -596,7 +613,8 @@ import type { PollView } from '~/composables/board/api/usePollApi.types';
 import type { DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealCardActions } from '~/components/hotdeal/HotdealDealCard.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
-import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
+import type { CommentActions, CommentCounselPick, DebateActions } from '~/components/board/CommentSection.types';
+import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import type { DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import type { PollCardActions } from '~/components/board/PostPollCard.types';
 import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.types';
@@ -824,6 +842,9 @@ async function load(): Promise<void> {
         pageState.value = 'ready';
         opinionsStarted = false;
         void comments.load();
+        // AI 연애상담소 글이면 AI 상담 칸을 받는다(그 밖은 비운다)
+        if (loaded.prefix?.counsel) void counsel.load();
+        else counsel.clear();
         startOpinions();
         void loadSameDeals(loaded);
     } catch (e) {
@@ -920,6 +941,45 @@ function startOpinions(): void {
 }
 // 글 상세로는 몰랐지만 일반 목록이 의견이 있다고 알려 줄 때(닫힌 토론 등)·토론을 새로 열었을 때
 watch(showDebate, () => startOpinions());
+
+/* ── AI 연애상담소(ai-love-counsel-contract) — 「AI 상담소」 말머리 글 ── */
+const counsel = usePostCounsel(id);
+/** 상담 글인가 — 말머리가 상담소 말머리(`prefix.counsel`) */
+const isCounsel = computed(() => post.value?.prefix?.counsel === true);
+/** 일반 댓글 구획(= 회원 답변)에 내려 줄 고르기 상태 — 위험 사연이면 그냥 댓글(고르기·「회원 답변」 제목 없음) */
+const counselPick = computed<CommentCounselPick | null>(() => {
+    const c = counsel.data.value;
+    if (!isCounsel.value || !c || c.status === 'RISK') return null;
+    return { canPick: c.canPick, pickedId: c.pickedCommentId, busyId: counsel.pickBusyId.value };
+});
+
+/** 「이 조언 고르기」(AI 상담사 답·회원 답) — 확인창 뒤 고른다. 실패는 서버 문구(이미 골랐음·권한 없음 등) 후 칸을 다시 받는다 */
+async function onCounselPick(c: CommentView): Promise<void> {
+    if (counsel.pickBusyId.value) return;
+    const name = UtilAnonymousMessages.authorName(t, c.author);
+    const ok = await confirm({ title: t('counsel.pickConfirmTitle'), message: t('counsel.pickConfirmMessage', { name }), confirmLabel: t('counsel.pickConfirm') });
+    if (!ok) return;
+    try {
+        await counsel.pick(c.id);
+        toast.success(t('counsel.pickedToast'));
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') return prompt('like');
+        toast.error(UtilBoardMessages.of(t, e), 8000);
+        void counsel.load();
+    }
+}
+
+/** AI 상담사 답 추천 — 댓글 추천과 같은 규칙(비회원은 로그인 안내, 추천 취소 없음) */
+async function onCounselLike(c: CommentView): Promise<void> {
+    if (board.value?.viewer.guest) return prompt('like');
+    if (c.liked) return toast.show(t('comment.alreadyLiked'));
+    try {
+        await counsel.like(c.id);
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') return prompt('like');
+        toast.error(UtilBoardMessages.of(t, e));
+    }
+}
 
 /* ── 핫딜 ── */
 /** 같은 딜(진행 중인 다른 글) — 받는 중이면 null */

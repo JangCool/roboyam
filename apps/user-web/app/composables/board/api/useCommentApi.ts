@@ -40,16 +40,33 @@ export function useCommentApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> =>
-            client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }),
+        list: async (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> => {
+            if (import.meta.dev) {
+                const mock = (await import('~/composables/counsel/api/mock/counsel-mock')).default; // MOCK: AI 연애상담소 — 목업 상담 글의 회원 답변
+                if (mock.ownsPost(postId)) return mock.comments(postId, sort, kind); // MOCK:
+            }
+            return client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }); // REAL:
+        },
 
-        create: (postId: string, body: CommentWriteRequest): Promise<CommentView> => client.post<CommentView>(PATH.list(postId), body),
+        create: async (postId: string, body: CommentWriteRequest): Promise<CommentView> => {
+            if (import.meta.dev) {
+                const mock = (await import('~/composables/counsel/api/mock/counsel-mock')).default; // MOCK: AI 연애상담소
+                if (mock.ownsPost(postId)) return mock.createComment(postId, body); // MOCK:
+            }
+            return client.post<CommentView>(PATH.list(postId), body); // REAL:
+        },
 
         update: (id: string, body: CommentUpdateRequest): Promise<CommentView> => client.put<CommentView>(PATH.comment(id), body),
 
         remove: (id: string, body: CommentDeleteRequest): Promise<void> => client.post<void>(PATH.remove(id), body),
 
-        like: (id: string): Promise<CommentLikeResult> => client.post<CommentLikeResult>(PATH.like(id)),
+        like: async (id: string): Promise<CommentLikeResult> => {
+            if (import.meta.dev) {
+                const mock = (await import('~/composables/counsel/api/mock/counsel-mock')).default; // MOCK: AI 연애상담소
+                if (mock.ownsComment(id)) return mock.likeComment(id); // MOCK:
+            }
+            return client.post<CommentLikeResult>(PATH.like(id)); // REAL:
+        },
 
         dislike: (id: string): Promise<CommentLikeResult> => client.post<CommentLikeResult>(PATH.dislike(id)),
 

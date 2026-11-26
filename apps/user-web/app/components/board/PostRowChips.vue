@@ -24,6 +24,8 @@
         <PostStatusTag v-if="row.processStatus" :status="row.processStatus" :class="chipClass" />
         <!-- 구입 경로(trial-group-contract — 체험단 · 구매 인증 · 직접 구매 · 협찬). 서버가 주는 글만(구입 경로 받는 게시판) -->
         <PostPurchaseChip :row="row" :inline="inline" />
+        <!-- AI 연애상담소 상태(ai-love-counsel-contract — 「AI 상담소」 말머리 글만: 채택 · AI 답변 n · 답변 기다리는 중) -->
+        <PostCounselChip :counsel="row.counsel ?? null" :inline="inline" />
         <span v-if="row.adult" class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[0.5625rem] font-bold leading-none text-white" :class="chipClass" :title="t('board.adultMark')">
             <span class="chip-label" aria-hidden="true">19</span>
             <span class="sr-only">{{ t('board.adultMark') }}</span>
@@ -66,5 +68,7 @@ const noneShown = computed(() => props.general && !props.inline && !prefixShown.
 /** 구입 경로 칩 — 체험단 · 구매 인증 · 직접 구매 · 협찬(대여·없음은 칩 없음) */
 const purchaseChip = computed(() => UtilTrial.chipOf(props.row.purchaseSource, props.row.purchaseProofApproved));
 /** 칩 줄에 그릴 것이 있는가 — 없으면 칩 줄 자체를 그리지 않는다 */
-const hasAny = computed(() => Boolean(slots.default) || Boolean(groupTag.value) || prefixShown.value || noneShown.value || Boolean(props.row.processStatus) || props.row.adult || Boolean(purchaseChip.value));
+const hasAny = computed(() => Boolean(slots.default) || Boolean(groupTag.value) || prefixShown.value || noneShown.value || Boolean(props.row.processStatus) || props.row.adult || Boolean(purchaseChip.value) || counselChip.value);
+/** AI 연애상담소 상태 칩이 있는가 — 위험 사연(`RISK`)은 칩 없음(`PostCounselChip` 과 같은 판정) */
+const counselChip = computed(() => Boolean(props.row.counsel) && props.row.counsel?.status !== 'RISK');
 </script>

@@ -57,6 +57,9 @@
             </LabeledField>
         </div>
 
+        <!-- AI 연애상담소 말머리(`prefix.counsel` — ai-love-counsel-contract)를 골랐다 — 사연이 해외 AI 제공사로 가니 이름·연락처를 적지 말라는 경고(닫지 않는다) -->
+        <AiCommentWarning v-if="counselPrefix" counsel class="mb-0!" />
+
         <!-- 화면이 제목 위에 덧붙이는 칸(핫딜 딜 칸) — 단계 입력의 1단계 -->
         <div v-if="$slots.lead" v-show="step !== 2" class="contents">
             <slot name="lead" />
@@ -300,6 +303,8 @@ function adultOnlyPrefix(prefixId: string | null): boolean {
 }
 /** 고른 말머리가 성인 전용이라 19금 체크가 켜진 채 잠겼다 */
 const adultLocked = computed(() => adultOnlyPrefix(props.modelValue.prefixId));
+/** AI 연애상담소 말머리를 골랐다 — 글쓰기 화면에도 상담 경고 한 줄(ai-love-counsel-contract) */
+const counselPrefix = computed(() => props.modelValue.prefixId !== null && props.board.prefixes.some((p) => p.id === props.modelValue.prefixId && p.counsel === true));
 
 /** 말머리 고르기 — 성인 전용 말머리면 19금을 켜고, 성인 전용 말머리에서 다른 말머리로 옮기면 그 말머리가 켰던 19금을 끈다 */
 function pickPrefix(prefixId: string | null): void {

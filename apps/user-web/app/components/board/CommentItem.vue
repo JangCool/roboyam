@@ -47,6 +47,8 @@
                         ><span class="chip-label">{{ t('anonymous.mineChip') }}</span></span
                     >
                 </template>
+                <!-- 부르는 쪽이 작성자 뒤에 덧붙이는 표시(AI 연애상담소 — 상담 성향 · 「가장 도움 된 조언」) -->
+                <slot name="badges" />
                 <span aria-hidden="true">·</span>
                 <time :datetime="comment.createdAt" :title="time.full(comment.createdAt)">{{ time.ago(comment.createdAt) }}</time>
                 <span v-if="comment.updatedAt">{{ t('comment.edited') }}</span>
@@ -155,6 +157,7 @@
                 </p>
             </template>
         </FoldedRow>
+        <!-- 댓글 아래에 덧붙이는 칸(AI 연애상담소 「이 조언 고르기」 등) -->
         <slot name="after" />
     </article>
 </template>

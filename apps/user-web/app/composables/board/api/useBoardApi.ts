@@ -44,14 +44,22 @@ export function useBoardApi() {
         writable: async (signal?: AbortSignal): Promise<BoardView[]> => (await client.get<{ boards: BoardView[] }>(PATH.writable, { signal })).boards,
 
         /** 게시판 하나 — 유효 정책과 지금 사용자의 글쓰기·댓글 판정 (+ 포인트 등급 `pointTier` — point-board-tier-contract) */
-        board: (slug: string, signal?: AbortSignal): Promise<BoardDetail> => client.get<BoardDetail>(PATH.board(slug), { signal }),
+        board: async (slug: string, signal?: AbortSignal): Promise<BoardDetail> => {
+            const board = await client.get<BoardDetail>(PATH.board(slug), { signal });
+            if (import.meta.dev) return (await import('~/composables/counsel/api/mock/counsel-mock')).default.decorateBoard(board); // MOCK: AI 연애상담소 — 연애·결혼에 「AI 상담소」 목업 말머리(?mock=counsel)
+            return board;
+        },
 
         /** 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그(많이 쓴 순) */
         tags: (slug: string, signal?: AbortSignal): Promise<BoardTagSuggestion[]> => client.get<BoardTagSuggestion[]>(PATH.tags(slug), { signal }),
 
         /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다. `around`(그 글이 든 쪽 — 글 상세 아래 목록)가 있으면 `page` 대신 보낸다 */
-        posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
-            client.get<PostListResponse>(PATH.posts(slug), {
+        posts: async (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> => {
+            if (import.meta.dev) {
+                const mock = (await import('~/composables/counsel/api/mock/counsel-mock')).default; // MOCK: AI 연애상담소 — 목업 말머리 목록
+                if (mock.ownsPrefix(query.prefix)) return mock.posts(query); // MOCK:
+            }
+            return client.get<PostListResponse>(PATH.posts(slug), {
                 query: {
                     prefix: query.prefix || undefined,
                     status: query.status || undefined,
@@ -63,7 +71,8 @@ export function useBoardApi() {
                     around: query.around || undefined,
                 },
                 signal,
-            }),
+            });
+        },
 
         /** 핫딜 게시판 글 목록 — 정렬(최신·인기·마감 임박)·종료 숨기기. 기본값(최신·숨김 켬)도 보낸다. `around` 는 `posts` 와 같다 */
         dealPosts: (slug: string, query: DealPostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
