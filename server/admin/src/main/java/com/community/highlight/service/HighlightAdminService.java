@@ -7,23 +7,28 @@ import com.community.audit.service.AuditLogService;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.BoardFields;
 import com.community.debate.entity.PostDebateEntity;
 import com.community.debate.repository.master.DebateQueries;
 import com.community.debate.repository.master.PostDebateRepository;
 import com.community.debate.service.DebateAdminService;
+import com.community.highlight.dto.request.HighlightAutoFillRequest;
 import com.community.highlight.dto.request.HighlightOrderRequest;
 import com.community.highlight.dto.request.HighlightSaveRequest;
 import com.community.highlight.dto.request.HighlightVisibleRequest;
+import com.community.highlight.dto.response.HighlightBoardPlaceView;
 import com.community.highlight.dto.response.HighlightCandidatesView;
 import com.community.highlight.dto.response.HighlightCommentCountsView;
 import com.community.highlight.dto.response.HighlightItemView;
 import com.community.highlight.dto.response.HighlightListView;
 import com.community.highlight.dto.response.HighlightOperatorView;
 import com.community.highlight.dto.response.HighlightPlaceView;
+import com.community.highlight.entity.HighlightBoardSettingEntity;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.exception.HighlightDuplicateException;
 import com.community.highlight.exception.HighlightNotFoundException;
 import com.community.highlight.exception.HighlightPostInvalidException;
+import com.community.highlight.repository.master.HighlightBoardSettingRepository;
 import com.community.highlight.repository.master.HighlightCommentRepositoryQDSL;
 import com.community.highlight.repository.master.HighlightRepository;
 import com.community.home.entity.GadgetPageEntity;
@@ -54,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +85,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li><b>토론 칸</b>: 하이라이트는 토론을 갖지 않는다 — {@code debate}·{@code neutralEnabled}·{@code stanceChangeAllowed} 는 그 <b>글의</b> 토론을 연다·바꾼다·닫는다
  *       (관리자 토론 PUT 과 같은 {@link DebateAdminService#apply} — 감사 DEBATE_OPEN · UPDATE · CLOSE, {@code via HIGHLIGHT}). 줄의 같은 칸은 글의 토론에서 읽는다.
  *       하이라이트를 지우거나 내려도 토론은 그대로다(docs/features/post-debate-contract.md).</li>
- *   <li>모든 변경은 감사(HIGHLIGHT_CREATE · UPDATE · DELETE · ORDER · VISIBLE)에 남는다.</li>
+ *   <li><b>게시판 곳</b>(board-recommend-contract): 곳 키 {@code board-{boardId}}, 일반 게시판({@code GENERAL})만. 그 게시판의 글만 고를 수 있다(글 찾기·후보도 그 게시판만,
+ *       만들 때 다른 게시판 글이면 {@code 400 HIGHLIGHT_POST_INVALID} 까닭 OTHER_BOARD). 곳 목록에는 고른 글이 있거나 자동 채우기를 끈 게시판만 나오고, 고를 게시판 전체는
+ *       {@link #boards}. 「모자라면 추천 많은 글로 자동 채우기」 스위치는 {@link #autoFill}(게시판마다 한 행, 없으면 켬 — 감사 HIGHLIGHT_AUTO_FILL).</li>
+ *   <li>모든 변경은 감사(HIGHLIGHT_CREATE · UPDATE · DELETE · ORDER · VISIBLE · AUTO_FILL)에 남는다 — 감사 기록이 공개 캐시(gadget.HIGHLIGHT · boards.recommended)를 비운다
+ *       ({@code CacheAutoRefresh}).</li>
  * </ul>
  */
 @Service
@@ -122,12 +132,14 @@ public class HighlightAdminService {
     private final SnowflakeIdGenerator ids;
     private final GadgetPageRepository gadgetPages;
     private final Messages messages;
+    private final HighlightBoardSettingRepository boardSettings;
 
     public HighlightAdminService(HighlightRepository highlights, AdminPostRepositoryQDSL posts, AdminPostSummaries summaries,
                                  HighlightCommentRepositoryQDSL commentCounts, DebateQueries debateQueries, PostDebateRepository debates,
                                  DebateAdminService debateAdmin, BoardCatalog catalog, FileRepository files, ImageStorage storage,
                                  SiteImageFiles imageFiles, OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids,
-                                 GadgetPageRepository gadgetPages, Messages messages) {
+                                 GadgetPageRepository gadgetPages, Messages messages, HighlightBoardSettingRepository boardSettings) {
+        this.boardSettings = boardSettings;
         this.gadgetPages = gadgetPages;
         this.messages = messages;
         this.highlights = highlights;
@@ -155,7 +167,8 @@ public class HighlightAdminService {
         List<HighlightEntity> rows = highlights.findAllByPlaceOrderBySortOrderAscIdAsc(place);
         List<HighlightItemView> items = views(rows);
         int visible = (int) items.stream().filter(i -> SHOWING.equals(i.status())).count();
-        return new HighlightListView(place, visible, items.size(), items);
+        HighlightBoardPlaceView board = placeBoard(catalog.snapshot(), place).map(b -> boardView(b, rows.size(), autoFillOf(b.id()))).orElse(null);
+        return new HighlightListView(place, visible, items.size(), items, board);
     }
 
     /**
@@ -174,13 +187,81 @@ public class HighlightAdminService {
         boolean english = "en".equals(messages.locale().getLanguage());
         for (GadgetPageEntity page : gadgetPages.findAllByOrderByIdAsc()) {
             // 시스템 페이지(/tips 의 배치)는 따로 두지 않는다 — 그 키는 tips 곳이다(HighlightPlaces.canonical)
-            if (page.isSystem() || HighlightPlaces.builtIn(page.getPageKey()) || !HighlightPlaces.wellFormed(page.getPageKey())) {
+            // board- 로 시작하는 키는 게시판 곳 몫이다(새로 못 만든다 — 예전에 만든 페이지가 있어도 게시판 곳과 섞지 않는다)
+            if (page.isSystem() || HighlightPlaces.builtIn(page.getPageKey()) || !HighlightPlaces.wellFormed(page.getPageKey())
+                    || HighlightPlaces.boardReserved(page.getPageKey())) {
                 continue;
             }
             String name = english && page.getNameEn() != null && !page.getNameEn().isBlank() ? page.getNameEn() : page.getName();
             out.add(new HighlightPlaceView(page.getPageKey(), name, "PAGE", totals.getOrDefault(page.getPageKey(), 0L)));
         }
+        // 게시판 곳 — 고른 글이 있거나 자동 채우기를 끈 일반 게시판만, 게시판 차례(board-recommend-contract). 지운 게시판의 남은 줄은 보이지 않는다
+        Set<Long> autoFillOff = new HashSet<>();
+        boardSettings.findAllByAutoFillFalse().forEach(r -> autoFillOff.add(r.getBoardId()));
+        for (EffectiveBoard b : catalog.snapshot().boards()) {
+            if (!recommendable(b)) {
+                continue;
+            }
+            String key = HighlightPlaces.boardPlace(b.id());
+            long total = totals.getOrDefault(key, 0L);
+            boolean autoFill = !autoFillOff.contains(b.id());
+            if (total > 0 || !autoFill) {
+                out.add(new HighlightPlaceView(key, boardName(b, english), "BOARD", total, Long.toString(b.id()), autoFill));
+            }
+        }
         return out;
+    }
+
+    /**
+     * 게시판 곳을 열 수 있는 게시판 전체(「+ 게시판 곳 추가」의 고르기) — 일반 게시판({@code GENERAL}), 꺼진 것 포함, 게시판 차례. 곳마다 하이라이트 수·자동 채우기를 함께 준다.
+     */
+    @Transactional(readOnly = true)
+    public List<HighlightBoardPlaceView> boards() {
+        Map<String, Long> totals = new HashMap<>();
+        for (Object[] row : highlights.countByPlace()) {
+            totals.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        Set<Long> autoFillOff = new HashSet<>();
+        boardSettings.findAllByAutoFillFalse().forEach(r -> autoFillOff.add(r.getBoardId()));
+        return catalog.snapshot().boards().stream().filter(HighlightAdminService::recommendable)
+                .map(b -> boardView(b, totals.getOrDefault(HighlightPlaces.boardPlace(b.id()), 0L), !autoFillOff.contains(b.id()))).toList();
+    }
+
+    /**
+     * 게시판 곳의 「모자라면 추천 많은 글로 자동 채우기」 바꾸기 — 게시판 곳이 아니거나(모양·없는 게시판·일반 게시판 아님) {@code 400 fields.place}, 값이 없으면 {@code 400 fields.autoFill}.
+     * 바뀌었을 때만 감사 HIGHLIGHT_AUTO_FILL(대상 BOARD, from/to — 감사 기록이 공개 캐시 boards.recommended 를 비운다).
+     */
+    @Transactional
+    public HighlightBoardPlaceView autoFill(AdminActor actor, String placeRaw, HighlightAutoFillRequest body) {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        BoardCatalogSnapshot s = catalog.snapshot();
+        String place = placeRaw == null ? null : placeRaw.strip();
+        EffectiveBoard board = placeBoard(s, place).orElse(null);
+        if (board == null) {
+            fields.put("place", new MessageRef("highlight.place.unknown"));
+        }
+        if (body == null || body.autoFill() == null) {
+            fields.put("autoFill", new MessageRef("highlight.autoFill.required"));
+        }
+        if (!fields.isEmpty()) {
+            throw new ValidationException(fields);
+        }
+        boolean want = body.autoFill();
+        Instant now = Instant.now();
+        HighlightBoardSettingEntity row = boardSettings.findWithLockByBoardId(board.id()).orElse(null);
+        boolean before = row == null ? HighlightBoardSettingEntity.DEFAULT_AUTO_FILL : row.isAutoFill();
+        if (before != want) {
+            if (row == null) {
+                boardSettings.persist(HighlightBoardSettingEntity.create(board.id(), want, actor.operatorId(), now));
+            } else {
+                row.changeAutoFill(want, actor.operatorId(), now);
+            }
+            audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_AUTO_FILL, AuditResult.SUCCESS)
+                    .target("BOARD", Long.toString(board.id())).with("place", place).with("from", before).with("to", want));
+            log.info("게시판 추천 글 자동 채우기를 바꿨다 boardId={} {}→{} by operatorId={}", board.id(), before, want, actor.operatorId());
+        }
+        long total = highlights.findAllByPlaceOrderBySortOrderAscIdAsc(place).size();
+        return boardView(board, total, want);
     }
 
     /** 대상 글 찾기 — 글 번호(숫자 {@value #ID_DIGITS_MIN}자리 이상)거나 제목 일부({@value #SEARCH_MIN}자 이상). 지정할 수 있고 그 곳에 아직 없는 글 최대 10개 */
@@ -196,7 +277,7 @@ public class HighlightAdminService {
         }
         Instant now = Instant.now();
         BoardCatalogSnapshot s = catalog.snapshot();
-        List<Long> boardIds = activeBoardIds(s);
+        List<Long> boardIds = scopeOf(activeBoardIds(s), place); // 게시판 곳이면 그 게시판 글만
         Set<Long> taken = takenPostIds(place);
         List<AdminPostRow> found;
         Long byNumber = text.length() >= ID_DIGITS_MIN && text.chars().allMatch(Character::isDigit) ? parseId(text) : null;
@@ -239,7 +320,9 @@ public class HighlightAdminService {
         }
         Instant now = Instant.now();
         Instant since = days == 0 ? null : now.minus(Duration.ofDays(days));
-        List<AdminPostRow> found = posts.candidates(since, minLikes, boardId == null ? boardIds : List.of(boardId), takenPostIds(place), now, CANDIDATE_LIMIT);
+        // 게시판 곳이면 그 게시판 글만(다른 게시판을 고른 boardId 는 빈 목록)
+        List<Long> scope = scopeOf(boardId == null ? boardIds : List.of(boardId), place);
+        List<AdminPostRow> found = posts.candidates(since, minLikes, scope, takenPostIds(place), now, CANDIDATE_LIMIT);
         Map<Long, ProfileEntity> members = summaries.authors(found);
         return new HighlightCandidatesView(days, minLikes, boardId == null ? null : Long.toString(boardId), place,
                 found.stream().map(r -> summaries.view(r, s, members, now)).toList());
@@ -270,7 +353,7 @@ public class HighlightAdminService {
             throw new ValidationException(fields);
         }
         Instant now = Instant.now();
-        requireAssignable(postId, now);
+        requireAssignable(postId, HighlightPlaces.boardIdOf(place).orElse(null), now);
         List<HighlightEntity> all = highlights.findAllWithLockByPlaceOrderBySortOrderAscIdAsc(place); // 그 곳의 만들기를 줄 세운다(중복·맨 끝 순서)
         long target = postId;
         if (all.stream().anyMatch(h -> h.getPostId() == target)) {
@@ -469,11 +552,18 @@ public class HighlightAdminService {
         });
     }
 
-    /** 지정할 수 있는 글인가 — 아니면 400 HIGHLIGHT_POST_INVALID */
-    private void requireAssignable(long postId, Instant now) {
+    /**
+     * 지정할 수 있는 글인가 — 아니면 400 HIGHLIGHT_POST_INVALID.
+     *
+     * @param boardOnly 게시판 곳이면 그 게시판 ID(다른 게시판 글은 OTHER_BOARD), 그 밖은 null
+     */
+    private void requireAssignable(long postId, Long boardOnly, Instant now) {
         AdminPostRow row = summaries.rows(List.of(postId)).get(postId);
         if (row == null) {
             throw new HighlightPostInvalidException(HighlightPostInvalidException.NOT_FOUND);
+        }
+        if (boardOnly != null && !boardOnly.equals(row.boardId())) {
+            throw new HighlightPostInvalidException(HighlightPostInvalidException.OTHER_BOARD);
         }
         EffectiveBoard board = row.boardId() == null ? null : catalog.snapshot().board(row.boardId()).orElse(null);
         switch (row.stateAt(now, board != null && board.active())) {
@@ -505,9 +595,46 @@ public class HighlightAdminService {
         return HighlightPlaces.parse(raw).orElseThrow(() -> ValidationException.of("place", new MessageRef("highlight.place.unknown")));
     }
 
-    /** 새로 놓을 수 있는 곳인가 — 홈 · 팁 · 있는 가젯 페이지 */
+    /** 새로 놓을 수 있는 곳인가 — 홈 · 팁 · 있는 가젯 페이지(board- 키 제외) · 있는 일반 게시판의 게시판 곳 */
     private boolean selectable(String place) {
+        if (HighlightPlaces.boardReserved(place)) {
+            return placeBoard(catalog.snapshot(), place).isPresent();
+        }
         return HighlightPlaces.builtIn(place) || gadgetPages.existsByPageKey(place);
+    }
+
+    /** 게시판 곳을 둘 수 있는 게시판인가 — 일반 게시판만(핫딜·홍보·소모임 게시판 제외) */
+    private static boolean recommendable(EffectiveBoard b) {
+        return BoardFields.KIND_GENERAL.equals(b.kind());
+    }
+
+    /** 게시판 곳 키 → 그 게시판(일반 게시판일 때만) */
+    private static Optional<EffectiveBoard> placeBoard(BoardCatalogSnapshot s, String place) {
+        return HighlightPlaces.boardIdOf(place).flatMap(s::board).filter(HighlightAdminService::recommendable);
+    }
+
+    /** 글을 고를 게시판 범위 — 게시판 곳이면 그 게시판만(범위에 없으면 빈 목록), 그 밖은 그대로 */
+    private static List<Long> scopeOf(List<Long> boardIds, String place) {
+        Long only = HighlightPlaces.boardIdOf(place).orElse(null);
+        if (only == null) {
+            return boardIds;
+        }
+        return boardIds.contains(only) ? List.of(only) : List.of();
+    }
+
+    /** 게시판의 자동 채우기(행이 없으면 켬) */
+    private boolean autoFillOf(long boardId) {
+        return boardSettings.findById(boardId).map(HighlightBoardSettingEntity::isAutoFill).orElse(HighlightBoardSettingEntity.DEFAULT_AUTO_FILL);
+    }
+
+    private HighlightBoardPlaceView boardView(EffectiveBoard b, long total, boolean autoFill) {
+        boolean english = "en".equals(messages.locale().getLanguage());
+        return new HighlightBoardPlaceView(HighlightPlaces.boardPlace(b.id()), Long.toString(b.id()), b.slug(), boardName(b, english), b.active(), autoFill, total,
+                HighlightPlaces.BOARD_SHOWN);
+    }
+
+    private static String boardName(EffectiveBoard b, boolean english) {
+        return english && b.nameEn() != null && !b.nameEn().isBlank() ? b.nameEn() : b.name();
     }
 
     private static List<Long> activeBoardIds(BoardCatalogSnapshot s) {

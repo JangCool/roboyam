@@ -13,6 +13,8 @@
         권한: 보기 `highlight.read`(메뉴), 바꾸기 `highlight.manage` — 없으면 처리 단추가 없고 안내 한 줄. 토론 설정·의견 서랍은 `post.read` 가 있을 때 보이고 `post.manage` 가 없으면 읽기만. 후보의 게시판 고르개는 게시판 목록을 볼 권한(`board.read`)이 있을 때만.
         사라진 하이라이트(`404 HIGHLIGHT_NOT_FOUND`)·순서 집합 불일치(`fields.ids`)는 서버 문구를 토스트로 보이고 목록을 다시 받는다.
         **곳별**(tips-contract, V161): 왼쪽 카드형 곳 메뉴(넓으면 왼쪽 좁은 칸·위에 붙음, lg 미만이면 본문 위 가로로 넘기는 줄 — `AppSideNav` 와 같은 카드·강조 모양이지만 좁을 때 고르개 대신 가로 줄·묶음 소제목·개수가 있어 화면 안에 둔다. `?place=` — home 은 주소에서 뺀다, 이름은 서버 `GET /places`)로 고른 곳에서 목록·순서·만들기·후보·글 찾기가 모두 돈다. 곳은 만든 뒤 못 바꾼다. 목록에 없는 곳(지운 가젯 페이지 등)은 home 으로 돌린다.
+        **게시판 곳**(board-recommend-contract — 곳 키 `board-{boardId}`, 일반 게시판만): 곳 메뉴 아래 「게시판」 묶음(고른 글이 있거나 자동 채우기를 끈 게시판 — 서버 곳 목록)과 「+ 게시판 곳 추가」(게시판 고르기 대화상자 → 그 곳을 연다, 목록에 없어도 돌리지 않는다).
+          게시판 곳 화면 = 이 화면 그대로 + 목록 머리에 「위에서 3개까지 보여요」·「모자라면 추천 많은 글로 자동 채우기」 스위치(기본 켬, `highlight.manage`). 후보는 그 게시판 글만 찾는다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('highlight.title')" :subtitle="t('highlight.subtitle')">
@@ -33,6 +35,8 @@
                     <template v-for="(item, index) in navItems" :key="item.key">
                         <!-- 가젯 페이지 묶음 소제목 — 넓을 때만(좁은 가로 줄에서는 항목 이름 앞에 「가젯 페이지 ·」) -->
                         <li v-if="item.kind === 'PAGE' && navItems[index - 1]?.kind !== 'PAGE'" class="mt-2 mb-0.5 hidden px-2.5 text-[11px] font-medium text-muted-color lg:block" role="presentation">{{ t('highlight.placeGroupPages') }}</li>
+                        <!-- 게시판 묶음 소제목 — 게시판 곳이 하나라도 있으면 그 첫 줄 앞(없으면 아래 「+ 게시판 곳 추가」 앞) -->
+                        <li v-if="item.kind === 'BOARD' && navItems[index - 1]?.kind !== 'BOARD'" class="mt-2 mb-0.5 hidden px-2.5 text-[11px] font-medium text-muted-color lg:block" role="presentation">{{ t('highlight.placeGroupBoards') }}</li>
                         <li class="shrink-0">
                             <button
                                 type="button"
@@ -46,6 +50,21 @@
                                 <span class="min-w-0 truncate lg:hidden">{{ UtilHighlightMessages.placeLabel(t, item) }}</span>
                                 <span class="hidden min-w-0 truncate lg:inline">{{ item.name }}</span>
                                 <span class="ml-auto pl-1 text-xs tabular-nums" :class="item.key === place ? '' : 'text-muted-color'">{{ placeTotal(item) }}</span>
+                            </button>
+                        </li>
+                    </template>
+                    <!-- 게시판 곳 열기(board-recommend-contract) — 일반 게시판을 골라 그 게시판 곳으로. 게시판 목록을 볼 권한이 있을 때만 -->
+                    <template v-if="canAddBoardPlace">
+                        <li v-if="!navItems.some((item) => item.kind === 'BOARD')" class="mt-2 mb-0.5 hidden px-2.5 text-[11px] font-medium text-muted-color lg:block" role="presentation">{{ t('highlight.placeGroupBoards') }}</li>
+                        <li class="shrink-0">
+                            <button
+                                type="button"
+                                class="flex min-h-9 w-full cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border-0 bg-transparent px-2.5 text-left text-sm text-primary hover:bg-(--p-content-hover-background) focus-visible:outline-2 focus-visible:outline-primary"
+                                data-testid="highlight-board-add"
+                                @click="openBoardPicker"
+                            >
+                                <i class="pi pi-plus shrink-0 text-xs" aria-hidden="true" />
+                                <span class="min-w-0 truncate">{{ t('highlight.boardAdd') }}</span>
                             </button>
                         </li>
                     </template>
@@ -64,6 +83,26 @@
                     <template #title-extra>
                         <span v-if="list" class="text-xs tabular-nums text-muted-color">{{ t('highlight.countLine', { showing: list.visibleCount, total: list.total }) }}</span>
                     </template>
+
+                    <!-- 게시판 곳 머리(board-recommend-contract) — 공개 게시판 목록 위 카드는 위에서 3개까지 · 모자라면 추천 많은 글로 자동 채우기(게시판별, 기본 켬) -->
+                    <div v-if="placeBoardId" class="mb-3 flex flex-col gap-2 rounded-lg border border-(--line) bg-surface-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:bg-surface-900" data-testid="highlight-board-head">
+                        <p class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-muted-color">
+                            <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+                            <span>
+                                <span class="font-semibold text-color">{{ t('highlight.boardShowHint', { n: list?.board?.shown ?? HIGHLIGHT_BOARD_SHOW_MAX }) }}</span>
+                                <span class="block">{{ t('highlight.boardShowHelp') }}</span>
+                            </span>
+                        </p>
+                        <div class="flex shrink-0 flex-col gap-0.5 sm:items-end">
+                            <div class="flex items-center gap-2">
+                                <label :for="ids.autoFill" class="text-xs font-medium">{{ t('highlight.autoFillLabel') }}</label>
+                                <ToggleSwitch :model-value="autoFill" :input-id="ids.autoFill" :disabled="!canManage || autoFillBusy || !list" data-testid="highlight-auto-fill" @update:model-value="(v: boolean) => changeAutoFill(v)" />
+                            </div>
+                            <span class="text-[11px] text-muted-color">{{ t(autoFill ? 'highlight.autoFillOnHelp' : 'highlight.autoFillOffHelp') }}</span>
+                        </div>
+                    </div>
+
+                    <Message v-if="placeBoardId && list?.board && !list.board.active" severity="warn" size="small" :closable="false" class="mb-3">{{ t('highlight.boardInactive') }}</Message>
 
                     <div v-if="busy && !list" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
                         <Skeleton v-for="n in 3" :key="n" height="5rem" />
@@ -173,7 +212,9 @@
                         </div>
                         <div v-if="canReadBoards" class="flex flex-col gap-1">
                             <label :for="ids.board" class="text-xs text-muted-color">{{ t('highlight.boardLabel') }}</label>
-                            <Select v-model="candidateQuery.boardId" :input-id="ids.board" :options="boardOptions" option-label="label" option-value="value" show-clear filter :placeholder="t('common.all')" class="w-48" />
+                            <!-- 게시판 곳이면 그 게시판 글만 찾는다(고르개는 그 게시판으로 묶음) -->
+                            <Select v-if="placeBoardId" :model-value="placeBoardId" :input-id="ids.board" :options="boardOptions" option-label="label" option-value="value" disabled class="w-48" />
+                            <Select v-else v-model="candidateQuery.boardId" :input-id="ids.board" :options="boardOptions" option-label="label" option-value="value" show-clear filter :placeholder="t('common.all')" class="w-48" />
                         </div>
                         <Button type="submit" :label="t('highlight.findCandidates')" icon="pi pi-search" size="small" :loading="candidatesBusy" :disabled="Boolean(minLikesError)" />
                     </form>
@@ -194,6 +235,37 @@
                 </AppGadget>
             </div>
         </div>
+
+        <!-- 게시판 곳 추가 — 일반 게시판만 고른다. 고르면 그 게시판 곳이 열린다(곳 목록에는 글을 추가하거나 자동 채우기를 끄면 남는다) -->
+        <Dialog v-model:visible="boardPickerOpen" modal :header="t('highlight.boardAddTitle')" :style="{ width: 'min(28rem, calc(100vw - 2rem))' }" :draggable="false">
+            <form class="flex flex-col gap-3" novalidate @submit.prevent="submitBoardPicker">
+                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('highlight.boardAddHint') }}</p>
+                <div class="flex flex-col gap-1">
+                    <label :for="ids.boardPick" class="text-xs text-muted-color">{{ t('highlight.boardLabel') }}</label>
+                    <Select
+                        v-model="boardPick"
+                        :input-id="ids.boardPick"
+                        :options="generalBoardOptions"
+                        option-label="label"
+                        option-value="value"
+                        filter
+                        :placeholder="t('highlight.boardAddPlaceholder')"
+                        :empty-message="t('highlight.boardAddEmpty')"
+                        :loading="boardPlacesBusy"
+                        fluid
+                        data-testid="highlight-board-pick"
+                    />
+                </div>
+                <p v-if="boardPlacesError" role="alert" class="m-0 flex flex-wrap items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                    {{ t('highlight.boardAddFailed', { message: boardPlacesError }) }}
+                    <Button type="button" :label="t('highlight.refresh')" size="small" severity="secondary" variant="text" :loading="boardPlacesBusy" @click="loadBoardPlaces" />
+                </p>
+                <div class="flex justify-end gap-2">
+                    <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" @click="boardPickerOpen = false" />
+                    <Button type="submit" :label="t('highlight.boardAddOpen')" :disabled="!boardPick" />
+                </div>
+            </form>
+        </Dialog>
 
         <HighlightFormDialog v-model:visible="formOpen" :item="editing" :actions="formActions" :saving="saving" :server-errors="formFieldErrors" :form-error="formError" @save="save" />
         <DebateOpinionsDrawer v-model:visible="opinionsOpen" :target="drawerTarget" :actions="opinionActions" :can-read="canReadPost" :can-manage="canManagePost" @changed="onDebateChanged" />
@@ -264,8 +336,8 @@ import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types
 import type { DebateItem, DebateStance } from '~/composables/content/api/useDebateApi.types';
 import type { AdminPostItem } from '~/composables/post/api/usePostApi.types';
 import type { PostActionKind } from '~/utils/util-post';
-import type { HighlightCandidateQuery, HighlightItem, HighlightListView, HighlightPlace, HighlightPlaceKind, HighlightSaveRequest } from '~/composables/content/api/useHighlightApi.types';
-import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
+import type { HighlightBoardPlace, HighlightCandidateQuery, HighlightItem, HighlightListView, HighlightPlace, HighlightPlaceKind, HighlightSaveRequest } from '~/composables/content/api/useHighlightApi.types';
+import { HIGHLIGHT_BOARD_SHOW_MAX, HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 import type { BoardListItem } from '~/composables/board/api/useBoardApi.types';
 import type { DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
 import type { HighlightFormActions } from '~/components/highlight/HighlightFormDialog.types';
@@ -289,14 +361,35 @@ const time = useDisplayTime();
 const { confirm } = useConfirmDialog();
 const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
-const ids = { days: useId(), minLikes: useId(), board: useId() };
+const ids = { days: useId(), minLikes: useId(), board: useId(), autoFill: useId(), boardPick: useId() };
 
 /* ── 곳 ── */
 const { places, loading: placesLoading, error: placesError, load: loadPlaces } = useHighlightPlaces();
 /** 고른 곳 — 주소의 `?place=`(없으면 home) */
 const place = computed(() => UtilHighlight.placeOf(route.query));
-/** 메뉴 항목 — 목록을 못 받았으면 지금 곳 하나(키 그대로) */
-const navItems = computed<HighlightPlace[]>(() => (places.value.length ? places.value : [{ key: place.value, name: place.value, kind: 'HOME', total: 0 }]));
+/** 지금 곳이 게시판 곳이면 그 게시판 ID(board-recommend-contract — 곳 키 `board-{boardId}`) */
+const placeBoardId = computed(() => UtilHighlight.boardIdOf(place.value));
+
+/**
+ * 메뉴 항목 — 일반 곳(홈·팁·가젯 페이지) 다음에 게시판 곳 묶음. 목록을 못 받았으면 지금 곳 하나(키 그대로).
+ * 지금 곳이 목록에 없는 게시판 곳(「+ 게시판 곳 추가」로 막 연 곳)이면 게시판 이름으로 묶음 끝에 붙인다.
+ */
+const navItems = computed<HighlightPlace[]>(() => {
+    const boardId = placeBoardId.value;
+    const base: HighlightPlace[] = places.value.length || boardId ? places.value : [{ key: place.value, name: place.value, kind: 'HOME', total: 0 }];
+    const boardPlaces = base.filter((item) => item.kind === 'BOARD');
+    if (boardId && !boardPlaces.some((item) => item.key === place.value)) boardPlaces.push({ key: place.value, name: boardName(boardId), kind: 'BOARD', total: 0, autoFill: null });
+    return [...base.filter((item) => item.kind !== 'BOARD'), ...boardPlaces];
+});
+
+/** 게시판 곳 줄 이름 — 지금 곳 목록 응답의 게시판 이름 → 받은 게시판 목록의 이름 → 「게시판 #ID」 */
+function boardName(boardId: string): string {
+    if (list.value?.board?.boardId === boardId) return list.value.board.name;
+    const picked = boardPlaces.value?.find((b) => b.boardId === boardId);
+    if (picked) return picked.name;
+    const board = boards.value.find((b) => b.id === boardId);
+    return board ? localizedName(board.name, board.nameEn) : t('highlight.boardFallbackName', { id: boardId });
+}
 
 /** 곳 메뉴의 개수 — 고른 곳은 지금 목록의 수(만들기·지우기 직후에도 맞게), 나머지는 곳 목록이 준 수 */
 function placeTotal(item: HighlightPlace): number {
@@ -304,6 +397,7 @@ function placeTotal(item: HighlightPlace): number {
 }
 
 function placeIcon(kind: HighlightPlaceKind): string {
+    if (kind === 'BOARD') return 'pi pi-list';
     return kind === 'HOME' ? 'pi pi-home' : kind === 'TIPS' ? 'pi pi-book' : 'pi pi-th-large';
 }
 
@@ -318,6 +412,8 @@ const canManage = computed(() => can('highlight.manage'));
 const canReadPost = computed(() => can('post.read'));
 const canManagePost = computed(() => can('post.manage'));
 const canReadBoards = computed(() => can('board.read'));
+/** 「+ 게시판 곳 추가」 — 바꾸기 권한(고를 게시판 목록은 하이라이트 API 가 준다) */
+const canAddBoardPlace = computed(() => canManage.value);
 
 /** 이미 바뀐 하이라이트(다른 운영자가 지웠거나 순서가 바뀌었다) — 목록을 다시 받는다 */
 const STALE_CODES: ReadonlySet<string> = new Set(['HIGHLIGHT_NOT_FOUND']);
@@ -328,6 +424,71 @@ const loadError = ref<ApiError | null>(null);
 const ordering = ref(false);
 const togglingId = ref<string | null>(null);
 const removingId = ref<string | null>(null);
+
+/* ── 게시판 곳(board-recommend-contract) ── */
+/** 「모자라면 추천 많은 글로 자동 채우기」 — 게시판 곳 목록을 받을 때 채운다(기본 켬) */
+const autoFill = ref(true);
+const autoFillBusy = ref(false);
+
+/** 자동 채우기 켜기·끄기 — 실패하면 되돌린다. 끈 게시판은 곳 목록에 남으므로 곳 목록을 새로 받는다 */
+async function changeAutoFill(value: boolean): Promise<void> {
+    if (autoFillBusy.value || !placeBoardId.value) return;
+    const target = place.value;
+    const before = autoFill.value;
+    autoFill.value = value;
+    autoFillBusy.value = true;
+    try {
+        const saved = await api.setAutoFill(target, { autoFill: value });
+        if (place.value === target) autoFill.value = saved.autoFill;
+        toast.success(value ? t('highlight.autoFillOn') : t('highlight.autoFillOff'));
+        void loadPlaces(true);
+    } catch (e) {
+        if (place.value === target) autoFill.value = before;
+        toast.error(errorOf(e).message, 8000);
+    } finally {
+        autoFillBusy.value = false;
+    }
+}
+
+/** 게시판 곳에서 글을 넣거나 뺐다 — 게시판 묶음(고른 글이 있는 게시판만 남는다)을 맞추려 곳 목록을 새로 받는다 */
+function refreshBoardPlaces(): void {
+    if (placeBoardId.value) void loadPlaces(true);
+}
+
+/** 게시판 곳 추가 — 일반 게시판만(서버 `GET /boards` — 꺼진 게시판은 「꺼짐」을 붙여 보인다). 대화상자를 처음 열 때 받는다 */
+const boardPickerOpen = ref(false);
+const boardPick = ref<string | null>(null);
+const boardPlaces = ref<HighlightBoardPlace[] | null>(null);
+const boardPlacesBusy = ref(false);
+const boardPlacesError = ref('');
+const generalBoardOptions = computed(() =>
+    (boardPlaces.value ?? []).map((board) => ({ value: board.boardId, label: board.active ? board.name : t('highlight.boardOffName', { name: board.name }) })),
+);
+
+async function loadBoardPlaces(): Promise<void> {
+    if (boardPlacesBusy.value) return;
+    boardPlacesBusy.value = true;
+    boardPlacesError.value = '';
+    try {
+        boardPlaces.value = await api.boards();
+    } catch (e) {
+        boardPlacesError.value = errorOf(e).message;
+    } finally {
+        boardPlacesBusy.value = false;
+    }
+}
+
+function openBoardPicker(): void {
+    boardPick.value = placeBoardId.value;
+    boardPickerOpen.value = true;
+    if (!boardPlaces.value) void loadBoardPlaces();
+}
+
+function submitBoardPicker(): void {
+    if (!boardPick.value) return;
+    boardPickerOpen.value = false;
+    changePlace(UtilHighlight.boardPlace(boardPick.value));
+}
 
 onMounted(() => {
     void reload();
@@ -355,6 +516,8 @@ async function reload(): Promise<void> {
         const found = await api.list(place.value);
         if (mine !== request) return;
         list.value = found;
+        // 게시판 곳의 자동 채우기 — 목록 응답 `board`(없으면 곳 목록)의 값, 둘 다 없으면 기본 켬
+        autoFill.value = found.board?.autoFill ?? places.value.find((item) => item.key === found.place)?.autoFill ?? true;
         // 의견 서랍이 열린 하이라이트의 줄도 새 값으로
         if (opinionsTarget.value) opinionsTarget.value = found.items.find((item) => item.id === opinionsTarget.value?.id) ?? opinionsTarget.value;
     } catch (e) {
@@ -424,6 +587,7 @@ async function remove(item: HighlightItem): Promise<void> {
     try {
         await api.remove(item.id);
         toast.success(t('highlight.deleted'));
+        refreshBoardPlaces();
         await reload();
         if (candidates.value) void loadCandidates();
     } catch (e) {
@@ -475,6 +639,7 @@ async function save(body: HighlightSaveRequest): Promise<void> {
         else await api.create({ ...body, place: place.value });
         formOpen.value = false;
         toast.success(target ? t('highlight.updated') : t('highlight.created'));
+        if (!target) refreshBoardPlaces();
         await reload();
         if (!target && candidates.value) void loadCandidates();
     } catch (e) {
@@ -725,7 +890,8 @@ async function loadCandidates(): Promise<void> {
     candidatesBusy.value = true;
     candidatesError.value = '';
     try {
-        const found = await api.candidates({ ...candidateQuery.value, minLikes: Number(minLikesText.value.trim()), place: place.value });
+        // 게시판 곳이면 그 게시판 글만
+        const found = await api.candidates({ ...candidateQuery.value, boardId: placeBoardId.value ?? candidateQuery.value.boardId, minLikes: Number(minLikesText.value.trim()), place: place.value });
         if (mine !== candidateRequest) return;
         candidates.value = found.items;
     } catch (e) {
@@ -743,6 +909,7 @@ async function sendCandidate(post: AdminPostRef): Promise<void> {
     try {
         await api.create({ postId: post.id, title: null, summary: null, imageFileId: null, visible: null, showFrom: null, showUntil: null, debate: null, neutralEnabled: null, stanceChangeAllowed: null, place: place.value });
         toast.success(t('highlight.sent', { title: post.title }));
+        refreshBoardPlaces();
         await reload();
         void loadCandidates();
     } catch (e) {

@@ -58,7 +58,7 @@ public enum CacheSaveSource {
     /** 포인트 정책 저장 */
     POINT_POLICY_SAVE(CacheNames.POINT_POLICY),
     /** 하이라이트 저장 */
-    HIGHLIGHT_SAVE(CacheNames.GADGET_HIGHLIGHT),
+    HIGHLIGHT_SAVE(CacheNames.GADGET_HIGHLIGHT, CacheNames.BOARDS_RECOMMENDED),
     /** 인기글 설정·제외 저장 */
     POPULAR_SAVE(CacheNames.HOME_POPULAR, CacheNames.GADGET_POST_LIST),
     /** 운영자가 글을 숨기거나 지웠다(게시글 관리·신고 처리 등) — 글 목록 계열 */
@@ -85,9 +85,9 @@ public enum CacheSaveSource {
         return "cache.source." + name();
     }
 
-    /** 글 목록 계열 — 최신글 · 인기글 · 가젯 데이터 전부 · 공지 띠(「공지 게시판」 줄도 글 목록이다 — 숨긴 공지 글·바뀐 공지 게시판이 띠에 남지 않게) */
+    /** 글 목록 계열 — 최신글 · 인기글 · 게시판 추천 글 · 가젯 데이터 전부 · 공지 띠(「공지 게시판」 줄도 글 목록이다 — 숨긴 공지 글·바뀐 공지 게시판이 띠에 남지 않게) */
     private static String[] postLists() {
-        List<String> out = new ArrayList<>(List.of(CacheNames.HOME_LATEST, CacheNames.HOME_POPULAR, CacheNames.SITE_NOTICE_BAR));
+        List<String> out = new ArrayList<>(List.of(CacheNames.HOME_LATEST, CacheNames.HOME_POPULAR, CacheNames.BOARDS_RECOMMENDED, CacheNames.SITE_NOTICE_BAR));
         out.addAll(CacheCatalog.gadgetKeys());
         return out.toArray(String[]::new);
     }

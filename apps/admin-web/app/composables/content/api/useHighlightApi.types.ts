@@ -31,21 +31,59 @@ export interface HighlightCommentCounts {
     votes: HighlightVotes;
 }
 
-/** 곳 종류 — 홈 · 팁·강좌·사용기 묶음 · 가젯 페이지 */
-export type HighlightPlaceKind = 'HOME' | 'TIPS' | 'PAGE';
+/** 곳 종류 — 홈 · 팁·강좌·사용기 묶음 · 가젯 페이지 · 게시판(그 게시판 목록 위 추천 글 카드 — board-recommend-contract) */
+export type HighlightPlaceKind = 'HOME' | 'TIPS' | 'PAGE' | 'BOARD';
 
 /** 기본 곳(곳을 비우면 서버도 이것) */
 export const HIGHLIGHT_PLACE_HOME = 'home';
 
-/** `GET /api/admin/highlights/places` 의 한 줄 — 하이라이트를 놓을 수 있는 곳(홈 · 팁·강좌·사용기 · 가젯 페이지 만든 차례) */
+/** 게시판 곳 키의 머리 — `board-{boardId}`(이 머리로 시작하는 키는 게시판 곳 전용, 가젯 페이지 키로 못 쓴다) */
+export const HIGHLIGHT_PLACE_BOARD_PREFIX = 'board-';
+
+/** 게시판 곳에서 공개 목록 위에 보이는 카드 수(고른 글 위에서부터 — 서버 `HighlightPlaces.BOARD_SHOWN`, 응답에 `board.shown` 이 오면 그것) */
+export const HIGHLIGHT_BOARD_SHOW_MAX = 3;
+
+/**
+ * `GET /api/admin/highlights/places` 의 한 줄 — 하이라이트를 놓을 수 있는 곳(홈 · 팁·강좌·사용기 · 가젯 페이지 만든 차례 · 게시판).
+ * 게시판 곳은 고른 글이 있거나 자동 채우기를 끈 게시판만 온다(그 밖의 게시판은 화면의 「+ 게시판 곳 추가」로 연다).
+ */
 export interface HighlightPlace {
-    /** 곳 키(`home` · `tips` · 가젯 페이지 키) */
+    /** 곳 키(`home` · `tips` · 가젯 페이지 키 · `board-{boardId}`) */
     key: string;
-    /** 보이는 이름 — 요청 언어로 서버가 준다 */
+    /** 보이는 이름 — 요청 언어로 서버가 준다(게시판 곳은 게시판 이름) */
     name: string;
     kind: HighlightPlaceKind;
     /** 그 곳의 하이라이트 수(노출 여부와 상관없이) */
     total: number;
+    /** 게시판 곳이면 게시판 ID(그 밖은 null) */
+    boardId?: string | null;
+    /** 게시판 곳의 「모자라면 추천 많은 글로 자동 채우기」(그 밖은 null) */
+    autoFill?: boolean | null;
+}
+
+/**
+ * 게시판 곳 하나(서버 `HighlightBoardPlaceView` — board-recommend-contract) — 목록 응답의 `board`, 자동 채우기 바꾸기의 응답.
+ */
+export interface HighlightBoardPlace {
+    /** 곳 키 `board-{boardId}` */
+    place: string;
+    boardId: string;
+    slug: string;
+    /** 게시판 이름(요청 언어) */
+    name: string;
+    /** 게시판이 켜져 있는가(꺼진 게시판은 공개에 카드가 없다) */
+    active: boolean;
+    /** 고른 글이 모자라면 그 게시판의 추천 많은 글로 채우는가(기본 켬) */
+    autoFill: boolean;
+    /** 그 곳의 하이라이트 수 */
+    total: number;
+    /** 공개에 보이는 최대 카드 수(위에서부터) */
+    shown: number;
+}
+
+/** `PUT /api/admin/highlights/places/{place}/auto-fill` — 게시판 곳의 자동 채우기 켜기·끄기 */
+export interface HighlightAutoFillRequest {
+    autoFill: boolean;
 }
 
 export interface HighlightOperator {
@@ -91,6 +129,8 @@ export interface HighlightListView {
     visibleCount: number;
     total: number;
     items: HighlightItem[];
+    /** 게시판 곳이면 그 게시판(이름·자동 채우기 스위치), 그 밖은 null */
+    board?: HighlightBoardPlace | null;
 }
 
 /** `GET /api/admin/highlights/candidates` */

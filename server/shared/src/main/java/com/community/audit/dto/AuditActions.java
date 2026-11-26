@@ -226,6 +226,8 @@ public final class AuditActions {
     public static final String HIGHLIGHT_ORDER = "HIGHLIGHT_ORDER";
     /** 하이라이트 노출 켜기·끄기 — from/to */
     public static final String HIGHLIGHT_VISIBLE = "HIGHLIGHT_VISIBLE";
+    /** 게시판 추천 글 「모자라면 추천 많은 글로 자동 채우기」 켜기·끄기(board-recommend-contract) — 대상 BOARD + 게시판 ID, {@code place}·from/to */
+    public static final String HIGHLIGHT_AUTO_FILL = "HIGHLIGHT_AUTO_FILL";
     /** 토론 의견 고정·고정 해제·숨김·숨김 해제(이름은 예전 하이라이트 의견 관리 그대로 — 기록 호환) — 대상 COMMENT + 댓글 ID, {@code postId}·{@code stance} */
     public static final String HIGHLIGHT_OPINION_PIN = "HIGHLIGHT_OPINION_PIN";
     public static final String HIGHLIGHT_OPINION_UNPIN = "HIGHLIGHT_OPINION_UNPIN";

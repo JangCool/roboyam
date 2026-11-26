@@ -12,6 +12,8 @@ public final class CacheNames {
     public static final String HOME_LATEST = "home.latest";
     public static final String HOME_POPULAR = "home.popular";
     public static final String MENU_PUBLIC = "menu.public";
+    /** 게시판 목록 위 「추천 글」 카드(board-recommend-contract) — 항목 키 = 게시판 ID */
+    public static final String BOARDS_RECOMMENDED = "boards.recommended";
     // 가젯 데이터 — 유형별(서버 GadgetKinds)
     public static final String GADGET_PREFIX = "gadget.";
     public static final String GADGET_POST_LIST = "gadget.POST_LIST";

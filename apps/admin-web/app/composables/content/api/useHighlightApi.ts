@@ -1,5 +1,7 @@
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
 import type {
+    HighlightAutoFillRequest,
+    HighlightBoardPlace,
     HighlightCandidateQuery,
     HighlightCandidatesView,
     HighlightItem,
@@ -19,13 +21,18 @@ import type {
  *   - `GET /candidates?days=&minLikes=&boardId=&place=` → 그 곳에 없는 추천 많은 순 30개 · 400 `fields.days|minLikes|boardId`
  *   - `POST`(본문 `place` — 만든 뒤 못 바꿈, 없는 곳 400 `fields.place`) → 201 한 줄 · `PUT /{id}` → 200 한 줄(모든 칸) · 400 `fields.postId|title|summary|showUntil|imageFileId` · 400 `HIGHLIGHT_POST_INVALID` · 409 `HIGHLIGHT_DUPLICATE`(같은 곳 안에서만) · 404 `HIGHLIGHT_NOT_FOUND`
  *   - `PUT /order { place, ids }` → 204(그 곳 전체 ID 의 새 차례, 집합이 다르면 400 `fields.ids`) · `PUT /{id}/visible { visible }` → 200 한 줄 · `DELETE /{id}` → 204
+ * 게시판 곳(board-recommend-contract — 곳 키 `board-{boardId}`, 일반 게시판만): 위 API 를 그대로 쓰고 목록 응답에 `board`(이름·자동 채우기)가, 곳 목록 줄에 `boardId`·`autoFill` 이 실린다.
+ *   - `GET /boards` → `HighlightBoardPlace[]` — 게시판 곳을 열 수 있는 일반 게시판 전체(꺼진 게시판 포함, 게시판 차례 — 「+ 게시판 곳 추가」)
+ *   - `PUT /places/{place}/auto-fill { autoFill }` → 200 `HighlightBoardPlace` — 「모자라면 추천 많은 글로 자동 채우기」 · 400 `fields.autoFill`
  */
 const PATH = {
     root: '/api/admin/highlights',
     places: '/api/admin/highlights/places',
+    boards: '/api/admin/highlights/boards',
     search: '/api/admin/highlights/post-search',
     candidates: '/api/admin/highlights/candidates',
     order: '/api/admin/highlights/order',
+    autoFill: (place: string) => `/api/admin/highlights/places/${encodeURIComponent(place)}/auto-fill`,
     one: (id: string) => `/api/admin/highlights/${encodeURIComponent(id)}`,
     visible: (id: string) => `/api/admin/highlights/${encodeURIComponent(id)}/visible`,
 };
@@ -54,6 +61,12 @@ export function useHighlightApi() {
 
         /** 한 곳의 전체 ID 를 새 차례로 */
         reorder: (place: string, ids: string[]): Promise<void> => client.put<void>(PATH.order, { place, ids }),
+
+        /** 게시판 곳을 열 수 있는 일반 게시판 전체(꺼진 게시판 포함) */
+        boards: (): Promise<HighlightBoardPlace[]> => client.get<HighlightBoardPlace[]>(PATH.boards),
+
+        /** 게시판 곳의 자동 채우기 켜기·끄기 */
+        setAutoFill: (place: string, body: HighlightAutoFillRequest): Promise<HighlightBoardPlace> => client.put<HighlightBoardPlace>(PATH.autoFill(place), body),
 
         setVisible: (id: string, visible: boolean): Promise<HighlightItem> => client.put<HighlightItem>(PATH.visible(id), { visible }),
 

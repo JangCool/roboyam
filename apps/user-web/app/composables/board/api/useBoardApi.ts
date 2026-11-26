@@ -1,4 +1,4 @@
-import type { BoardDetail, BoardTagSuggestion, BoardView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDetail, BoardRecommendResponse, BoardTagSuggestion, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery, PostListQuery, PostListResponse } from '~/composables/board/api/usePostApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 
@@ -15,6 +15,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  *  - `GET /api/boards/{slug}/tags` 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그 `[{ name, count }]`(많이 쓴 순, 「태그 쓰기」가 꺼졌으면 빈 목록 — post-tags-contract)
  *  - 핫딜 게시판(`kind DEAL`)은 같은 주소에 `?sort=latest|popular|ending&hideEnded=&store=`(응답에 쇼핑몰 칩 `stores`, 줄에 `deal`) — `dealPosts`(`hotdeal-contract.md` 「API 후보」).
  *      `hideEnded` 가 빠지면 서버는 켬으로 본다(화면은 늘 보낸다). 핫딜 게시판이 아니면 `stores` 없음·새 `sort` 값은 무시
+ *  - `GET /api/boards/{slug}/recommended` 목록 위 추천 글 카드(최대 3 — 고른 글 → 추천 많은 글 자동 채움, board-recommend-contract). 볼 수 없는 게시판은 게시판 규칙대로 404·403
  * 공개 표시 기본값(날짜 표시 방식·새 글 기준)은 따로 묻지 않는다 — `GET /api/site/info` 의 `boardDisplay`(`useBoardDisplay`).
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
@@ -29,6 +30,7 @@ const PATH = {
     board: (slug: string) => `/api/boards/${encodeURIComponent(slug)}`,
     posts: (slug: string) => `/api/boards/${encodeURIComponent(slug)}/posts`,
     tags: (slug: string) => `/api/boards/${encodeURIComponent(slug)}/tags`,
+    recommended: (slug: string) => `/api/boards/${encodeURIComponent(slug)}/recommended`,
 };
 
 export function useBoardApi() {
@@ -48,6 +50,9 @@ export function useBoardApi() {
 
         /** 글쓰기 태그 추천 — 이 게시판에서 쓰인 태그(많이 쓴 순) */
         tags: (slug: string, signal?: AbortSignal): Promise<BoardTagSuggestion[]> => client.get<BoardTagSuggestion[]>(PATH.tags(slug), { signal }),
+
+        /** 목록 위 추천 글 카드 — 최대 3개, 없으면 빈 목록 */
+        recommended: (slug: string, signal?: AbortSignal): Promise<BoardRecommendResponse> => client.get<BoardRecommendResponse>(PATH.recommended(slug), { signal }),
 
         /** 글 목록 — 빈 말머리·처리 상태·검색어는 보내지 않는다. `around`(그 글이 든 쪽 — 글 상세 아래 목록)가 있으면 `page` 대신 보낸다 */
         posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>

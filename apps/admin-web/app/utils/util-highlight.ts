@@ -2,7 +2,7 @@ import type { LocationQuery } from 'vue-router';
 import type { DebateStance } from '~/composables/content/api/useDebateApi.types';
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
 import type { HighlightCommentCounts, HighlightItem, HighlightPlace, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
-import { HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
+import { HIGHLIGHT_PLACE_BOARD_PREFIX, HIGHLIGHT_PLACE_HOME } from '~/composables/content/api/useHighlightApi.types';
 import UtilDebate from '~/utils/util-debate';
 import UtilSiteSetting from '~/utils/util-site-setting';
 
@@ -219,6 +219,37 @@ export default class UtilHighlight {
      * @returns {boolean} 없는 곳이면 true.
      */
     static unknownPlace(place: string, places: readonly HighlightPlace[]): boolean {
+        // 게시판 곳은 고른 글이 없으면 목록에 없다(「+ 게시판 곳 추가」로 연 곳) — 있는지는 그 곳 목록 호출이 가린다
+        if (UtilHighlight.isBoardPlace(place)) return false;
         return places.length > 0 && !places.some((p) => p.key === place);
+    }
+
+    /**
+     * 게시판 곳 키 — `board-{boardId}`(board-recommend-contract 「규칙」)
+     * @param {string} boardId - 게시판 ID.
+     * @returns {string} 곳 키.
+     */
+    static boardPlace(boardId: string): string {
+        return `${HIGHLIGHT_PLACE_BOARD_PREFIX}${boardId}`;
+    }
+
+    /**
+     * 게시판 곳인가 — `board-` 로 시작하고 뒤가 숫자 ID
+     * @param {string} place - 곳 키.
+     * @returns {boolean} 게시판 곳이면 true.
+     */
+    static isBoardPlace(place: string): boolean {
+        return UtilHighlight.boardIdOf(place) !== null;
+    }
+
+    /**
+     * 게시판 곳 키 → 게시판 ID
+     * @param {string} place - 곳 키.
+     * @returns {string | null} 게시판 ID. 게시판 곳이 아니면 null.
+     */
+    static boardIdOf(place: string): string | null {
+        if (!place.startsWith(HIGHLIGHT_PLACE_BOARD_PREFIX)) return null;
+        const id = place.slice(HIGHLIGHT_PLACE_BOARD_PREFIX.length);
+        return /^\d{1,19}$/.test(id) ? id : null;
     }
 }

@@ -409,3 +409,26 @@ export interface BoardTagSuggestion {
     name: string;
     count: number;
 }
+
+/** 추천 글 카드의 출처 — 운영자가 그 게시판 곳에 고른 하이라이트(PICKED) · 추천 많은 글로 자동으로 채운 글(AUTO) */
+export type BoardRecommendKind = 'PICKED' | 'AUTO';
+
+/**
+ * 게시판 추천 글 카드 하나(`GET /api/boards/{slug}/recommended` — board-recommend-contract 「API」).
+ * 고른 글은 `title` = 하이라이트 노출 제목(없으면 글 제목), `label` = 하이라이트 요약(없으면 null — 화면이 「운영자 추천」).
+ * 자동 글은 `title` = 글 제목, `label` 은 쓰지 않고 화면이 `likeCount`·`prefix` 로 「추천 n · 말머리」를 만든다.
+ */
+export interface BoardRecommendItem {
+    postId: string;
+    title: string;
+    label: string | null;
+    kind: BoardRecommendKind;
+    likeCount: number;
+    /** 글의 말머리 이름(없으면 null) */
+    prefix?: string | null;
+}
+
+/** `GET /api/boards/{slug}/recommended` — 최대 3개, 고른 글 → 자동 채움 차례(서버가 정한다) */
+export interface BoardRecommendResponse {
+    items: BoardRecommendItem[];
+}
