@@ -93,6 +93,8 @@ const CATALOG_TARGETS = new Set(['permissions']);
 const OPS_BOARDS = new Set(['bugs', 'requests']);
 /** 공통 말머리의 영문 이름(BoardFields.COMMON_PREFIX_NAMES_EN) */
 const COMMON_PREFIX_EN = { QUESTION: 'Question', REVIEW: 'Review', CHAT: 'Chat', NOTICE: 'Notice' };
+/** 공통 말머리 키 순서(BoardFields.COMMON_PREFIXES) — 체험단(TRIAL)은 넣지 않는다 */
+const COMMON_KEYS = ['QUESTION', 'REVIEW', 'CHAT', 'NOTICE'];
 
 function sql(script) {
     try {
@@ -199,6 +201,8 @@ const typed = boards
     .map((b) => {
         // 체험단 말머리(공통 TRIAL)는 구조 스냅숏에만 — 이 목록(구조를 넣지 못했을 때)은 공통 말머리 4개만 알아 같은 이름의 고유 말머리가 생기므로 뺀다(첫 체험단 사용기 때 서버가 만든다)
         const own = prefixes.filter((p) => String(p.board_id) === String(b.id) && p.active && p.common_key !== 'TRIAL');
+        // 있는 공통 말머리 키(켜고 끈 것 상관없이, 체험단 빼고) — 관리자 화면에서 지운 공통 말머리가 이 목록으로 설치할 때 다시 생기지 않게(BoardPresetApplier)
+        const commonPrefixes = COMMON_KEYS.filter((key) => prefixes.some((p) => String(p.board_id) === String(b.id) && p.common_key === key));
         return {
             slug: b.slug,
             name: b.name,
@@ -214,6 +218,7 @@ const typed = boards
             ...(b.adult_only && b.kind !== 'GROUP' ? { adultOnly: true } : {}), // 성인 전용(V226) — 구조를 넣지 못해 이 목록으로 물러설 때도 성인 제한이 남게
             color: b.color,
             ...(b.kind === 'GROUP' ? { groupCategoryName: categoryOf.get(String(b.id)) } : {}),
+            commonPrefixes,
             prefixes: own.map((p, i) => {
                 const name = p.name ?? p.common_key;
                 const nameEn = p.common_key ? COMMON_PREFIX_EN[p.common_key] : knownEn.get(name) ?? (fallbackEn.push(`말머리 ${b.slug}/${name}`), name);

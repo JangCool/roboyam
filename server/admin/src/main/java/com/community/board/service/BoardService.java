@@ -69,6 +69,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>입력 오류는 400 {@code VALIDATION} + 칸 경로({@code name} · {@code policy.writeMin} · {@code prefixes[0].name} …). 칸 범위·값 목록은 {@link BoardFields}.</li>
  *   <li>이름은 대소문자 무시 유일(409 {@code BOARD_NAME_DUPLICATE}), slug 는 유일·만든 뒤 변경 불가(409 {@code BOARD_SLUG_DUPLICATE}).
  *       투자 고지는 켜기만(409 {@code BOARD_INVESTMENT_NOTICE_LOCKED}). 사용 중 고유 말머리 최대 15(409 {@code PREFIX_LIMIT}), 글이 있는 말머리는 못 지운다(409 {@code PREFIX_IN_USE}).</li>
+ *   <li>공통 말머리({@code commonPrefixes} — board-lineup-contract): 켜고 끄기 · {@code remove} 로 지우기(글이 있으면 409 {@code PREFIX_IN_USE}) ·
+ *       {@code common} 키로 다시 넣기(그 게시판에 없을 때만). 체험단({@code TRIAL})·모르는 키·이미 있는 키는 400 {@code commonPrefixes}. 말머리 묶음({@code board.manage}),
+ *       감사 {@code BOARD_UPDATE} before/after 의 {@code commonPrefixes}(켜진 키) · {@code commonPrefixKeys}(있는 키).</li>
  *   <li>쓰기 자격: GUEST · 등급 키(등급 표에 있는 것) · STAFF, 댓글은 OFF 도. 핫딜·직접홍보는 GUEST 불가, 핫딜 글쓰기는 첫 등급(새싹) 불가.</li>
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>광고 숨김({@code adsHidden}, V117): null 이면 그대로 — 정책 묶음({@code board.settings})으로 본다(가젯 노출 금지와 같은 「노출」 설정, 가정).</li>
@@ -305,24 +308,11 @@ public class BoardService {
                 }
             }
         }
-        List<String> oldCommon = activeCommon(commonById.values());
-        Map<Long, Boolean> commonWanted = new HashMap<>();
-        if (request.commonPrefixes() != null) {
-            for (BoardCommonPrefixSaveRequest item : request.commonPrefixes()) {
-                Long id = item == null ? null : BoardRules.parseId(item.id());
-                if (id != null && commonById.containsKey(id) && item.active() != null) {
-                    commonWanted.put(id, item.active());
-                }
-            }
-        }
-        List<String> newCommon = new ArrayList<>();
-        for (BoardPrefixEntity p : commonById.values()) {
-            if (commonWanted.getOrDefault(p.getId(), p.isActive())) {
-                newCommon.add(p.getCommonKey());
-            }
-        }
-        boolean prefixChanged = diff(before, after, "commonPrefixes", oldCommon, newCommon)
-                | diff(before, after, "prefixes", ownSummary(currentOwn), requestSummary(in.prefixes));
+        CommonChanges common = commonChanges(commonById, request.commonPrefixes());
+        boolean prefixChanged = diff(before, after, "commonPrefixes", activeCommon(commonById.values()), common.activeKeys(commonById.values()))
+                | diff(before, after, "commonPrefixKeys", commonKeys(commonById.values()), common.presentKeys(commonById.values()))
+                | diff(before, after, "prefixes", ownSummary(currentOwn), requestSummary(in.prefixes))
+                | common.problem != null; // 거절할 공통 말머리 요청도 말머리 변경으로 보고 권한부터 본다
         requirePermissions(actor, board, basicChanged || prefixChanged, settingsChanged, limitChanged);
 
         // 2) 입력 검사
@@ -368,6 +358,9 @@ public class BoardService {
             invalid.put("adultOnly", new MessageRef("board.adultOnly.generalOnly"));
         }
         checkPrefixes(in.prefixes, currentOwn, in.allowAdult || in.adultOnly, invalid);
+        if (common.problem != null) {
+            invalid.put("commonPrefixes", common.problem);
+        }
         if (in.gadgetUnknown) {
             invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));
         }
@@ -426,7 +419,8 @@ public class BoardService {
                 kept.add(id);
             }
         });
-        List<BoardPrefixEntity> removed = currentOwn.stream().filter(p -> !kept.contains(p.getId())).toList();
+        List<BoardPrefixEntity> removed = new ArrayList<>(currentOwn.stream().filter(p -> !kept.contains(p.getId())).toList());
+        common.removed.forEach(id -> removed.add(commonById.get(id))); // 공통 말머리 지우기도 같은 사용 수 판정(삭제·임시저장 글 포함)
         if (!removed.isEmpty()) {
             Map<Long, Long> usage = content.prefixUsage(board.getId());
             if (removed.stream().anyMatch(p -> usage.getOrDefault(p.getId(), 0L) > 0)) {
@@ -457,12 +451,15 @@ public class BoardService {
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
-            boolean active = commonWanted.getOrDefault(p.getId(), p.isActive());
-            if (active != p.isActive()) {
+            boolean active = common.wanted.getOrDefault(p.getId(), p.isActive());
+            if (!common.removed.contains(p.getId()) && active != p.isActive()) {
                 p.changeActive(active, now);
             }
         }
         removed.forEach(prefixes::delete);
+        // 다시 넣는 공통 말머리 — 게시판을 만들 때와 같은 이름·운영진 전용(공지)·정렬(공통 순서 1~4)
+        common.added.forEach((key, active) -> prefixes.persist(BoardPrefixEntity.common(ids.nextId(), board.getId(), key, BoardFields.COMMON_PREFIX_NAMES.get(key),
+                active, BoardFields.COMMON_PREFIXES.indexOf(key) + 1, now)));
         Map<Long, BoardPrefixEntity> ownById = new HashMap<>();
         currentOwn.forEach(p -> ownById.put(p.getId(), p));
         int order = 10;
@@ -720,6 +717,106 @@ public class BoardService {
 
     private static List<String> activeCommon(java.util.Collection<BoardPrefixEntity> common) {
         return common.stream().filter(BoardPrefixEntity::isActive).map(BoardPrefixEntity::getCommonKey).toList();
+    }
+
+    /** 있는 공통 말머리 키(켜고 끈 것 상관없이 — 지우기·다시 넣기가 감사에 보이게) */
+    private static List<String> commonKeys(java.util.Collection<BoardPrefixEntity> common) {
+        return common.stream().map(BoardPrefixEntity::getCommonKey).toList();
+    }
+
+    /**
+     * 공통 말머리 요청을 읽는다 — 켜고 끄기({@code wanted}) · 지우기({@code removed}) · 다시 넣기({@code added}, 공통 순서). 거절할 것이 있으면 {@code problem}(400 {@code commonPrefixes}).
+     * 이 게시판에 없는 {@code id} 는 지금처럼 건너뛴다(이미 지워진 줄일 수 있다).
+     */
+    private static CommonChanges commonChanges(Map<Long, BoardPrefixEntity> commonById, List<BoardCommonPrefixSaveRequest> items) {
+        CommonChanges out = new CommonChanges();
+        if (items == null) {
+            return out;
+        }
+        Set<String> present = new HashSet<>();
+        commonById.values().forEach(p -> present.add(p.getCommonKey()));
+        Map<String, Boolean> added = new HashMap<>();
+        for (BoardCommonPrefixSaveRequest item : items) {
+            if (item == null) {
+                continue;
+            }
+            Long id = BoardRules.parseId(item.id());
+            if (id != null) {
+                BoardPrefixEntity prefix = commonById.get(id);
+                if (prefix == null) {
+                    continue;
+                }
+                if (Boolean.TRUE.equals(item.remove())) {
+                    if (BoardFields.TRIAL_PREFIX.equals(prefix.getCommonKey())) {
+                        out.reject(new MessageRef("board.commonPrefix.trial")); // 체험단 후기에 서버가 다는 말머리(TrialPostLinker)
+                    } else {
+                        out.removed.add(id); // 같이 온 active 보다 지우기가 이긴다
+                    }
+                } else if (item.active() != null) {
+                    out.wanted.put(id, item.active());
+                }
+                continue;
+            }
+            if (item.common() == null || item.common().isBlank()) {
+                continue; // id 도 키도 없는 줄은 지금처럼 건너뛴다
+            }
+            String key = item.common().strip().toUpperCase(Locale.ROOT);
+            if (BoardFields.TRIAL_PREFIX.equals(key)) {
+                out.reject(new MessageRef("board.commonPrefix.trial"));
+            } else if (!BoardFields.COMMON_PREFIXES.contains(key)) {
+                out.reject(new MessageRef("board.commonPrefix.unknown"));
+            } else if (present.contains(key) || added.containsKey(key)) {
+                out.reject(new MessageRef("board.commonPrefix.exists"));
+            } else {
+                added.put(key, !Boolean.FALSE.equals(item.active()));
+            }
+        }
+        BoardFields.COMMON_PREFIXES.stream().filter(added::containsKey).forEach(key -> out.added.put(key, added.get(key)));
+        return out;
+    }
+
+    /** 공통 말머리 저장 요청을 읽은 것 */
+    private static final class CommonChanges {
+        final Map<Long, Boolean> wanted = new HashMap<>();
+        final Set<Long> removed = new LinkedHashSet<>();
+        /** 다시 넣을 키 → 켬 여부(공통 순서) */
+        final Map<String, Boolean> added = new LinkedHashMap<>();
+        MessageRef problem;
+
+        void reject(MessageRef ref) {
+            if (problem == null) {
+                problem = ref;
+            }
+        }
+
+        /** 저장 뒤 켜진 공통 말머리 키(정렬은 {@link BoardViews#sortedPrefixes} 와 같게 — 공통 순서, 체험단은 앞) */
+        List<String> activeKeys(java.util.Collection<BoardPrefixEntity> current) {
+            List<String> keys = new ArrayList<>();
+            for (BoardPrefixEntity p : current) {
+                if (!removed.contains(p.getId()) && wanted.getOrDefault(p.getId(), p.isActive())) {
+                    keys.add(p.getCommonKey());
+                }
+            }
+            added.forEach((key, active) -> {
+                if (active) {
+                    keys.add(key);
+                }
+            });
+            return sortCommon(keys);
+        }
+
+        /** 저장 뒤 있는 공통 말머리 키(켜고 끈 것 상관없이) */
+        List<String> presentKeys(java.util.Collection<BoardPrefixEntity> current) {
+            List<String> keys = new ArrayList<>();
+            current.stream().filter(p -> !removed.contains(p.getId())).forEach(p -> keys.add(p.getCommonKey()));
+            keys.addAll(added.keySet());
+            return sortCommon(keys);
+        }
+
+        private static List<String> sortCommon(List<String> keys) {
+            keys.sort(java.util.Comparator.comparingInt(BoardFields.COMMON_PREFIXES::indexOf));
+            return keys;
+        }
     }
 
     private static List<String> ownSummary(List<BoardPrefixEntity> own) {

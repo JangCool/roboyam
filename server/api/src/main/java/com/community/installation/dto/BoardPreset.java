@@ -73,11 +73,13 @@ public record BoardPreset(String id, String name, String nameEn, String descript
      * @param debateEnabled  글쓴이가 찬반 토론을 열 수 있음 — 게시판 정책 {@code debateEnabled} 를 켠 채 만든다(비우면 기본값 따름, 예: 시사 — 사용자 2026-11-13)
      * @param adultOnly      성인 전용 게시판(V226 {@code boards.adult_only}, adult-board-contract)으로 만든다 — 일반 게시판만(소모임 게시판이면 무시). 비우면 false.
      *                       구조 스냅숏을 넣지 못해 이 목록으로 물러설 때도 성인 게시판(예: 전방/후방 {@code frontback})이 제한 없이 만들어지지 않게(2026-11-16)
+     * @param commonPrefixes 이 게시판에 있는 공통 말머리 키(QUESTION·REVIEW·CHAT·NOTICE — 켜고 끈 것 상관없이, board-lineup-contract 「공통 말머리 지우기·다시 넣기」).
+     *                       여기 없는 공통 말머리는 만든 뒤 지운다({@code prefixes} 의 같은 이름 말머리로 켠 것은 남긴다). 비우면(옛 형식) 공통 말머리 4개를 모두 둔다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Board(String slug, String name, String nameEn, String kind, int sortOrder, List<Prefix> prefixes, String description, String layout,
                         boolean viewToggle, String color, boolean investmentNotice, boolean staffOnlyWrite, String groupCategoryName,
-                        Boolean debateEnabled, Boolean adultOnly) {
+                        Boolean debateEnabled, Boolean adultOnly, List<String> commonPrefixes) {
 
         /** 글쓴이 찬반 토론을 켠 채 만드는가 */
         public boolean debateOn() {

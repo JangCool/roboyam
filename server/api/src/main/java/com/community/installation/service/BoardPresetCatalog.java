@@ -563,6 +563,15 @@ public class BoardPresetCatalog {
                 throw invalid(where, "말머리 이름이 겹친다: " + prefix.name());
             }
         }
+        // 있는 공통 말머리 키(비우면 옛 형식 — 4개 모두) — 공통 4개 중에서, 겹치지 않게
+        if (board.commonPrefixes() != null) {
+            Set<String> commonKeys = new HashSet<>();
+            for (String key : board.commonPrefixes()) {
+                if (!BoardFields.COMMON_PREFIXES.contains(key) || !commonKeys.add(key)) {
+                    throw invalid(where, "commonPrefixes 는 " + BoardFields.COMMON_PREFIXES + " 중 겹치지 않는 값이어야 한다: " + key);
+                }
+            }
+        }
     }
 
     private static void requireText(String where, String field, String value, int max) {

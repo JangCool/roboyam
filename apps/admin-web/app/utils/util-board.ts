@@ -7,6 +7,8 @@ import type {
     BoardDefaultsField,
     BoardDetail,
     BoardDetailList,
+    BoardCommonPrefix,
+    BoardCommonPrefixSaveItem,
     BoardDisplayColor,
     BoardKind,
     BoardLayout,
@@ -105,13 +107,17 @@ export interface BoardPrefixForm {
     usageCount: number;
 }
 
-/** 공통 말머리 입력 — 켜고 끄기만 */
+/**
+ * 공통 말머리 입력 — 켜고 끄기 · 지우기 표시 · 다시 넣기(board-lineup-contract 「공통 말머리 지우기·다시 넣기」).
+ * `id` 가 null 이면 다시 넣은 것(저장하면 서버가 만든다 — 지우면 목록에서 그냥 빠진다). `removed` 는 있는 말머리의 지우기 표시(저장 전까지 되돌린다)
+ */
 export interface BoardCommonPrefixForm {
-    id: string;
+    id: string | null;
     common: NonNullable<BoardPrefix['common']>;
     staffOnly: boolean;
     active: boolean;
     usageCount: number;
+    removed: boolean;
 }
 
 /** 게시판 설정 화면의 입력(기본 정보 + 정책 + 말머리) */
@@ -784,7 +790,7 @@ export default class UtilBoard {
             // 옛 서버 응답에 칸이 없으면 닉네임
             authorMode: detail.authorMode ?? 'NICKNAME',
             policy: UtilBoard.policyFormOf(detail.policy),
-            commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount }] : [])),
+            commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount, removed: false }] : [])),
             prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, adultOnly: p.adultOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
         };
     }
@@ -823,7 +829,11 @@ export default class UtilBoard {
             // 비우면 빈 글자를 보내 지운다(null 은 서버가 「그대로」로 읽는다)
             writeTemplate: UtilBoard.normalizeText(form.writeTemplate) ?? '',
             policy,
-            commonPrefixes: form.commonPrefixes.map((p) => ({ id: p.id, active: p.active })),
+            commonPrefixes: form.commonPrefixes.flatMap((p): BoardCommonPrefixSaveItem[] => {
+                // 다시 넣기 — 체험단은 다시 넣을 수 없다(화면이 단추를 주지 않는다 — 서버도 400)
+                if (p.id === null) return p.common === 'TRIAL' ? [] : [{ id: null, common: p.common, active: p.active }];
+                return [p.removed ? { id: p.id, remove: true } : { id: p.id, active: p.active }];
+            }),
             // 말머리 색 — 13색 이름 또는 대문자 #RRGGBB(게시판 표시색과 같은 정리, 서버가 다시 정리한다)
             prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, adultOnly: form.allowAdult && p.adultOnly, color: UtilBoard.normalizeColor(p.color), active: p.active })),
             gadgetExclusions: [...form.gadgetExclusions],
@@ -999,6 +1009,28 @@ export default class UtilBoard {
     /** 사용 중인 고유 말머리 수 */
     static activePrefixCount(prefixes: readonly BoardPrefixForm[]): number {
         return prefixes.filter((p) => p.active).length;
+    }
+
+    /** 공통 말머리 4개(다시 넣을 수 있는 것) — 표시 차례. 체험단(`TRIAL`)은 서버가 다는 말머리라 들지 않는다 */
+    static readonly COMMON_PREFIXES: readonly BoardCommonPrefix[] = ['QUESTION', 'REVIEW', 'CHAT', 'NOTICE'];
+
+    /**
+     * 다시 넣을 수 있는 공통 말머리 — 공통 4개 중 입력 목록에 없는 것(지우기 표시한 것은 목록에 남아 있어 빠진다 — 되돌리기로 처리).
+     * @param {readonly BoardCommonPrefixForm[]} commons - 공통 말머리 입력.
+     * @returns {BoardCommonPrefix[]} 표시 차례의 빠진 공통 말머리.
+     */
+    static missingCommonPrefixes(commons: readonly BoardCommonPrefixForm[]): BoardCommonPrefix[] {
+        return UtilBoard.COMMON_PREFIXES.filter((key) => !commons.some((p) => p.common === key));
+    }
+
+    /** 다시 넣는 공통 말머리 행 — 켜진 채, 운영진 전용은 공통 규칙 그대로(공지만) */
+    static newCommonPrefix(common: BoardCommonPrefix): BoardCommonPrefixForm {
+        return { id: null, common, staffOnly: common === 'NOTICE', active: true, usageCount: 0, removed: false };
+    }
+
+    /** 이 공통 말머리를 지울 수 있는가 — 체험단은 못 지우고, 있는 말머리는 쓰는 글이 없어야 한다(서버가 최종 판정 — 409 `PREFIX_IN_USE`) */
+    static commonRemovable(p: BoardCommonPrefixForm): boolean {
+        return p.common !== 'TRIAL' && (p.id === null || p.usageCount === 0);
     }
 
     /** 새 고유 말머리 행 */

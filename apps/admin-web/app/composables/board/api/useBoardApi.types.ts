@@ -70,6 +70,10 @@ export type BoardAuthorMode = 'NICKNAME' | 'ANONYMOUS';
 export type BoardDetailList = 'OFF' | 'LIST' | 'COMPACT';
 /** 공통 말머리 4개 — 질문 · 후기 · 잡담 · 공지(운영진 전용 고정) */
 export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
+/**
+ * 조회 응답의 공통 말머리 키 — 공통 4개 + 체험단(`TRIAL`, 체험단 후기에 서버가 자동으로 다는 말머리 — 지우거나 다시 넣을 수 없다, board-lineup-contract 「공통 말머리 지우기·다시 넣기」)
+ */
+export type BoardCommonPrefixKey = BoardCommonPrefix | 'TRIAL';
 /** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자(`highlight.manage`). 서버 `BoardFields.PIN_REVIEWERS` 차례 */
 export type BoardPinReviewer = 'POST_AUTHOR' | 'BOARD_MANAGER' | 'OPERATOR';
 /** 게시판 담당 역할 — 매니저 · 스텝 */
@@ -366,7 +370,7 @@ export interface BoardPrefix {
     id: string;
     name: string;
     /** 공통 말머리면 그 종류(이름·운영진 전용은 고정), 고유 말머리면 null */
-    common: BoardCommonPrefix | null;
+    common: BoardCommonPrefixKey | null;
     /** 운영진 전용 — 운영진·매니저·스텝만 고른다 */
     staffOnly: boolean;
     /** 성인 전용 — 고른 글은 19금으로 저장된다(19금 허용 게시판에서만, 고유 말머리만) */
@@ -459,11 +463,13 @@ export interface BoardPrefixSaveItem {
     active: boolean;
 }
 
-/** 공통 말머리는 켜고 끄기만 보낸다(이름·운영진 전용은 고정) */
-export interface BoardCommonPrefixSaveItem {
-    id: string;
-    active: boolean;
-}
+/**
+ * 저장할 공통 말머리(이름·운영진 전용은 고정 — 공지는 운영진 전용). 빠진 항목은 그대로 둔다(지우라는 뜻 아님).
+ * - 켜기·끄기 `{id, active}`
+ * - 지우기 `{id, remove: true}` — 쓰는 글이 있으면 409 `PREFIX_IN_USE`, 체험단(`TRIAL`)이면 400 `fields.commonPrefixes`
+ * - 다시 넣기 `{id: null, common, active}` — 그 게시판에 없을 때만. 이미 있거나 `TRIAL`·모르는 키면 400 `fields.commonPrefixes`
+ */
+export type BoardCommonPrefixSaveItem = { id: string; active: boolean } | { id: string; remove: true } | { id: null; common: BoardCommonPrefix; active: boolean };
 
 /**
  * `PUT /api/admin/boards/{id}` — 기본 정보 + 정책 + 말머리를 **한 트랜잭션**으로 저장한다. 응답은 `BoardDetail`.

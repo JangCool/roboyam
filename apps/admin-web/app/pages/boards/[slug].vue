@@ -12,6 +12,7 @@
         community 와 다른 점:
           · 최소 자격은 등급 목록(`useGradeAppearance`)의 등급 또는 운영진만(댓글은 끔도). 「지킴이」 → 매니저·스텝(정책 `docs/domain/operator-permissions.md`): 매니저 기본 3·최대 10, 스텝 최대 10, 한 회원 최대 5개 게시판. 핫딜·직접홍보·소모임 게시판은 지정 불가.
           · 말머리를 따로 저장하지 않고 게시판 저장에 함께 보낸다(서버가 목록을 diff — 빠진 말머리는 지우고, 쓰는 글이 있으면 409 `PREFIX_IN_USE`). 화면은 글이 있는 말머리의 삭제 단추를 잠그고 끄기를 안내한다. 사용 중 고유 말머리는 최대 15개(`UtilBoard.PREFIX_ACTIVE_MAX`). 19금 허용을 켠 게시판에서만 말머리에 「성인 전용」 체크가 보인다(고른 글은 서버가 19금으로 저장, 켜고 저장하면 그 말머리의 기존 글도 19금 — adult-content-contract).
+            공통 말머리도 지우기·다시 넣기를 같은 저장에 보낸다(board-lineup-contract — 지우기는 저장 전까지 「되돌리기」, 글이 있으면 휴지통 잠금, 체험단 `TRIAL` 은 자물쇠, 빠진 공통 4개는 「+ 이름」으로 다시 넣기. 잘못된 키는 400 `fields.commonPrefixes` 를 카드 아래에).
           · 안내문은 지금 평문 textarea(보이는 글자 500자 카운터, 서버도 평문 500자)다 — 원본은 정화된 HTML·이미지 5장이고 에디터는 후속이다.
           · **글 없는 게시판은 지울 수 있다**(irobit 카탈로그의 `board.delete` — 가정). community 는 끄기만 있었다. 글이 있으면 삭제 대신 끄기를 안내하고, 삭제는 이름을 입력해 확인한다.
           · 공개 사이트에서 보기 링크는 두지 않는다(공개 주소가 아직 없다). 신고 누적 자동 숨김은 없다(읽기 전용 한 줄).
@@ -303,14 +304,72 @@
                     <p class="mb-3 text-xs leading-relaxed text-muted-color">{{ t('board.prefixLead') }}</p>
 
                     <h3 class="mb-2 text-[13px] font-medium">{{ t('board.commonPrefixTitle') }}</h3>
-                    <ul class="m-0 mb-5 grid list-none gap-2 p-0 sm:grid-cols-2">
-                        <li v-for="p in form.commonPrefixes" :key="p.id" class="flex items-center gap-2 rounded-lg border border-(--line) px-3 py-2">
-                            <span class="min-w-0 flex-1 truncate text-[13px] font-medium">{{ t(`board.commonPrefix.${p.common}`) }}</span>
-                            <Tag v-if="p.staffOnly" class="board-tag" :value="t('board.staffOnly')" severity="secondary" />
-                            <span class="text-[11px] tabular-nums text-muted-color">{{ t('board.usageCount', { n: p.usageCount }) }}</span>
-                            <ToggleSwitch v-model="p.active" :disabled="!canManage || saving" :aria-label="t('board.prefixActive', { name: t(`board.commonPrefix.${p.common}`) })" />
-                        </li>
-                    </ul>
+                    <!-- 공통 말머리 — 켜기·끄기 · 지우기(저장 전까지 되돌리기) · 다시 넣기(board-lineup-contract 「공통 말머리 지우기·다시 넣기」). 글이 있는 말머리는 휴지통이 잠기고, 체험단은 자물쇠 -->
+                    <div class="mb-5">
+                        <ul class="m-0 grid list-none gap-2 p-0 sm:grid-cols-2" data-testid="board-common-prefixes">
+                            <li
+                                v-for="p in form.commonPrefixes"
+                                :key="p.common"
+                                class="flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2"
+                                :class="p.removed ? 'border-dashed border-red-400 bg-red-50 dark:border-red-500/60 dark:bg-red-500/10' : 'border-(--line)'"
+                                :data-testid="`common-prefix-${p.common}`"
+                            >
+                                <span class="min-w-0 flex-1 truncate text-[13px] font-medium" :class="{ 'text-muted-color line-through': p.removed }">{{ t(`board.commonPrefix.${p.common}`) }}</span>
+                                <template v-if="p.removed">
+                                    <span class="text-[11px] text-red-600 dark:text-red-400">{{ t('board.commonPrefixRemoving') }}</span>
+                                    <Button type="button" :label="t('board.commonPrefixUndo')" size="small" variant="link" class="p-0! text-xs" :disabled="!canManage || saving" :aria-label="t('board.commonPrefixUndoName', { name: t(`board.commonPrefix.${p.common}`) })" @click="p.removed = false" />
+                                </template>
+                                <template v-else>
+                                    <Tag v-if="p.staffOnly" class="board-tag" :value="t('board.staffOnly')" severity="secondary" />
+                                    <span class="text-[11px] tabular-nums text-muted-color">{{ p.id ? t('board.usageCount', { n: p.usageCount }) : t('board.commonPrefixReadded') }}</span>
+                                    <ToggleSwitch v-model="p.active" :disabled="!canManage || saving" :aria-label="t('board.prefixActive', { name: t(`board.commonPrefix.${p.common}`) })" />
+                                    <span v-if="p.common === 'TRIAL'" v-tooltip.top="t('board.commonPrefixTrialLocked', { name: t('board.commonPrefix.TRIAL') })" class="inline-flex size-8 items-center justify-center text-muted-color" role="img" :aria-label="t('board.commonPrefixLocked', { name: t('board.commonPrefix.TRIAL') })">
+                                        <i class="pi pi-lock text-[13px]" aria-hidden="true" />
+                                    </span>
+                                    <span v-else v-tooltip.top="UtilBoard.commonRemovable(p) ? undefined : t('board.prefixInUse', { n: p.usageCount })" class="inline-flex">
+                                        <Button
+                                            type="button"
+                                            icon="pi pi-trash"
+                                            size="small"
+                                            severity="danger"
+                                            variant="text"
+                                            rounded
+                                            :aria-label="t('board.commonPrefixRemove', { name: t(`board.commonPrefix.${p.common}`) })"
+                                            :aria-description="UtilBoard.commonRemovable(p) ? undefined : t('board.prefixInUse', { n: p.usageCount })"
+                                            :disabled="!canManage || saving || !UtilBoard.commonRemovable(p)"
+                                            @click="removeCommonPrefix(p.common)"
+                                        />
+                                    </span>
+                                </template>
+                            </li>
+                        </ul>
+                        <!-- 지울 수 없는 까닭 — 글이 있는 말머리 · 체험단 -->
+                        <ul v-if="commonLockedNotes.length" class="m-0 mt-2 flex list-none flex-col gap-1 p-0">
+                            <li v-for="note in commonLockedNotes" :key="note.key" class="flex items-start gap-1.5 text-xs leading-relaxed text-muted-color">
+                                <i class="pi mt-0.5 text-[11px]" :class="note.icon" aria-hidden="true" />
+                                <span>{{ note.text }}</span>
+                            </li>
+                        </ul>
+                        <p v-if="serverFields.commonPrefixes" role="alert" class="m-0 mt-2 text-xs text-red-600 dark:text-red-400">{{ serverFields.commonPrefixes }}</p>
+                        <!-- 지운 공통 말머리 다시 넣기 — 공통 4개 중 이 게시판에 없는 것(빠진 게 없으면 줄을 그리지 않는다) -->
+                        <div v-if="missingCommon.length" class="mt-3 flex flex-wrap items-center gap-2" data-testid="board-common-prefix-readd">
+                            <span class="text-xs text-muted-color">{{ t('board.commonPrefixReaddTitle') }}</span>
+                            <Button
+                                v-for="key in missingCommon"
+                                :key="key"
+                                type="button"
+                                :label="t(`board.commonPrefix.${key}`)"
+                                icon="pi pi-plus"
+                                size="small"
+                                severity="secondary"
+                                variant="outlined"
+                                :disabled="!canManage || saving"
+                                :aria-label="t('board.commonPrefixReadd', { name: t(`board.commonPrefix.${key}`) })"
+                                :data-testid="`common-prefix-readd-${key}`"
+                                @click="readdCommonPrefix(key)"
+                            />
+                        </div>
+                    </div>
 
                     <div class="mb-2 flex flex-wrap items-center gap-2">
                         <h3 class="text-[13px] font-medium">{{ t('board.ownPrefixTitle') }}</h3>
@@ -622,8 +681,8 @@
 
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
-import type { BoardDetail, BoardDetailList, BoardPolicyField, BoardPrefixStyle, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
-import type { BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
+import type { BoardCommonPrefix, BoardDetail, BoardDetailList, BoardPolicyField, BoardPrefixStyle, BoardSecretMode, BoardAuthorMode, BoardStaffCandidate, BoardStaffMember, BoardStaffRole, BoardWriteLock } from '~/composables/board/api/useBoardApi.types';
+import type { BoardCommonPrefixForm, BoardDetailForm, BoardFieldValue, BoardLevelProblem, BoardPrefixForm } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilPoint from '~/utils/util-point';
@@ -844,7 +903,19 @@ const dirty = computed(() => changeCount.value > 0);
 const diffNow = computed(() => (form.value ? UtilBoard.diffCount(form.value.policy, form.value.writeLock) : 0));
 const activeOwn = computed(() => (form.value ? UtilBoard.activePrefixCount(form.value.prefixes) : 0));
 
-const commonNames = computed(() => (form.value?.commonPrefixes ?? []).map((p) => t(`board.commonPrefix.${p.common}`)));
+/** 고유 말머리 이름 중복 검사 기준 — 있는 공통(지우기 표시 제외) + 다시 넣을 공통 */
+const commonNames = computed(() => (form.value?.commonPrefixes ?? []).filter((p) => !p.removed).map((p) => t(`board.commonPrefix.${p.common}`)));
+/** 다시 넣을 수 있는 공통 말머리(공통 4개 중 목록에 없는 것) */
+const missingCommon = computed(() => (form.value ? UtilBoard.missingCommonPrefixes(form.value.commonPrefixes) : []));
+/** 지울 수 없는 공통 말머리의 까닭 한 줄씩 — 글이 있는 말머리 · 체험단(지우기 표시한 카드는 빼고) */
+const commonLockedNotes = computed(() =>
+    (form.value?.commonPrefixes ?? []).flatMap((p): { key: string; icon: string; text: string }[] => {
+        if (p.removed || UtilBoard.commonRemovable(p)) return [];
+        const name = t(`board.commonPrefix.${p.common}`);
+        if (p.common === 'TRIAL') return [{ key: p.common, icon: 'pi-lock', text: t('board.commonPrefixTrialLocked', { name }) }];
+        return [{ key: p.common, icon: 'pi-info-circle', text: t('board.commonPrefixInUse', { name, n: p.usageCount }) }];
+    }),
+);
 const prefixProblems = computed(() => (form.value ? UtilBoard.prefixProblems(form.value.prefixes, commonNames.value) : {}));
 const policyProblems = computed(() => (form.value ? UtilBoard.policyProblems(form.value.policy) : {}));
 /** 최소 자격 칸 문제 — 비회원을 받지 않는 종류의 GUEST · 핫딜 글쓰기의 첫 등급 */
@@ -867,7 +938,7 @@ const textProblems = computed(() => {
 });
 const localErrorCount = computed(() => Object.keys(textProblems.value).length + Object.keys(prefixProblems.value).length + Object.keys(policyProblems.value).length + Object.keys(levelProblems.value).length + (activeOwn.value > UtilBoard.PREFIX_ACTIVE_MAX ? 1 : 0));
 const errorCount = computed(() => localErrorCount.value + Object.keys(serverFields.value).filter((k) => !textProblems.value[k] && !(policyProblems.value as Record<string, unknown>)[k]).length);
-const prefixErrorCount = computed(() => Object.keys(prefixProblems.value).length + Object.keys(serverFields.value).filter((k) => k.startsWith('prefixes')).length + (activeOwn.value > UtilBoard.PREFIX_ACTIVE_MAX ? 1 : 0));
+const prefixErrorCount = computed(() => Object.keys(prefixProblems.value).length + Object.keys(serverFields.value).filter((k) => k.startsWith('prefixes') || k.startsWith('commonPrefixes')).length + (activeOwn.value > UtilBoard.PREFIX_ACTIVE_MAX ? 1 : 0));
 const canSave = computed(() => (canManage.value || canSettings.value || canStaffLimit.value) && dirty.value && localErrorCount.value === 0);
 
 function invalidOf(fields: readonly string[]): number {
@@ -1074,6 +1145,21 @@ function removePrefix(index: number) {
     const row = form.value.prefixes[index];
     if (!row || row.usageCount > 0) return;
     form.value.prefixes = form.value.prefixes.filter((p) => p.key !== row.key);
+}
+
+/** 공통 말머리 지우기 — 있는 말머리는 지우기 표시(저장 전까지 「되돌리기」), 다시 넣은 것은 목록에서 그냥 뺀다(「+」가 다시 나타난다). 글이 있거나 체험단이면 단추가 잠겨 있다 */
+function removeCommonPrefix(common: BoardCommonPrefixForm['common']) {
+    if (!form.value) return;
+    const row = form.value.commonPrefixes.find((p) => p.common === common);
+    if (!row || !UtilBoard.commonRemovable(row)) return;
+    if (row.id === null) form.value.commonPrefixes = form.value.commonPrefixes.filter((p) => p !== row);
+    else row.removed = true;
+}
+
+/** 지운 공통 말머리 다시 넣기 — 켜진 카드로 목록 끝에 붙는다(저장하면 서버가 만든다) */
+function readdCommonPrefix(common: BoardCommonPrefix) {
+    if (!form.value || form.value.commonPrefixes.some((p) => p.common === common)) return;
+    form.value.commonPrefixes = [...form.value.commonPrefixes, UtilBoard.newCommonPrefix(common)];
 }
 
 // ── 매니저·스텝(바로 동작) ─

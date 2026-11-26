@@ -2,6 +2,8 @@ package com.community.installation.service;
 
 import com.community.board.dto.NewBoard;
 import com.community.board.entity.BoardEntity;
+import com.community.board.entity.BoardPrefixEntity;
+import com.community.board.repository.master.BoardPrefixRepository;
 import com.community.board.repository.master.BoardRepository;
 import com.community.board.service.BoardCreator;
 import com.community.board.service.BoardFields;
@@ -49,7 +51,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>소모임 분류: 소모임 게시판의 {@code groupCategoryName} 마다 프리셋 차례대로 분류를 만들고(이름 키 = {@link GroupCategoryNames#key}, 같은 키의 분류가 있으면 그것을 쓴다,
  *       순서는 지금 마지막 다음부터 10 단위) 게시판을 분류 끝에 잇는다. 설치 전이라 관리자 분류 화면과 겨룰 일이 없어 분류 잠금(admin {@code GroupCategoryLockQueries})은 잡지 않는다
  *       — 설치는 {@code installation} 행 잠금으로 한 번만 돈다.</li>
- *   <li>말머리: {@code common} 말머리는 같은 이름의 공통 말머리(질문·후기·잡담·공지)를 켜고, 프리셋에 없는 공통 말머리는 꺼 둔다. 고유 말머리의 이름이 공통 말머리 이름과 같으면
+ *   <li>말머리: {@code common} 말머리는 같은 이름의 공통 말머리(질문·후기·잡담·공지)를 켜고, 프리셋에 없는 공통 말머리는 꺼 둔다. 게시판에 {@code commonPrefixes}
+ *       (있는 공통 말머리 키)가 있으면 거기 없는 공통 말머리는 지운다(비우면 옛 형식 — 4개 모두 둔다). 고유 말머리의 이름이 공통 말머리 이름과 같으면
  *       (예: 자유게시판의 「잡담」, 공지 게시판의 「공지」) 고유 말머리를 따로 만들지 않고 그 공통 말머리를 켠다 — 관리자 화면의 「이름 중복 없음」 규칙과 맞춘다.
  *       고유 말머리는 활성 한도({@link BoardFields#PREFIX_ACTIVE_MAX})까지만.</li>
  *   <li>{@code adultOnly} 는 성인 전용 게시판(V226)으로 만든다 — 일반 게시판만.</li>
@@ -67,6 +70,7 @@ public class BoardPresetApplier {
     private final BoardPresetCatalog catalog;
     private final BoardCreator creator;
     private final BoardRepository boards;
+    private final BoardPrefixRepository prefixes;
     private final InstallationRepositoryQDSL installation;
     private final GroupCategoryRepository categories;
     private final GroupCategoryBoardRepository assignments;
@@ -75,7 +79,8 @@ public class BoardPresetApplier {
     private final OpsBoardSeeder opsBoards;
     private final PresetStructureApplier structure;
 
-    public BoardPresetApplier(BoardPresetCatalog catalog, BoardCreator creator, BoardRepository boards, InstallationRepositoryQDSL installation,
+    public BoardPresetApplier(BoardPresetCatalog catalog, BoardCreator creator, BoardRepository boards, BoardPrefixRepository prefixes,
+                              InstallationRepositoryQDSL installation,
                               GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, SnowflakeIdGenerator ids, PresetMenuApplier menu,
                               OpsBoardSeeder opsBoards, PresetStructureApplier structure) {
         this.structure = structure;
@@ -83,6 +88,7 @@ public class BoardPresetApplier {
         this.catalog = catalog;
         this.creator = creator;
         this.boards = boards;
+        this.prefixes = prefixes;
         this.installation = installation;
         this.categories = categories;
         this.assignments = assignments;
@@ -178,7 +184,9 @@ public class BoardPresetApplier {
             if (board.isGroupBoard() != group || existing.slugs.contains(board.slug()) || existing.names.contains(name)) {
                 continue;
             }
-            BoardEntity entity = creator.create(toNewBoard(board), ++existing.order, operatorId, now);
+            NewBoard input = toNewBoard(board);
+            BoardEntity entity = creator.create(input, ++existing.order, operatorId, now);
+            dropMissingCommon(entity.getId(), board, input.commonActive());
             if (board.debateOn()) {
                 entity.changeDebateEnabled(true);
             }
@@ -235,6 +243,23 @@ public class BoardPresetApplier {
     }
 
     // ── 말머리 ──
+
+    /**
+     * {@link BoardCreator} 는 공통 말머리 4개를 늘 만든다 — 프리셋이 「있는 공통 말머리」({@code commonPrefixes})를 적었으면 거기 없는 것을 지운다
+     * (관리자 화면에서 지운 공통 말머리가 설치 뒤 다시 생기지 않게 — board-lineup-contract). 같은 이름 말머리로 켠 공통 말머리({@code commonActive})는 남긴다.
+     * 옛 형식(칸 없음)은 지금처럼 4개 모두 둔다. 갓 만든 게시판이라 쓰는 글이 없다.
+     */
+    private void dropMissingCommon(long boardId, BoardPreset.Board board, Set<String> commonActive) {
+        if (board.commonPrefixes() == null) {
+            return;
+        }
+        for (BoardPrefixEntity prefix : prefixes.findByBoardIdOrderBySortOrderAscIdAsc(boardId)) {
+            String key = prefix.getCommonKey();
+            if (key != null && BoardFields.COMMON_PREFIXES.contains(key) && !board.commonPrefixes().contains(key) && !commonActive.contains(key)) {
+                prefixes.delete(prefix);
+            }
+        }
+    }
 
     private static NewBoard toNewBoard(BoardPreset.Board board) {
         Map<String, String> commonByName = new HashMap<>();
