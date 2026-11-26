@@ -71,6 +71,10 @@ public class AiMemberProfileEntity {
     private Long[] boardIds;
 
     private boolean enabled;
+    /** AI 연애상담소 상담사(V274) — 상담 답만 쓴다(보통 AI 회원 실행기는 건너뛴다, ai-love-counsel-contract 「결정」) */
+    private boolean counselor;
+    /** 상담 성향 한 마디(V274 — 「직설형」 등, 상담사가 아니면 null) */
+    private String counselStyle;
     private Instant createdAt;
     private Long createdBy;
     private Instant updatedAt;
@@ -131,6 +135,23 @@ public class AiMemberProfileEntity {
     public void enable(boolean on, long operatorId, Instant now) {
         this.enabled = on;
         touch(operatorId, now);
+    }
+
+    /** 상담사로 정하거나 푼다(V274) — 풀면 성향도 비운다. 성향은 부르는 쪽이 검사한 값(20자 안) */
+    public void counsel(boolean on, String style, long operatorId, Instant now) {
+        this.counselor = on;
+        this.counselStyle = on && style != null && !style.isBlank() ? style.strip() : null;
+        touch(operatorId, now);
+    }
+
+    /** 상담사인가(V274) */
+    public boolean isCounselor() {
+        return counselor;
+    }
+
+    /** 상담 성향 한 마디(상담사가 아니거나 비었으면 null) */
+    public String getCounselStyle() {
+        return counselStyle;
     }
 
     private void touch(long operatorId, Instant now) {

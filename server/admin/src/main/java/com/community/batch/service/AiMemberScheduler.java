@@ -6,6 +6,7 @@ import com.community.aimember.service.AiMemberProperties;
 import com.community.batch.config.BatchProperties;
 import com.community.batch.core.BatchLockService;
 import com.community.batch.core.WorkerHeartbeats;
+import com.community.counsel.service.CounselRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,7 +19,8 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>{@code irobit.batch.enabled=false} 인 서버, 또는 {@code irobit.ai-member.runner-enabled=false}(환경 변수 {@code IROBIT_AI_MEMBER_RUNNER})인 서버는 돌지 않는다.</li>
- *   <li>한 바퀴({@code irobit.ai-member.poll-millis}, 기본 1분): ① 승인 줄 등록 ② 할 일 생성. 전체 정지 중에는 둘 다 하지 않는다(각 부품이 본다).</li>
+ *   <li>한 바퀴({@code irobit.ai-member.poll-millis}, 기본 1분): ① 승인 줄 등록 ② AI 연애상담소({@link CounselRunner} — 판정·분류·상담사 답) ③ 할 일 생성.
+ *       전체 정지 중에는 모두 하지 않는다(각 부품이 본다).</li>
  *   <li>관리자 서버를 여러 대(배치를 켠 서버가 둘 이상) 띄워도 DB 어드바이저리 잠금({@link BatchLockService}, 키 {@value #LOCK_KEY})으로 한 바퀴는 한 곳에서만 돈다
  *       (잡지 못한 서버는 그 바퀴를 건너뛴다).</li>
  *   <li>바퀴마다 워커 기록({@code worker_heartbeats}, 키 {@value #LOCK_KEY}) — 일이 없으면 간격마다 한 번만, 실패하면 가린 오류 한 줄. 바퀴의 실패는 로그만 남기고 다음 바퀴로 넘어간다.</li>
@@ -38,9 +40,11 @@ public class AiMemberScheduler {
     private final AiDraftPublisher publisher;
     private final AiDraftGenerator generator;
     private final WorkerHeartbeats heartbeats;
+    private final CounselRunner counsel;
 
     public AiMemberScheduler(BatchProperties batch, AiMemberProperties properties, BatchLockService locks, AiDraftPublisher publisher, AiDraftGenerator generator,
-                             WorkerHeartbeats heartbeats) {
+                             WorkerHeartbeats heartbeats, CounselRunner counsel) {
+        this.counsel = counsel;
         this.batch = batch;
         this.properties = properties;
         this.locks = locks;
@@ -60,10 +64,12 @@ public class AiMemberScheduler {
                 return -1; // 다른 관리자 서버가 돌고 있다
             }
             int published = publisher.publishApproved();
+            // AI 연애상담소(ai-love-counsel-contract) — 보통 AI 회원 차례 앞에: 새 사연 판정 · AI 분류 · 상담사 답(시간대·하루 호출 상한과 상관없이 — 목표 10분 안)
+            int counseled = counsel.runOnce();
             int generated = generator.runOnce();
-            int handled = published + generated;
+            int handled = published + counseled + generated;
             if (handled > 0) {
-                log.info("AI 회원 실행기 한 바퀴 published={} generated={}", published, generated);
+                log.info("AI 회원 실행기 한 바퀴 published={} counsel={} generated={}", published, counseled, generated);
             }
             heartbeats.success(LOCK_KEY, handled);
             return handled;

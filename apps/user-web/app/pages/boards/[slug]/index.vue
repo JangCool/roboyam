@@ -17,6 +17,8 @@
           이 게시판에서 받고 확인하지 않은 경고가 있으면 「이 게시판에서 경고를 받았어요 · 사유 · [자세히] · [확인했어요]」(`viewer.pendingWarnings`, 쓰기는 막지 않는다).
         운영 게시판(버그 신고·기능 요청): 처리 상태가 켜진 게시판(`statusEnabled`)은 말머리 아래 상태 거르기 칩(전체 + 7개, `?status=`)과 줄마다 상태 딱지,
           비밀글(`secret`)은 줄 제목 앞 자물쇠(제목은 그대로). 줄 모양은 `PostRowTitle` 이 그린다.
+        AI 연애상담소(ai-love-counsel-contract): 「AI 상담소」 말머리(`prefix.counsel`)를 고르면 말머리 줄 아래 「이번 주 상담 순위」(`CounselRankingCard` — `GET /api/boards/{slug}/counsel/ranking`),
+          글 줄은 상태 칩(채택 · AI 답변 n · 답변 기다리는 중 — `PostRowChips` 의 `PostCounselChip`, 서버 `PostRow.counsel`).
     -->
     <div>
         <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->
@@ -114,6 +116,9 @@
                         </ul>
                     </AppScrollRow>
                 </nav>
+
+                <!-- AI 연애상담소 — 「AI 상담소」 말머리를 고르면 이번 주 상담 순위(사연 쓴 사람이 고른 조언 기준, 사람 회원도 한 줄) -->
+                <CounselRankingCard v-if="counselOn" :ranking="counselRanking" :state="counselRankingState" @retry="loadCounselRanking" />
 
                 <!-- 처리 상태 거르기(상태가 켜진 운영 게시판 — `statusEnabled`) — 전체 + 7개, 주소 `?status=`(말머리 거르기와 함께 쓴다). 서버에 `status` 로 보낸다 -->
                 <nav v-if="statusOn" class="-mx-4 mt-1" :aria-label="t('board.statusNav')" data-testid="board-status-chips">
@@ -287,6 +292,7 @@
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery, PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
 import type { DealSort, DealStoreChip } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { CounselRanking } from '~/composables/counsel/api/useCounselApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
 import UtilAdultBoard from '~/utils/util-adult-board';
 import UtilBoard from '~/utils/util-board';
@@ -454,6 +460,39 @@ const writeBlockedText = computed(() => {
 /* ── 말머리·보기 ── */
 const prefixChips = computed(() => [{ id: '', name: t('common.all') }, ...(view.value?.prefixes ?? []).map((p) => ({ id: p.id, name: p.name }))]);
 const activePrefixName = computed(() => view.value?.prefixes.find((p) => p.id === query.value.prefix)?.name ?? '');
+
+/* ── AI 연애상담소(ai-love-counsel-contract) — 「AI 상담소」 말머리를 골랐을 때만 이번 주 상담 순위 ── */
+const counselApi = useCounselApi();
+const counselOn = computed(() => Boolean(query.value.prefix) && (view.value?.prefixes ?? []).some((p) => p.id === query.value.prefix && p.counsel === true));
+const counselRanking = ref<CounselRanking | null>(null);
+const counselRankingState = ref<'loading' | 'ready' | 'error'>('loading');
+let counselRequest = 0;
+async function loadCounselRanking(): Promise<void> {
+    const mine = ++counselRequest;
+    const wanted = slug.value;
+    // 다른 게시판의 순위는 비우고 받는다(같은 게시판이면 받는 동안 지난 순위를 그대로 둔다)
+    if (counselRanking.value && counselRankingSlug !== wanted) counselRanking.value = null;
+    counselRankingState.value = 'loading';
+    try {
+        const result = await counselApi.ranking(wanted);
+        if (mine !== counselRequest) return;
+        counselRanking.value = result;
+        counselRankingSlug = wanted;
+        counselRankingState.value = 'ready';
+    } catch {
+        if (mine !== counselRequest) return;
+        counselRankingState.value = 'error';
+    }
+}
+let counselRankingSlug = '';
+// 상담 말머리로 들어올 때(게시판이 바뀌어도) 한 번 받는다 — 쪽·정렬·검색만 바뀌면 다시 받지 않는다
+watch(
+    () => (counselOn.value ? slug.value : ''),
+    (on) => {
+        if (on) void loadCounselRanking();
+    },
+    { immediate: true },
+);
 
 /* ── 처리 상태(운영 게시판) ── */
 /** 처리 상태를 쓰는 게시판인가 — 게시판 정보(`statusEnabled`)를 받은 뒤에만 */

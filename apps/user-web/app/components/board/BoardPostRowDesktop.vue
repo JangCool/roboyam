@@ -3,7 +3,7 @@
         데스크톱 글 목록의 글 한 줄(A 방식 — 사용자 시안 확정 2026-11-12, mobile-nav-prefix-style-contract 6절). 칩 위치가 「제목 위」(`ABOVE`, 기본)인 게시판 목록(LIST)만 md 이상에서 이 줄을 쓴다
         (모바일은 지금 `PostRowFrame` 그대로).
           · 첫 줄: 제목 · 투표·사진 표시 · 댓글 수 · 새 글 N — 한 줄(넘치면 말줄임). 제목 줄에는 말머리 칩을 두지 않는다(제목이 늘 같은 자리에서 시작)
-          · 둘째 줄: 아바타 닉네임 · 말머리(글자 모양이면 보통 굵기 글자 — 지정 색은 그 색, 없으면 회색 「일반」 / 회색·색상 칩 모양이면 그 칩) · 처리 상태·19 · 날짜
+          · 둘째 줄: 아바타 닉네임 · 말머리(글자 모양이면 보통 굵기 글자 — 지정 색은 그 색, 없으면 회색 「일반」 / 회색·색상 칩 모양이면 그 칩) · 처리 상태·AI 상담 상태·19 · 날짜
           · 둘째 줄 날짜 뒤에 추천(찬반 글은 찬·반·중 수 + 추천), 오른쪽 끝 칸은 닉네임 줄 높이에 조회만 — 강조 규칙 그대로. 줄 위아래 여백 8px(2026-11-12 시안 확정). 썸네일(64×48)은 그 칸 바로 왼쪽, 두 줄 높이. 숫자는 썸네일이 있든 없든 줄마다 같은 자리(사용자 결정 2026-11-12)
           · 섞인 목록(인기글·최신글 — `FeedPostItem`)도 같은 줄을 쓴다(2026-11-12): `lead` 슬롯(게시판 이름 — 보통 굵기·진한 게시판 색, 소모임 글은 「소모임」, 채운 기간 표시)이 닉네임 뒤에 오고, 말머리는 그 뒤 「|」 다음 · 말머리가 없으면 「일반」 없이 게시판 이름만. `stats-lead` 슬롯(찬·반·중 수)은 둘째 줄 날짜 뒤·추천 앞
           · 칸 맞춤: 두 줄을 24px 줄 두 개(합 48px = 썸네일 높이)로 고정한 격자라 제목 줄과 숫자가 같은 선에 선다
@@ -27,6 +27,8 @@
                 <span v-else class="shrink-0" data-testid="post-row-prefix-none">{{ t('board.prefixNone') }}</span>
             </template>
             <PostStatusTag v-if="row.processStatus" :status="row.processStatus" />
+            <!-- AI 연애상담소 상태(채택 · AI 답변 n · 답변 기다리는 중 — 처리 상태와 같은 자리, ai-love-counsel-contract) -->
+            <PostCounselChip :counsel="row.counsel ?? null" />
             <span v-if="row.adult" class="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[0.5625rem] font-bold leading-none text-white" :title="t('board.adultMark')">
                 <span aria-hidden="true">19</span>
                 <span class="sr-only">{{ t('board.adultMark') }}</span>

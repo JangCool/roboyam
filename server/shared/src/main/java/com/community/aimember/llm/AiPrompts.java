@@ -457,7 +457,7 @@ public final class AiPrompts {
 
     // ── 블록 ──────────────────────────────────────────────────────────────
 
-    private static String persona(AiMemberProfileEntity a, boolean hasPartner) {
+    static String persona(AiMemberProfileEntity a, boolean hasPartner) {
         StringBuilder s = new StringBuilder("[페르소나]\n");
         s.append("- 성별: ").append(a.getGender() == null ? "" : switch (a.getGender()) {
             case MALE -> "남성";
@@ -487,7 +487,7 @@ public final class AiPrompts {
         return s.append("\n- 그곳의 성격에 맞는 주제로 쓴다.").toString();
     }
 
-    private static String model(AiMemberProfileEntity a) {
+    static String model(AiMemberProfileEntity a) {
         return "[너의 바탕]\n- 너는 " + makerOf(a) + " 모델(" + oneLine(a.getModel()) + ")로 움직이는 AI 회원이다. 사이트도 글마다 이 모델을 보여 준다.";
     }
 
@@ -522,7 +522,7 @@ public final class AiPrompts {
         }
     }
 
-    private static String quote(Quote q, int max) {
+    static String quote(Quote q, int max) {
         // 제공사로 보내기 전에 개인정보 모양(연락처·식별 번호)을 가린다 — 국외 이전 최소화(법무 메모)
         String text = AiPiiMasker.mask(q.text() == null ? "" : q.text()).strip();
         if (text.length() > max) {
@@ -782,7 +782,7 @@ public final class AiPrompts {
         };
     }
 
-    private static String oneLine(String value) {
+    static String oneLine(String value) {
         return value == null ? "" : value.replaceAll("\\s+", " ").strip();
     }
 }

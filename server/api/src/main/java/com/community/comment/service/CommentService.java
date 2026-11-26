@@ -1,6 +1,8 @@
 package com.community.comment.service;
 
+import com.community.aimember.repository.master.AiMemberProfileRepository;
 import com.community.block.service.ViewerBlocks;
+import com.community.counsel.service.CounselRules;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardSecurityValues;
@@ -164,6 +166,8 @@ public class CommentService {
     private final CommentWriteRules writeRules;
     /** 익명 글·댓글의 글쓴이 표시·글 안 번호(V184 — anonymous-board-contract 정책 3) */
     private final AnonymousAuthors anonymousAuthors;
+    /** AI 연애상담소 상담사 계정(V274) — 상담 글의 상담사 답은 일반 댓글 목록에서 뺀다(상담 칸 응답에만 — ai-love-counsel-contract) */
+    private final AiMemberProfileRepository aiAccounts;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
@@ -171,7 +175,8 @@ public class CommentService {
                           ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
                           GroupPostGate groupGate, GroupMemberRepository groupMembers, GroupPostQueries groupPosts, Messages messages,
                           PlatformTransactionManager txManager, BoardStaffActionService staffActions, EmoticonGuard emoticons, CommentWriteRules writeRules,
-                          AnonymousAuthors anonymousAuthors, JjalGuard jjals) {
+                          AnonymousAuthors anonymousAuthors, JjalGuard jjals, AiMemberProfileRepository aiAccounts) {
+        this.aiAccounts = aiAccounts;
         this.jjals = jjals;
         this.anonymousAuthors = anonymousAuthors;
         this.writeRules = writeRules;
@@ -264,6 +269,14 @@ public class CommentService {
             }
             Instant membersOnlyBefore = GroupPostGate.membersOnlyBefore(gate, post); // 비멤버에게 공개 시각 이전 댓글을 가린다(11-7)
             List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(post.getId());
+            // AI 연애상담소 글(V274)이면 상담사 답(상담사의 원댓글과 그 아래 답글)을 뺀다 — 상담 칸 응답(GET /api/posts/{id}/counsel)에만 나온다. 전체 수도 그만큼 뺀다
+            int counselHidden = 0;
+            if (CounselRules.counselPrefix(b, post.getPrefixId()) && !all.isEmpty()) {
+                Set<Long> answerIds = counselAnswerThreadIds(all);
+                counselHidden = (int) all.stream().filter(c -> answerIds.contains(c.getId()) && !c.isDeleted() && !c.isHiddenAt(now)).count();
+                all = all.stream().filter(c -> !answerIds.contains(c.getId())).toList();
+            }
+            int visibleTotal = Math.max(0, post.getCommentCount() - counselHidden);
             List<Long> pinOrder = all.isEmpty() ? List.of() : debateQueries.pinnedInOrder(post.getId());
             // 익명 글·게시판(V184) — 익명 댓글의 번호와 보는 회원의 이 글에서의 표시(viewerAnonymous). 익명과 상관없는 글이면 읽지 않는다
             boolean anonymousThread = AnonymousAuthors.anonymousComment(post, b.anonymous());
@@ -282,7 +295,7 @@ public class CommentService {
             all.forEach(c -> byId.put(c.getId(), c));
 
             List<CommentEntity> allTops = all.stream().filter(c -> c.getParentId() == null).toList();
-            DebateCountsView counts = counts(all, post.getCommentCount(), now);
+            DebateCountsView counts = counts(all, visibleTotal, now);
             List<CommentEntity> tops = new ArrayList<>(allTops.stream().filter(c -> inKind(c, kind)).toList());
             if ("LATEST".equals(sort)) {
                 tops.sort(Comparator.comparing(CommentEntity::getId, Comparator.reverseOrder()));
@@ -313,9 +326,64 @@ public class CommentService {
                     .toList();
             CommentDebateView debateView = debate.forComments(post, b, userId, now, counts, all, byId);
             int membersOnlyCount = membersOnlyBefore == null ? 0 : groupPosts.countCommentsBefore(post.getId(), membersOnlyBefore, now);
-            return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView,
+            return new CommentListResponse(threads, best, visibleTotal, kind, debateView,
                     new CommentReactionsView(b.commentDislikeEnabled(), b.commentLikeLabel(), b.commentDislikeLabel()), membersOnlyCount, viewerAnonymous);
         });
+    }
+
+    // ── AI 연애상담소(V274 — ai-love-counsel-contract) ──────────────────────────
+
+    /** 상담 글의 상담사 답 줄기 — 상담사 계정이 쓴 원댓글과 그 아래 답글의 ID(일반 댓글 목록에서 뺀다) */
+    private Set<Long> counselAnswerThreadIds(List<CommentEntity> all) {
+        Set<Long> counselors = new HashSet<>();
+        aiAccounts.findByCounselorTrueOrderByIdAsc().forEach(a -> counselors.add(a.getUserId()));
+        Set<Long> out = new HashSet<>();
+        if (counselors.isEmpty()) {
+            return out;
+        }
+        for (CommentEntity c : all) {
+            if (c.getParentId() == null && c.getAuthorId() != null && counselors.contains(c.getAuthorId())) {
+                out.add(c.getId());
+            }
+        }
+        for (CommentEntity c : all) {
+            if (c.getParentId() != null && out.contains(c.getParentId())) {
+                out.add(c.getId());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 상담 칸의 상담사 답 댓글 모양({@code GET /api/posts/{id}/counsel}) — 댓글 목록과 같은 보는 사람 판정(추천·비추천·차단·메모·숨김·비회원 지연)으로 그 댓글들만 그린다.
+     * 부르는 쪽의 (읽기) 트랜잭션 안에서. 글·게시판 판정(숨김·꺼짐·소모임)은 부르는 쪽이 끝냈다.
+     *
+     * @return 댓글 ID → 모양(없는 ID 는 빠진다)
+     */
+    public Map<Long, CommentView> counselAnswerViews(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, List<Long> commentIds, Long userId, String ip) {
+        Map<Long, CommentView> out = new LinkedHashMap<>();
+        if (commentIds.isEmpty()) {
+            return out;
+        }
+        Instant now = Instant.now();
+        Set<Long> wanted = new HashSet<>(commentIds);
+        List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(post.getId()).stream().filter(c -> wanted.contains(c.getId())).toList();
+        if (all.isEmpty()) {
+            return out;
+        }
+        Viewer viewer = new Viewer(userId, ip, userId == null, b.commentGuestDelayMinutes(),
+                userId == null ? Set.of() : counters.likedComments(post.getId(), userId),
+                viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()),
+                b.staffHiddenNotice(), b.commentDislikeEnabled(),
+                userId == null || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
+                Set.of(), Map.of(), Map.of(), null, Set.of(), post, Map.of());
+        AuthorMembers members = authors.forComments(authors.members(all.stream().map(CommentEntity::getAuthorId).toList()), all.stream().map(CommentEntity::getId).toList());
+        Map<Long, CommentEntity> byId = new HashMap<>();
+        all.forEach(c -> byId.put(c.getId(), c));
+        for (CommentEntity c : all) {
+            out.put(c.getId(), view(c, viewer, byId, members, s, now));
+        }
+        return out;
     }
 
     /**

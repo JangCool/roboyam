@@ -1,4 +1,4 @@
-# AI 연애상담소 계약 (**시안 확인·정책 권장안 확정 2026-11-26, 개발 전**)
+# AI 연애상담소 계약 (**시안 확인·정책 권장안 확정 2026-11-26 · 서버 구현 2026-11-26 — 아래 「API」·「서버 구현 결과」, 화면 연결 전**)
 
 **의도**: 연애·결혼 게시판(`love`)에 「AI 상담소」 말머리를 두고, 회원이 사연을 올리면 성격이 다른 AI 상담사 셋이 답하고 회원도 답한다. 사연을 쓴 사람이 「가장 도움 된 조언」을 하나 골라 AI와 사람이 겨루는 재미를 만든다. 새 게시판은 만들지 않는다(게시판 유지 — `board-lineup-contract.md`).
 **근거**: 사용자 2026-11-26 「AI 연애 상담소 이건 괜찮은듯」 → 시안 확인. AI 회원 기능(`ai-members-contract.md`)을 쓴다.
@@ -34,8 +34,35 @@ AI 상담사(시안 임시 이름): 팩폭언니(GPT · 직설형) · 토닥이(
 - **10분 안 답**: 실행은 admin 서버(배치 규칙 — api 에 @Scheduled 금지). 기존 AI 회원 실행기(admin `AiMemberScheduler`, 1분)에 상담 답 차례를 더하는 방식 권장.
 - **화면 API**(목업이 만든 타입 그대로 — `apps/user-web/app/composables/counsel/api/useCounselApi.types.ts`): 말머리 `PrefixView.counsel`, 글 줄 `PostRow.counsel { status: WAITING|ANSWERED|PICKED|RISK, aiAnswerCount }`, `GET /api/posts/{id}/counsel`, `PUT /api/posts/{id}/counsel/pick { commentId }`, `GET /api/boards/{slug}/counsel/ranking`. 상담사 AI 댓글은 일반 댓글 목록에서 빼고 상담 칸 응답에만.
 
-## 미확정 (개발 세션에서 권장안을 먼저 제시하고 확인)
-- 상담사 계정: 기존 AI 회원 10명 중에서 고를지, 상담 전용 계정을 새로 만들지 · 이름.
-- 「조언 고르기」 다시 고르기 허용 여부, 순위 집계 주기(주간)·인기글 제외 규칙과의 관계.
-- 위험 사연 판정 방법(낱말 목록 / AI 분류) · 판정 뒤 운영자 알림.
-- API 후보(서버 구현 때 정리): 조언 고르기, 주간 순위 조회, 상담 대상 글 표시.
+## API (서버 구현 2026-11-26 — 미커밋, 컴파일만 확인)
+마이그레이션 shared **V274**`__ai_love_counsel.sql`(V273 은 board-recommend 몫 — 건너뜀) + 반복 `R__batch_24_popular_rank.sql` 수정. admin 스트림 변경 없음.
+- **말머리**: `board_prefixes.counsel`(고유 말머리만 — CHECK). 공개 `PrefixView.counsel` · `PostPrefixRef.counsel`(글 줄·글 보기·프로필 글). 관리자 게시판 저장은 이 칸을 건드리지 않는다.
+- **글 줄** `PostRow.counsel = { status, aiAnswerCount } | null` — 게시판 글 목록만(섞인 목록·프로필은 null). 상태: 위험 `RISK` → 고름 `PICKED` → 상담사 답 1개 이상 `ANSWERED` → 그 밖(판정 전 포함) `WAITING`. 숨긴 글은 null.
+- `GET /api/posts/{id}/counsel` → `PostCounselView`(글 보기와 같은 열기 판정 — 404 `POST_NOT_FOUND` · 403 `POST_HIDDEN`·`SECRET_POST` 등, 상담 글 아님 404 `COUNSEL_NOT_FOUND`).
+  ```json
+  { "status": "ANSWERED", "canPick": true, "pickedCommentId": null, "answerDueAt": "2026-11-26T03:10:00Z",
+    "counselors": [ { "counselorId": "1201", "name": "팩폭언니", "style": "직설형", "ai": { "provider": "OPENAI", "model": "gpt-6-luna" }, "comment": { "id": "…", "...": "CommentView 그대로" } },
+                    { "counselorId": "1202", "name": "토닥이", "style": "공감형", "ai": { "provider": "ANTHROPIC", "model": "claude-haiku-5-5" }, "comment": null } ] }
+  ```
+  위험 사연: `{ "status": "RISK", "canPick": false, "pickedCommentId": null, "answerDueAt": null, "counselors": [] }`. `counselors` = 판정 전이면 지금 켜진 상담사, 판정 뒤면 그때 답하기로 한 상담사(답을 끝내 못 한 상담사는 글 + 60분 뒤 빠진다). `ai` = 답이 있으면 그 답을 만든 모델, 아직이면 계정의 지금 모델. `canPick` = 사연 쓴 사람 · 판정을 마친 위험 아닌 사연(판정 전 1분 안은 false) · 아직 안 고름.
+- `PUT /api/posts/{id}/counsel/pick` `{ "commentId": "…" }` → 바뀐 `PostCounselView`. 로그인 필요(401) + CSRF. 차례: 400 `VALIDATION fields.commentId`(빈 값) → 글 열기 판정 → 403 `COUNSEL_PICK_FORBIDDEN`(사연 쓴 사람 아님) → 409 `COUNSEL_PICK_UNAVAILABLE`(위험·판정 전) → 409 `COUNSEL_ALREADY_PICKED` → 404 `COMMENT_NOT_FOUND`(그 글의 댓글 아님) → 409 `COUNSEL_PICK_UNAVAILABLE`(지운·숨긴 댓글 · 답글 · 상담사가 아닌 AI 의 댓글) → 409 `COUNSEL_PICK_OWN`. 고르면 같은 트랜잭션에서 `counsel_weekly_picks`(그 주 · 게시판 · 상담사, 사람 회원 = 0) +1. 다시 고르기 없음.
+- `GET /api/boards/{slug}/counsel/ranking` → `{ "weekStart": "2026-11-23", "weekEnd": "2026-11-29", "totalPicks": 7, "rows": [ { "rank": 1, "kind": "HUMAN", "name": null, "ai": null, "picks": 3, "percent": 43 }, { "rank": 2, "kind": "AI", "name": "토닥이", "ai": { "provider": "ANTHROPIC", "model": "claude-haiku-5-5" }, "picks": 2, "percent": 29 }, … ] }`. 줄 = 사람 회원 한 줄 + 지금 상담사 전부(+ 이번 주 고른 적 있는 옛 상담사), 많은 순(같으면 사람 → 상담사 만든 차례), 비율은 큰 나머지 반올림으로 합 100 — **고른 것이 없으면 모두 0**(목업은 이때 1·1·1·1). 그 게시판에 상담소 말머리가 없으면 404 `COUNSEL_NOT_FOUND`.
+- **일반 댓글 목록**: 상담 글이면 상담사 계정의 원댓글(과 그 아래 답글)을 `threads`·`best` 에서 빼고 `total` 도 그만큼 뺀다(상담 칸에만).
+- **글쓰기**(새 글 · 다른 말머리에서 「AI 상담소」로 고칠 때): 400 `VALIDATION fields.prefixId` — `counsel.prefix.memberOnly`(비회원) · `counsel.prefix.optedOut`(AI 제외 설정 켬 — 사연이 제공사로 가므로) · `counsel.prefix.dailyLimit`(회원 하루 상한, 지운 글 포함) · `counsel.prefix.siteLimit`(사이트 하루 상한). 한국 날짜 기준.
+- **관리자**(화면 없음 — 이 API 로 켠다, 읽기 `ai-member.read` · 저장 `ai-member.manage`): `GET /api/admin/ai-members/counsel` → `{ memberDailyLimit, siteDailyLimit, memberDailyRange, siteDailyRange, todayPosts, prefixes: [{prefixId, boardId, boardSlug, boardName, name, active, counsel}], counselors: [{aiMemberId, userId, nickname, provider, model, enabled, counselor, style, restingReason}], counselorsMax: 5, styleMax: 20 }` · `PUT …/counsel` `{ memberDailyLimit: 0~10, siteDailyLimit: 0~5000, counselPrefixIds: ["…"], counselors: [{aiMemberId, style}] }`(넘긴 것만 상담소·상담사 — 빠진 것은 푼다) → 같은 모양, 400 `VALIDATION`(칸 이름 그대로 · `counselors[i].aiMemberId`·`counselors[i].style`), 감사 `AI_COUNSEL_SETTINGS_UPDATE`(대상 `AI_MEMBER_SETTINGS`/`COUNSEL`, before/after), 말머리가 바뀌면 게시판 목록 캐시 갱신.
+- **관리자 알림** `AI_COUNSEL_RISK`(CONTENT · WARNING · `post.manage` 보유자 · 이메일 기본 켬 · 링크 `/posts?post={postId}` · 사연마다 한 건). 「확인할 일」 공통 구조가 없어 알림 서랍으로 연결했다.
+
+## 서버 구현 결과 (2026-11-26)
+- **켜는 법**: 공개 서버가 뜰 때(설치 직후·데모 뒤·기동 — `CounselPresetInstaller`, `installation.counsel_seeded_at` 으로 한 번) 연애·결혼 게시판에 「AI 상담소」 말머리(**꺼진 채**)와 상담사 3계정(**꺼진 채**)을 넣는다. 운영자는 ① AI 회원 설정에서 OpenAI·Anthropic 키 ② AI 회원 목록에서 팩폭언니·토닥이·연애분석관 켜기 ③ 관리자 게시판 화면에서 연애·결혼의 「AI 상담소」 말머리 켜기. 다른 말머리·상담사·상한은 `PUT /api/admin/ai-members/counsel`.
+- **상담사 3계정**: 팩폭언니(OPENAI `gpt-6-luna` · 직설형) · 토닥이(ANTHROPIC `claude-haiku-5-5` · 공감형) · 연애분석관(OPENAI `gpt-6.1-terra` · 현실 분석형 — Gemini 18세 미만 조항 미확정이라 GPT 로, 원하는 모델이 꺼져 있으면 그 제공사 기본 모델). 쓸 곳 = 연애·결혼, 새 글 상한 0, 아바타 없음, 소개에 「AI 회원·성격은 설정·전문 상담 아님」. 모델·성향은 관리자에서 바꾼다(계정 고치기는 상담사 표시를 건드리지 않는다). 같은 닉네임 회원이 있으면 그 계정은 건너뛴다.
+- **실행기**(admin `AiMemberScheduler` 1분 · 잠금 `ai-member-runner` — 승인 줄 등록 → **상담소**(`CounselRunner`) → 보통 AI 회원): 시간대·「글 쓰는 때」·하루 호출 상한·`calls-per-tick` 과 무관(상담소 한 바퀴 호출 상한 12). 전체 정지 중에는 쉰다. 보통 AI 회원 실행기는 상담사 계정을 건너뛰고, 상담 글에 첫 댓글을 달지 않는다(「회원 글 댓글 허용」을 켜도).
+  1. 새 사연(24시간 안 · 회원 글 · 비밀글·소모임 아님 · AI 제외 끈 회원) → 1차 낱말 목록(`CounselRules.RISK_WORDS` — 자살·자해·폭력·스토킹·성폭력 등, 공백 무시) 걸리면 `RISK`(WORD) + 알림. 사이트 하루 상한을 넘으면 다음 날까지 판정을 미룬다.
+  2. AI 분류(쉬지 않는 첫 상담사의 모델, RISK·SAFE 한 낱말, 생성 줄은 남기지 않음) → RISK 면 `RISK`(AI) + 알림, SAFE 면 답할 상담사 = 지금 쉬지 않는 상담사. 3번 실패하면 낱말 목록만으로 통과.
+  3. 상담사마다 원댓글 하나(사연 인용 — `AiPiiMasker`, 닉네임 없음 · 페르소나 · 성향 지침 · 상담 규칙(위기 시 109·1366 안내) · 고정 규칙). 답에 위험 낱말·개인정보 모양이 있으면 검수 대기함(`PENDING`), 아니면 바로 게시. 실패 2번이면 그 상담사는 그만, 운영자가 버린 답은 다시 만들지 않는다. 키 없음·결제 부족·키 오류는 보통 AI 회원과 같은 처리. 모두 답했거나 글 + 60분이면 끝.
+- **인기글**: `popular_rank_candidates` 의 댓글 수 = 상담 글이면 `comment_count − 상담사의 지우지 않은 원댓글 수`(최소 댓글 조건에도).
+- **판단한 것**: 「확인할 일」 = 관리자 알림 · 하루 상한은 글쓰기에서 막음(답 없는 글이 쌓이지 않게) · 비회원·AI 제외 회원은 상담 말머리 불가 · 판정 전에는 고르기 불가 · AI 답에 단 답글은 서버가 막지 않음(화면이 단추를 안 줌) · 상담사 답 수의 셈은 댓글 표에서 바로(지운 답 제외).
+
+## 미확정
+- 상담사 이름(시안 임시 이름 그대로 넣음) · 세 번째 상담사 모델(Gemini 조항 확정 뒤 바꿀 수 있음).
+- 관리자 화면(상담소 설정 · 상담사 표시) — admin-web 게시판 화면 작업이 끝난 뒤.
+- 익명 게시판 「연애」 말머리 확대(반응 보고).

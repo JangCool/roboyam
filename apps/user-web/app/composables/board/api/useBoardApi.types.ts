@@ -18,6 +18,8 @@ export interface PrefixView {
     color?: string | null;
     /** 성인 전용 — 고르면 서버가 글을 19금으로 저장한다(글쓰기 화면은 19금 체크를 켜고 잠근다, adult-content-contract). 옛 응답은 `undefined` = false */
     adultOnly?: boolean;
+    /** AI 연애상담소 말머리(연애·결혼 게시판 「AI 상담소」 — ai-love-counsel-contract) — 고르면 목록에 「이번 주 상담 순위」, 글쓰기에 개인정보 경고, 글 보기에 AI 상담 칸. 옛 응답은 `undefined` = false */
+    counsel?: boolean;
 }
 
 export interface BoardView {

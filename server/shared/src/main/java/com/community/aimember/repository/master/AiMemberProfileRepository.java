@@ -19,6 +19,9 @@ public interface AiMemberProfileRepository extends IrobitRepository<AiMemberProf
 
     List<AiMemberProfileEntity> findAllByOrderByIdAsc();
 
+    /** AI 연애상담소 상담사(V274) — 만든 차례(화면의 상담사 차례) */
+    List<AiMemberProfileEntity> findByCounselorTrueOrderByIdAsc();
+
     /** 이 모델을 쓰는 계정 수(모델 목록에서 지우기 전 확인) */
     long countByProviderAndModel(AiProvider provider, String model);
 }

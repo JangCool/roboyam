@@ -30,6 +30,9 @@ import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
+import com.community.post.dto.response.PostCounselRowView;
+import com.community.counsel.service.CounselRowReader;
+import java.util.HashMap;
 import com.community.post.dto.response.PostDetailView;
 import com.community.post.dto.response.PostThumbnailView;
 import com.community.post.dto.response.PostListResponse;
@@ -101,13 +104,17 @@ public class PostQueryService {
     private final TrialPostLinker purchases;
     /** 성인 전용 게시판 접근 판정(adult-board-pin-contract) — 일반 19금 글 판정({@link AdultContentGate})과 따로다 */
     private final AdultBoardGate adultBoards;
+    /** 글 줄의 AI 연애상담소 표시(V274 — ai-love-counsel-contract) */
+    private final CounselRowReader counselRows;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
                             BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
                             BoardStaffActionService staffActions, AdultContentGate adultGate, PostThumbnails thumbnails, SecretPostGate secretGate,
                             PostProcessStatusChanger statusChanger, GlobalNoticeReader globalNotices, PostFeedRows feedRows,
-                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore, TrialPostLinker purchases, AdultBoardGate adultBoards) {
+                            PostThumbnailChoices thumbnailChoices, PostTagStore tagStore, TrialPostLinker purchases, AdultBoardGate adultBoards,
+                            CounselRowReader counselRows) {
+        this.counselRows = counselRows;
         this.adultBoards = adultBoards;
         this.purchases = purchases;
         this.tagStore = tagStore;
@@ -299,12 +306,17 @@ public class PostQueryService {
         // 구입 경로 칩(V241) — 글 묶음의 구입 경로·구매 인증 승인(질의 두 번)
         Map<Long, TrialPostLinker.ListInfo> purchaseInfo = purchases.forList(Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now))
                 .map(PostRowData::id).toList());
+        // AI 연애상담소 상태(V274 — 「AI 상담소」 말머리 글만, 숨긴 글 제외 · 상담 글이 없으면 질의 없음)
+        Map<Long, Long> prefixByPost = new HashMap<>();
+        Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now) && r.prefixId() != null).forEach(r -> prefixByPost.put(r.id(), r.prefixId()));
+        Map<Long, PostCounselRowView> counsels = counselRows.rowsOf(b, prefixByPost);
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
         // 전체 공지(V174) — 고정 공지와 같은 조건(첫 쪽 · 거르기 없음)일 때만 맨 위에
         List<GlobalNoticeView> global = plain && current == 1 ? globalNotices.forBoard(b, now) : List.of();
-        return new PostListResponse(global, pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()), purchaseInfo)).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()), purchaseInfo)).toList(), current, totalPages,
-                result.total(), stores);
+        return new PostListResponse(global,
+                pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()), purchaseInfo, counsels)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals, thumbs, debates, sealed.contains(r.id()), purchaseInfo, counsels)).toList(),
+                current, totalPages, result.total(), stores);
     }
 
     /** 쇼핑몰 칩 수 */
@@ -325,7 +337,7 @@ public class PostQueryService {
     /** @param sealed 보는 사람이 읽을 수 없는 비밀글 — 제목·작성자는 그대로, 내용이 드러나는 칸(썸네일·이미지·투표·딜)을 비운다 */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                             Set<Long> polls, Map<Long, PostDealView> deals, Map<Long, String> thumbs, Map<Long, PostFeedDebateView> debates, boolean sealed,
-                            Map<Long, TrialPostLinker.ListInfo> purchaseInfo) {
+                            Map<Long, TrialPostLinker.ListInfo> purchaseInfo, Map<Long, PostCounselRowView> counsels) {
         TrialPostLinker.ListInfo purchase = purchaseInfo.get(r.id());
         boolean hidden = r.hiddenAt(now);
         boolean bare = hidden || sealed;
@@ -335,7 +347,7 @@ public class PostQueryService {
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()), !bare && polls.contains(r.id()), bare ? null : deals.get(r.id()), r.secretPost(),
                 hidden ? null : PostProcessStatus.effective(b, r.processStatus()), bare ? null : debates.get(r.id()), purchase == null ? null : purchase.source(),
-                purchase != null && purchase.proofApproved());
+                purchase != null && purchase.proofApproved(), hidden ? null : counsels.get(r.id()));
     }
 
     /**
@@ -481,7 +493,7 @@ public class PostQueryService {
 
     static PostPrefixRefView prefixRef(EffectiveBoard b, Long prefixId) {
         Optional<BoardPrefixInfo> prefix = b.prefix(prefixId);
-        return prefix.map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color())).orElse(null);
+        return prefix.map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color(), p.counsel())).orElse(null);
     }
 
     /** 문자열 ID → long. 형식이 틀리면 null */

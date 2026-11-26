@@ -53,6 +53,9 @@ public class InstallationEntity {
     /** 설치 구성의 AI 기본 계정을 넣은(또는 넣을 것이 없어 건너뛴) 시각 — V266. null 이면 아직 */
     private Instant aiMembersSeededAt;
 
+    /** 설치 구성의 AI 연애상담소 기본값(「AI 상담소」 말머리 · 상담사 3계정 — 꺼진 채)을 넣은(또는 넣을 곳이 없어 건너뛴) 시각 — V274. null 이면 아직 */
+    private Instant counselSeededAt;
+
     protected InstallationEntity() {
     }
 
@@ -98,5 +101,9 @@ public class InstallationEntity {
 
     public Instant getAiMembersSeededAt() {
         return aiMembersSeededAt;
+    }
+
+    public Instant getCounselSeededAt() {
+        return counselSeededAt;
     }
 }

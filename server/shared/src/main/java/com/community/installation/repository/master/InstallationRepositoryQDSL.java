@@ -82,6 +82,17 @@ public class InstallationRepositoryQDSL extends IrobitRepositoryQDSL {
     }
 
     /**
+     * 설치 구성의 AI 연애상담소 기본값을 넣었다(또는 넣을 곳이 없어 건너뛰었다)고 표시한다 — 설치가 끝났고 표시가 없을 때만 먹는다(한 번만, V274).
+     *
+     * @return 바뀐 행 수 — 이미 표시돼 있었으면 0
+     */
+    public long markCounselSeeded(Instant seededAt) {
+        return query.update(INSTALLATION).set(INSTALLATION.counselSeededAt, seededAt)
+                .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.status.eq(InstallationStatus.COMPLETED), INSTALLATION.counselSeededAt.isNull())
+                .execute();
+    }
+
+    /**
      * 설치 완료를 표시한다(토큰 해시를 지운다). 설치 전일 때만 먹는 조건부 UPDATE 다.
      *
      * @param boardPreset 설치 때 고른 기본 게시판 구성의 아이디

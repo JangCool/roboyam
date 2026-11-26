@@ -14,6 +14,8 @@
         입장 색은 `main.css` 「토론 입장 색」(찬성 파랑 · 반대 빨강 · 중립 초록) — 늘 입장 글자와 함께 쓴다.
         게시판 제재(board-sanction-contract): 쓰기 제한 중이면(`viewer.writeRestriction`, 또는 쓰다가 받은 `403 BOARD_WRITE_RESTRICTED`) 댓글·의견 입력 자리에 `BoardWriteRestrictionNotice`, 답글 단추 없음.
           매니저·스텝(`sanctionEnabled`)에게는 남의 회원 댓글 ⋯ 에 「작성자 제재」(`sanction` 이벤트 → 페이지 대화창).
+        AI 연애상담소(ai-love-counsel-contract — `counsel` 을 받으면): 일반 구획 제목이 「회원 답변 n」, 원댓글마다 작성자 뒤 「가장 도움 된 조언」(고른 답) · 아래 「이 조언 고르기」(사연 쓴 사람이 아직 고르지 않았을 때 — 내 댓글·답글 제외, `pick` 이벤트 → 페이지 확인창),
+          새 댓글 입력 위 경고는 상담 문구(`AiCommentWarning counsel` — 전문 상담 아님 · 해외 AI 제공사 · 이름·연락처 금지).
         스텝 처리(board-staff-action-contract): `commentDeleteEnabled`(`staffTools.abilities.commentDelete`)면 남의 보이는 댓글 ⋯ 에 「댓글 삭제」(`staff-delete` 이벤트 → 페이지 사유 시트).
     -->
     <section
@@ -87,7 +89,7 @@
         <!-- ── 일반 댓글 머리: 제목 · 정렬 — 위 여백은 다른 카드 머리(카드 첫 줄 `header` 의 14px)와 맞춘다 ── -->
         <div v-else class="flex items-center justify-between gap-2 border-b border-surface pt-3.5 pb-3">
             <h2 :id="headingId" class="text-base font-semibold">
-                {{ t('comment.title') }} <span class="text-primary tabular-nums">{{ generalCount }}</span>
+                {{ counsel ? t('counsel.memberTitle') : t('comment.title') }} <span class="text-primary tabular-nums">{{ generalCount }}</span>
             </h2>
             <div class="flex gap-1 text-xs" role="group" :aria-label="t('comment.sortLabel')">
                 <button v-for="s in SORTS" :key="s" type="button" :class="sortClass(s)" :aria-pressed="sort === s" @click="$emit('sort', s)">{{ t(s === 'OLDEST' ? 'comment.sortOldest' : 'comment.sortLatest') }}</button>
@@ -145,6 +147,13 @@
                         @pin-request="requestPin(thread)"
                         @pin-cancel="cancelPin(thread)"
                     >
+                        <!-- AI 연애상담소 — 고른 답 표시 · 「이 조언 고르기」(원댓글만) -->
+                        <template v-if="counsel && counsel.pickedId === thread.id" #badges>
+                            <CounselPickedBadge />
+                        </template>
+                        <template v-if="counselPickable(thread)" #after>
+                            <CounselPickButton :busy="counsel?.busyId === thread.id" :disabled="Boolean(counsel?.busyId)" @pick="$emit('pick', thread)" />
+                        </template>
                         <template #editor>
                             <CommentForm
                                 :key="`edit-${thread.id}`"
@@ -290,6 +299,8 @@
         <div v-if="!isDebate" class="mt-4 border-t border-surface pt-4">
             <!-- AI 회원 글에 댓글을 쓸 때마다 — 해외 AI 제공사로 보내지니 개인정보는 적지 말라는 경고(닫지 않는다) -->
             <AiCommentWarning v-if="!restriction && board.viewer.canComment && aiPost" />
+            <!-- AI 연애상담소 글 — 회원 답변을 쓰는 자리 위 상담 경고(전문 상담 아님 · 해외 AI 제공사 · 이름·연락처 금지) -->
+            <AiCommentWarning v-else-if="counsel" counsel />
             <!-- 익명 게시판 — 댓글도 「익명」으로 올라간다는 안내(anonymous-board-contract, 글쓰기 화면과 같은 문구) -->
             <AnonymousBoardNotice v-if="!restriction && board.viewer.canComment && anonymousBoard" compact />
             <!-- 이 게시판에서 쓰기 제한 중(게시판 제재) — 다른 까닭보다 먼저, 끝 시각·사유와 함께 -->
@@ -331,7 +342,7 @@ import type { CommentListResponse, CommentSort, CommentView } from '~/composable
 import type { Commenter, CommentKind, DebateStance, OpinionKind } from '~/composables/board/api/useDebateApi.types';
 import type { AuthorAi, ContentFormat, GuestCredentials } from '~/composables/board/api/usePostApi.types';
 import type { CommentLoadState } from '~/composables/board/usePostComments';
-import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
+import type { CommentActions, CommentCounselPick, DebateActions } from '~/components/board/CommentSection.types';
 import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 import UtilAnonymousMessages from '~/utils/util-anonymous-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -362,6 +373,8 @@ interface Props {
     commentDeleteEnabled?: boolean;
     /** AI 회원의 글이면 그 모델 — 일반 댓글 입력칸 위에 「댓글 내용이 해외 AI 제공사로 전송됩니다」 1회 안내(닫으면 이 기기에서 다시 안 보인다 — 계약 「법무 메모」) */
     aiPost?: AuthorAi | null;
+    /** AI 연애상담소 글이면 고르기 상태(위험 사연·상담 글 아님은 null) — 「회원 답변」 제목·「이 조언 고르기」·상담 경고 */
+    counsel?: CommentCounselPick | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -372,6 +385,7 @@ const props = withDefaults(defineProps<Props>(), {
     sanctionEnabled: false,
     commentDeleteEnabled: false,
     aiPost: null,
+    counsel: null,
 });
 
 const emit = defineEmits<{
@@ -382,6 +396,7 @@ const emit = defineEmits<{
     settings: [];
     sanction: [comment: CommentView];
     'staff-delete': [comment: CommentView];
+    pick: [comment: CommentView];
 }>();
 
 const SORTS: readonly CommentSort[] = ['OLDEST', 'LATEST'];
@@ -444,6 +459,13 @@ function staffDeletable(c: CommentView): boolean {
     return UtilBoardStaffAction.commentDeletable(props.commentDeleteEnabled, c);
 }
 const reactions = computed(() => props.data?.reactions ?? null);
+
+/** 「이 조언 고르기」를 그 원댓글 아래에 보일까 — 사연 쓴 사람이 아직 고르지 않았고, 보이는 남의 회원 답일 때(AI 회원 답은 상담 칸이 따로 그린다) */
+function counselPickable(c: CommentView): boolean {
+    const counsel = props.counsel;
+    if (!counsel?.canPick || counsel.pickedId || c.state !== 'VISIBLE' || c.mine) return false;
+    return c.author.kind === 'MEMBER' && !c.author.ai;
+}
 const isDebate = computed(() => props.variant === 'debate');
 
 /* ── 찬반 토론 ── */
