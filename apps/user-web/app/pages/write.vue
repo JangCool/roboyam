@@ -80,6 +80,8 @@
                 :submit-label="t('post.submitCreate')"
                 :upload="uploadImage"
                 :step="formStep"
+                :paste-sources="sourcesShown"
+                @paste-source="onPasteSource"
                 @attempt="onAttempt"
                 @next="onStepNext"
                 @prev="step = 1"
@@ -200,6 +202,7 @@ import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
 import UtilPostSource, { type PostSourceRow } from '~/utils/util-post-source';
+import type { RichPasteSource } from '#layers/rich-editor/utils/util-rich-paste-source';
 import { EMPTY_PURCHASE_SOURCE, type PurchaseSourceValue, type PurchaseTrialOption } from '~/components/board/PostPurchaseSourceField.types';
 import type { TrialWritable } from '~/composables/trial/api/useTrialApi.types';
 
@@ -446,6 +449,14 @@ const sourcesTried = ref(false);
 watch(sources, () => {
     if (fieldErrors.value.sources) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'sources'));
 });
+/** 붙여 넣은 글 끝의 출처(에디터가 본문에서 뺐다) → 출처 칸에 넣는다. 같은 주소가 있으면 조용히, 못 넣으면 주소를 알린다 */
+function onPasteSource(found: RichPasteSource): void {
+    const { result, rows } = UtilPostSource.addFound(sources.value, found);
+    if (result === 'ADDED') {
+        sources.value = rows;
+        toast.show(t('post.sourcePasted'));
+    } else if (result !== 'DUPLICATE') toast.show(t('post.sourcePasteNotAdded', { url: found.url }), { life: 8000 });
+}
 
 /*
  * ── 구입 경로(trial-group-contract 「구입 경로」) — 게시판 `purchaseSourceMode` 가 끔이 아닐 때만. 게시판을 바꿔도 값은 들고 가고, 끈 게시판이면 감추고 보내지 않는다.

@@ -109,8 +109,10 @@
                     :aria-label="t('post.contentLabel')"
                     :placeholder="contentPlaceholder"
                     :disabled="submitting"
+                    :paste-sources="pasteSources"
                     @update:model-value="patch({ content: $event })"
                     @ready="$emit('editorReady', $event)"
+                    @paste-source="$emit('pasteSource', $event)"
                     @media="media = $event"
                 >
                     <!-- 이모티콘 고르기(이모지 탭 + 짤 탭 + 받은 팩) — 이모티콘·짤은 그림 노드, 저장은 토큰 글자 `:emo-ID:`·`:jjal-ID:`. 짤 탭은 게시판 `postJjalAllowed` 일 때만 -->
@@ -200,6 +202,7 @@
 
 <script setup lang="ts">
 import type { RichEditorMediaState, RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
+import type { RichPasteSource } from '#layers/rich-editor/utils/util-rich-paste-source';
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostBoardOption, PostFixedTarget, PostFormValues } from '~/components/board/PostEditorForm.types';
 import UtilBoard from '~/utils/util-board';
@@ -233,6 +236,8 @@ interface Props {
     upload?: RichImageUploader | null;
     /** 단계 입력 — 0 한 번에 · 1 `lead` 단계(게시판·말머리·`lead`) · 2 나머지 단계 */
     step?: 0 | 1 | 2;
+    /** 붙여 넣은 글 끝의 출처 줄을 찾아 `pasteSource` 로 알린다 — 화면에 출처 칸이 있을 때만(글쓰기·고치기) */
+    pasteSources?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -246,6 +251,7 @@ const props = withDefaults(defineProps<Props>(), {
     submitting: false,
     upload: null,
     step: 0,
+    pasteSources: false,
 });
 
 const emit = defineEmits<{
@@ -253,6 +259,8 @@ const emit = defineEmits<{
     'update:boardSlug': [value: string];
     /** 에디터가 처음 만들어졌을 때의 정규화된 HTML — 고치기 화면이 「고쳤는가」의 기준으로 쓴다 */
     editorReady: [html: string];
+    /** 붙여 넣은 글 끝에서 출처를 찾았다(`pasteSources` 일 때만) — 출처 칸에 넣는 것은 화면이 한다 */
+    pasteSource: [source: RichPasteSource];
     submit: [];
     cancel: [];
     /** [등록]을 눌렀다(검사 전) — 화면이 덧붙인 칸의 검사 문구를 함께 보이려고 */

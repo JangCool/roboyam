@@ -95,6 +95,25 @@ export default class UtilPostSource {
     }
 
     /**
+     * 붙여 넣은 글에서 찾은 출처를 입력 줄에 더한다(에디터 `pasteSource` — 사용자 2026-11-26).
+     * 같은 주소가 이미 있거나 주소·이름이 규칙에 맞지 않으면 그대로, 비어 있는 줄이 있으면 그 줄을 채우고 없으면 줄을 더한다(5줄이 차면 그대로). 적어 둔 줄은 덮어쓰지 않는다.
+     * 이름이 40자를 넘으면 이름 없이 넣는다(글 보기는 도메인).
+     * @param {readonly PostSourceRow[]} rows - 지금 입력 줄.
+     * @param {PostSourceRow} found - 찾은 출처.
+     * @returns {{ result: 'ADDED' | 'DUPLICATE' | 'FULL' | 'INVALID'; rows: PostSourceRow[] }} 넣었는가와 새 입력 줄(넣지 않았으면 그대로).
+     */
+    static addFound(rows: readonly PostSourceRow[], found: PostSourceRow): { result: 'ADDED' | 'DUPLICATE' | 'FULL' | 'INVALID'; rows: PostSourceRow[] } {
+        const url = found.url.trim();
+        if (!UtilPostSource.urlOk(url)) return { result: 'INVALID', rows: [...rows] };
+        if (rows.some((row) => row.url.trim() === url)) return { result: 'DUPLICATE', rows: [...rows] };
+        const trimmed = found.name.trim();
+        const row = { name: [...trimmed].length <= UtilPostSource.NAME_MAX ? trimmed : '', url };
+        const empty = rows.findIndex((r) => !r.name.trim() && !r.url.trim());
+        if (empty >= 0) return { result: 'ADDED', rows: rows.map((r, i) => (i === empty ? row : r)) };
+        return rows.length < UtilPostSource.MAX ? { result: 'ADDED', rows: [...rows, row] } : { result: 'FULL', rows: [...rows] };
+    }
+
+    /**
      * 글 보기 응답 → 입력 줄(고치기 화면의 처음 값)
      * @param {readonly PostSource[] | undefined} sources - 글의 출처.
      * @returns {PostSourceRow[]} 입력 줄.

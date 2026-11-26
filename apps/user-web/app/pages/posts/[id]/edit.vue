@@ -80,6 +80,8 @@
             :submit-label="t('post.submitUpdate')"
             :upload="uploadImage"
             :step="formStep"
+            :paste-sources="sourcesShown"
+            @paste-source="onPasteSource"
             @editor-ready="onEditorReady"
             @attempt="onAttempt"
             @next="onStepNext"
@@ -179,6 +181,7 @@ import UtilPost from '~/utils/util-post';
 import UtilPostOps from '~/utils/util-post-ops';
 import UtilPostTag from '~/utils/util-post-tag';
 import UtilPostSource, { type PostSourceRow } from '~/utils/util-post-source';
+import type { RichPasteSource } from '#layers/rich-editor/utils/util-rich-paste-source';
 
 definePageMeta({ shell: 'inner' });
 
@@ -435,6 +438,14 @@ const sourcesTried = ref(false);
 watch(sources, () => {
     if (fieldErrors.value.sources) fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => k !== 'sources'));
 });
+/** 붙여 넣은 글 끝의 출처(에디터가 본문에서 뺐다) → 출처 칸에 넣는다. 같은 주소가 있으면 조용히, 못 넣으면 주소를 알린다 */
+function onPasteSource(found: RichPasteSource): void {
+    const { result, rows } = UtilPostSource.addFound(sources.value, found);
+    if (result === 'ADDED') {
+        sources.value = rows;
+        toast.show(t('post.sourcePasted'));
+    } else if (result !== 'DUPLICATE') toast.show(t('post.sourcePasteNotAdded', { url: found.url }), { life: 8000 });
+}
 
 /*
  * ── 구입 경로(trial-group-contract 「구현 결정」 9) — 서버 `PUT` 은 칸을 빼면 그대로라, 바꿨을 때만 싣는다. 이 화면에서는 체험단을 새로 잇지 않는다(체험단 고르기 없음).

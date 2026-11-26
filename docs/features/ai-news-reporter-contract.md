@@ -10,6 +10,7 @@ AI 기자 계정이 뉴스 게시판에 개인 글이 아니라 **트렌드 뉴�
   - 저장: `posts.sources jsonb`(NULL = 없음) `[{"name":"전자신문","url":"https://…"}]`. 규칙(서버 `PostSources`): 최대 5개 · 이름 앞뒤 공백 정리 0~40자(비면 글 보기가 주소의 도메인) · 주소 필수 http(s) 만 500자 · 같은 주소는 하나. 틀리면 400 `fields.sources`(`post.sources.urlInvalid`·`nameTooLong`·`tooMany`). 출처 이름은 금지어 검사에 넣고 가림 방식이면 가려 저장.
   - 글쓰기 `POST /api/posts` `sources`(빼면 없음) · 고치기 `PUT /api/posts/{id}` `sources`(빼거나 null = 그대로, 빈 목록 = 지움). 옵션이 꺼진 게시판이면 무시(새 글은 빈 값, 고치기는 그대로). 소모임 글은 받지 않는다. 글 상세 응답 `sources`(옵션을 꺼도 이미 단 것은 싣는다), 게시판 상세 `sourcesEnabled`.
   - 화면: 글쓰기·고치기 「출처」 칸(줄마다 이름 + 주소, [출처 더하기]·줄 지우기, 최대 5 — `PostSourcesField`). 글 보기 본문 아래·태그 위 「출처」 묶음(새 창, `rel="nofollow noopener noreferrer"`).
+  - 붙여넣기 출처 자동 등록(2026-11-26 사용자 「뉴스 작성시 출처가 클립보드에 같이 묶여오는데 출처 항목에 자동 등록」 — 화면만, 서버 그대로): 출처 칸이 보이는 글쓰기·고치기에서, 붙여 넣은 글의 빈 줄 뺀 마지막 3줄 중 아래부터 주소 있는 첫 줄(글자에 주소가 없으면 출처 낱말 줄의 링크 주소)을 출처로. 이름은 그 줄·바로 위 줄·아래 줄의 「출처: 이름」·「ⓒ 이름」, 없으면 빈 이름. 출처 줄만 있으면(링크 하나) 안 함. 주소 줄(+ 바로 위 출처 낱말 줄)부터 끝까지가 출처 줄(출처·ⓒ·©·Copyright·무단 전재·재배포 금지 낱말, 또는 주소만)이면 본문에서 뺀다 — 문장 속 주소는 본문 그대로. 같은 주소면 조용히, 빈 줄 먼저 채우고 없으면 더함, 5줄이 차면 넣지 않고 토스트로 주소를 알림. 클립보드 HTML `<!--SourceURL:-->` 이 오면(같은 사이트 제외) 글자에서 못 찾았을 때 이름 없이 쓴다. 에디터 `pasteSources`/`pasteSource`(`editor/pasteSource.ts`), 화면 `UtilPostSource.addFound`.
 
 ## 소재 수집(키 없음)
 - 출처 목록(관리자 AI 회원 설정 「뉴스 출처」에서 더하기·끄기·지우기): 종류 `RSS`(언론사·매체 RSS 주소) · `YOUTUBE`(채널 ID → `https://www.youtube.com/feeds/videos.xml?channel_id=…`) · `KEYWORD`(구글 뉴스 RSS 검색 `https://news.google.com/rss/search?q=…&hl=ko&gl=KR&ceid=KR:ko` — 기본 꺼짐, 소재 찾기용, 글에는 원 언론사 출처).

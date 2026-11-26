@@ -45,6 +45,8 @@ export default {
     sourceUrlInvalid: '주소는 http:// 또는 https:// 로 시작하는 {max}자 이하로 적어 주세요.',
     sourceNameTooLong: '출처 이름은 {max}자까지 적을 수 있어요.',
     sourceUrlDuplicate: '위에 같은 주소가 있어요. 한 줄만 남겨 주세요.',
+    sourcePasted: '붙여 넣은 글의 출처를 출처 칸에 넣었어요.',
+    sourcePasteNotAdded: '붙여 넣은 글의 출처를 출처 칸에 넣지 못했어요. 필요하면 직접 넣어 주세요: {url}',
     sourcesTitle: '출처',
 
     // 댓글 많은 글 보호

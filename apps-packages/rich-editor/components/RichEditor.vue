@@ -76,6 +76,8 @@ import { UploadSlots, releaseSlot, reserveSlot, takeSlot } from '#layers/rich-ed
 import { countMedia } from '#layers/rich-editor/editor/mediaCount';
 import UtilRichFormats from '#layers/rich-editor/utils/util-rich-formats';
 import UtilRichMedia from '#layers/rich-editor/utils/util-rich-media';
+import type { RichPasteSource } from '#layers/rich-editor/utils/util-rich-paste-source';
+import { takePasteSource } from '#layers/rich-editor/editor/pasteSource';
 
 interface Props {
     level?: RichEditorLevel;
@@ -101,6 +103,11 @@ interface Props {
      * 넘으면 링크로 붙는다. 고급 수준은 도구 모음의 유튜브 넣기를 쓴다
      */
     videoLinks?: number;
+    /**
+     * 붙여 넣은 글 끝의 출처 줄(기사 사이트가 복사 때 덧붙인 「출처: 매체 + 주소」)을 찾아 `pasteSource` 로 알리고 본문에서 뺀다(user-web 출처 칸 게시판, 사용자 2026-11-26).
+     * 규칙은 `editor/pasteSource.ts`
+     */
+    pasteSources?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -117,6 +124,7 @@ const props = withDefaults(defineProps<Props>(), {
     emoticons: null,
     jjals: null,
     videoLinks: 0,
+    pasteSources: false,
 });
 
 const html = defineModel<string>({ default: '' });
@@ -126,6 +134,8 @@ const emit = defineEmits<{
     ready: [html: string];
     /** 첨부 상태 — 이미지·유튜브 수, 올리는 중·실패한 이미지 수 */
     media: [state: RichEditorMediaState];
+    /** 붙여 넣은 글에서 출처를 찾았다(`pasteSources` 일 때만) — 출처 칸에 넣는 것은 부모가 한다 */
+    pasteSource: [source: RichPasteSource];
 }>();
 
 const { t } = useI18n();
@@ -259,6 +269,23 @@ function pasteVideo(view: EditorView, text: string): boolean {
     return true;
 }
 
+/** 이번 붙여넣기 HTML 의 `<!--SourceURL:-->`(브라우저가 넣어 주면) — `transformPastedHTML` 이 적고 바로 뒤 `transformPasted` 가 쓴다 */
+let pastedSourceUrl: string | null = null;
+
+/**
+ * 클립보드 HTML 머리말의 원문 주소 — 이 사이트 안에서 복사한 것은 출처로 보지 않는다
+ * @returns {string | null} 주소, 없으면 null.
+ */
+function sourceUrlComment(pasted: string): string | null {
+    const url = pasted.match(/<!--\s*SourceURL:\s*(\S+?)\s*-->/i)?.[1] ?? null;
+    if (!url) return null;
+    try {
+        return new URL(url).origin === window.location.origin ? null : url;
+    } catch {
+        return null;
+    }
+}
+
 /** 이미지를 받지 않는 에디터에 파일이 왔다 */
 function refuseFiles(): void {
     showNotice(t('richEditor.imageNotAllowed'));
@@ -282,7 +309,20 @@ const editor = useEditor({
             ...(props.describedby ? { 'aria-describedby': props.describedby } : {}),
         },
         // 다른 곳에서 복사한 글의 팔레트 밖 색·다른 style 은 지운다(저장하면 어차피 사라지므로 에디터에서도 미리 없앤다)
-        transformPastedHTML: (pasted) => (advanced ? UtilRichFormats.cleanPastedStyles(pasted) : pasted),
+        transformPastedHTML: (pasted) => {
+            pastedSourceUrl = props.pasteSources ? sourceUrlComment(pasted) : null;
+            return advanced ? UtilRichFormats.cleanPastedStyles(pasted) : pasted;
+        },
+        // 붙여 넣은 글 끝의 출처 줄 — 찾으면 부모에 알리고 출처 줄은 본문에서 뺀다(`pasteSources`)
+        transformPasted: (slice) => {
+            const fallback = pastedSourceUrl;
+            pastedSourceUrl = null;
+            if (!props.pasteSources || props.disabled) return slice;
+            const found = takePasteSource(slice, fallback);
+            if (!found) return slice;
+            emit('pasteSource', found.source);
+            return found.slice;
+        },
         // 이미지 파일 붙여넣기 — 글자가 함께 들어 있으면(워드·엑셀 복사) 글자 붙여넣기를 그대로 둔다
         handlePaste: (view, event) => {
             const data = event.clipboardData;
