@@ -18,7 +18,7 @@
         운영 게시판(버그 신고·기능 요청): 처리 상태가 켜진 게시판(`statusEnabled`)은 말머리 아래 상태 거르기 칩(전체 + 7개, `?status=`)과 줄마다 상태 딱지,
           비밀글(`secret`)은 줄 제목 앞 자물쇠(제목은 그대로). 줄 모양은 `PostRowTitle` 이 그린다.
         AI 연애상담소(ai-love-counsel-contract): 「AI 상담소」 말머리(`prefix.counsel`)를 고르면 말머리 줄 아래 「이번 주 상담 순위」(`CounselRankingCard` — `GET /api/boards/{slug}/counsel/ranking`),
-          글 줄은 상태 칩(채택 · AI 답변 n · 답변 기다리는 중 — `PostRowChips` 의 `PostCounselChip`). 지금은 목업(`?mock=counsel`, 개발 서버만 — `counsel-mock.ts`).
+          글 줄은 상태 칩(채택 · AI 답변 n · 답변 기다리는 중 — `PostRowChips` 의 `PostCounselChip`, 서버 `PostRow.counsel`).
     -->
     <div>
         <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->

@@ -66,13 +66,7 @@ export function usePostApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        post: async (id: string, signal?: AbortSignal): Promise<PostDetail> => {
-            if (import.meta.dev) {
-                const mock = (await import('~/composables/counsel/api/mock/counsel-mock')).default; // MOCK: AI 연애상담소 — 목업 상담 글
-                if (mock.ownsPost(id)) return mock.post(id); // MOCK:
-            }
-            return client.get<PostDetail>(PATH.post(id), { signal }); // REAL:
-        },
+        post: (id: string, signal?: AbortSignal): Promise<PostDetail> => client.get<PostDetail>(PATH.post(id), { signal }),
 
         create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
 

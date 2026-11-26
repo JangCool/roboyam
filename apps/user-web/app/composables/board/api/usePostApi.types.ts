@@ -269,13 +269,13 @@ export interface PostRow {
     purchaseSource?: PurchaseSource | null;
     /** 구매 인증 승인 — 「구매 인증」 칩(직접 구매 칩 대신). 옛 응답은 없음 */
     purchaseProofApproved?: boolean;
-    /** AI 연애상담소 상태(「AI 상담소」 말머리 글만 — 칩 채택 · AI 답변 n · 답변 기다리는 중, ai-love-counsel-contract). **서버 후보**, 그 밖·옛 응답은 null·없음 */
+    /** AI 연애상담소 상태(「AI 상담소」 말머리 글만 — 칩 채택 · AI 답변 n · 답변 기다리는 중, ai-love-counsel-contract). 게시판 글 목록만 준다(섞인 목록·프로필·숨긴 글·그 밖·옛 응답은 null·없음) */
     counsel?: PostCounselRow | null;
 }
 
 /**
  * AI 연애상담소 글의 상태(ai-love-counsel-contract) — 답변 기다리는 중(AI 답이 아직 하나도 없다) · AI 답변 있음 · 채택(사연 쓴 사람이 조언 하나를 골랐다) · 위험 사연(AI 가 답하지 않고 안내만).
- * 글 줄 칩: `WAITING` 「답변 기다리는 중」 · `ANSWERED` 「AI 답변 n」 · `PICKED` 「채택」 · `RISK` 칩 없음(목록에서 위험 사연을 드러내지 않는다 — 화면 가정). 상담 칸의 나머지 모양은 `useCounselApi.types.ts`
+ * 글 줄 칩: `WAITING` 「답변 기다리는 중」 · `ANSWERED` 「AI 답변 n」 · `PICKED` 「채택」 · `RISK` 칩 없음(목록에서 위험 사연을 드러내지 않는다). 판정 전도 `WAITING`. 상담 칸의 나머지 모양은 `useCounselApi.types.ts`
  */
 export type CounselStatus = 'WAITING' | 'ANSWERED' | 'PICKED' | 'RISK';
 

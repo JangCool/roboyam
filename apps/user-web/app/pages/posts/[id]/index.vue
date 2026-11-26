@@ -953,7 +953,11 @@ const counselPick = computed<CommentCounselPick | null>(() => {
     return { canPick: c.canPick, pickedId: c.pickedCommentId, busyId: counsel.pickBusyId.value };
 });
 
-/** 「이 조언 고르기」(AI 상담사 답·회원 답) — 확인창 뒤 고른다. 실패는 서버 문구(이미 골랐음·권한 없음 등) 후 칸을 다시 받는다 */
+/**
+ * 「이 조언 고르기」(AI 상담사 답·회원 답) — 확인창 뒤 고른다. 실패는 서버 문구를 토스트로 알리고 칸을 다시 받는다:
+ * 403 `COUNSEL_PICK_FORBIDDEN`(사연 쓴 사람 아님) · 409 `COUNSEL_PICK_UNAVAILABLE`(위험·판정 전 · 지운·숨긴 댓글 · 답글) · 409 `COUNSEL_ALREADY_PICKED` · 409 `COUNSEL_PICK_OWN` · 404 `COMMENT_NOT_FOUND`.
+ * 고른 댓글이 사라졌을 수 있는 두 경우(`COMMENT_NOT_FOUND`·`COUNSEL_PICK_UNAVAILABLE`)는 회원 답변 목록도 다시 받는다.
+ */
 async function onCounselPick(c: CommentView): Promise<void> {
     if (counsel.pickBusyId.value) return;
     const name = UtilAnonymousMessages.authorName(t, c.author);
@@ -966,6 +970,7 @@ async function onCounselPick(c: CommentView): Promise<void> {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') return prompt('like');
         toast.error(UtilBoardMessages.of(t, e), 8000);
         void counsel.load();
+        if (e instanceof ApiError && (e.code === 'COMMENT_NOT_FOUND' || e.code === 'COUNSEL_PICK_UNAVAILABLE')) void comments.load();
     }
 }
 

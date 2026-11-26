@@ -126,7 +126,7 @@ const { t } = useI18n();
 const headingId = useId();
 
 const answeredCount = computed(() => props.counsel?.counselors.filter((c) => c.comment).length ?? 0);
-/** 시한(사연 + 10분)이 지났는데 아직 쓰는 상담사가 있다 — 화면을 연 때 기준(목업은 시계를 돌리지 않는다) */
+/** 시한(사연 + 10분)이 지났는데 아직 쓰는 상담사가 있다 — 칸을 받은 때 기준(시계를 돌리지 않는다) */
 const late = computed(() => {
     const c = props.counsel;
     if (!c?.answerDueAt || !c.counselors.some((x) => !x.comment)) return false;
