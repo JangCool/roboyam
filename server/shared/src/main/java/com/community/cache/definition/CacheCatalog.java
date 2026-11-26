@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 캐시 카탈로그 26개(공개 화면 6 · 가젯 7 · 설정 사본 8 · 내부 규칙 5) — 코드가 원천이다. 차례가 관리자 목록 차례다(docs/features/cache-admin-contract.md 「캐시 목록」).
+ * 캐시 카탈로그 27개(공개 화면 7 · 가젯 7 · 설정 사본 8 · 내부 규칙 5) — 코드가 원천이다. 차례가 관리자 목록 차례다(docs/features/cache-admin-contract.md 「캐시 목록」).
  * TTL·켜기/끄기·세대 번호는 DB({@code cache_settings})에 두고, 행이 없으면 이 정의의 기본값(TTL 기본값 · 켜짐 · 세대 0)이다.
  */
 public final class CacheCatalog {
@@ -58,6 +58,8 @@ public final class CacheCatalog {
             view(CacheNames.HOME_LATEST, 60, SHARED_WITH_MEMBER_OVERLAY, List.of(area("/latest")), List.of(BOARDS)),
             view(CacheNames.HOME_POPULAR, 120, SHARED_WITH_MEMBER_OVERLAY, List.of(area("/popular")), List.of(POPULAR, POPULAR_SETTINGS)),
             view(CacheNames.MENU_PUBLIC, 300, SHARED_WITH_MEMBER_OVERLAY, List.of(area("/"), area("/boards")), List.of(MENUS)),
+            // 게시판 추천 글(board-recommend-contract) — 고른 글 + 추천 많은 글 채우기. 줄에 회원별 칸이 없어 공용
+            view(CacheNames.BOARDS_RECOMMENDED, 60, SHARED, List.of(area("/boards/free")), List.of(HIGHLIGHTS, BOARDS)),
             // 가젯 데이터 — 항목 키 = 가젯 설정 지문. 글 줄(차단·메모)·내 상태가 있는 종류만 회원 덧입힘
             gadget("POST_LIST", 60, SHARED_WITH_MEMBER_OVERLAY, List.of(THEME)),
             gadget("HIGHLIGHT", 120, SHARED_WITH_MEMBER_OVERLAY, List.of(THEME, HIGHLIGHTS)),

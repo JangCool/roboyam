@@ -95,6 +95,8 @@
                     <i class="pi pi-info-circle" aria-hidden="true" />{{ t('board.adultNotice') }}
                 </p>
 
+                <BoardRecommendCards :items="recommended.items.value" :color="view?.color" />
+
                 <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례. 넘치면 양끝에 그라데이션 화살표(모바일도 — 누르면 한 쪽씩 넘어간다, 손가락 밀기도 된다) -->
                 <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3" :aria-label="t('board.prefixNav')">
                     <AppScrollRow mode="ARROWS" touch scroller-class="px-4 py-0.5">
@@ -396,6 +398,9 @@ function showPin(lockedUntil: string | null): void {
 useAdultBoardPinDemand((lockedUntil) => {
     if (boardState.value === 'ready') showPin(lockedUntil);
 });
+
+/** 목록 위 추천 글 카드(board-recommend-contract) — 게시판 정보와 함께 받는다. 핀 입력 중에는 쉬고, 핀을 넣으면 다시 받는다 */
+const recommended = useBoardRecommended(() => (boardState.value === 'pin' ? null : slug.value));
 
 const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.writeLock));
 /** 게시판 제재(board-sanction-contract) — 매니저·스텝 본인의 운영 도구 · 보는 나의 이 게시판 쓰기 제한 */

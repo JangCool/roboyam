@@ -167,6 +167,7 @@ public final class AuditRetention {
             AuditActions.AVATAR_UPLOAD_APPROVE, AuditActions.AVATAR_UPLOAD_REJECT, AuditActions.AVATAR_UPLOAD_REVOKE,
             AuditActions.POPULAR_SETTINGS_UPDATE, AuditActions.POPULAR_EXCLUDE, AuditActions.POPULAR_RESTORE,
             AuditActions.HIGHLIGHT_CREATE, AuditActions.HIGHLIGHT_UPDATE, AuditActions.HIGHLIGHT_DELETE, AuditActions.HIGHLIGHT_ORDER, AuditActions.HIGHLIGHT_VISIBLE,
+            AuditActions.HIGHLIGHT_AUTO_FILL,
             AuditActions.HIGHLIGHT_OPINION_PIN, AuditActions.HIGHLIGHT_OPINION_UNPIN, AuditActions.HIGHLIGHT_OPINION_HIDE, AuditActions.HIGHLIGHT_OPINION_UNHIDE,
             AuditActions.HIGHLIGHT_PIN_REQUEST_APPROVE, AuditActions.HIGHLIGHT_PIN_REQUEST_REJECT,
             AuditActions.DEBATE_OPEN, AuditActions.DEBATE_UPDATE, AuditActions.DEBATE_CLOSE,

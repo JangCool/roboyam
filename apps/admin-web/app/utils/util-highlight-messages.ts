@@ -40,12 +40,14 @@ export default class UtilHighlightMessages {
 
     /** 곳 고르개 이름 — 가젯 페이지는 「가젯 페이지 · 이름」(홈·팁 묶음은 서버 이름 그대로) */
     static placeLabel(t: Translate, place: HighlightPlace): string {
-        return place.kind === 'PAGE' ? t('highlight.placePage', { name: place.name }) : place.name;
+        if (place.kind === 'PAGE') return t('highlight.placePage', { name: place.name });
+        return place.kind === 'BOARD' ? t('highlight.placeBoard', { name: place.name }) : place.name;
     }
 
-    /** 곳 고르개 선택지 — 목록을 아직 못 받았으면 지금 곳 하나(키 그대로) */
+    /** 하이라이트 가젯 ⚙ 의 곳 고르개 선택지 — 게시판 곳은 빼고(게시판 목록 위 카드 전용 — board-recommend-contract), 목록을 아직 못 받았으면 지금 곳 하나(키 그대로) */
     static placeOptions(t: Translate, places: readonly HighlightPlace[], current: string): { value: string; label: string }[] {
-        if (!places.length) return [{ value: current, label: current }];
-        return places.map((p) => ({ value: p.key, label: UtilHighlightMessages.placeLabel(t, p) }));
+        const usable = places.filter((p) => p.kind !== 'BOARD');
+        if (!usable.length) return [{ value: current, label: current }];
+        return usable.map((p) => ({ value: p.key, label: UtilHighlightMessages.placeLabel(t, p) }));
     }
 }

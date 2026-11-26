@@ -6,7 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 
 /**
- * 하이라이트로 지정할 수 없는 글이다(400) — {@code fields.postId} 에 까닭 문구: NOT_FOUND(없는 글) · NOT_PUBLIC(지웠거나 숨겼거나 공개 전) · ADULT(19금) · BOARD_OFF(게시판이 꺼짐).
+ * 하이라이트로 지정할 수 없는 글이다(400) — {@code fields.postId} 에 까닭 문구: NOT_FOUND(없는 글) · NOT_PUBLIC(지웠거나 숨겼거나 공개 전) · ADULT(19금) · BOARD_OFF(게시판이 꺼짐) · OTHER_BOARD(게시판 곳에 다른 게시판 글).
  */
 public class HighlightPostInvalidException extends CommonException {
 
@@ -14,6 +14,8 @@ public class HighlightPostInvalidException extends CommonException {
     public static final String NOT_PUBLIC = "NOT_PUBLIC";
     public static final String ADULT = "ADULT";
     public static final String BOARD_OFF = "BOARD_OFF";
+    /** 게시판 곳(board-recommend-contract)에 다른 게시판의 글 */
+    public static final String OTHER_BOARD = "OTHER_BOARD";
 
     public HighlightPostInvalidException(String reason) {
         super(HttpStatus.BAD_REQUEST, "HIGHLIGHT_POST_INVALID", new MessageRef("error.HIGHLIGHT_POST_INVALID"),

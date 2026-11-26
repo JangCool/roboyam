@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.highlight.service.HighlightPlaces;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.request.GadgetPageSaveRequest;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
@@ -238,6 +239,8 @@ public class GadgetPageAdminService {
             fields.put("key", new MessageRef("gadgetPage.key.system"));
         } else if (!KEY.matcher(key).matches()) {
             fields.put("key", new MessageRef("gadgetPage.key"));
+        } else if (HighlightPlaces.boardReserved(key) && (self == null || !key.equals(self.getPageKey()))) {
+            fields.put("key", new MessageRef("gadgetPage.key.reserved")); // board- 는 하이라이트 게시판 곳 몫(board-recommend-contract)
         } else if (selfId == null ? pages.existsByPageKey(key) : pages.existsByPageKeyAndIdNot(key, selfId)) {
             fields.put("key", new MessageRef("gadgetPage.key.taken"));
         }

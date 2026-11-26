@@ -1,8 +1,10 @@
 package com.community.highlight.controller;
 
+import com.community.highlight.dto.request.HighlightAutoFillRequest;
 import com.community.highlight.dto.request.HighlightOrderRequest;
 import com.community.highlight.dto.request.HighlightSaveRequest;
 import com.community.highlight.dto.request.HighlightVisibleRequest;
+import com.community.highlight.dto.response.HighlightBoardPlaceView;
 import com.community.highlight.dto.response.HighlightCandidatesView;
 import com.community.highlight.dto.response.HighlightItemView;
 import com.community.highlight.dto.response.HighlightListView;
@@ -49,11 +51,29 @@ public class HighlightController {
         return noStore(service.list(place));
     }
 
-    /** 하이라이트를 놓을 수 있는 곳 {@code [{key, name, kind}]} — 홈 · 팁·강좌·사용기 · 가젯 페이지 */
+    /**
+     * 하이라이트를 놓을 수 있는 곳 {@code [{key, name, kind, total, boardId, autoFill}]} — 홈 · 팁·강좌·사용기 · 가젯 페이지 · 게시판 곳(고른 글이 있거나 자동 채우기를 끈
+     * 게시판만, kind BOARD — board-recommend-contract)
+     */
     @RequirePermission(Permission.HIGHLIGHT_READ)
     @GetMapping("/places")
     public ResponseEntity<ApiResponse<List<HighlightPlaceView>>> places() {
         return noStore(service.places());
+    }
+
+    /** 게시판 곳을 열 수 있는 일반 게시판 전체(「+ 게시판 곳 추가」) — 꺼진 게시판 포함, 게시판 차례 */
+    @RequirePermission(Permission.HIGHLIGHT_READ)
+    @GetMapping("/boards")
+    public ResponseEntity<ApiResponse<List<HighlightBoardPlaceView>>> boards() {
+        return noStore(service.boards());
+    }
+
+    /** 게시판 곳의 「모자라면 추천 많은 글로 자동 채우기」 — {@code place} = {@code board-{boardId}}, 본문 {@code {autoFill}} */
+    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
+    @PutMapping("/places/{place}/auto-fill")
+    public ResponseEntity<ApiResponse<HighlightBoardPlaceView>> autoFill(@PathVariable String place, @RequestBody(required = false) HighlightAutoFillRequest body,
+                                                                       AdminActor actor) {
+        return noStore(service.autoFill(actor, place, body));
     }
 
     /** 대상 글 찾기 — {@code q} 제목 일부(2자 이상) 또는 글 번호(숫자 15자리 이상), 그 {@code place} 에 아직 없는 글. 최대 10개 */
